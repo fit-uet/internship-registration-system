@@ -1160,6 +1160,26 @@ function AdminSettings({ token }: { token: string }) {
     }
   };
 
+  const handleSavePlan = async () => {
+    setSavingUrl(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/google-sheet`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ plan: planContent })
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      alert('Đã lưu Kế hoạch triển khai thành công!');
+    } catch (e) {
+      alert('Lỗi khi lưu.');
+    } finally {
+      setSavingUrl(false);
+    }
+  };
+
   const handleSaveCampaign = async () => {
     setSavingCampaign(true);
     try {
