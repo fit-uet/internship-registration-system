@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { dirname, join } from 'path';
 import fs from 'fs';
-import { DatabaseSync } from 'node:sqlite';
+import { createClient, Client } from '@libsql/client';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { parse } from 'csv-parse/sync';
@@ -13,12 +13,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'uyet-vnu-secret-key-1234';
 const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '123456789-mock.apps.googleusercontent.com';
 const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-let db: DatabaseSync;
+let db: Client;
 
-function initDb() {
-  db = new DatabaseSync('./database.sqlite');
+async function initDb() {
+  db = createClient({ 
+  url: process.env.TURSO_DATABASE_URL || 'libsql://internship-db-kieuvantuyen01.aws-ap-northeast-1.turso.io', 
+  authToken: process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzg2Njc1ODgsImlkIjoiMDE5ZTIwYmMtZjYwMS03NDM4LWJhNGYtM2RmMGY0ZTczMWQ4IiwicmlkIjoiZTMxNjg3NjYtZWYzYy00OTI0LTlmYzItNWM3NzBlYTJhY2U0In0.6Ll3Ta48hjFtTme0UBKZZ8xNVO0wOD-f4JKTgRMGsTS4ob7ZiGAt1HIZxZ3b98seSdTDjP3XkgV6VGg3ii_ZAw' 
+});
 
-  db.exec(`
+  await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -59,41 +62,41 @@ function initDb() {
 
   // Seed settings if empty
   const defaultSheetUrl = 'https://docs.google.com/spreadsheets/d/1VVH_O6glb3e9ugXa7SZcm0JuSNxm9NtarHRKubwJeY4/export?format=csv';
-  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('google_sheet_url', '${defaultSheetUrl}')`);
-  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_year', '2026')`);
-  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
-  db.exec(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('google_sheet_url', '${defaultSheetUrl}')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_year', '2026')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
 
-  try { db.exec('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN history TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN qualifications TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN address TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN history TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN qualifications TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN address TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch(e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch(e) {}
   
-  try { db.exec('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN class_name TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) {}
-  try { db.exec('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN class_name TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) {}
 
-  const otherExist = db.prepare("SELECT id FROM companies WHERE name = 'Khác'").get();
+  const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0];
   if (!otherExist) {
-    db.prepare(`
+    await db.execute({ sql: `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run('Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '');
+    `, args: ['Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', ''] });
   }
 }
 
 async function seedCompaniesIfEmpty() {
-  const count = db.prepare("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác'").get() as { count: number };
+  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác'")).rows[0] as { count: number };
   if (count.count > 0) return;
 
-  const setting = db.prepare("SELECT value FROM settings WHERE key = 'google_sheet_url'").get() as {value: string};
+  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
   if (!setting || !setting.value) return;
 
   let fetchUrl = setting.value;
@@ -111,10 +114,10 @@ async function seedCompaniesIfEmpty() {
     const csvData = await response.text();
     const records = parse(csvData, { columns: true, skip_empty_lines: true });
 
-    const insertStmt = db.prepare(`
+    const insertSql1 = `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
     for (const record of records) {
       if (!record["Timestamp"]) continue;
@@ -145,7 +148,7 @@ async function seedCompaniesIfEmpty() {
       let qualifications = '';
       const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
-      insertStmt.run(name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName);
+      await db.execute({ sql: insertSql1, args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName] });
     }
   } catch (e) {
     console.error("Error seeding companies:", e);
@@ -153,7 +156,7 @@ async function seedCompaniesIfEmpty() {
 }
 
 async function startServer() {
-  initDb();
+  await initDb();
   await seedCompaniesIfEmpty();
   
   const app = express();
@@ -174,7 +177,7 @@ async function startServer() {
     
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      req.user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+      req.user = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [decoded.id] })).rows[0];
       if (!req.user) return res.status(401).json({ error: 'User not found' });
       next();
     } catch (e) {
@@ -224,15 +227,15 @@ async function startServer() {
 
       const role = (email === adminEmail) ? 'admin' : 'student';
 
-      let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+      let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
-        const result = db.prepare(
+        const result = await db.execute({ sql: 
           'INSERT INTO users (email, name, picture, role) VALUES (?, ?, ?, ?)'
-        ).run(email, payload.name, payload.picture, role);
+        , args: [email, payload.name, payload.picture, role] });
         user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role };
       } else {
          // Update picture/name sometimes
-         db.prepare('UPDATE users SET name = ?, picture = ? WHERE id = ?').run(payload.name, payload.picture, user.id);
+         await db.execute({ sql: 'UPDATE users SET name = ?, picture = ? WHERE id = ?', args: [payload.name, payload.picture, user.id] });
          user.name = payload.name;
          user.picture = payload.picture;
       }
@@ -246,12 +249,12 @@ async function startServer() {
 
   // 2. Get Companies
   app.get('/api/companies', requireAuth, async (req: any, res: any) => {
-    const companies = db.prepare(`
+    const companies = (await db.execute(`
       SELECT c.*, 
              c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
              (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
       FROM companies c
-    `).all();
+    `)).rows;
     res.json(companies);
   });
 
@@ -273,13 +276,13 @@ async function startServer() {
 
   // 2b. Get a single company
   app.get('/api/companies/:id', requireAuth, async (req: any, res: any) => {
-    const company = db.prepare(`
+    const company = (await db.execute({ sql: `
       SELECT c.*, 
              c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
              (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
       FROM companies c 
       WHERE c.id = ?
-    `).get(req.params.id);
+    `, args: [req.params.id] })).rows[0];
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
@@ -288,13 +291,13 @@ async function startServer() {
 
   // 3. Get Registration (Student)
   app.get('/api/registrations/my', requireAuth, async (req: any, res: any) => {
-    const regs = db.prepare(`
+    const regs = (await db.execute({ sql: `
       SELECT r.*, c.name as company_name 
       FROM registrations r
       JOIN companies c ON r.company_id = c.id
       WHERE r.user_id = ?
       ORDER BY r.created_at ASC
-    `).all(req.user.id);
+    `, args: [req.user.id] })).rows;
     res.json(regs);
   });
 
@@ -306,7 +309,7 @@ async function startServer() {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
     }
 
-    const khacCompany = db.prepare("SELECT id FROM companies WHERE name = 'Khác'").get() as any;
+    const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0] as any;
     const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
     const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
 
@@ -327,14 +330,12 @@ async function startServer() {
 
     try {
       // Delete existing registrations first
-      db.prepare('DELETE FROM registrations WHERE user_id = ?').run(req.user.id);
+      await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
-      const insertStmt = db.prepare(
-        'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      );
+      const insertSql2 = 'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
       for (const companyId of normal_company_ids) {
-        insertStmt.run(req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null);
+        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -349,7 +350,9 @@ async function startServer() {
           }
           const status = inList ? 'approved' : 'pending';
           
-          insertStmt.run(
+          await db.execute({
+            sql: insertSql2,
+            args: [
             req.user.id,
             khacCompany.id,
             student_id,
@@ -360,7 +363,8 @@ async function startServer() {
             other.name,
             other.role,
             other.contact
-          );
+            ]
+          });
         }
       }
 
@@ -372,7 +376,7 @@ async function startServer() {
 
   // 5. Withdraw Registration
   app.delete('/api/registrations/my', requireAuth, async (req: any, res: any) => {
-    db.prepare('DELETE FROM registrations WHERE user_id = ?').run(req.user.id);
+    await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
     res.json({ success: true });
   });
 
@@ -380,17 +384,17 @@ async function startServer() {
   app.delete('/api/registrations/:id', requireAuth, async (req: any, res: any) => {
     const { id } = req.params;
     // Only allow deleting own registration
-    const reg = db.prepare('SELECT * FROM registrations WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    const reg = (await db.execute({ sql: 'SELECT * FROM registrations WHERE id = ? AND user_id = ?', args: [id, req.user.id] })).rows[0];
     if (!reg) {
       return res.status(404).json({ error: 'Registration not found' });
     }
-    db.prepare('DELETE FROM registrations WHERE id = ?').run(id);
+    await db.execute({ sql: 'DELETE FROM registrations WHERE id = ?', args: [id] });
     res.json({ success: true });
   });
 
   // 6. Admin: Get all registrations
   app.get('/api/admin/registrations', requireAuth, requireAdmin, async (req, res) => {
-    const data = db.prepare(`
+    const data = (await db.execute(`
       SELECT 
         r.id as registration_id,
         u.email,
@@ -409,13 +413,13 @@ async function startServer() {
       JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
-    `).all();
+    `)).rows;
     res.json(data);
   });
 
   // 7. Admin: Export CSV
   app.get('/api/admin/export.csv', requireAuth, requireAdmin, async (req, res) => {
-    const data = db.prepare(`
+    const data = (await db.execute(`
       SELECT 
         r.student_id as "Mã SV",
         u.name as "Họ và tên",
@@ -431,7 +435,7 @@ async function startServer() {
       JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
-    `).all() as any[];
+    `)).rows as any[];
 
     if (data.length === 0) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -462,7 +466,7 @@ async function startServer() {
   // 7b. Admin: Approve all pending registrations
   app.put('/api/admin/registrations/approve-all', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      db.prepare("UPDATE registrations SET status = 'approved' WHERE status = 'pending'").run();
+      await db.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -479,7 +483,7 @@ async function startServer() {
     }
 
     try {
-      db.prepare('UPDATE registrations SET status = ? WHERE id = ?').run(status, id);
+      await db.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [status, id] });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -487,9 +491,9 @@ async function startServer() {
   });
 
   app.get('/api/settings/campaign', async (req: any, res: any) => {
-    const year = db.prepare("SELECT value FROM settings WHERE key = 'campaign_year'").get() as {value: string};
-    const start = db.prepare("SELECT value FROM settings WHERE key = 'campaign_start'").get() as {value: string};
-    const end = db.prepare("SELECT value FROM settings WHERE key = 'campaign_end'").get() as {value: string};
+    const year = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_year'")).rows[0] as {value: string};
+    const start = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_start'")).rows[0] as {value: string};
+    const end = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_end'")).rows[0] as {value: string};
     
     res.json({ 
         year: year ? year.value : '2026',
@@ -500,27 +504,27 @@ async function startServer() {
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { year, start, end } = req.body;
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)").run(year);
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)").run(start);
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)").run(end);
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end] });
     res.json({ success: true });
   });
 
   // 9. Admin: Settings
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const setting = db.prepare("SELECT value FROM settings WHERE key = 'google_sheet_url'").get() as {value: string};
+    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
     res.json({ url: setting ? setting.value : '' });
   });
 
   app.put('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { url } = req.body;
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)").run(url);
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
     res.json({ success: true });
   });
 
   // 11. Admin: Manage admins
   app.get('/api/admin/admins', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const admins = db.prepare("SELECT id, email, name FROM users WHERE role = 'admin'").all();
+    const admins = (await db.execute("SELECT id, email, name FROM users WHERE role = 'admin'")).rows;
     res.json(admins);
   });
 
@@ -530,10 +534,10 @@ async function startServer() {
       return res.status(400).json({ error: 'Chỉ hỗ trợ email @vnu.edu.vn' });
     }
     try {
-      db.prepare(`
+      await db.execute({ sql: `
         INSERT INTO users (email, name, role) VALUES (?, 'Admin', 'admin')
         ON CONFLICT(email) DO UPDATE SET role = 'admin'
-      `).run(email);
+      `, args: [email] });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -546,7 +550,7 @@ async function startServer() {
       return res.status(400).json({ error: 'Không thể tự hủy quyền của chính mình' });
     }
     try {
-      db.prepare("UPDATE users SET role = 'student' WHERE id = ?").run(id);
+      await db.execute({ sql: "UPDATE users SET role = 'student' WHERE id = ?", args: [id] });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -556,7 +560,7 @@ async function startServer() {
   // 10. Admin: Import companies from Google Sheet
   app.post('/api/settings/import-companies', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const setting = db.prepare("SELECT value FROM settings WHERE key = 'google_sheet_url'").get() as {value: string};
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
       if (!setting || !setting.value) {
         return res.status(400).json({ error: 'Spreadsheet URL not set' });
       }
@@ -586,13 +590,13 @@ async function startServer() {
       }
 
       // We clear the tables
-      db.exec('DELETE FROM companies');
-      db.exec('DELETE FROM registrations');
+      await db.executeMultiple('DELETE FROM companies');
+      await db.executeMultiple('DELETE FROM registrations');
 
-      const insertStmt = db.prepare(`
-        INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+      const insertSql1 = `
+      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
       let importedCount = 0;
       for (const record of records) {
@@ -626,7 +630,7 @@ async function startServer() {
         
         const description = `Tuyển ${slots} sinh viên thực tập.`;
         const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
-        insertStmt.run(name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName);
+        await db.execute({ sql: insertSql1, args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName] });
         importedCount++;
       }
 
