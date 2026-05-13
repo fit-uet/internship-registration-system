@@ -1251,7 +1251,6 @@ function AdminSettings({ token }: { token: string }) {
             <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc</label>
             <input type="date" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
-          </div>
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học (mỗi lớp cách nhau bởi dấu phẩy)</label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
