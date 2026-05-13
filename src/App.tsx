@@ -162,9 +162,11 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
-  const [registerForm, setRegisterForm] = useState({
+  const [registerForm, setRegisterForm] = useState<any>({
     student_id: studentIdFromEmail,
     dob: '',
+    class_name: '',
+    course_code: '',
     note: ''
   });
   const [otherCompanies, setOtherCompanies] = useState([{
@@ -279,6 +281,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           student_id: registerForm.student_id,
           dob: registerForm.dob,
           class_name: registerForm.class_name,
+          course_code: registerForm.course_code,
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
@@ -291,7 +294,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       if (res.ok) {
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', note: '' });
+        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', course_code: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -605,6 +608,15 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Học phần thực tập *</label>
+                <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.course_code} onChange={e => setRegisterForm({ ...registerForm, course_code: e.target.value })}>
+                  <option value="">-- Chọn mã môn học --</option>
+                  <option value="Thực tập Doanh nghiệp INT4002">1. Thực tập Doanh nghiệp INT4002</option>
+                  <option value="Thực tập Chuyên ngành INT3508">2. Thực tập Chuyên ngành INT3508</option>
+                  <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">3. Thực tập Doanh nghiệp Nhật Bản INT4003</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú thêm</label>
                 <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={hasSelectedKhac ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
@@ -880,6 +892,9 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('email')}>
                   <div className="flex items-center gap-1">Email {getSortIcon('email')}</div>
                 </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('course_code')}>
+                  <div className="flex items-center gap-1">Mã môn {getSortIcon('course_code')}</div>
+                </th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('company_name')}>
                   <div className="flex items-center gap-1">Công ty {getSortIcon('company_name')}</div>
                 </th>
@@ -897,7 +912,7 @@ function AdminPanel({ token }: { token: string }) {
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 filteredRegistrations.map(reg => (
@@ -906,6 +921,7 @@ function AdminPanel({ token }: { token: string }) {
                     <td className="px-6 py-4">{reg.student_id || '-'}</td>
                     <td className="px-6 py-4">{reg.class_name || '-'}</td>
                     <td className="px-6 py-4">{reg.email}</td>
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">
                         {reg.company_name === 'Khác' ? (reg.other_company_name || 'Chưa rõ') : reg.company_name}

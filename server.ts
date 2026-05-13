@@ -82,6 +82,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) {}
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) {}
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) {}
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0];
   if (!otherExist) {
@@ -303,7 +304,7 @@ async function startServer() {
 
   // 4. Register for companies (batch - up to 5)
   app.post('/api/registrations', requireAuth, async (req: any, res: any) => {
-    const { company_ids, student_id, dob, class_name, note, other_companies } = req.body;
+    const { company_ids, student_id, dob, class_name, note, other_companies, course_code } = req.body;
     
     if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
@@ -332,10 +333,10 @@ async function startServer() {
       // Delete existing registrations first
       await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
-      const insertSql2 = 'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      const insertSql2 = 'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
       for (const companyId of normal_company_ids) {
-        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null] });
+        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null, course_code] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -362,7 +363,8 @@ async function startServer() {
             status,
             other.name,
             other.role,
-            other.contact
+            other.contact,
+            course_code
             ]
           });
         }
@@ -408,7 +410,8 @@ async function startServer() {
         r.created_at,
         r.other_company_name,
         r.other_company_role,
-        r.other_company_contact
+        r.other_company_contact,
+        r.course_code
       FROM registrations r
       JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id
@@ -424,11 +427,13 @@ async function startServer() {
         r.student_id as "Mã SV",
         u.name as "Họ và tên",
         r.dob as "Ngày sinh",
-        r.class_name as "Lớp khóa học",
+        r.class_name as "Lớp KH",
+        u.email as "Email",
+        r.course_code as "Mã môn học",
+        CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') ELSE c.name END as "Công ty",
+        CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
+        CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
         r.note as "Ghi chú",
-        CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') ELSE c.name END as "Công ty đăng ký",
-        r.other_company_role as "Vị trí TT (Ngoài DS)",
-        r.other_company_contact as "Người liên hệ (Ngoài DS)",
         r.status as "Trạng thái",
         r.created_at as "Thời gian đăng ký"
       FROM registrations r
