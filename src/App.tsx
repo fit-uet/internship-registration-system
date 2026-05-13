@@ -629,21 +629,15 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                <input required type="text" placeholder="VD: 15/08/2004" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
+                <input required type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Lớp khóa học *</label>
                 <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.class_name} onChange={e => setRegisterForm({ ...registerForm, class_name: e.target.value })}>
                   <option value="">-- Chọn lớp khóa học --</option>
-                  <option value="QH-2023-I/CQ-I-IT1">QH-2023-I/CQ-I-IT1</option>
-                  <option value="QH-2023-I/CQ-I-IT2">QH-2023-I/CQ-I-IT2</option>
-                  <option value="QH-2023-I/CQ-I-IT3">QH-2023-I/CQ-I-IT3</option>
-                  <option value="QH-2023-I/CQ-I-IS">QH-2023-I/CQ-I-IS</option>
-                  <option value="QH-2023-I/CQ-I-CS1">QH-2023-I/CQ-I-CS1</option>
-                  <option value="QH-2023-I/CQ-I-CS2">QH-2023-I/CQ-I-CS2</option>
-                  <option value="QH-2023-I/CQ-I-CS3">QH-2023-I/CQ-I-CS3</option>
-                  <option value="QH-2023-I/CQ-I-CS4">QH-2023-I/CQ-I-CS4</option>
-                  <option value="QH-2023-I/CQ-I-CN">QH-2023-I/CQ-I-CN</option>
+                  {(campaign.classes_list ? campaign.classes_list.split(',').map((c: string) => c.trim()) : []).map((c: string) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -1257,6 +1251,11 @@ function AdminSettings({ token }: { token: string }) {
             <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc</label>
             <input type="date" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học (mỗi lớp cách nhau bởi dấu phẩy)</label>
+            <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
+          </div>
         </div>
         <div className="flex justify-end mt-2">
           <button
@@ -1561,7 +1560,19 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
     class_name: user?.class_name || ''
   });
   const [saving, setSaving] = useState(false);
+  const [classesList, setClassesList] = useState<string[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data.classes_list) {
+          setClassesList(data.classes_list.split(',').map((c: string) => c.trim()));
+        }
+      })
+      .catch(() => {});
+  }, [token]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1634,11 +1645,10 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh (DD/MM/YYYY) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
               <input
-                type="text"
+                type="date"
                 required
-                placeholder="Ví dụ: 15/08/2004"
                 value={formData.dob}
                 onChange={(e) => setFormData({...formData, dob: e.target.value})}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
@@ -1646,14 +1656,17 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Lớp khóa học <span className="text-red-500">*</span></label>
-              <input
-                type="text"
+              <select
                 required
-                placeholder="Ví dụ: K66CC"
                 value={formData.class_name}
                 onChange={(e) => setFormData({...formData, class_name: e.target.value})}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
+              >
+                <option value="">-- Chọn lớp khóa học --</option>
+                {classesList.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
           
