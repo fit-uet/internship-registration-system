@@ -1,5 +1,6 @@
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { LogOut, User as UserIcon, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
@@ -1627,6 +1628,7 @@ function PlanView() {
           </div>
         ) : (
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-slate-800 mb-4" {...props} />,
               h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
@@ -1637,6 +1639,12 @@ function PlanView() {
               li: ({ node, ...props }) => <li className="" {...props} />,
               strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900" {...props} />,
               a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
+              table: ({ node, ...props }) => <div className="overflow-x-auto mb-6"><table className="min-w-full divide-y divide-slate-200 border border-slate-200" {...props} /></div>,
+              thead: ({ node, ...props }) => <thead className="bg-slate-50" {...props} />,
+              tbody: ({ node, ...props }) => <tbody className="divide-y divide-slate-200 bg-white" {...props} />,
+              tr: ({ node, ...props }) => <tr className="hover:bg-slate-50/50" {...props} />,
+              th: ({ node, ...props }) => <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-x border-slate-200" {...props} />,
+              td: ({ node, ...props }) => <td className="px-4 py-3 text-sm text-slate-600 border-x border-slate-200" {...props} />,
             }}
           >
             {plan}
