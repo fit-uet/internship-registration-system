@@ -907,18 +907,21 @@ function AdminPanel({ token }: { token: string }) {
                     <td className="px-6 py-4">{reg.class_name || '-'}</td>
                     <td className="px-6 py-4">{reg.email}</td>
                     <td className="px-6 py-4">
-                      <div className="font-medium">
-                        {reg.company_name === 'Khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
+                      <div className="font-medium text-gray-900">
+                        {reg.company_name === 'Khác' ? (reg.other_company_name || 'Chưa rõ') : reg.company_name}
                       </div>
-                      {reg.company_name === 'Khác' && (
-                        <div className="text-xs text-gray-500 font-normal mt-1 leading-relaxed">
-                          <span className="font-semibold text-gray-600">Vị trí:</span> {reg.other_company_role} <br />
-                          <span className="font-semibold text-gray-600">Liên hệ:</span> {reg.other_company_contact}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4">
-                      {reg.company_name === 'Khác' ? 'Khác' : reg.note}
+                      {reg.company_name === 'Khác' ? (
+                        <div className="text-xs text-gray-600 font-normal leading-relaxed">
+                          <span className="inline-block font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded mb-1 border border-blue-100">Tự liên hệ</span><br />
+                          <span className="font-semibold text-gray-700">Vị trí:</span> {reg.other_company_role} <br />
+                          <span className="font-semibold text-gray-700">Liên hệ:</span> {reg.other_company_contact}
+                          {reg.note && <><br /><span className="font-semibold text-gray-700">Lưu ý thêm:</span> {reg.note}</>}
+                        </div>
+                      ) : (
+                        reg.note
+                      )}
                     </td>
                     <td className="px-6 py-4">{new Date(reg.created_at).toLocaleString('vi-VN')}</td>
                     <td className="px-6 py-4 text-center">
