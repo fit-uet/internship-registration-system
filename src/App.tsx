@@ -20,12 +20,12 @@ function App() {
         body: JSON.stringify({ credential: credentialResponse.credential }),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         setLoginError(data.error || 'Unknown error');
         return;
       }
-      
+
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setToken(data.token);
@@ -58,17 +58,17 @@ function App() {
                   <p className="text-xs opacity-80 uppercase tracking-wider">Trường Đại học Công nghệ - ĐHQGHN</p>
                 </div>
               </div>
-              
+
               {user ? (
                 <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-lg border border-white/20">
                   <div className="text-right hidden sm:block">
-                     <p className="text-sm font-medium">{user.name}</p>
-                     <p className="text-[11px] opacity-70">{user.email}</p>
+                    <p className="text-sm font-medium">{user.name}</p>
+                    <p className="text-[11px] opacity-70">{user.email}</p>
                   </div>
                   {user.picture ? (
-                     <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner" />
+                    <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner" />
                   ) : (
-                     <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner"><UserIcon size={18}/></div>
+                    <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner"><UserIcon size={18} /></div>
                   )}
                   <button onClick={logout} className="p-2 text-white hover:text-red-300 hover:bg-white/10 rounded-full transition-colors ml-2">
                     <LogOut size={20} />
@@ -85,16 +85,16 @@ function App() {
             {!token ? (
               <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-2xl shadow border border-gray-100 text-center">
                 <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                   <LogIn className="text-blue-600" size={32} />
+                  <LogIn className="text-blue-600" size={32} />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập</h2>
                 <p className="text-gray-500 text-sm mb-8">
-                  Hệ thống đăng ký Thực tập chuyên ngành.<br/>
+                  Hệ thống đăng ký Thực tập chuyên ngành.<br />
                   Yêu cầu đăng nhập bằng VNU mail <strong className="text-gray-900">@vnu.edu.vn</strong>
                 </p>
-                
+
                 <div className="flex justify-center border p-4 bg-gray-50 rounded-xl">
-                  <GoogleLogin 
+                  <GoogleLogin
                     onSuccess={handleLoginSuccess}
                     onError={() => setLoginError('Lỗi đăng nhập từ Google.')}
                     useOneTap
@@ -112,7 +112,7 @@ function App() {
               </Routes>
             )}
           </main>
-          
+
           <div className="bg-amber-100 border-t border-amber-200 px-8 py-2 flex items-center justify-center gap-2 mt-auto">
             <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
@@ -130,11 +130,11 @@ function App() {
                 </div>
                 <p className="text-slate-600 mb-6 text-sm leading-relaxed">
                   {loginError}
-                  <br/><br/>
+                  <br /><br />
                   Vui lòng sử dụng tài khoản email do nhà trường cung cấp (có đuôi <strong>@vnu.edu.vn</strong>) để truy cập vào hệ thống.
                 </p>
                 <div className="flex justify-end gap-3 mt-6">
-                  <button 
+                  <button
                     onClick={() => setLoginError(null)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
                   >
@@ -183,13 +183,13 @@ function Dashboard({ user, token }: { user: any, token: string }) {
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      
+
       const compData = await compRes.json();
       setCompanies(Array.isArray(compData) ? compData : []);
-      
+
       const regData = await regRes.json();
       setMyReg(regData && regData.error ? null : regData);
-      
+
       const campData = await campRes.json();
       if (campData && !campData.error) {
         setCampaign(campData);
@@ -200,8 +200,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
     setLoading(false);
   };
 
-  const filteredCompanies = companies.filter(company => 
-    company.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredCompanies = companies.filter(company =>
+    company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -217,8 +217,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
     if (!sortConfig || sortConfig.key !== key) {
       return <ArrowUpDown size={14} className="text-gray-400" />;
     }
-    return sortConfig.direction === 'asc' ? 
-      <span className="text-blue-600 font-bold">↑</span> : 
+    return sortConfig.direction === 'asc' ?
+      <span className="text-blue-600 font-bold">↑</span> :
       <span className="text-blue-600 font-bold">↓</span>;
   };
 
@@ -227,11 +227,11 @@ function Dashboard({ user, token }: { user: any, token: string }) {
     const { key, direction } = sortConfig;
     const aVal = a[key] !== undefined ? a[key] : '';
     const bVal = b[key] !== undefined ? b[key] : '';
-    
+
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
-    
+
     if (aVal < bVal) return direction === 'asc' ? -1 : 1;
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;
@@ -240,15 +240,15 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const submitRegister = async (e: any) => {
     e.preventDefault();
     if (!registerModalCompany) return;
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/registrations`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           company_id: registerModalCompany.id,
           ...registerForm
         })
@@ -317,7 +317,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
-              <span>Yêu cầu đăng nhập duy nhất bằng VNU Gmail.</span>
+              <span>Yêu cầu đăng nhập duy nhất bằng mail VNU.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
@@ -335,7 +335,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-slate-800">Thực tập chuyên ngành {campaign.year}</h2>
           {user.role === 'admin' && (
-            <button 
+            <button
               onClick={() => navigate('/admin')}
               className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors"
             >
@@ -349,8 +349,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                   <CheckCircle2 className="text-green-600" size={20} />
-                   <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký nguyện vọng</h3>
+                  <CheckCircle2 className="text-green-600" size={20} />
+                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký nguyện vọng</h3>
                 </div>
                 <p className="text-sm text-green-800 mb-4">
                   Bạn đã đăng ký thực tập tại doanh nghiệp <strong>{myReg.company_name === 'Khác' ? `(Khác) ${myReg.other_company_name || ''}` : myReg.company_name}</strong> và đang đợi xét duyệt.
@@ -360,7 +360,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                   <span>NGÀY GHI NHẬN: {new Date(myReg.created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsWithdrawModalOpen(true)}
                 className="px-4 py-1.5 border border-red-500 text-red-500 rounded-md text-xs font-bold hover:bg-red-50/50 transition-colors whitespace-nowrap"
               >
@@ -379,28 +379,28 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <h2 className="font-bold text-slate-800 text-sm">Danh sách Tổ chức / Doanh nghiệp Tiếp nhận</h2>
             <div className="flex gap-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tổ chức / doanh nghiệp..." 
+                placeholder="Tìm tổ chức / doanh nghiệp..."
                 className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-x-auto">
             <table className="w-full border-collapse text-left min-w-[700px]">
               <thead>
                 <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider font-bold">
-                  <th 
+                  <th
                     className="px-6 py-3 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
                     onClick={() => requestSort('name')}
                   >
                     <div className="flex items-center gap-1">Tên Doanh nghiệp {getSortIcon('name')}</div>
                   </th>
                   <th className="px-6 py-3 border-b border-slate-200">Địa chỉ</th>
-                  <th 
+                  <th
                     className="px-6 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-200 transition-colors"
                     onClick={() => requestSort('remaining_slots')}
                   >
@@ -413,8 +413,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 {sortedCompanies.map((company, index) => (
                   <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-blue-700">
-                      <button 
-                        onClick={() => navigate(`/company/${company.id}`)} 
+                      <button
+                        onClick={() => navigate(`/company/${company.id}`)}
                         className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
                       >
                         {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
@@ -430,11 +430,10 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                       <button
                         disabled={!!myReg}
                         onClick={() => setRegisterModalCompany(company)}
-                        className={`px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-colors ${
-                          !!myReg 
+                        className={`px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-colors ${!!myReg
                             ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                             : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
+                          }`}
                       >
                         Đăng ký
                       </button>
@@ -458,7 +457,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </tbody>
             </table>
           </div>
-          
+
           <div className="px-6 py-3 bg-slate-100/50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium mt-auto">
             <p>© 2026 Khoa CNTT UET</p>
             <div className="flex gap-4">
@@ -478,17 +477,17 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             </div>
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
               Bạn có chắc chắn muốn hủy kết quả đăng ký thực tập hiện tại?
-              <br/><br/>
+              <br /><br />
               <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Việc hủy để chọn lại nguyện vọng có thể khiến bạn mất lượt ở những danh sách đã đầy. Hủy bỏ là hành động không thể hoàn tác.
             </p>
             <div className="flex justify-end gap-3 mt-6">
-              <button 
+              <button
                 onClick={() => setIsWithdrawModalOpen(false)}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
               >
                 Đóng
               </button>
-              <button 
+              <button
                 onClick={handleWithdraw}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm"
               >
@@ -513,15 +512,15 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             <form onSubmit={submitRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Mã sinh viên *</label>
-                <input required readOnly type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.student_id} onChange={e => setRegisterForm({...registerForm, student_id: e.target.value})} placeholder="VD: 20021234"/>
+                <input required readOnly type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.student_id} onChange={e => setRegisterForm({ ...registerForm, student_id: e.target.value })} placeholder="VD: 20021234" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                <input required type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({...registerForm, dob: e.target.value})} />
+                <input required type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Lớp khóa học *</label>
-                <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.class_name} onChange={e => setRegisterForm({...registerForm, class_name: e.target.value})}>
+                <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.class_name} onChange={e => setRegisterForm({ ...registerForm, class_name: e.target.value })}>
                   <option value="">-- Chọn lớp khóa học --</option>
                   <option value="QH-2023-I/CQ-I-IT1">QH-2023-I/CQ-I-IT1</option>
                   <option value="QH-2023-I/CQ-I-IT2">QH-2023-I/CQ-I-IT2</option>
@@ -536,23 +535,23 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú thêm</label>
-                <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={registerModalCompany.name === 'Khác' ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({...registerForm, note: e.target.value})} placeholder="Mong muốn, kỹ năng nổi bật..." />
+                <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={registerModalCompany.name === 'Khác' ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
-              
+
               {registerModalCompany.name === 'Khác' && (
                 <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg space-y-4">
                   <h4 className="text-sm font-bold text-orange-800">Thông tin Công ty Tự liên hệ</h4>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_name} onChange={e => setRegisterForm({...registerForm, other_company_name: e.target.value})} placeholder="Công ty CP Công nghệ..." />
+                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_name} onChange={e => setRegisterForm({ ...registerForm, other_company_name: e.target.value })} placeholder="Công ty CP Công nghệ..." />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí Thực tập *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_role} onChange={e => setRegisterForm({...registerForm, other_company_role: e.target.value})} placeholder="Thực tập sinh Frontend..." />
+                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_role} onChange={e => setRegisterForm({ ...registerForm, other_company_role: e.target.value })} placeholder="Thực tập sinh Frontend..." />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ & Điện thoại/Email *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_contact} onChange={e => setRegisterForm({...registerForm, other_company_contact: e.target.value})} placeholder="Anh Nguyễn Văn A - 0987654321 - a@company.com" />
+                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_contact} onChange={e => setRegisterForm({ ...registerForm, other_company_contact: e.target.value })} placeholder="Anh Nguyễn Văn A - 0987654321 - a@company.com" />
                   </div>
                 </div>
               )}
@@ -592,7 +591,7 @@ function AdminPanel({ token }: { token: string }) {
       });
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
-    } catch (e) {}
+    } catch (e) { }
     setLoading(false);
   };
 
@@ -612,8 +611,8 @@ function AdminPanel({ token }: { token: string }) {
     if (!sortConfig || sortConfig.key !== key) {
       return <ArrowUpDown size={14} className="text-gray-400" />;
     }
-    return sortConfig.direction === 'asc' ? 
-      <span className="text-blue-600 font-bold">↑</span> : 
+    return sortConfig.direction === 'asc' ?
+      <span className="text-blue-600 font-bold">↑</span> :
       <span className="text-blue-600 font-bold">↓</span>;
   };
 
@@ -621,9 +620,9 @@ function AdminPanel({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/admin/registrations/${id}/status`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ status })
       });
@@ -662,11 +661,11 @@ function AdminPanel({ token }: { token: string }) {
     const { key, direction } = sortConfig;
     const aVal = a[key] || '';
     const bVal = b[key] || '';
-    
+
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
-    
+
     if (aVal < bVal) return direction === 'asc' ? -1 : 1;
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;
@@ -694,39 +693,39 @@ function AdminPanel({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-           <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block">&larr; Quay lại trang chủ</button>
-           <h2 className="text-2xl font-bold text-gray-900">Quản lý Đăng ký Thực tập</h2>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block">&larr; Quay lại trang chủ</button>
+          <h2 className="text-2xl font-bold text-gray-900">Quản lý Đăng ký Thực tập</h2>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Tìm kiếm sinh viên, công ty..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64 shadow-sm"
             />
           </div>
-          <button 
+          <button
             onClick={handleApproveAll}
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
-          <button 
+          <button
             onClick={() => navigate('/admin/settings')}
             className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 shadow-sm transition-colors whitespace-nowrap"
           >
             <AlertTriangle size={18} /> Cài đặt hệ thống
           </button>
-          <button 
+          <button
             onClick={handleExport}
             className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <Download size={18} /> Xuất CSV
           </button>
-          <button 
+          <button
             onClick={handleExport}
             className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
           >
@@ -810,11 +809,10 @@ function AdminPanel({ token }: { token: string }) {
                       <select
                         value={reg.status}
                         onChange={(e) => handleUpdateStatus(reg.registration_id, e.target.value)}
-                        className={`text-xs font-semibold px-2 py-1 rounded-full outline-none cursor-pointer border-2 border-transparent transition-colors ${
-                          reg.status === 'pending' ? 'bg-orange-100 text-orange-800 hover:border-orange-200 focus:border-orange-400' :
-                          reg.status === 'approved' ? 'bg-green-100 text-green-800 hover:border-green-200 focus:border-green-400' :
-                          'bg-red-100 text-red-800 hover:border-red-200 focus:border-red-400'
-                        }`}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full outline-none cursor-pointer border-2 border-transparent transition-colors ${reg.status === 'pending' ? 'bg-orange-100 text-orange-800 hover:border-orange-200 focus:border-orange-400' :
+                            reg.status === 'approved' ? 'bg-green-100 text-green-800 hover:border-green-200 focus:border-green-400' :
+                              'bg-red-100 text-red-800 hover:border-red-200 focus:border-red-400'
+                          }`}
                       >
                         <option value="pending" className="bg-white text-gray-900">Chờ Duyệt</option>
                         <option value="approved" className="bg-white text-gray-900">Đã Duyệt</option>
@@ -851,7 +849,7 @@ function AdminSettings({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/admin/admins`, { headers: { Authorization: `Bearer ${token}` } });
       setAdmins(await res.json());
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleAddAdmin = async () => {
@@ -862,9 +860,9 @@ function AdminSettings({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/admin/admins`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ email: newAdminEmail.trim() })
       });
@@ -907,7 +905,7 @@ function AdminSettings({ token }: { token: string }) {
       const data = await sheetRes.json();
       setSheetUrl(data.url || '');
       setCampaign(await campRes.json());
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleSaveUrl = async () => {
@@ -915,9 +913,9 @@ function AdminSettings({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/settings/google-sheet`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ url: sheetUrl })
       });
@@ -935,20 +933,20 @@ function AdminSettings({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/settings/campaign`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(campaign)
       });
       if (res.ok) alert('Đã lưu cấu hình học phần');
-    } catch (e) {}
+    } catch (e) { }
     setSavingCampaign(false);
   };
 
   const handleSyncCompanies = async () => {
     if (!confirm('Bạn có chắc chắn muốn đồng bộ danh sách công ty từ Google Sheet? Hành động này sẽ xoá danh sách công ty hiện tại và danh sách sinh viên đã đăng ký.')) return;
-    
+
     setSyncing(true);
     try {
       const res = await fetch(`${API_BASE}/api/settings/import-companies`, {
@@ -972,142 +970,142 @@ function AdminSettings({ token }: { token: string }) {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
-           <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
         </div>
       </div>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
         <h3 className="font-bold text-lg text-slate-800">Cài đặt học phần</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-           <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1">Năm học / Khóa</label>
-             <input type="text" value={campaign.year} onChange={e => setCampaign({...campaign, year: e.target.value})} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
-           </div>
-           <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian bắt đầu</label>
-             <input type="text" value={campaign.start} onChange={e => setCampaign({...campaign, start: e.target.value})} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="VD: 22/05/2026" />
-           </div>
-           <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc</label>
-             <input type="text" value={campaign.end} onChange={e => setCampaign({...campaign, end: e.target.value})} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="VD: 15/06/2026" />
-           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Năm học / Khóa</label>
+            <input type="text" value={campaign.year} onChange={e => setCampaign({ ...campaign, year: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian bắt đầu</label>
+            <input type="text" value={campaign.start} onChange={e => setCampaign({ ...campaign, start: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="VD: 22/05/2026" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc</label>
+            <input type="text" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="VD: 15/06/2026" />
+          </div>
         </div>
         <div className="flex justify-end mt-2">
-           <button 
-             onClick={handleSaveCampaign} 
-             disabled={savingCampaign}
-             className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm transition-all"
-           >
-             <Save size={18} /> {savingCampaign ? 'Đang lưu...' : 'Lưu cấu hình'}
-           </button>
+          <button
+            onClick={handleSaveCampaign}
+            disabled={savingCampaign}
+            className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm transition-all"
+          >
+            <Save size={18} /> {savingCampaign ? 'Đang lưu...' : 'Lưu cấu hình'}
+          </button>
         </div>
       </div>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
         <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">Tích hợp Google Sheets <RefreshCw size={18} className="text-slate-400" /></h3>
         <div className="flex flex-col gap-4">
-           <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (chứa danh sách công công ty)</label>
-             <div className="flex gap-3">
-               <input 
-                 type="text" 
-                 placeholder="https://docs.google.com/spreadsheets/d/1VVH_O6glb3e9ugXa7SZcm0JuSNxm9NtarHRKubwJeY4/export?format=csv"
-                 value={sheetUrl}
-                 onChange={(e) => setSheetUrl(e.target.value)}
-                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-               />
-               <button 
-                 onClick={handleSaveUrl}
-                 disabled={savingUrl}
-                 className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 shadow-sm transition-colors"
-               >
-                 <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
-               </button>
-             </div>
-             <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem". Khuyên dùng link dạng <code>/export?format=csv</code>.</p>
-           </div>
-           
-           <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-sm text-slate-600">
-                <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
-                <p className="text-xs">Hành động này sẽ cập nhật lại toàn bộ danh sách công ty và xóa đăng ký hiện tại.</p>
-              </div>
-              <button 
-                onClick={handleSyncCompanies}
-                disabled={syncing}
-                className="flex items-center justify-center gap-2 bg-orange-600 white text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-70 shadow-sm transition-colors whitespace-nowrap"
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (chứa danh sách công công ty)</label>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="https://docs.google.com/spreadsheets/d/1VVH_O6glb3e9ugXa7SZcm0JuSNxm9NtarHRKubwJeY4/export?format=csv"
+                value={sheetUrl}
+                onChange={(e) => setSheetUrl(e.target.value)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+              <button
+                onClick={handleSaveUrl}
+                disabled={savingUrl}
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 shadow-sm transition-colors"
               >
-                <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+                <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
               </button>
-           </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem". Khuyên dùng link dạng <code>/export?format=csv</code>.</p>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-sm text-slate-600">
+              <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
+              <p className="text-xs">Hành động này sẽ cập nhật lại toàn bộ danh sách công ty và xóa đăng ký hiện tại.</p>
+            </div>
+            <button
+              onClick={handleSyncCompanies}
+              disabled={syncing}
+              className="flex items-center justify-center gap-2 bg-orange-600 white text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-70 shadow-sm transition-colors whitespace-nowrap"
+            >
+              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+            </button>
+          </div>
         </div>
       </div>
-      
+
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
         <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">Quản lý Quản trị viên (Admin)</h3>
         <div className="flex flex-col gap-4">
-           <div>
-             <label className="block text-sm font-medium text-slate-700 mb-1">Thêm Admin (Email @vnu.edu.vn)</label>
-             <div className="flex gap-3">
-               <input 
-                 type="email" 
-                 placeholder="VD: nguyenvanan@vnu.edu.vn"
-                 value={newAdminEmail}
-                 onChange={(e) => setNewAdminEmail(e.target.value)}
-                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-               />
-               <button 
-                 onClick={handleAddAdmin}
-                 className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 shadow-sm transition-colors"
-               >
-                 <Plus size={18} /> Thêm Admin
-               </button>
-             </div>
-           </div>
-           
-           <div className="border-t border-slate-100 mt-2 mx-[-24px]">
-             <table className="w-full text-left border-collapse">
-               <thead>
-                 <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                   <th className="font-semibold p-4 pl-6 border-b border-slate-200">Email</th>
-                   <th className="font-semibold p-4 border-b border-slate-200">Họ và tên</th>
-                   <th className="font-semibold p-4 pr-6 border-b border-slate-200 text-right">Hành động</th>
-                 </tr>
-               </thead>
-               <tbody className="text-sm">
-                 {admins.map(admin => (
-                   <tr key={admin.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                     <td className="p-4 pl-6 font-medium text-slate-800">{admin.email}</td>
-                     <td className="p-4 text-slate-600">{admin.name || 'Chưa cập nhật'}</td>
-                     <td className="p-4 pr-6 text-right">
-                       <button 
-                         onClick={() => handleRemoveAdmin(admin.id)}
-                         className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors"
-                         title="Xóa quyền admin"
-                       >
-                         <Trash2 size={16} />
-                       </button>
-                     </td>
-                   </tr>
-                 ))}
-                 {admins.length === 0 && (
-                   <tr><td colSpan={3} className="p-4 text-center text-slate-500">Chưa có admin nào</td></tr>
-                 )}
-               </tbody>
-             </table>
-           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Thêm Admin (Email @vnu.edu.vn)</label>
+            <div className="flex gap-3">
+              <input
+                type="email"
+                placeholder="VD: nguyenvanan@vnu.edu.vn"
+                value={newAdminEmail}
+                onChange={(e) => setNewAdminEmail(e.target.value)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+              <button
+                onClick={handleAddAdmin}
+                className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 shadow-sm transition-colors"
+              >
+                <Plus size={18} /> Thêm Admin
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 mt-2 mx-[-24px]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                  <th className="font-semibold p-4 pl-6 border-b border-slate-200">Email</th>
+                  <th className="font-semibold p-4 border-b border-slate-200">Họ và tên</th>
+                  <th className="font-semibold p-4 pr-6 border-b border-slate-200 text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {admins.map(admin => (
+                  <tr key={admin.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 pl-6 font-medium text-slate-800">{admin.email}</td>
+                    <td className="p-4 text-slate-600">{admin.name || 'Chưa cập nhật'}</td>
+                    <td className="p-4 pr-6 text-right">
+                      <button
+                        onClick={() => handleRemoveAdmin(admin.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors"
+                        title="Xóa quyền admin"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {admins.length === 0 && (
+                  <tr><td colSpan={3} className="p-4 text-center text-slate-500">Chưa có admin nào</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <div className="bg-blue-50 text-blue-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">
-         <strong className="block mb-2 text-base">💡 Mẹo nhập dữ liệu vào Google Sheets:</strong>
-         <ol className="list-decimal pl-5 space-y-1">
-           <li>Từ danh sách Quản trị &gt; Bấm <strong>Lưu vào Google Sheets</strong> để tải file dữ liệu CSV về máy.</li>
-           <li>Trên trang web Google Sheets, tạo một Bảng tính trống mới.</li>
-           <li>Chọn <strong>Tệp (File) &gt; Nhập (Import) &gt; Tải lên (Upload)</strong> và tải lên file CSV ở bước 1. Dữ liệu sẽ chia cột tự động.</li>
-           <li>Tùy chỉnh thông tin công ty rồi dùng tính năng Share (Bất kỳ ai có link) để lấy liên kết bỏ vào cấu hình trên.</li>
-         </ol>
+        <strong className="block mb-2 text-base">💡 Mẹo nhập dữ liệu vào Google Sheets:</strong>
+        <ol className="list-decimal pl-5 space-y-1">
+          <li>Từ danh sách Quản trị &gt; Bấm <strong>Lưu vào Google Sheets</strong> để tải file dữ liệu CSV về máy.</li>
+          <li>Trên trang web Google Sheets, tạo một Bảng tính trống mới.</li>
+          <li>Chọn <strong>Tệp (File) &gt; Nhập (Import) &gt; Tải lên (Upload)</strong> và tải lên file CSV ở bước 1. Dữ liệu sẽ chia cột tự động.</li>
+          <li>Tùy chỉnh thông tin công ty rồi dùng tính năng Share (Bất kỳ ai có link) để lấy liên kết bỏ vào cấu hình trên.</li>
+        </ol>
       </div>
     </div>
   );
@@ -1147,7 +1145,7 @@ function CompanyDetail({ token }: { token: string }) {
         <div className="relative z-10">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">{company.name}</h1>
           <p className="text-lg text-slate-600 mb-4">{company.description}</p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Thông tin chung</h3>
@@ -1167,18 +1165,18 @@ function CompanyDetail({ token }: { token: string }) {
                   </span>
                 </li>
                 <li className="flex flex-col">
-                   <span className="text-xs text-slate-500 mb-1">Địa chỉ:</span>
-                   <span className="font-medium text-slate-800">{company.address || 'Chưa cập nhật'}</span>
+                  <span className="text-xs text-slate-500 mb-1">Địa chỉ:</span>
+                  <span className="font-medium text-slate-800">{company.address || 'Chưa cập nhật'}</span>
                 </li>
                 <li className="flex flex-col">
-                   <span className="text-xs text-slate-500 mb-1">Chi tiết tuyển dụng:</span>
-                   <span className="font-medium text-blue-600">
-                     {company.recruitment_link ? (
-                       <a href={company.recruitment_link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all">
-                         {company.recruitment_link}
-                       </a>
-                     ) : 'Chưa cập nhật'}
-                   </span>
+                  <span className="text-xs text-slate-500 mb-1">Chi tiết tuyển dụng:</span>
+                  <span className="font-medium text-blue-600">
+                    {company.recruitment_link ? (
+                      <a href={company.recruitment_link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all">
+                        {company.recruitment_link}
+                      </a>
+                    ) : 'Chưa cập nhật'}
+                  </span>
                 </li>
                 <li className="flex flex-col">
                   <span className="text-xs text-slate-500 mb-1">Chỉ tiêu tiếp nhận:</span>
@@ -1187,8 +1185,8 @@ function CompanyDetail({ token }: { token: string }) {
               </ul>
             </div>
             <div>
-               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Lịch sử & Tổ chức</h3>
-               <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">{company.history || 'Chưa cập nhật'}</p>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Lịch sử & Tổ chức</h3>
+              <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">{company.history || 'Chưa cập nhật'}</p>
             </div>
           </div>
 
