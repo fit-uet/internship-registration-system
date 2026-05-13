@@ -152,13 +152,14 @@ function App() {
 
 function Dashboard({ user, token }: { user: any, token: string }) {
   const [companies, setCompanies] = useState<any[]>([]);
-  const [myReg, setMyReg] = useState<any>(null);
+  const [myRegs, setMyRegs] = useState<any[]>([]);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [registerModalCompany, setRegisterModalCompany] = useState<any>(null);
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set());
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState({
     student_id: studentIdFromEmail,
@@ -170,6 +171,24 @@ function Dashboard({ user, token }: { user: any, token: string }) {
     other_company_contact: ''
   });
   const navigate = useNavigate();
+
+  const hasRegistered = myRegs.length > 0;
+
+  const khacCompany = companies.find(c => c.name === 'Khác');
+  const hasSelectedKhac = khacCompany && selectedCompanies.has(khacCompany.id);
+
+  const toggleCompanySelection = (companyId: number) => {
+    setSelectedCompanies(prev => {
+      const next = new Set(prev);
+      if (next.has(companyId)) {
+        next.delete(companyId);
+      } else {
+        if (next.size >= 5) return prev;
+        next.add(companyId);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchData();
@@ -188,7 +207,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       setCompanies(Array.isArray(compData) ? compData : []);
 
       const regData = await regRes.json();
-      setMyReg(regData && regData.error ? null : regData);
+      setMyRegs(Array.isArray(regData) ? regData : []);
 
       const campData = await campRes.json();
       if (campData && !campData.error) {
@@ -239,7 +258,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
 
   const submitRegister = async (e: any) => {
     e.preventDefault();
-    if (!registerModalCompany) return;
+    if (selectedCompanies.size === 0) return;
 
     try {
       const res = await fetch(`${API_BASE}/api/registrations`, {
@@ -249,13 +268,14 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          company_id: registerModalCompany.id,
+          company_ids: Array.from(selectedCompanies),
           ...registerForm
         })
       });
       const data = await res.json();
       if (res.ok) {
-        setRegisterModalCompany(null);
+        setRegisterModalOpen(false);
+        setSelectedCompanies(new Set());
         setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', note: '', other_company_name: '', other_company_role: '', other_company_contact: '' });
         fetchData();
       } else {
@@ -321,7 +341,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
-              <span>Mỗi sinh viên chọn tối đa 01 nguyện vọng.</span>
+              <span>Mỗi sinh viên chọn tối đa <strong>05</strong> nguyện vọng.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
@@ -344,41 +364,47 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           )}
         </div>
 
-        {myReg ? (
+        {hasRegistered ? (
           <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="text-green-600" size={20} />
-                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký nguyện vọng</h3>
+                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} nguyện vọng</h3>
                 </div>
-                <p className="text-sm text-green-800 mb-4">
-                  Bạn đã đăng ký thực tập tại doanh nghiệp <strong>{myReg.company_name === 'Khác' ? `(Khác) ${myReg.other_company_name || ''}` : myReg.company_name}</strong> và đang đợi xét duyệt.
-                </p>
+                <ul className="text-sm text-green-800 mb-4 space-y-1">
+                  {myRegs.map((reg: any, idx: number) => (
+                    <li key={reg.id}>NV{idx + 1}: <strong>{reg.company_name === 'Khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></li>
+                  ))}
+                </ul>
                 <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
-                  <span className="bg-green-100 px-2.5 py-1 rounded-md uppercase tracking-wider">{myReg.status === 'pending' ? 'Chờ Duyệt' : myReg.status}</span>
-                  <span>NGÀY GHI NHẬN: {new Date(myReg.created_at).toLocaleDateString('vi-VN')}</span>
+                  <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
               <button
                 onClick={() => setIsWithdrawModalOpen(true)}
                 className="px-4 py-1.5 border border-red-500 text-red-500 rounded-md text-xs font-bold hover:bg-red-50/50 transition-colors whitespace-nowrap"
               >
-                Hủy đăng ký
+                Hủy tất cả đăng ký
               </button>
             </div>
           </div>
         ) : (
           <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 text-blue-800 text-sm">
-            Bạn chưa đăng ký công ty nào. Vui lòng xem danh sách dưới đây để đăng ký thực tập.
+            Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 công ty từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.
           </div>
         )}
 
         {/* Registration Table Area */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
-            <h2 className="font-bold text-slate-800 text-sm">Danh sách Tổ chức / Doanh nghiệp Tiếp nhận</h2>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="font-bold text-slate-800 text-sm">Danh sách Tổ chức / Doanh nghiệp Tiếp nhận</h2>
+              {!hasRegistered && selectedCompanies.size > 0 && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedCompanies.size}/5</span>
+              )}
+            </div>
+            <div className="flex gap-2 items-center">
               <input
                 type="text"
                 value={searchTerm}
@@ -386,6 +412,15 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 placeholder="Tìm tổ chức / doanh nghiệp..."
                 className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
+              {!hasRegistered && (
+                <button
+                  disabled={selectedCompanies.size === 0}
+                  onClick={() => setRegisterModalOpen(true)}
+                  className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedCompanies.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                >
+                  Đăng ký ({selectedCompanies.size})
+                </button>
+              )}
             </div>
           </div>
 
@@ -393,6 +428,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             <table className="w-full border-collapse text-left min-w-[700px]">
               <thead>
                 <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider font-bold">
+                  <th className="px-4 py-3 border-b border-slate-200 text-center w-14">Chọn</th>
                   <th
                     className="px-6 py-3 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
                     onClick={() => requestSort('name')}
@@ -402,16 +438,33 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                   <th className="px-6 py-3 border-b border-slate-200">Địa chỉ</th>
                   <th
                     className="px-6 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                    onClick={() => requestSort('remaining_slots')}
+                    onClick={() => requestSort('slots')}
                   >
-                    <div className="flex items-center justify-center gap-1">Còn lại {getSortIcon('remaining_slots')}</div>
+                    <div className="flex items-center justify-center gap-1">Số lượng tuyển {getSortIcon('slots')}</div>
                   </th>
-                  <th className="px-6 py-3 border-b border-slate-200 text-center">Thao tác</th>
+                  <th
+                    className="px-6 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-200 transition-colors"
+                    onClick={() => requestSort('applicant_count')}
+                  >
+                    <div className="flex items-center justify-center gap-1">Số ứng viên {getSortIcon('applicant_count')}</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">
-                {sortedCompanies.map((company, index) => (
-                  <tr key={company.id} className="hover:bg-slate-50 transition-colors">
+                {sortedCompanies.map((company) => {
+                  const isSelected = selectedCompanies.has(company.id);
+                  const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
+                  return (
+                  <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''} ${isRegistered ? 'bg-green-50/30' : ''}`}>
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected || isRegistered}
+                        disabled={hasRegistered || (!isSelected && selectedCompanies.size >= 5)}
+                        onChange={() => toggleCompanySelection(company.id)}
+                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </td>
                     <td className="px-6 py-4 font-bold text-blue-700">
                       <button
                         onClick={() => navigate(`/company/${company.id}`)}
@@ -423,33 +476,27 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                     <td className="px-6 py-4 text-slate-600">{company.address}</td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-[11px] text-slate-500 font-bold">
-                        {company.name === 'Khác' ? 'Không giới hạn' : (company.remaining_slots !== undefined ? Math.max(0, company.remaining_slots) : company.slots)}
+                        {company.name === 'Khác' ? 'Không giới hạn' : company.slots}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        disabled={!!myReg}
-                        onClick={() => setRegisterModalCompany(company)}
-                        className={`px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-colors ${!!myReg
-                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                      >
-                        Đăng ký
-                      </button>
+                      <span className="text-[11px] text-slate-500 font-bold">
+                        {company.name === 'Khác' ? '—' : (company.applicant_count ?? 0)}
+                      </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filteredCompanies.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                       Không tìm thấy doanh nghiệp phù hợp.
                     </td>
                   </tr>
                 )}
                 {loading && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                       Đang tải danh sách doanh nghiệp...
                     </td>
                   </tr>
@@ -499,16 +546,24 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       )}
 
       {/* Register Modal */}
-      {registerModalCompany && (
+      {registerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200 h-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-slate-800">Đăng ký thực tập</h3>
-              <button onClick={() => setRegisterModalCompany(null)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setRegisterModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={24} />
               </button>
             </div>
-            <p className="text-sm text-slate-600 mb-6">Bạn đang đăng ký vào <strong>{registerModalCompany.name}</strong>. Vui lòng cung cấp đầy đủ thông tin bên dưới để công ty xem xét.</p>
+            <div className="mb-4">
+              <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedCompanies.size}</strong> nguyện vọng:</p>
+              <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                {Array.from(selectedCompanies).map((cId, idx) => {
+                  const comp = companies.find(c => c.id === cId);
+                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {comp?.name || 'Không rõ'}</li>;
+                })}
+              </ul>
+            </div>
             <form onSubmit={submitRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Mã sinh viên *</label>
@@ -535,10 +590,10 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú thêm</label>
-                <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={registerModalCompany.name === 'Khác' ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
+                <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={hasSelectedKhac ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
 
-              {registerModalCompany.name === 'Khác' && (
+              {hasSelectedKhac && (
                 <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg space-y-4">
                   <h4 className="text-sm font-bold text-orange-800">Thông tin Công ty Tự liên hệ</h4>
                   <div>
@@ -557,7 +612,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               )}
 
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setRegisterModalCompany(null)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={() => setRegisterModalOpen(false)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                   Hủy
                 </button>
                 <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
@@ -810,8 +865,8 @@ function AdminPanel({ token }: { token: string }) {
                         value={reg.status}
                         onChange={(e) => handleUpdateStatus(reg.registration_id, e.target.value)}
                         className={`text-xs font-semibold px-2 py-1 rounded-full outline-none cursor-pointer border-2 border-transparent transition-colors ${reg.status === 'pending' ? 'bg-orange-100 text-orange-800 hover:border-orange-200 focus:border-orange-400' :
-                            reg.status === 'approved' ? 'bg-green-100 text-green-800 hover:border-green-200 focus:border-green-400' :
-                              'bg-red-100 text-red-800 hover:border-red-200 focus:border-red-400'
+                          reg.status === 'approved' ? 'bg-green-100 text-green-800 hover:border-green-200 focus:border-green-400' :
+                            'bg-red-100 text-red-800 hover:border-red-200 focus:border-red-400'
                           }`}
                       >
                         <option value="pending" className="bg-white text-gray-900">Chờ Duyệt</option>

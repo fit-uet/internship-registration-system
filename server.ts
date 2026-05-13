@@ -49,8 +49,7 @@ function initDb() {
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id),
-      FOREIGN KEY (company_id) REFERENCES companies (id),
-      UNIQUE(user_id)
+      FOREIGN KEY (company_id) REFERENCES companies (id)
     );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -249,7 +248,8 @@ async function startServer() {
   app.get('/api/companies', requireAuth, async (req: any, res: any) => {
     const companies = db.prepare(`
       SELECT c.*, 
-             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots
+             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
+             (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
       FROM companies c
     `).all();
     res.json(companies);
@@ -259,7 +259,8 @@ async function startServer() {
   app.get('/api/companies/:id', requireAuth, async (req: any, res: any) => {
     const company = db.prepare(`
       SELECT c.*, 
-             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots
+             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
+             (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
       FROM companies c 
       WHERE c.id = ?
     `).get(req.params.id);
@@ -271,42 +272,83 @@ async function startServer() {
 
   // 3. Get Registration (Student)
   app.get('/api/registrations/my', requireAuth, async (req: any, res: any) => {
-    const reg = db.prepare(`
+    const regs = db.prepare(`
       SELECT r.*, c.name as company_name 
       FROM registrations r
       JOIN companies c ON r.company_id = c.id
       WHERE r.user_id = ?
-    `).get(req.user.id);
-    res.json(reg || null);
+      ORDER BY r.created_at ASC
+    `).all(req.user.id);
+    res.json(regs);
   });
 
-  // 4. Register for a company
+  // 4. Register for companies (batch - up to 5)
   app.post('/api/registrations', requireAuth, async (req: any, res: any) => {
-    const { company_id, student_id, dob, class_name, note, other_company_name, other_company_role, other_company_contact } = req.body;
+    const { company_ids, student_id, dob, class_name, note, other_company_name, other_company_role, other_company_contact } = req.body;
     
-    // Check if already registered
-    const existing = db.prepare('SELECT * FROM registrations WHERE user_id = ?').get(req.user.id);
-    if (existing) {
-      return res.status(400).json({ error: 'You have already registered for a company. Please withdraw first.' });
+    if (!Array.isArray(company_ids) || company_ids.length === 0) {
+      return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
+    }
+    if (company_ids.length > 5) {
+      return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 nguyện vọng.' });
+    }
+
+    // Check for 'Khác' company - need extra info
+    const khacCompany = db.prepare("SELECT id FROM companies WHERE name = 'Khác'").get() as any;
+    const hasKhac = khacCompany && company_ids.includes(khacCompany.id);
+    if (hasKhac && (!other_company_name || !other_company_role || !other_company_contact)) {
+      return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin công ty ngoài danh sách.' });
     }
 
     try {
-      db.prepare(
-        'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(req.user.id, company_id, student_id, dob, class_name, note, other_company_name || null, other_company_role || null, other_company_contact || null);
+      // Delete existing registrations first
+      db.prepare('DELETE FROM registrations WHERE user_id = ?').run(req.user.id);
+
+      const insertStmt = db.prepare(
+        'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+
+      for (const companyId of company_ids) {
+        // Check if this company is 'Khác'
+        const comp = db.prepare('SELECT name FROM companies WHERE id = ?').get(companyId) as any;
+        const isKhac = comp && comp.name === 'Khác';
+        const status = isKhac ? 'pending' : 'approved';
+        
+        insertStmt.run(
+          req.user.id,
+          companyId,
+          student_id,
+          dob,
+          class_name,
+          note,
+          status,
+          isKhac ? (other_company_name || null) : null,
+          isKhac ? (other_company_role || null) : null,
+          isKhac ? (other_company_contact || null) : null
+        );
+      }
+
       res.json({ success: true });
     } catch (e: any) {
-      if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-        res.status(400).json({ error: 'You have already registered.' });
-      } else {
-        res.status(500).json({ error: 'Database error' });
-      }
+      res.status(500).json({ error: 'Database error: ' + e.message });
     }
   });
 
   // 5. Withdraw Registration
   app.delete('/api/registrations/my', requireAuth, async (req: any, res: any) => {
     db.prepare('DELETE FROM registrations WHERE user_id = ?').run(req.user.id);
+    res.json({ success: true });
+  });
+
+  // 5b. Withdraw a single registration
+  app.delete('/api/registrations/:id', requireAuth, async (req: any, res: any) => {
+    const { id } = req.params;
+    // Only allow deleting own registration
+    const reg = db.prepare('SELECT * FROM registrations WHERE id = ? AND user_id = ?').get(id, req.user.id);
+    if (!reg) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    db.prepare('DELETE FROM registrations WHERE id = ?').run(id);
     res.json({ success: true });
   });
 
