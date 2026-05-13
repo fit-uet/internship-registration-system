@@ -185,7 +185,7 @@ async function startServer() {
 
   // Auth Middleware
   const requireAuth = async (req: any, res: any, next: any) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
