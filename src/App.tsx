@@ -1,6 +1,6 @@
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { LogOut, User as UserIcon, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X } from 'lucide-react';
 
@@ -11,6 +11,7 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLoginSuccess = async (credentialResponse: any) => {
     setLoginError(null);
@@ -50,7 +51,7 @@ function App() {
           {/* Header */}
           <header className="h-20 bg-[#004a99] text-white px-8 flex items-center justify-between shadow-lg z-10 sticky top-0 w-full">
             <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <Link to="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity cursor-pointer">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center hidden sm:flex overflow-hidden">
                   <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FIT UET 30 Years" className="w-full h-full object-contain p-0.5" />
                 </div>
@@ -58,22 +59,35 @@ function App() {
                   <h1 className="text-lg font-bold leading-tight uppercase">Khoa Công nghệ Thông tin</h1>
                   <p className="text-xs opacity-80 uppercase tracking-wider">Trường Đại học Công nghệ - ĐHQGHN</p>
                 </div>
-              </div>
+              </Link>
 
               {user ? (
-                <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-lg border border-white/20">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-[11px] opacity-70">{user.email}</p>
-                  </div>
-                  {user.picture ? (
-                    <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner"><UserIcon size={18} /></div>
-                  )}
-                  <button onClick={logout} className="p-2 text-white hover:text-red-300 hover:bg-white/10 rounded-full transition-colors ml-2">
-                    <LogOut size={20} />
+                <div className="relative">
+                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center gap-3 hover:bg-white/10 p-1.5 pr-3 rounded-full transition-colors cursor-pointer group focus:outline-none">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm font-medium group-hover:text-blue-100 transition-colors">{user.name}</p>
+                      <p className="text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">{user.email}</p>
+                    </div>
+                    {user.picture ? (
+                      <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner group-hover:border-green-300 transition-colors" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-green-300 transition-colors"><UserIcon size={18} /></div>
+                    )}
                   </button>
+                  
+                  {isMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
+                        <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                          <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
+                        </Link>
+                        <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
+                          <LogOut size={16} /> Đăng xuất
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -108,6 +122,7 @@ function App() {
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
+                <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             )}
@@ -162,9 +177,9 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [lecturers, setLecturers] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState<any>({
-    student_id: studentIdFromEmail,
-    dob: '',
-    class_name: '',
+    student_id: user?.student_id || studentIdFromEmail,
+    dob: user?.dob || '',
+    class_name: user?.class_name || '',
     course_code: '',
     school_lecturer: '',
     note: ''
@@ -614,7 +629,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                <input required type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
+                <input required type="text" placeholder="VD: 15/08/2004" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Lớp khóa học *</label>
@@ -1258,11 +1273,11 @@ function AdminSettings({ token }: { token: string }) {
         <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">Tích hợp Google Sheets <RefreshCw size={18} className="text-slate-400" /></h3>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (chứa danh sách công công ty)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (chứa danh sách công ty)</label>
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="https://docs.google.com/spreadsheets/d/1VVH_O6glb3e9ugXa7SZcm0JuSNxm9NtarHRKubwJeY4/export?format=csv"
+                placeholder="https://docs.google.com/spreadsheets/d/1VVH.../edit?usp=sharing"
                 value={sheetUrl}
                 onChange={(e) => setSheetUrl(e.target.value)}
                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
@@ -1275,7 +1290,7 @@ function AdminSettings({ token }: { token: string }) {
                 <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem". Khuyên dùng link dạng <code>/export?format=csv</code>.</p>
+            <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem" (Anyone with the link can view).</p>
           </div>
           <div className="pt-4 border-t border-slate-200">
             <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (lưu dữ liệu xuất file)</label>
@@ -1298,6 +1313,20 @@ function AdminSettings({ token }: { token: string }) {
             <p className="text-xs text-slate-500 mt-2">Lưu ý: Để tính năng này hoạt động, bạn <b>bắt buộc</b> phải cấp quyền Người chỉnh sửa (Editor) cho tài khoản Service Account của bạn trên Google Sheet này.</p>
           </div>
 
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-sm text-slate-600">
+              <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
+              <p className="text-xs">Hành động này sẽ cập nhật lại toàn bộ danh sách công ty và xóa đăng ký hiện tại.</p>
+            </div>
+            <button
+              onClick={handleSyncCompanies}
+              disabled={syncing}
+              className="flex items-center justify-center gap-2 bg-orange-600 white text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-70 shadow-sm transition-colors whitespace-nowrap"
+            >
+              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+            </button>
+          </div>
+
           <div className="pt-4 border-t border-slate-200">
             <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung Kế hoạch triển khai (Markdown)</label>
             <textarea
@@ -1315,20 +1344,6 @@ function AdminSettings({ token }: { token: string }) {
                 <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu Kế hoạch'}
               </button>
             </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-            <div className="text-sm text-slate-600">
-              <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
-              <p className="text-xs">Hành động này sẽ cập nhật lại toàn bộ danh sách công ty và xóa đăng ký hiện tại.</p>
-            </div>
-            <button
-              onClick={handleSyncCompanies}
-              disabled={syncing}
-              className="flex items-center justify-center gap-2 bg-orange-600 white text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-70 shadow-sm transition-colors whitespace-nowrap"
-            >
-              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
-            </button>
           </div>
         </div>
       </div>
@@ -1533,6 +1548,125 @@ function PlanView() {
             {plan}
           </ReactMarkdown>
         )}
+      </div>
+    </div>
+  );
+}
+
+function Profile({ user, setUser, token }: { user: any, setUser: any, token: string }) {
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    student_id: user?.student_id || user?.email?.split('@')[0] || '',
+    dob: user?.dob || '',
+    class_name: user?.class_name || ''
+  });
+  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        alert('Cập nhật hồ sơ thành công!');
+        navigate('/');
+      } else {
+        alert('Có lỗi xảy ra khi cập nhật hồ sơ.');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center gap-2">
+        <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm flex items-center gap-1">&larr; Quay lại</button>
+      </div>
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân</h2>
+        
+        <form onSubmit={handleSave} className="space-y-5">
+          <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+            {user.picture ? (
+              <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[#004a99] font-bold shadow-sm"><UserIcon size={24} /></div>
+            )}
+            <div>
+              <p className="font-semibold text-slate-800 text-lg">{user.email}</p>
+              <p className="text-xs text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full mt-1 uppercase tracking-wider font-medium">{user.role}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mã sinh viên <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                required
+                value={formData.student_id}
+                onChange={(e) => setFormData({...formData, student_id: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh (DD/MM/YYYY) <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: 15/08/2004"
+                value={formData.dob}
+                onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Lớp khóa học <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="Ví dụ: K66CC"
+                value={formData.class_name}
+                onChange={(e) => setFormData({...formData, class_name: e.target.value})}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+            </div>
+          </div>
+          
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-70"
+            >
+              <Save size={18} /> {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

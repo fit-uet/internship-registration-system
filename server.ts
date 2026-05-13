@@ -67,22 +67,56 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
 
-  const defaultPlan = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP
+  const defaultPlan = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
 **Khoa CNTT thông báo triển khai Thực tập học kỳ như sau:**
 
 **I. Lịch triển khai**
-Để **đăng ký đi thực tập và được công nhận điểm học phần**, các sinh viên cần phải tuân thủ quy trình sau:
-1. Đăng ký với Khoa CNTT trên trang Hệ thống Đăng ký thực tập.
-2. Theo dõi thông tin tuyển thực tập. Mỗi sinh viên chọn tối đa 05 công ty.
-3. Nếu không trúng tuyển, có thể liên hệ Giảng viên để thực tập tại trường.
+
+Đây là đợt thực tập chính thức để hoàn thiện học phần Thực tập dành cho sinh viên Khoa CNTT.
+Để **đăng ký đi thực tập và được công nhận điểm học phần** này, các sinh viên cần phải tuân thủ quy trình sau:
+
+1. Đăng ký với Khoa CNTT để xin đi thực tập đợt này trên trang **Hệ thống Đăng ký thực tập** (sau đây gọi là Website TTCN). Sinh viên nào chưa đăng ký thông tin trên hệ thống coi như chưa đăng ký đi thực tập đợt này. **Chú ý: cần làm thêm bước 6 để được công nhận điểm học phần Thực tập chuyên ngành**.
+2. Theo dõi các thông tin tuyển thực tập trên Website TTCN. Các sinh viên chủ động đăng ký (tối đa 5 công ty) và làm các thủ tục xin thực tập theo hướng dẫn của công ty mà mình đăng ký. Sinh viên sẽ chỉ thực tập tại 1 công ty để lấy điểm. Các sinh viên chưa tìm được thực tập tại công ty có thể xin thực tập tại trường cùng giảng viên hướng dẫn (xem bước 3).
+3. Mỗi sinh viên thực tập tại trường sẽ được một giảng viên của Khoa hỗ trợ và chấm báo cáo thực tập (giảng viên hướng dẫn).
+4. Các sinh viên được nhận làm thực tập phải cập nhật trạng thái hoặc xác nhận lại theo yêu cầu. Trong quá trình thực tập, sinh viên phải báo cáo định kỳ, nếu không sẽ bị trừ điểm.
+5. Các sinh viên không được nhận làm thực tập tại các công ty và có nhu cầu thực tập tại trường với giảng viên (ở mục 3) có thể cập nhật thông tin trong hệ thống bằng cách đăng ký Nơi thực tập là "Trường Đại học Công nghệ" và ghi rõ tên Giảng viên hướng dẫn.
+6. Để được công nhận điểm học phần Thực tâp chuyên ngành, các sinh viên cần đăng ký lớp môn học này trên website **http://daotao.vnu.edu.vn** khi có yêu cầu đăng ký từ Phòng Đào tạo. **Chú ý: nếu không đăng ký theo thông báo mở lớp môn học của Phòng Đào tạo trên, sinh viên sẽ không được công nhận điểm học phần Thực tập chuyên ngành** **kỳ này.**
+
+**Các mốc thời gian cụ thể cần chú ý**
+
+| STT | Công việc | Thời gian dự kiến |
+| --- | --- | --- |
+| 1. | Sinh viên đăng ký thông tin cá nhân trên website TTCN. | Xem thông báo |
+| 2. | Sinh viên tìm hiểu các thông tin tuyển thực tập trên website và đăng ký thực tập tại công ty **CÓ TRONG DANH SÁCH** (tối đa 5 công ty). | Xem thông báo |
+| 3. | Khoa/Công ty nhận danh sách sinh viên đăng ký, sinh viên tham gia phỏng vấn (nếu có). | - |
+| 4. | Các sinh viên không tìm được cơ hội thực tập tại công ty sẽ tiếp tục làm thực tập tại trường cùng giảng viên hướng dẫn. | - |
+| 5. | Sinh viên đi thực tập (đảm bảo tổng thời lượng tối thiểu tương đương 6 tuần fulltime). Sinh viên phải báo cáo định kỳ với giảng viên hướng dẫn. | - |
+| 6. | Sinh viên nộp báo cáo thực tập và giảng viên / công ty hướng dẫn sẽ đánh giá cho điểm. | - |
 
 **II. Các hướng dẫn liên quan đến quá trình đăng ký và thực tập**
-* Đăng nhập vào hệ thống bằng tài khoản email **@vnu.edu.vn** (qua nút Đăng nhập với Google).
-* Điền đầy đủ thông tin cá nhân (SĐT, Mã SV, Lớp, Ngày sinh).
-* Mục **Danh sách nơi thực tập** sẽ liệt kê các công ty nhận thực tập.
-* Đánh dấu chọn (tối đa 5 công ty) và ấn nút **Đăng ký**.
-* Để thay đổi đăng ký, chọn nút "Hủy đăng ký" và thao tác lại từ đầu.`;
+
+**2.1. Về việc đăng ký thực tập của sinh viên trên website TTCN**
+
+* Phải điền đầy đủ các thông tin trên website. Quy trình như sau:
+  * Truy cập vào trang **Hệ thống Đăng ký thực tập**.
+  * Đăng nhập vào hệ thống bằng tài khoản email **@vnu.edu.vn** (qua nút Đăng nhập với Google).
+  * Điền đầy đủ thông tin cá nhân trong form đăng ký (Mã SV, Lớp khóa học, Ngày sinh). Nếu thiếu thông tin hoặc thông tin bị sai, **sinh viên phải chịu hoàn toàn trách nhiệm**.
+  * Mục **Danh sách nơi thực tập** sẽ liệt kê các công ty nhận thực tập.
+  * Tích chọn các công ty mà mình muốn làm thực tập (tối đa 5 công ty). Có thể tra cứu thông tin công ty bằng cách nhấp vào tên công ty.
+  * Ấn nút **Đăng ký** để hoàn tất nộp nguyện vọng.
+  * **Lưu ý**: Sinh viên có thể thay đổi nguyện vọng bằng cách ấn nút "Hủy tất cả đăng ký" và thao tác đăng ký lại từ đầu, miễn là hệ thống còn mở trong thời hạn cho phép.
+
+**2.2. Về các yêu cầu đối với sinh viên**
+
+* Nếu sinh viên thực tập ở công ty thì đề tài sẽ do phía công ty giao. Nếu sinh viên thực tập ở trường thì giảng viên hướng dẫn là người giao đề tài.
+* Sinh viên cần thường xuyên báo cáo tiến độ với giảng viên hướng dẫn, theo lịch giảng viên đưa ra.
+* Mỗi sinh viên cần viết 01 báo cáo thực tập theo mẫu Khoa qui định. Sinh viên Ngành KHMT cần viết báo cáo bằng tiếng Anh. Nếu đi thực tập theo nhóm thì có thể viết chung 1 quyển báo cáo, tuy nhiên trong đó phải ghi rõ sự phân công công việc giữa các thành viên trong nhóm.
+* Trong trường hợp cần thiết, giảng viên có thể liên lạc với người hướng dẫn phía công ty (chẳng hạn để trợ giúp sinh viên hoặc đánh giá kết quả làm việc của sinh viên cho chính xác). Sinh viên có trách nhiệm cung cấp thông tin liên hệ của người hướng dẫn phía công ty.
+* Cách tính điểm TTCN:
+  * 20% điểm báo cáo định kỳ
+  * 20% điểm nội dung của bản báo cáo thực tập theo mẫu
+  * 60% điểm đánh giá của phía công ty (nếu thực tập tại công ty) hoặc giảng viên hướng dẫn (thực tập tại trường).`;
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${defaultPlan.replace(/'/g, "''")}')`);
   
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch (e) { }
@@ -92,6 +126,10 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN address TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch (e) { }
+
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN student_id TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN dob TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN class_name TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) { }
@@ -260,16 +298,15 @@ async function startServer() {
 
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
+        const studentId = email.split('@')[0];
         const result = await db.execute({
           sql:
-            'INSERT INTO users (email, name, picture, role) VALUES (?, ?, ?, ?)'
-          , args: [email, payload.name, payload.picture, role]
+            'INSERT INTO users (email, name, picture, role, student_id) VALUES (?, ?, ?, ?, ?)'
+          , args: [email, payload.name, payload.picture, role, studentId]
         });
-        user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role };
+        user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role, student_id: studentId, dob: null, class_name: null };
       } else {
-        // Update picture/name sometimes
-        await db.execute({ sql: 'UPDATE users SET name = ?, picture = ? WHERE id = ?', args: [payload.name, payload.picture, user.id] });
-        user.name = payload.name;
+        await db.execute({ sql: 'UPDATE users SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
         user.picture = payload.picture;
       }
 
@@ -338,6 +375,21 @@ async function startServer() {
       return res.status(404).json({ error: 'Company not found' });
     }
     res.json(company);
+  });
+
+  // 1.5. Update user profile
+  app.put('/api/users/profile', requireAuth, async (req: any, res: any) => {
+    const { name, student_id, dob, class_name } = req.body;
+    try {
+      await db.execute({
+        sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ? WHERE id = ?',
+        args: [name, student_id, dob, class_name, req.user.id]
+      });
+      const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
+      res.json(updatedUser);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
   });
 
   // 3. Get Registration (Student)
