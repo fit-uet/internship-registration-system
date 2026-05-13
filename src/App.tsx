@@ -189,9 +189,20 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const toggleCompanySelection = (companyId: number) => {
     setSelectedCompanies(prev => {
       const next = new Set(prev);
+      const isSchool = schoolCompany && companyId === schoolCompany.id;
+      const hasSchool = schoolCompany && prev.has(schoolCompany.id);
+
       if (next.has(companyId)) {
         next.delete(companyId);
       } else {
+        if (isSchool) {
+          alert("Lưu ý: Khi đăng ký Thực tập ở trường, bạn sẽ không được đăng ký thêm công ty nào khác.");
+          return new Set([companyId]);
+        }
+        if (hasSchool) {
+          alert("Bạn đã chọn Thực tập ở trường nên không thể chọn thêm công ty ngoài.");
+          return prev;
+        }
         if (next.size >= 5) return prev;
         next.add(companyId);
       }
@@ -635,12 +646,20 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn *</label>
-                    <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.school_lecturer} onChange={e => setRegisterForm({ ...registerForm, school_lecturer: e.target.value })}>
-                      <option value="">-- Chọn Giảng viên hướng dẫn --</option>
+                    <input 
+                      type="text" 
+                      list="lecturers-list" 
+                      required 
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      value={registerForm.school_lecturer} 
+                      onChange={e => setRegisterForm({ ...registerForm, school_lecturer: e.target.value })} 
+                      placeholder="Gõ để tìm kiếm giảng viên..." 
+                    />
+                    <datalist id="lecturers-list">
                       {lecturers.map(lec => (
-                        <option key={lec} value={lec}>{lec}</option>
+                        <option key={lec} value={lec} />
                       ))}
-                    </select>
+                    </datalist>
                     <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">* Lưu ý: Sinh viên bắt buộc phải liên hệ với thầy/cô từ trước.</p>
                   </div>
                 </div>
