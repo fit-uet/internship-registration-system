@@ -78,12 +78,12 @@ async function initDb() {
 Đây là đợt thực tập chính thức để hoàn thiện học phần Thực tập dành cho sinh viên Khoa CNTT.
 Để **đăng ký đi thực tập và được công nhận điểm học phần** này, các sinh viên cần phải tuân thủ quy trình sau:
 
-1. Đăng ký với Khoa CNTT để xin đi thực tập đợt này trên trang **Hệ thống Đăng ký thực tập** (sau đây gọi là Website TTCN). Sinh viên nào chưa đăng ký thông tin trên hệ thống coi như chưa đăng ký đi thực tập đợt này. **Chú ý: cần làm thêm bước 6 để được công nhận điểm học phần Thực tập chuyên ngành**.
+1. Đăng ký với Khoa CNTT để xin đi thực tập đợt này trên trang **Hệ thống Đăng ký thực tập** (sau đây gọi là Website TTCN). Sinh viên nào chưa đăng ký thông tin trên hệ thống coi như chưa đăng ký đi thực tập đợt này. **Chú ý: cần làm thêm bước 6 để được công nhận điểm học phần Thực tập**.
 2. Theo dõi các thông tin tuyển thực tập trên Website TTCN. Các sinh viên chủ động đăng ký (tối đa 5 công ty) và làm các thủ tục xin thực tập theo hướng dẫn của công ty mà mình đăng ký. Sinh viên sẽ chỉ thực tập tại 1 công ty để lấy điểm. Các sinh viên chưa tìm được thực tập tại công ty có thể xin thực tập tại trường cùng giảng viên hướng dẫn (xem bước 3).
 3. Mỗi sinh viên thực tập tại trường sẽ được một giảng viên của Khoa hỗ trợ và chấm báo cáo thực tập (giảng viên hướng dẫn).
 4. Các sinh viên được nhận làm thực tập phải cập nhật trạng thái hoặc xác nhận lại theo yêu cầu. Trong quá trình thực tập, sinh viên phải báo cáo định kỳ, nếu không sẽ bị trừ điểm.
 5. Các sinh viên không được nhận làm thực tập tại các công ty và có nhu cầu thực tập tại trường với giảng viên (ở mục 3) có thể cập nhật thông tin trong hệ thống bằng cách đăng ký Nơi thực tập là "Trường Đại học Công nghệ" và ghi rõ tên Giảng viên hướng dẫn.
-6. Để được công nhận điểm học phần Thực tâp chuyên ngành, các sinh viên cần đăng ký lớp môn học này trên website **http://daotao.vnu.edu.vn** khi có yêu cầu đăng ký từ Phòng Đào tạo. **Chú ý: nếu không đăng ký theo thông báo mở lớp môn học của Phòng Đào tạo trên, sinh viên sẽ không được công nhận điểm học phần Thực tập chuyên ngành** **kỳ này.**
+6. Để được công nhận điểm học phần Thực tâp chuyên ngành, các sinh viên cần đăng ký lớp môn học này trên website **http://daotao.vnu.edu.vn** khi có yêu cầu đăng ký từ Phòng Đào tạo. **Chú ý: nếu không đăng ký theo thông báo mở lớp môn học của Phòng Đào tạo trên, sinh viên sẽ không được công nhận điểm học phần Thực tập** **kỳ này.**
 
 **Các mốc thời gian cụ thể cần chú ý**
 
@@ -120,7 +120,7 @@ async function initDb() {
   * 20% điểm nội dung của bản báo cáo thực tập theo mẫu
   * 60% điểm đánh giá của phía công ty (nếu thực tập tại công ty) hoặc giảng viên hướng dẫn (thực tập tại trường).`;
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${defaultPlan.replace(/'/g, "''")}')`);
-  
+
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN history TEXT'); } catch (e) { }
@@ -357,7 +357,7 @@ async function startServer() {
       } else {
         res.json([]);
       }
-    } catch(e) {
+    } catch (e) {
       res.json([]);
     }
   });
@@ -588,10 +588,10 @@ async function startServer() {
         return res.status(400).json({ error: 'Chức năng này yêu cầu cấu hình Service Account (GOOGLE_SERVICE_ACCOUNT_EMAIL và GOOGLE_PRIVATE_KEY) trên Render.' });
       }
 
-      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as {value: string};
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
       const url = setting?.value;
       if (!url) return res.status(400).json({ error: 'Bạn chưa cấu hình [Đường dẫn Google Sheet xuất dữ liệu] trong phần Cài đặt hệ thống.' });
-      
+
       const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
       if (!match) return res.status(400).json({ error: 'URL Google Sheet không hợp lệ' });
       const spreadsheetId = match[1];
@@ -698,7 +698,7 @@ async function startServer() {
     const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
     const exportSetting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
     const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
-    res.json({ 
+    res.json({
       url: setting ? setting.value : '',
       export_url: exportSetting ? exportSetting.value : '',
       plan: planSetting ? planSetting.value : ''

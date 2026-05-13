@@ -76,7 +76,7 @@ function App() {
                       <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-green-300 transition-colors"><UserIcon size={18} /></div>
                     )}
                   </button>
-                  
+
                   {isMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
@@ -109,7 +109,7 @@ function App() {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập</h2>
                 <p className="text-gray-500 text-sm mb-8">
-                  Hệ thống đăng ký Thực tập chuyên ngành.<br />
+                  Hệ thống đăng ký Thực tập.<br />
                   Yêu cầu đăng nhập bằng VNU mail <strong className="text-gray-900">@vnu.edu.vn</strong>
                 </p>
 
@@ -415,7 +415,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
 
       <div className="col-span-1 lg:col-span-9 flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-800">Thực tập chuyên ngành {campaign.year}</h2>
+          <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/plan')}
@@ -603,7 +603,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 onClick={handleWithdraw}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm"
               >
-                Vẫn Hủy Đăng Ký
+                Vẫn hủy Đăng ký
               </button>
             </div>
           </div>
@@ -796,12 +796,12 @@ function AdminPanel({ token }: { token: string }) {
 
       let vi_tri = r.company_name === 'Khác' ? (r.other_company_role || '') : 'Thực tập sinh';
       let lien_he = r.company_name === 'Khác' ? (r.other_company_contact || '') : (r.contact_email || '');
-      
+
       let ghi_chu = r.note || '';
       if (r.company_name === 'Thực tập ở trường') {
         ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.note ? ' - ' + r.note : '');
       }
-      
+
       return [
         i + 1,
         r.student_id,
@@ -958,8 +958,7 @@ function AdminPanel({ token }: { token: string }) {
       (reg.class_name || '').toLowerCase().includes(term)
     );
     const matchCourse = filterCourse ? reg.course_code === filterCourse : true;
-    const matchCompany = filterCompany ? reg.company_name === filterCompany : true;
-    return matchTerm && matchCourse && matchCompany;
+    return matchTerm && matchCourse;
   });
 
   const totalRegistrations = registrations.length;
@@ -980,10 +979,6 @@ function AdminPanel({ token }: { token: string }) {
             <option value="">Tất cả học phần</option>
             {uniqueCourses.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
           </select>
-          <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm max-w-[150px] truncate bg-white">
-            <option value="">Tất cả công ty</option>
-            {uniqueCompanies.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
-          </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -1000,13 +995,7 @@ function AdminPanel({ token }: { token: string }) {
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
-          <button
-            onClick={handleApproveAll}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <CheckCircle2 size={18} /> Duyệt tất cả
-          </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1639,15 +1628,15 @@ function PlanView() {
         ) : (
           <ReactMarkdown
             components={{
-              h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-slate-800 mb-4" {...props} />,
-              h2: ({node, ...props}) => <h2 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
-              h3: ({node, ...props}) => <h3 className="text-lg font-bold text-slate-800 mt-4 mb-2" {...props} />,
-              p: ({node, ...props}) => <p className="mb-4 text-slate-600 leading-relaxed" {...props} />,
-              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
-              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
-              li: ({node, ...props}) => <li className="" {...props} />,
-              strong: ({node, ...props}) => <strong className="font-semibold text-slate-900" {...props} />,
-              a: ({node, ...props}) => <a className="text-blue-600 hover:underline" {...props} />,
+              h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-slate-800 mb-4" {...props} />,
+              h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
+              h3: ({ node, ...props }) => <h3 className="text-lg font-bold text-slate-800 mt-4 mb-2" {...props} />,
+              p: ({ node, ...props }) => <p className="mb-4 text-slate-600 leading-relaxed" {...props} />,
+              ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
+              ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
+              li: ({ node, ...props }) => <li className="" {...props} />,
+              strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900" {...props} />,
+              a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
             }}
           >
             {plan}
@@ -1677,7 +1666,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
           setClassesList(data.classes_list.split(',').map((c: string) => c.trim()));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -1715,7 +1704,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
       </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân</h2>
-        
+
         <form onSubmit={handleSave} className="space-y-5">
           <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
             {user.picture ? (
@@ -1736,7 +1725,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 type="text"
                 required
                 value={formData.student_id}
-                onChange={(e) => setFormData({...formData, student_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-mono"
               />
             </div>
@@ -1746,7 +1735,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               />
             </div>
@@ -1756,7 +1745,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 type="date"
                 required
                 value={formData.dob}
-                onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               />
             </div>
@@ -1765,7 +1754,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
               <select
                 required
                 value={formData.class_name}
-                onChange={(e) => setFormData({...formData, class_name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               >
                 <option value="">-- Chọn lớp khóa học --</option>
@@ -1775,7 +1764,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
               </select>
             </div>
           </div>
-          
+
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
               type="submit"
