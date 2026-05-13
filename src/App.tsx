@@ -765,6 +765,24 @@ function AdminPanel({ token }: { token: string }) {
     window.location.href = `${API_BASE}/api/admin/export.csv?token=${token}`;
   };
 
+  const handleSaveToGoogleSheets = async () => {
+    if (!confirm('Hệ thống sẽ ghi đè toàn bộ dữ liệu hiện tại lên Google Sheets. Bạn có chắc chắn?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/export-to-sheet`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Đã lưu vào Google Sheets thành công!');
+      } else {
+        alert(data.error || 'Đã xảy ra lỗi khi lưu vào Google Sheets.');
+      }
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    }
+  };
+
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -892,7 +910,7 @@ function AdminPanel({ token }: { token: string }) {
             <Download size={18} /> Xuất CSV
           </button>
           <button
-            onClick={handleExport}
+            onClick={handleSaveToGoogleSheets}
             className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <Download size={18} /> Lưu vào Google Sheets
@@ -1017,6 +1035,7 @@ function AdminPanel({ token }: { token: string }) {
 
 function AdminSettings({ token }: { token: string }) {
   const [sheetUrl, setSheetUrl] = useState('');
+  const [exportSheetUrl, setExportSheetUrl] = useState('');
   const [campaign, setCampaign] = useState({ year: '', start: '', end: '' });
   const [admins, setAdmins] = useState<any[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -1089,6 +1108,7 @@ function AdminSettings({ token }: { token: string }) {
       ]);
       const data = await sheetRes.json();
       setSheetUrl(data.url || '');
+      setExportSheetUrl(data.export_url || '');
       setCampaign(await campRes.json());
     } catch (e) { }
   };
@@ -1102,7 +1122,7 @@ function AdminSettings({ token }: { token: string }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ url: sheetUrl })
+        body: JSON.stringify({ url: sheetUrl, export_url: exportSheetUrl })
       });
       if (!res.ok) throw new Error('Failed to save');
       alert('Đã lưu URL thành công!');
@@ -1209,6 +1229,26 @@ function AdminSettings({ token }: { token: string }) {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem". Khuyên dùng link dạng <code>/export?format=csv</code>.</p>
+          </div>
+          <div className="pt-4 border-t border-slate-200">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (lưu dữ liệu xuất file)</label>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="https://docs.google.com/spreadsheets/d/1ABC..."
+                value={exportSheetUrl}
+                onChange={(e) => setExportSheetUrl(e.target.value)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+              <button
+                onClick={handleSaveUrl}
+                disabled={savingUrl}
+                className="flex items-center justify-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-70 shadow-sm transition-colors"
+              >
+                <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Lưu ý: Để tính năng này hoạt động, bạn <b>bắt buộc</b> phải cấp quyền Người chỉnh sửa (Editor) cho tài khoản Service Account của bạn trên Google Sheet này.</p>
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between">

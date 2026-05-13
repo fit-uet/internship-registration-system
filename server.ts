@@ -507,6 +507,69 @@ async function startServer() {
   });
 
 
+  // 7a. Admin: Save to Google Sheets
+  app.post('/api/admin/export-to-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      const key = process.env.GOOGLE_PRIVATE_KEY;
+      if (!email || !key) {
+        return res.status(400).json({ error: 'Chức năng này yêu cầu cấu hình Service Account (GOOGLE_SERVICE_ACCOUNT_EMAIL và GOOGLE_PRIVATE_KEY) trên Render.' });
+      }
+
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as {value: string};
+      const url = setting?.value;
+      if (!url) return res.status(400).json({ error: 'Bạn chưa cấu hình [Đường dẫn Google Sheet xuất dữ liệu] trong phần Cài đặt hệ thống.' });
+      
+      const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) return res.status(400).json({ error: 'URL Google Sheet không hợp lệ' });
+      const spreadsheetId = match[1];
+
+      const data = (await db.execute(`
+        SELECT 
+          r.student_id as "Mã SV",
+          u.name as "Họ và tên",
+          r.dob as "Ngày sinh",
+          r.class_name as "Lớp KH",
+          u.email as "Email",
+          r.course_code as "Mã môn học",
+          CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Công ty",
+          CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
+          CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
+          CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
+          r.status as "Trạng thái",
+          r.created_at as "Thời gian đăng ký"
+        FROM registrations r
+        JOIN users u ON r.user_id = u.id
+        JOIN companies c ON r.company_id = c.id
+        ORDER BY r.created_at DESC
+      `)).rows as any[];
+
+      const headers = data.length > 0 ? ['STT', ...Object.keys(data[0])] : ['STT'];
+      const rows = data.map((r, i) => [i + 1, ...Object.values(r)]);
+      const sheetData = [headers, ...rows];
+
+      const { google } = await import('googleapis');
+      const auth = new google.auth.GoogleAuth({
+        credentials: { client_email: email, private_key: key.replace(/\\n/g, '\n') },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+      const sheets = google.sheets({ version: 'v4', auth });
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'A1',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: sheetData },
+      });
+
+      res.json({ success: true, message: 'Đã lưu dữ liệu vào Google Sheets thành công!' });
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: 'Lỗi khi lưu vào Google Sheets: ' + error.message });
+    }
+  });
+
+
   // 7b. Admin: Approve all pending registrations
   app.put('/api/admin/registrations/approve-all', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
@@ -557,12 +620,21 @@ async function startServer() {
   // 9. Admin: Settings
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
     const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
-    res.json({ url: setting ? setting.value : '' });
+    const exportSetting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
+    res.json({ 
+      url: setting ? setting.value : '',
+      export_url: exportSetting ? exportSetting.value : ''
+    });
   });
 
   app.put('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { url } = req.body;
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
+    const { url, export_url } = req.body;
+    if (url !== undefined) {
+      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
+    }
+    if (export_url !== undefined) {
+      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('export_google_sheet_url', ?)", args: [export_url] });
+    }
     res.json({ success: true });
   });
 
