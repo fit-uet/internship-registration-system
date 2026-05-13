@@ -74,9 +74,7 @@ function App() {
                     <LogOut size={20} />
                   </button>
                 </div>
-              ) : (
-                <div className="text-sm text-white/70 italic hidden sm:block">Mùa hè 2026</div>
-              )}
+              ) : null}
             </div>
           </header>
 
@@ -161,12 +159,14 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set());
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
+  const [lecturers, setLecturers] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState<any>({
     student_id: studentIdFromEmail,
     dob: '',
     class_name: '',
     course_code: '',
+    school_lecturer: '',
     note: ''
   });
   const [otherCompanies, setOtherCompanies] = useState([{
@@ -182,6 +182,9 @@ function Dashboard({ user, token }: { user: any, token: string }) {
 
   const khacCompany = companies.find(c => c.name === 'Khác');
   const hasSelectedKhac = khacCompany && selectedCompanies.has(khacCompany.id);
+
+  const schoolCompany = companies.find(c => c.name === 'Thực tập ở trường');
+  const hasSelectedSchool = schoolCompany && selectedCompanies.has(schoolCompany.id);
 
   const toggleCompanySelection = (companyId: number) => {
     setSelectedCompanies(prev => {
@@ -203,11 +206,12 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes, campRes, itListRes] = await Promise.all([
+      const [compRes, regRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       const compData = await compRes.json();
@@ -222,6 +226,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       }
 
       setItCompanyList(await itListRes.json());
+      setLecturers(await lecRes.json());
     } catch (e) {
       console.error(e);
     }
@@ -282,6 +287,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           dob: registerForm.dob,
           class_name: registerForm.class_name,
           course_code: registerForm.course_code,
+          school_lecturer: registerForm.school_lecturer,
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
@@ -294,7 +300,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       if (res.ok) {
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', course_code: '', note: '' });
+        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', course_code: '', school_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -360,7 +366,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
-              <span>Mỗi sinh viên chọn tối đa <strong>05</strong> nguyện vọng.</span>
+              <span>Mỗi sinh viên chọn tối đa <strong>05</strong> công ty.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-blue-400">•</span>
@@ -389,7 +395,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="text-green-600" size={20} />
-                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} nguyện vọng</h3>
+                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} công ty</h3>
                 </div>
                 <ul className="text-sm text-green-800 mb-4 space-y-1">
                   {myRegs.map((reg: any, idx: number) => (
@@ -544,7 +550,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
               Bạn có chắc chắn muốn hủy kết quả đăng ký thực tập hiện tại?
               <br /><br />
-              <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Việc hủy để chọn lại nguyện vọng có thể khiến bạn mất lượt ở những danh sách đã đầy. Hủy bỏ là hành động không thể hoàn tác.
+              <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Việc hủy để chọn lại công ty có thể khiến bạn mất lượt ở những danh sách đã đầy. Hủy bỏ là hành động không thể hoàn tác.
             </p>
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -575,7 +581,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </button>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedCompanies.size}</strong> nguyện vọng:</p>
+              <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedCompanies.size}</strong> công ty:</p>
               <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
                 {Array.from(selectedCompanies).map((cId, idx) => {
                   const comp = companies.find(c => c.id === cId);
@@ -615,11 +621,30 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                   <option value="Thực tập Chuyên ngành INT3508">2. Thực tập Chuyên ngành INT3508</option>
                   <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">3. Thực tập Doanh nghiệp Nhật Bản INT4003</option>
                 </select>
+                <p className="text-[11px] text-red-500 mt-1.5 italic font-medium">* Lưu ý: Sinh viên phải chọn chính xác học phần theo khung chương trình đào tạo của mình.</p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú thêm</label>
                 <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={hasSelectedKhac ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
+
+              {hasSelectedSchool && (
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-blue-800">Thông tin Thực tập ở trường</h4>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn *</label>
+                    <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.school_lecturer} onChange={e => setRegisterForm({ ...registerForm, school_lecturer: e.target.value })}>
+                      <option value="">-- Chọn Giảng viên hướng dẫn --</option>
+                      {lecturers.map(lec => (
+                        <option key={lec} value={lec}>{lec}</option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">* Lưu ý: Sinh viên bắt buộc phải liên hệ với thầy/cô từ trước.</p>
+                  </div>
+                </div>
+              )}
 
               {hasSelectedKhac && (
                 <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg space-y-4">
@@ -924,7 +949,7 @@ function AdminPanel({ token }: { token: string }) {
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">
-                        {reg.company_name === 'Khác' ? (reg.other_company_name || 'Chưa rõ') : reg.company_name}
+                        {reg.company_name === 'Khác' ? (reg.other_company_name || 'Chưa rõ') : reg.company_name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : reg.company_name}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -934,6 +959,12 @@ function AdminPanel({ token }: { token: string }) {
                           <span className="font-semibold text-gray-700">Vị trí:</span> {reg.other_company_role} <br />
                           <span className="font-semibold text-gray-700">Liên hệ:</span> {reg.other_company_contact}
                           {reg.note && <><br /><span className="font-semibold text-gray-700">Lưu ý thêm:</span> {reg.note}</>}
+                        </div>
+                      ) : reg.company_name === 'Thực tập ở trường' ? (
+                        <div className="text-xs text-gray-600 font-normal leading-relaxed">
+                          <span className="inline-block font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded mb-1 border border-purple-100">Thực tập ở trường</span><br />
+                          <span className="font-semibold text-gray-700">GVHD:</span> {reg.other_company_contact}
+                          {reg.note && <><br /><span className="font-semibold text-gray-700">Ghi chú:</span> {reg.note}</>}
                         </div>
                       ) : (
                         reg.note

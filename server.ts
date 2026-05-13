@@ -16,10 +16,10 @@ const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 let db: Client;
 
 async function initDb() {
-  db = createClient({ 
-  url: process.env.TURSO_DATABASE_URL || 'libsql://internship-db-kieuvantuyen01.aws-ap-northeast-1.turso.io', 
-  authToken: process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzg2Njc1ODgsImlkIjoiMDE5ZTIwYmMtZjYwMS03NDM4LWJhNGYtM2RmMGY0ZTczMWQ4IiwicmlkIjoiZTMxNjg3NjYtZWYzYy00OTI0LTlmYzItNWM3NzBlYTJhY2U0In0.6Ll3Ta48hjFtTme0UBKZZ8xNVO0wOD-f4JKTgRMGsTS4ob7ZiGAt1HIZxZ3b98seSdTDjP3XkgV6VGg3ii_ZAw' 
-});
+  db = createClient({
+    url: process.env.TURSO_DATABASE_URL || 'libsql://internship-db-kieuvantuyen01.aws-ap-northeast-1.turso.io',
+    authToken: process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzg2Njc1ODgsImlkIjoiMDE5ZTIwYmMtZjYwMS03NDM4LWJhNGYtM2RmMGY0ZTczMWQ4IiwicmlkIjoiZTMxNjg3NjYtZWYzYy00OTI0LTlmYzItNWM3NzBlYTJhY2U0In0.6Ll3Ta48hjFtTme0UBKZZ8xNVO0wOD-f4JKTgRMGsTS4ob7ZiGAt1HIZxZ3b98seSdTDjP3XkgV6VGg3ii_ZAw'
+  });
 
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
@@ -67,46 +67,58 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
 
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN history TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN qualifications TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN address TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch(e) {}
-  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch(e) {}
-  
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN class_name TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) {}
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) {}
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN history TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN qualifications TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN address TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch (e) { }
+
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN class_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) { }
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0];
   if (!otherExist) {
-    await db.execute({ sql: `
+    await db.execute({
+      sql: `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, args: ['Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', ''] });
+    `, args: ['Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '']
+    });
+  }
+
+  const schoolExist = (await db.execute("SELECT id FROM companies WHERE name = 'Thực tập ở trường'")).rows[0];
+  if (!schoolExist) {
+    await db.execute({
+      sql: `
+      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, args: ['Thực tập ở trường', 'Thực tập tại các Lab/Dự án trong trường', 9999, '', '', '', '', '', '', '']
+    });
   }
 }
 
 async function seedCompaniesIfEmpty() {
-  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác'")).rows[0] as { count: number };
+  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác' AND name != 'Thực tập ở trường'")).rows[0] as { count: number };
   if (count.count > 0) return;
 
-  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
+  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
   if (!setting || !setting.value) return;
 
   let fetchUrl = setting.value;
   if (!fetchUrl.includes('export?format=csv')) {
-     if (fetchUrl.includes('edit?usp=sharing')) {
-         fetchUrl = fetchUrl.replace('edit?usp=sharing', 'export?format=csv');
-     } else if (fetchUrl.includes('edit')) {
-         fetchUrl = fetchUrl.split('edit')[0] + 'export?format=csv';
-     }
+    if (fetchUrl.includes('edit?usp=sharing')) {
+      fetchUrl = fetchUrl.replace('edit?usp=sharing', 'export?format=csv');
+    } else if (fetchUrl.includes('edit')) {
+      fetchUrl = fetchUrl.split('edit')[0] + 'export?format=csv';
+    }
   }
 
   try {
@@ -132,17 +144,17 @@ async function seedCompaniesIfEmpty() {
       let phone = record["Điện thoại liên hệ"]?.trim() || '';
       const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
       const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
-      
+
       if (contactEmail && !phone) {
-         const parts = contactEmail.split(/[\/,;\s]+/);
-         const emails: string[] = [];
-         const phones: string[] = [];
-         for (const p of parts) {
-             if (p.includes('@')) emails.push(p);
-             else if (p.match(/[\d]{8,}/)) phones.push(p);
-         }
-         if (emails.length > 0) contactEmail = emails.join(', ');
-         if (phones.length > 0) phone = phones.join(', ');
+        const parts = contactEmail.split(/[\/,;\s]+/);
+        const emails: string[] = [];
+        const phones: string[] = [];
+        for (const p of parts) {
+          if (p.includes('@')) emails.push(p);
+          else if (p.match(/[\d]{8,}/)) phones.push(p);
+        }
+        if (emails.length > 0) contactEmail = emails.join(', ');
+        if (phones.length > 0) phone = phones.join(', ');
       }
 
       const description = `Tuyển ${slots} sinh viên thực tập.`;
@@ -159,10 +171,10 @@ async function seedCompaniesIfEmpty() {
 async function startServer() {
   await initDb();
   await seedCompaniesIfEmpty();
-  
+
   const app = express();
   const PORT = 3000;
-  
+
   app.use(express.json());
   app.use(cors({
     origin: process.env.CORS_ORIGIN || 'https://fit-uet.github.io',
@@ -175,7 +187,7 @@ async function startServer() {
   const requireAuth = async (req: any, res: any, next: any) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    
+
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
       req.user = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [decoded.id] })).rows[0];
@@ -200,17 +212,17 @@ async function startServer() {
       // Decode locally OR verify with google API if client ID is real
       // For development, we just decode the credential
       let payload: any;
-      
+
       try {
         const ticket = await oAuth2Client.verifyIdToken({
-            idToken: credential,
-            audience: GOOGLE_CLIENT_ID,
+          idToken: credential,
+          audience: GOOGLE_CLIENT_ID,
         });
         payload = ticket.getPayload();
       } catch (e) {
-         // Fallback to simple decode if we have an invalid mock client ID
-         const jwtDecode = (await import('jwt-decode')).jwtDecode;
-         payload = jwtDecode(credential);
+        // Fallback to simple decode if we have an invalid mock client ID
+        const jwtDecode = (await import('jwt-decode')).jwtDecode;
+        payload = jwtDecode(credential);
       }
 
       if (!payload || !payload.email) {
@@ -218,7 +230,7 @@ async function startServer() {
       }
 
       const email = payload.email;
-      
+
       const adminEmail = process.env.ADMIN_EMAIL;
 
       // Strict filter for @vnu.edu.vn and admin email
@@ -230,15 +242,17 @@ async function startServer() {
 
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
-        const result = await db.execute({ sql: 
-          'INSERT INTO users (email, name, picture, role) VALUES (?, ?, ?, ?)'
-        , args: [email, payload.name, payload.picture, role] });
+        const result = await db.execute({
+          sql:
+            'INSERT INTO users (email, name, picture, role) VALUES (?, ?, ?, ?)'
+          , args: [email, payload.name, payload.picture, role]
+        });
         user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role };
       } else {
-         // Update picture/name sometimes
-         await db.execute({ sql: 'UPDATE users SET name = ?, picture = ? WHERE id = ?', args: [payload.name, payload.picture, user.id] });
-         user.name = payload.name;
-         user.picture = payload.picture;
+        // Update picture/name sometimes
+        await db.execute({ sql: 'UPDATE users SET name = ?, picture = ? WHERE id = ?', args: [payload.name, payload.picture, user.id] });
+        user.name = payload.name;
+        user.picture = payload.picture;
       }
 
       const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -270,6 +284,22 @@ async function startServer() {
       } else {
         res.json([]);
       }
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
+  // 2c. Get lecturers
+  app.get('/api/lecturers', async (req: any, res: any) => {
+    try {
+      const p = join(process.cwd(), 'lectures-list.csv');
+      if (fs.existsSync(p)) {
+        const text = fs.readFileSync(p, 'utf-8');
+        const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
+        res.json(lines);
+      } else {
+        res.json([]);
+      }
     } catch(e) {
       res.json([]);
     }
@@ -277,13 +307,15 @@ async function startServer() {
 
   // 2b. Get a single company
   app.get('/api/companies/:id', requireAuth, async (req: any, res: any) => {
-    const company = (await db.execute({ sql: `
+    const company = (await db.execute({
+      sql: `
       SELECT c.*, 
              c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
              (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
       FROM companies c 
       WHERE c.id = ?
-    `, args: [req.params.id] })).rows[0];
+    `, args: [req.params.id]
+    })).rows[0];
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
@@ -292,33 +324,39 @@ async function startServer() {
 
   // 3. Get Registration (Student)
   app.get('/api/registrations/my', requireAuth, async (req: any, res: any) => {
-    const regs = (await db.execute({ sql: `
+    const regs = (await db.execute({
+      sql: `
       SELECT r.*, c.name as company_name 
       FROM registrations r
       JOIN companies c ON r.company_id = c.id
       WHERE r.user_id = ?
       ORDER BY r.created_at ASC
-    `, args: [req.user.id] })).rows;
+    `, args: [req.user.id]
+    })).rows;
     res.json(regs);
   });
 
   // 4. Register for companies (batch - up to 5)
   app.post('/api/registrations', requireAuth, async (req: any, res: any) => {
-    const { company_ids, student_id, dob, class_name, note, other_companies, course_code } = req.body;
-    
+    const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer } = req.body;
+
     if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
     }
 
     const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0] as any;
+    const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Thực tập ở trường'")).rows[0] as any;
     const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
     const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
 
     if (totalWishes === 0) {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
     }
+    if (normal_company_ids.includes(schoolCompany?.id) && !school_lecturer) {
+      return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
+    }
     if (totalWishes > 5) {
-      return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 nguyện vọng.' });
+      return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 công ty.' });
     }
 
     if (other_companies && other_companies.length > 0) {
@@ -336,7 +374,8 @@ async function startServer() {
       const insertSql2 = 'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
       for (const companyId of normal_company_ids) {
-        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null, course_code] });
+        const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
+        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, contactInfo, course_code] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -350,21 +389,21 @@ async function startServer() {
             inList = list.includes(other.name.trim());
           }
           const status = inList ? 'approved' : 'pending';
-          
+
           await db.execute({
             sql: insertSql2,
             args: [
-            req.user.id,
-            khacCompany.id,
-            student_id,
-            dob,
-            class_name,
-            note,
-            status,
-            other.name,
-            other.role,
-            other.contact,
-            course_code
+              req.user.id,
+              khacCompany.id,
+              student_id,
+              dob,
+              class_name,
+              note,
+              status,
+              other.name,
+              other.role,
+              other.contact,
+              course_code
             ]
           });
         }
@@ -430,10 +469,10 @@ async function startServer() {
         r.class_name as "Lớp KH",
         u.email as "Email",
         r.course_code as "Mã môn học",
-        CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') ELSE c.name END as "Công ty",
+        CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Công ty",
         CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
         CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
-        r.note as "Ghi chú",
+        CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
         r.status as "Trạng thái",
         r.created_at as "Thời gian đăng ký"
       FROM registrations r
@@ -451,7 +490,7 @@ async function startServer() {
     const headers = Object.keys(data[0]);
     const csvRows = [];
     csvRows.push('"STT",' + headers.map(h => `"${h}"`).join(','));
-    
+
     let stt = 1;
     for (const row of data) {
       const values = headers.map(header => {
@@ -482,7 +521,7 @@ async function startServer() {
   app.put('/api/admin/registrations/:id/status', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -496,14 +535,14 @@ async function startServer() {
   });
 
   app.get('/api/settings/campaign', async (req: any, res: any) => {
-    const year = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_year'")).rows[0] as {value: string};
-    const start = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_start'")).rows[0] as {value: string};
-    const end = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_end'")).rows[0] as {value: string};
-    
-    res.json({ 
-        year: year ? year.value : '2026',
-        start: start ? start.value : '22/05/2026',
-        end: end ? end.value : '15/06/2026'
+    const year = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_year'")).rows[0] as { value: string };
+    const start = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_start'")).rows[0] as { value: string };
+    const end = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_end'")).rows[0] as { value: string };
+
+    res.json({
+      year: year ? year.value : '2026',
+      start: start ? start.value : '22/05/2026',
+      end: end ? end.value : '15/06/2026'
     });
   });
 
@@ -517,7 +556,7 @@ async function startServer() {
 
   // 9. Admin: Settings
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
+    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
     res.json({ url: setting ? setting.value : '' });
   });
 
@@ -539,10 +578,12 @@ async function startServer() {
       return res.status(400).json({ error: 'Chỉ hỗ trợ email @vnu.edu.vn' });
     }
     try {
-      await db.execute({ sql: `
+      await db.execute({
+        sql: `
         INSERT INTO users (email, name, role) VALUES (?, 'Admin', 'admin')
         ON CONFLICT(email) DO UPDATE SET role = 'admin'
-      `, args: [email] });
+      `, args: [email]
+      });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -565,25 +606,25 @@ async function startServer() {
   // 10. Admin: Import companies from Google Sheet
   app.post('/api/settings/import-companies', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as {value: string};
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
       if (!setting || !setting.value) {
         return res.status(400).json({ error: 'Spreadsheet URL not set' });
       }
 
       let fetchUrl = setting.value;
       if (!fetchUrl.includes('export?format=csv')) {
-         if (fetchUrl.includes('edit?usp=sharing')) {
-             fetchUrl = fetchUrl.replace('edit?usp=sharing', 'export?format=csv');
-         } else if (fetchUrl.includes('edit')) {
-             fetchUrl = fetchUrl.split('edit')[0] + 'export?format=csv';
-         }
+        if (fetchUrl.includes('edit?usp=sharing')) {
+          fetchUrl = fetchUrl.replace('edit?usp=sharing', 'export?format=csv');
+        } else if (fetchUrl.includes('edit')) {
+          fetchUrl = fetchUrl.split('edit')[0] + 'export?format=csv';
+        }
       }
 
       const response = await fetch(fetchUrl);
       if (!response.ok) {
         throw new Error('Failed to fetch from Google Sheets');
       }
-      
+
       const csvData = await response.text();
       const records = parse(csvData, {
         columns: true,
@@ -591,7 +632,7 @@ async function startServer() {
       });
 
       if (records.length === 0) {
-         return res.status(400).json({ error: 'No records found in CSV' });
+        return res.status(400).json({ error: 'No records found in CSV' });
       }
 
       // We clear the tables
@@ -606,7 +647,7 @@ async function startServer() {
       let importedCount = 0;
       for (const record of records) {
         if (!record["Timestamp"]) continue;
-        
+
         const name = record["Tên doanh nghiệp"]?.trim();
         if (!name) continue;
 
@@ -617,22 +658,22 @@ async function startServer() {
         let phone = record["Điện thoại liên hệ"]?.trim() || '';
         const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
         const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
-        
+
         // Clean up email/phone if they are combined in the email field
         if (contactEmail && !phone) {
-           const parts = contactEmail.split(/[\/,;\s]+/);
-           const emails: string[] = [];
-           const phones: string[] = [];
-           for (const p of parts) {
-               if (p.includes('@')) emails.push(p);
-               else if (p.match(/[\d]{8,}/)) phones.push(p);
-           }
-           if (emails.length > 0) contactEmail = emails.join(', ');
-           if (phones.length > 0) phone = phones.join(', ');
+          const parts = contactEmail.split(/[\/,;\s]+/);
+          const emails: string[] = [];
+          const phones: string[] = [];
+          for (const p of parts) {
+            if (p.includes('@')) emails.push(p);
+            else if (p.match(/[\d]{8,}/)) phones.push(p);
+          }
+          if (emails.length > 0) contactEmail = emails.join(', ');
+          if (phones.length > 0) phone = phones.join(', ');
         }
-        
+
         let qualifications = '';
-        
+
         const description = `Tuyển ${slots} sinh viên thực tập.`;
         const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
         await db.execute({ sql: insertSql1, args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName] });
