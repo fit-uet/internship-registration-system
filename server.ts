@@ -522,7 +522,8 @@ async function startServer() {
         r.other_company_name,
         r.other_company_role,
         r.other_company_contact,
-        r.course_code
+        r.course_code,
+        c.contact_email
       FROM registrations r
       JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id

@@ -2,7 +2,9 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LogOut, User as UserIcon, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X } from 'lucide-react';
+import { LogOut, User as UserIcon, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
@@ -766,6 +768,7 @@ function AdminPanel({ token }: { token: string }) {
   const [filterCourse, setFilterCourse] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -784,8 +787,72 @@ function AdminPanel({ token }: { token: string }) {
     setLoading(false);
   };
 
-  const handleExport = async () => {
-    window.location.href = `${API_BASE}/api/admin/export.csv?token=${token}`;
+  const generateCSVContent = (dataList: any[]) => {
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
+    const rows = dataList.map((r, i) => {
+      let noi_tt = r.company_name;
+      if (r.company_name === 'Khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
+      if (r.company_name === 'Thực tập ở trường') noi_tt = 'Trường Đại học Công nghệ';
+
+      let vi_tri = r.company_name === 'Khác' ? (r.other_company_role || '') : 'Thực tập sinh';
+      let lien_he = r.company_name === 'Khác' ? (r.other_company_contact || '') : (r.contact_email || '');
+      
+      let ghi_chu = r.note || '';
+      if (r.company_name === 'Thực tập ở trường') {
+        ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.note ? ' - ' + r.note : '');
+      }
+      
+      return [
+        i + 1,
+        r.student_id,
+        r.student_name,
+        r.dob,
+        r.class_name,
+        r.course_code,
+        noi_tt,
+        vi_tri,
+        lien_he,
+        ghi_chu,
+        r.status === 'approved' ? 'Đã duyệt' : (r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'),
+        new Date(r.created_at).toLocaleString('vi-VN')
+      ];
+    });
+    const csvContent = [headers, ...rows].map(e => e.map(item => `"${(item || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+    return '\uFEFF' + csvContent;
+  };
+
+  const handleExportCurrent = () => {
+    const csv = generateCSVContent(filteredRegistrations);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'danh_sach_hien_tai.csv');
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportByCourse = async () => {
+    const zip = new JSZip();
+    uniqueCourses.forEach(course => {
+      const data = registrations.filter(r => r.course_code === course);
+      if (data.length > 0) {
+        zip.file(`Lop_${course || 'KhongXacDinh'}.csv`, generateCSVContent(data));
+      }
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'DanhSachTheoLop.zip');
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportByCompany = async () => {
+    const zip = new JSZip();
+    uniqueCompanies.forEach(company => {
+      const data = registrations.filter(r => r.company_name === company);
+      if (data.length > 0) {
+        const safeName = (company as string).replace(/[^a-z0-9]/gi, '_');
+        zip.file(`CongTy_${safeName}.csv`, generateCSVContent(data));
+      }
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'DanhSachTheoCongTy.zip');
+    setIsExportMenuOpen(false);
   };
 
   const handleSaveToGoogleSheets = async () => {
@@ -906,7 +973,7 @@ function AdminPanel({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block">&larr; Quay lại trang chủ</button>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block">&larr; Quay lại</button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm max-w-[150px] truncate bg-white">
@@ -934,11 +1001,36 @@ function AdminPanel({ token }: { token: string }) {
             <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
           <button
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm transition-colors whitespace-nowrap"
+            onClick={handleApproveAll}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
           >
-            <Download size={18} /> Xuất CSV
+            <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
+          
+          <div className="relative">
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm transition-colors whitespace-nowrap"
+            >
+              <Download size={18} /> Xuất dữ liệu <ChevronDown size={14} />
+            </button>
+            {isExportMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
+                  <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
+                    <FileText size={16} className="text-green-600" /> Xuất danh sách đang lọc (CSV)
+                  </button>
+                  <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
+                    <Download size={16} className="text-blue-600" /> Xuất theo môn học (ZIP)
+                  </button>
+                  <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left">
+                    <Download size={16} className="text-blue-600" /> Xuất theo công ty (ZIP)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={handleSaveToGoogleSheets}
             className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
