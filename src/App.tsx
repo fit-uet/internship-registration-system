@@ -51,7 +51,7 @@ function App() {
             <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center hidden sm:flex overflow-hidden">
-                  <img src="https://www.fit.uet.vnu.edu.vn/wp-content/uploads/2025/10/FIT_logo_30.png" alt="FIT UET 30 Years" className="w-full h-full object-contain p-0.5" />
+                  <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FIT UET 30 Years" className="w-full h-full object-contain p-0.5" />
                 </div>
                 <div>
                   <h1 className="text-lg font-bold leading-tight uppercase">Khoa Công nghệ Thông tin</h1>
