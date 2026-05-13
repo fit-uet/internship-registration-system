@@ -67,6 +67,24 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
 
+  const defaultPlan = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP
+
+**Khoa CNTT thông báo triển khai Thực tập học kỳ như sau:**
+
+**I. Lịch triển khai**
+Để **đăng ký đi thực tập và được công nhận điểm học phần**, các sinh viên cần phải tuân thủ quy trình sau:
+1. Đăng ký với Khoa CNTT trên trang Hệ thống Đăng ký thực tập.
+2. Theo dõi thông tin tuyển thực tập. Mỗi sinh viên chọn tối đa 05 công ty.
+3. Nếu không trúng tuyển, có thể liên hệ Giảng viên để thực tập tại trường.
+
+**II. Các hướng dẫn liên quan đến quá trình đăng ký và thực tập**
+* Đăng nhập vào hệ thống bằng tài khoản email **@vnu.edu.vn** (qua nút Đăng nhập với Google).
+* Điền đầy đủ thông tin cá nhân (SĐT, Mã SV, Lớp, Ngày sinh).
+* Mục **Danh sách nơi thực tập** sẽ liệt kê các công ty nhận thực tập.
+* Đánh dấu chọn (tối đa 5 công ty) và ấn nút **Đăng ký**.
+* Để thay đổi đăng ký, chọn nút "Hủy đăng ký" và thao tác lại từ đầu.`;
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${defaultPlan.replace(/'/g, "''")}')`);
+  
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN history TEXT'); } catch (e) { }
@@ -467,9 +485,8 @@ async function startServer() {
         u.name as "Họ và tên",
         r.dob as "Ngày sinh",
         r.class_name as "Lớp KH",
-        u.email as "Email",
         r.course_code as "Mã môn học",
-        CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Công ty",
+        CASE WHEN c.name = 'Khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Nơi thực tập",
         CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
         CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
         CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
@@ -484,7 +501,7 @@ async function startServer() {
     if (data.length === 0) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="thuctap_cntt_uet.csv"');
-      return res.send('\uFEFF"STT","Mã SV","Họ và tên","Ngày sinh","Lớp khóa học","Ghi chú","Công ty đăng ký","Trạng thái","Thời gian đăng ký"\n');
+      return res.send('\uFEFF"STT","Mã SV","Họ và tên","Ngày sinh","Lớp KH","Mã môn học","Nơi thực tập","Vị trí","Liên hệ","Ghi chú","Trạng thái","Thời gian đăng ký"\n');
     }
 
     const headers = Object.keys(data[0]);
@@ -530,9 +547,8 @@ async function startServer() {
           u.name as "Họ và tên",
           r.dob as "Ngày sinh",
           r.class_name as "Lớp KH",
-          u.email as "Email",
           r.course_code as "Mã môn học",
-          CASE WHEN c.name = 'Khác' THEN '(Khác) ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Công ty",
+          CASE WHEN c.name = 'Khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Nơi thực tập",
           CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
           CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
           CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
@@ -621,21 +637,32 @@ async function startServer() {
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
     const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
     const exportSetting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
+    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
     res.json({ 
       url: setting ? setting.value : '',
-      export_url: exportSetting ? exportSetting.value : ''
+      export_url: exportSetting ? exportSetting.value : '',
+      plan: planSetting ? planSetting.value : ''
     });
   });
 
   app.put('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { url, export_url } = req.body;
+    const { url, export_url, plan } = req.body;
     if (url !== undefined) {
       await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
     }
     if (export_url !== undefined) {
       await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('export_google_sheet_url', ?)", args: [export_url] });
     }
+    if (plan !== undefined) {
+      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('implementation_plan_md', ?)", args: [plan] });
+    }
     res.json({ success: true });
+  });
+
+  // Public endpoint for students to view the plan
+  app.get('/api/plan', async (req: any, res: any) => {
+    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
+    res.json({ plan: planSetting ? planSetting.value : '' });
   });
 
   // 11. Admin: Manage admins
