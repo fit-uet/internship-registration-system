@@ -160,16 +160,20 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set());
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState({
     student_id: studentIdFromEmail,
     dob: '',
-    class_name: '',
-    note: '',
-    other_company_name: '',
-    other_company_role: '',
-    other_company_contact: ''
+    note: ''
   });
+  const [otherCompanies, setOtherCompanies] = useState([{
+    name: '',
+    role: '',
+    contact_name: '',
+    contact_phone: '',
+    contact_email: ''
+  }]);
   const navigate = useNavigate();
 
   const hasRegistered = myRegs.length > 0;
@@ -197,10 +201,11 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes, campRes] = await Promise.all([
+      const [compRes, regRes, campRes, itListRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       const compData = await compRes.json();
@@ -213,6 +218,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       if (campData && !campData.error) {
         setCampaign(campData);
       }
+
+      setItCompanyList(await itListRes.json());
     } catch (e) {
       console.error(e);
     }
@@ -268,15 +275,24 @@ function Dashboard({ user, token }: { user: any, token: string }) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          company_ids: Array.from(selectedCompanies),
-          ...registerForm
+          company_ids: Array.from(selectedCompanies).filter(id => id !== khacCompany?.id),
+          student_id: registerForm.student_id,
+          dob: registerForm.dob,
+          class_name: registerForm.class_name,
+          note: registerForm.note,
+          other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
+            name: c.name,
+            role: c.role,
+            contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`
+          })) : []
         })
       });
       const data = await res.json();
       if (res.ok) {
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', note: '', other_company_name: '', other_company_role: '', other_company_contact: '' });
+        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', note: '' });
+        setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
         alert(data.error);
@@ -399,7 +415,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
-              <h2 className="font-bold text-slate-800 text-sm">Danh sách Tổ chức / Doanh nghiệp Tiếp nhận</h2>
+              <h2 className="font-bold text-slate-800 text-sm">Danh sách công ty tiếp nhận</h2>
               {!hasRegistered && selectedCompanies.size > 0 && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedCompanies.size}/5</span>
               )}
@@ -409,7 +425,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tổ chức / doanh nghiệp..."
+                placeholder="Tìm công ty..."
                 className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
               {!hasRegistered && (
@@ -455,36 +471,36 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                   const isSelected = selectedCompanies.has(company.id);
                   const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
                   return (
-                  <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''} ${isRegistered ? 'bg-green-50/30' : ''}`}>
-                    <td className="px-4 py-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected || isRegistered}
-                        disabled={hasRegistered || (!isSelected && selectedCompanies.size >= 5)}
-                        onChange={() => toggleCompanySelection(company.id)}
-                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                      />
-                    </td>
-                    <td className="px-6 py-4 font-bold text-blue-700">
-                      <button
-                        onClick={() => navigate(`/company/${company.id}`)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
-                      >
-                        {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">{company.address}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="text-[11px] text-slate-500 font-bold">
-                        {company.name === 'Khác' ? 'Không giới hạn' : company.slots}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="text-[11px] text-slate-500 font-bold">
-                        {company.name === 'Khác' ? '—' : (company.applicant_count ?? 0)}
-                      </span>
-                    </td>
-                  </tr>
+                    <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''} ${isRegistered ? 'bg-green-50/30' : ''}`}>
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected || isRegistered}
+                          disabled={hasRegistered || (!isSelected && selectedCompanies.size >= 5)}
+                          onChange={() => toggleCompanySelection(company.id)}
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                      </td>
+                      <td className="px-6 py-4 font-bold text-blue-700">
+                        <button
+                          onClick={() => navigate(`/company/${company.id}`)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
+                        >
+                          {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{company.address}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-[11px] text-slate-500 font-bold">
+                          {company.name === 'Khác' ? 'Không giới hạn' : company.slots}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-[11px] text-slate-500 font-bold">
+                          {company.name === 'Khác' ? '—' : (company.applicant_count ?? 0)}
+                        </span>
+                      </td>
+                    </tr>
                   );
                 })}
                 {filteredCompanies.length === 0 && !loading && (
@@ -595,19 +611,58 @@ function Dashboard({ user, token }: { user: any, token: string }) {
 
               {hasSelectedKhac && (
                 <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg space-y-4">
-                  <h4 className="text-sm font-bold text-orange-800">Thông tin Công ty Tự liên hệ</h4>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_name} onChange={e => setRegisterForm({ ...registerForm, other_company_name: e.target.value })} placeholder="Công ty CP Công nghệ..." />
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-orange-800">Thông tin Công ty tự liên hệ</h4>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí Thực tập *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_role} onChange={e => setRegisterForm({ ...registerForm, other_company_role: e.target.value })} placeholder="Thực tập sinh Frontend..." />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ & Điện thoại/Email *</label>
-                    <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.other_company_contact} onChange={e => setRegisterForm({ ...registerForm, other_company_contact: e.target.value })} placeholder="Anh Nguyễn Văn A - 0987654321 - a@company.com" />
-                  </div>
+                  {otherCompanies.map((otherCompany, index) => (
+                    <div key={index} className="space-y-4 pb-4 border-b border-orange-200 last:border-0 last:pb-0 relative">
+                      {otherCompanies.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
+                          className="absolute -top-1 -right-1 text-red-500 hover:text-red-700 bg-red-50 p-1 rounded-full"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                      {otherCompanies.length > 1 && <h5 className="text-xs font-bold text-orange-700">Công ty {index + 1}</h5>}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
+                        <input required list="it-companies-datalist" type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={otherCompany.name} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, name: e.target.value } : c))} placeholder="Công ty CP Công nghệ..." />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí Thực tập *</label>
+                        <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={otherCompany.role} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, role: e.target.value } : c))} placeholder="Thực tập sinh Frontend..." />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ *</label>
+                          <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={otherCompany.contact_name} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, contact_name: e.target.value } : c))} placeholder="Anh Nguyễn Văn A" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Điện thoại *</label>
+                          <input required type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={otherCompany.contact_phone} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, contact_phone: e.target.value } : c))} placeholder="0987654321" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
+                          <input required type="email" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={otherCompany.contact_email} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, contact_email: e.target.value } : c))} placeholder="a@company.com" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }])}
+                      className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      + Thêm công ty tự liên hệ
+                    </button>
+                  )}
+                  <datalist id="it-companies-datalist">
+                    {itCompanyList.map((name, i) => <option key={i} value={name} />)}
+                  </datalist>
                 </div>
               )}
 
@@ -828,6 +883,9 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('company_name')}>
                   <div className="flex items-center gap-1">Công ty {getSortIcon('company_name')}</div>
                 </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('note')}>
+                  <div className="flex items-center gap-1">Ghi chú {getSortIcon('note')}</div>
+                </th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('created_at')}>
                   <div className="flex items-center gap-1">Thời gian {getSortIcon('created_at')}</div>
                 </th>
@@ -839,7 +897,7 @@ function AdminPanel({ token }: { token: string }) {
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 filteredRegistrations.map(reg => (
@@ -858,6 +916,9 @@ function AdminPanel({ token }: { token: string }) {
                           <span className="font-semibold text-gray-600">Liên hệ:</span> {reg.other_company_contact}
                         </div>
                       )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {reg.company_name === 'Khác' ? 'Khác' : reg.note}
                     </td>
                     <td className="px-6 py-4">{new Date(reg.created_at).toLocaleString('vi-VN')}</td>
                     <td className="px-6 py-4 text-center">

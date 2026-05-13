@@ -90,7 +90,7 @@ function initDb() {
 }
 
 async function seedCompaniesIfEmpty() {
-  const count = db.prepare('SELECT COUNT(*) as count FROM companies').get() as { count: number };
+  const count = db.prepare("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác'").get() as { count: number };
   if (count.count > 0) return;
 
   const setting = db.prepare("SELECT value FROM settings WHERE key = 'google_sheet_url'").get() as {value: string};
@@ -255,6 +255,22 @@ async function startServer() {
     res.json(companies);
   });
 
+  app.get('/api/companies/it-list', requireAuth, (req, res) => {
+    try {
+      const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
+      if (fs.existsSync(itCompaniesFile)) {
+        const content = fs.readFileSync(itCompaniesFile, 'utf8');
+        const records = parse(content, { columns: true, skip_empty_lines: true });
+        const list = records.map((r: any) => r['Tên công ty']?.trim()).filter(Boolean);
+        res.json(list);
+      } else {
+        res.json([]);
+      }
+    } catch(e) {
+      res.json([]);
+    }
+  });
+
   // 2b. Get a single company
   app.get('/api/companies/:id', requireAuth, async (req: any, res: any) => {
     const company = db.prepare(`
@@ -284,20 +300,29 @@ async function startServer() {
 
   // 4. Register for companies (batch - up to 5)
   app.post('/api/registrations', requireAuth, async (req: any, res: any) => {
-    const { company_ids, student_id, dob, class_name, note, other_company_name, other_company_role, other_company_contact } = req.body;
+    const { company_ids, student_id, dob, class_name, note, other_companies } = req.body;
     
-    if (!Array.isArray(company_ids) || company_ids.length === 0) {
+    if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
     }
-    if (company_ids.length > 5) {
+
+    const khacCompany = db.prepare("SELECT id FROM companies WHERE name = 'Khác'").get() as any;
+    const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
+    const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
+
+    if (totalWishes === 0) {
+      return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
+    }
+    if (totalWishes > 5) {
       return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 nguyện vọng.' });
     }
 
-    // Check for 'Khác' company - need extra info
-    const khacCompany = db.prepare("SELECT id FROM companies WHERE name = 'Khác'").get() as any;
-    const hasKhac = khacCompany && company_ids.includes(khacCompany.id);
-    if (hasKhac && (!other_company_name || !other_company_role || !other_company_contact)) {
-      return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin công ty ngoài danh sách.' });
+    if (other_companies && other_companies.length > 0) {
+      for (const other of other_companies) {
+        if (!other.name || !other.role || !other.contact) {
+          return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' });
+        }
+      }
     }
 
     try {
@@ -308,24 +333,35 @@ async function startServer() {
         'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       );
 
-      for (const companyId of company_ids) {
-        // Check if this company is 'Khác'
-        const comp = db.prepare('SELECT name FROM companies WHERE id = ?').get(companyId) as any;
-        const isKhac = comp && comp.name === 'Khác';
-        const status = isKhac ? 'pending' : 'approved';
-        
-        insertStmt.run(
-          req.user.id,
-          companyId,
-          student_id,
-          dob,
-          class_name,
-          note,
-          status,
-          isKhac ? (other_company_name || null) : null,
-          isKhac ? (other_company_role || null) : null,
-          isKhac ? (other_company_contact || null) : null
-        );
+      for (const companyId of normal_company_ids) {
+        insertStmt.run(req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, null);
+      }
+
+      if (other_companies && Array.isArray(other_companies)) {
+        for (const other of other_companies) {
+          let inList = false;
+          const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
+          if (fs.existsSync(itCompaniesFile) && other.name) {
+            const content = fs.readFileSync(itCompaniesFile, 'utf8');
+            const records = parse(content, { columns: true, skip_empty_lines: true });
+            const list = records.map((r: any) => r['Tên công ty']?.trim()).filter(Boolean);
+            inList = list.includes(other.name.trim());
+          }
+          const status = inList ? 'approved' : 'pending';
+          
+          insertStmt.run(
+            req.user.id,
+            khacCompany.id,
+            student_id,
+            dob,
+            class_name,
+            note,
+            status,
+            other.name,
+            other.role,
+            other.contact
+          );
+        }
       }
 
       res.json({ success: true });
