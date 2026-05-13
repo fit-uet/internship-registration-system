@@ -82,6 +82,11 @@ function App() {
                         <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                           <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
                         </Link>
+                        {user.role === 'admin' && (
+                          <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                            <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
+                          </Link>
+                        )}
                         <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
                           <LogOut size={16} /> Đăng xuất
                         </button>
@@ -758,6 +763,8 @@ function AdminPanel({ token }: { token: string }) {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const navigate = useNavigate();
@@ -871,15 +878,21 @@ function AdminPanel({ token }: { token: string }) {
     return 0;
   });
 
+  const uniqueCourses = Array.from(new Set(registrations.map(r => r.course_code).filter(Boolean)));
+  const uniqueCompanies = Array.from(new Set(registrations.map(r => r.company_name).filter(Boolean)));
+
   const filteredRegistrations = sortedRegistrations.filter(reg => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchTerm = (
       (reg.student_name || '').toLowerCase().includes(term) ||
       (reg.email || '').toLowerCase().includes(term) ||
       (reg.company_name || '').toLowerCase().includes(term) ||
       (reg.student_id || '').toLowerCase().includes(term) ||
       (reg.class_name || '').toLowerCase().includes(term)
     );
+    const matchCourse = filterCourse ? reg.course_code === filterCourse : true;
+    const matchCompany = filterCompany ? reg.company_name === filterCompany : true;
+    return matchTerm && matchCourse && matchCompany;
   });
 
   const totalRegistrations = registrations.length;
@@ -895,7 +908,15 @@ function AdminPanel({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block">&larr; Quay lại trang chủ</button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm max-w-[150px] truncate bg-white">
+            <option value="">Tất cả học phần</option>
+            {uniqueCourses.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
+          </select>
+          <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm max-w-[150px] truncate bg-white">
+            <option value="">Tất cả công ty</option>
+            {uniqueCompanies.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
+          </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
@@ -911,12 +932,6 @@ function AdminPanel({ token }: { token: string }) {
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
-          </button>
-          <button
-            onClick={() => navigate('/admin/settings')}
-            className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <AlertTriangle size={18} /> Cài đặt hệ thống
           </button>
           <button
             onClick={handleExport}
