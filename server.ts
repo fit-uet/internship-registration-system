@@ -449,9 +449,8 @@ async function startServer() {
       }
     }
 
-    try {
-      // Delete existing registrations first
-      await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
+    // Delete existing registrations first
+    await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
       const insertSql2 = "INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
 
