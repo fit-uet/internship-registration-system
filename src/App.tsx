@@ -6,6 +6,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import mammoth from 'mammoth';
+import TurndownService from 'turndown';
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
@@ -1460,68 +1462,17 @@ function AdminSettings({ token }: { token: string }) {
   const [exportSheetUrl, setExportSheetUrl] = useState('');
   const [planContent, setPlanContent] = useState('');
   const [campaign, setCampaign] = useState({ year: '', start: '', end: '' });
-  const [admins, setAdmins] = useState<any[]>([]);
-  const [newAdminEmail, setNewAdminEmail] = useState('');
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [importingDocx, setImportingDocx] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSettings();
-    fetchAdmins();
   }, []);
 
-  const fetchAdmins = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/admins`, { headers: { Authorization: `Bearer ${token}` } });
-      setAdmins(await res.json());
-    } catch (e) { }
-  };
 
-  const handleAddAdmin = async () => {
-    if (!newAdminEmail.trim() || !newAdminEmail.endsWith('@vnu.edu.vn')) {
-      alert('Vui lòng nhập email @vnu.edu.vn hợp lệ');
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/admins`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ email: newAdminEmail.trim() })
-      });
-      if (res.ok) {
-        setNewAdminEmail('');
-        fetchAdmins();
-      } else {
-        const error = await res.json();
-        alert(error.error || 'Lỗi khi thêm admin');
-      }
-    } catch (e) {
-      alert('Lỗi kết nối');
-    }
-  };
-
-  const handleRemoveAdmin = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa quyền admin của người dùng này?')) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/admins/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchAdmins();
-      } else {
-        const error = await res.json();
-        alert(error.error || 'Lỗi khi xóa admin');
-      }
-    } catch (e) {
-      alert('Lỗi kết nối');
-    }
-  };
 
   const fetchSettings = async () => {
     try {
@@ -1594,6 +1545,40 @@ function AdminSettings({ token }: { token: string }) {
       alert('Lỗi khi lưu.');
     } finally {
       setSavingUrl(false);
+    }
+  };
+
+  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.docx')) {
+      alert('Vui lòng chọn file .docx');
+      return;
+    }
+    setImportingDocx(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const html = result.value;
+
+      // Convert HTML -> Markdown via TurndownService
+      const td = new TurndownService({
+        headingStyle: 'atx',
+        codeBlockStyle: 'fenced',
+        bulletListMarker: '-',
+      });
+      // Preserve tables
+      td.addRule('strikethrough', {
+        filter: ['del', 's'],
+        replacement: (content: string) => `~~${content}~~`,
+      });
+      const markdown = td.turndown(html);
+      setPlanContent(markdown);
+    } catch (err: any) {
+      alert('Không đọc được file Word: ' + err.message);
+    } finally {
+      setImportingDocx(false);
+      e.target.value = '';
     }
   };
 
@@ -1735,8 +1720,27 @@ function AdminSettings({ token }: { token: string }) {
 
           <div className="pt-4 border-t border-slate-200">
             <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung Kế hoạch triển khai (Markdown)</label>
+            <div className="mb-2 flex items-center gap-2">
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border ${
+                importingDocx
+                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+              }`}>
+                <Upload size={16} />
+                {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
+                <input
+                  type="file"
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  disabled={importingDocx}
+                  onChange={handleImportDocx}
+                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+                />
+              </label>
+              <span className="text-xs text-slate-400">Nội dung file Word sẽ được tự động chuyển thành Markdown</span>
+            </div>
             <textarea
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono h-48"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono h-96"
               value={planContent}
               onChange={(e) => setPlanContent(e.target.value)}
               placeholder="Nhập nội dung kế hoạch triển khai bằng Markdown..."
@@ -1753,28 +1757,6 @@ function AdminSettings({ token }: { token: string }) {
           </div>
         </div>
       </div>
-
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">Quản lý Quản trị viên (Admin)</h3>
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Thêm Admin (Email @vnu.edu.vn)</label>
-            <div className="flex gap-3">
-              <input
-                type="email"
-                placeholder="VD: nguyenvanan@vnu.edu.vn"
-                value={newAdminEmail}
-                onChange={(e) => setNewAdminEmail(e.target.value)}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
-              <button
-                onClick={handleAddAdmin}
-                className="flex items-center justify-center gap-2 bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 shadow-sm transition-colors"
-              >
-                <Plus size={18} /> Thêm Admin
-              </button>
-            </div>
-          </div>
 
           <div className="border-t border-slate-100 mt-2 mx-[-24px]">
             <table className="w-full text-left border-collapse">
@@ -2357,6 +2339,7 @@ export default App;
 function AdminRegistry({ token }: { token: string }) {
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
 
   const fetchAdmins = async () => {
     try {
@@ -2372,6 +2355,47 @@ function AdminRegistry({ token }: { token: string }) {
   };
 
   useEffect(() => { fetchAdmins(); }, [token]);
+
+  const handleAddAdmin = async () => {
+    if (!newAdminEmail.trim() || !newAdminEmail.endsWith('@vnu.edu.vn')) {
+      alert('Vui lòng nhập email @vnu.edu.vn hợp lệ');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/admins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: newAdminEmail.trim() })
+      });
+      if (res.ok) {
+        setNewAdminEmail('');
+        fetchAdmins();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Lỗi khi thêm admin');
+      }
+    } catch {
+      alert('Lỗi kết nối');
+    }
+  };
+
+  const handleRemoveAdmin = async (id: number) => {
+    if (!confirm('Bạn có chắc muốn xóa quyền admin của người dùng này?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/admins/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchAdmins();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Lỗi khi xóa admin');
+      }
+    } catch {
+      alert('Lỗi kết nối');
+    }
+  };
 
   const toggleLecturer = async (admin: any) => {
     const newVal = !admin.is_lecturer;
@@ -2395,8 +2419,8 @@ function AdminRegistry({ token }: { token: string }) {
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="mb-8">
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-8">
+      <div>
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <Shield className="text-purple-600" /> Quản lý Quản trị viên
         </h2>
@@ -2405,11 +2429,34 @@ function AdminRegistry({ token }: { token: string }) {
         </p>
       </div>
 
-      <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6 text-sm text-purple-800 leading-relaxed">
+      {/* Add admin */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><Plus size={16} className="text-purple-500" /> Thêm Quản trị viên mới</h3>
+        <div className="flex gap-3">
+          <input
+            type="email"
+            placeholder="VD: nguyenvanan@vnu.edu.vn"
+            value={newAdminEmail}
+            onChange={(e) => setNewAdminEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddAdmin()}
+            className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+          />
+          <button
+            onClick={handleAddAdmin}
+            className="flex items-center gap-2 bg-purple-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-purple-800 shadow-sm transition-colors"
+          >
+            <Plus size={18} /> Thêm Admin
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">Chỉ chấp nhận email có đuôi @vnu.edu.vn. Người dùng phải đăng nhập lại để quyền Admin có hiệu lực.</p>
+      </div>
+
+      <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800 leading-relaxed">
         <strong>Lưu ý:</strong> Tích vào ô <strong>"Là Giảng viên"</strong> sẽ tự động đồng bộ tên của Admin đó vào danh sách Giảng viên để sinh viên có thể chọn khi đăng ký thực tập tại Trường.
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Admin list */}
+      <div className="overflow-x-auto border border-slate-200 rounded-xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
@@ -2417,13 +2464,14 @@ function AdminRegistry({ token }: { token: string }) {
               <th className="p-4 font-semibold">Họ và Tên</th>
               <th className="p-4 font-semibold">Email</th>
               <th className="p-4 font-semibold text-center">Là Giảng viên</th>
+              <th className="p-4 font-semibold text-center w-24">Xóa</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Đang tải...</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 text-slate-400">Đang tải...</td></tr>
             ) : admins.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Chưa có admin nào</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 text-slate-400">Chưa có admin nào</td></tr>
             ) : (
               admins.map((admin, idx) => (
                 <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
@@ -2437,7 +2485,7 @@ function AdminRegistry({ token }: { token: string }) {
                           <UserIcon size={14} className="text-purple-600" />
                         </div>
                       )}
-                      <span className="font-semibold text-slate-800 text-sm">{admin.name}</span>
+                      <span className="font-semibold text-slate-800 text-sm">{admin.name || <span className="text-slate-400 font-normal italic">Chưa đăng nhập</span>}</span>
                     </div>
                   </td>
                   <td className="p-4 text-sm text-slate-600">{admin.email}</td>
@@ -2449,15 +2497,22 @@ function AdminRegistry({ token }: { token: string }) {
                       }`}
                       title={admin.is_lecturer ? 'Click để bỏ khỏi danh sách GV' : 'Click để thêm vào danh sách GV'}
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                          admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                        admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
                     </button>
                     {admin.is_lecturer ? (
                       <span className="ml-2 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">GV</span>
                     ) : null}
+                  </td>
+                  <td className="p-4 text-center">
+                    <button
+                      onClick={() => handleRemoveAdmin(admin.id)}
+                      className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                      title="Xóa quyền admin"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))
