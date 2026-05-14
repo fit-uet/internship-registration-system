@@ -216,10 +216,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
   const hasRegistered = myRegs.length > 0;
 
-  const khacCompany = companies.find(c => c.name === 'Khác');
+  const khacCompany = companies.find(c => c.name === 'Công ty khác');
   const hasSelectedKhac = khacCompany && selectedCompanies.has(khacCompany.id);
 
-  const schoolCompany = companies.find(c => c.name === 'Thực tập ở trường' || c.name === 'Trường Đại học Công nghệ');
+  const schoolCompany = companies.find(c => c.name === 'Trường Đại học Công nghệ');
   const hasSelectedSchool = schoolCompany && selectedCompanies.has(schoolCompany.id);
 
   useEffect(() => {
@@ -470,7 +470,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 </div>
                 <ul className="text-sm text-green-800 mb-4 space-y-1">
                   {myRegs.map((reg: any, idx: number) => (
-                    <li key={reg.id}>NV{idx + 1}: <strong>{reg.company_name === 'Khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></li>
+                    <li key={reg.id}>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></li>
                   ))}
                 </ul>
                 <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
@@ -566,18 +566,18 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                           onClick={() => navigate(`/company/${company.id}`)}
                           className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
                         >
-                          {company.name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
+                          {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
                         </button>
                       </td>
                       <td className="px-6 py-4 text-slate-600">{company.address}</td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-[11px] text-slate-500 font-bold">
-                          {company.name === 'Khác' ? 'Không giới hạn' : company.slots}
+                          {company.name === 'Công ty khác' ? 'Không giới hạn' : company.slots}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-[11px] text-slate-500 font-bold">
-                          {company.name === 'Khác' ? '—' : (company.applicant_count ?? 0)}
+                          {company.name === 'Công ty khác' ? '—' : (company.applicant_count ?? 0)}
                         </span>
                       </td>
                     </tr>
@@ -651,8 +651,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
                 {Array.from(selectedCompanies).map((cId, idx) => {
                   const comp = companies.find(c => c.id === cId);
-                  const name = comp?.name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : comp?.name;
-                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {name || 'Không rõ'}</li>;
+                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {comp?.name || 'Không rõ'}</li>;
                 })}
               </ul>
             </div>
@@ -827,15 +826,15 @@ function AdminPanel({ token }: { token: string }) {
     const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
-      if (r.company_name === 'Khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
-      if (r.company_name === 'Thực tập ở trường') noi_tt = 'Trường Đại học Công nghệ';
-
-      let vi_tri = r.company_name === 'Khác' ? (r.other_company_role || '') : 'Thực tập sinh';
-      let lien_he = r.company_name === 'Khác' ? (r.other_company_contact || '') : (r.contact_email || '');
-
+      if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
+      
+      let vi_tri = r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh';
+      let lien_he = r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || '');
       let ghi_chu = r.note || '';
-      if (r.company_name === 'Thực tập ở trường') {
-        ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.note ? ' - ' + r.note : '');
+
+      if (r.company_name === 'Trường Đại học Công nghệ') {
+        lien_he = '';
+        ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.note ? ` - ${r.note}` : '');
       }
 
       return [
@@ -1133,18 +1132,18 @@ function AdminPanel({ token }: { token: string }) {
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">
-                        {reg.company_name === 'Khác' ? ('Công ty khác: ' + (reg.other_company_name || '')) : reg.company_name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : reg.company_name}
+                        {reg.company_name === 'Công ty khác' ? ('Công ty khác: ' + (reg.other_company_name || '')) : reg.company_name}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {reg.company_name === 'Khác' ? (
+                      {reg.company_name === 'Công ty khác' ? (
                         <div className="text-xs text-gray-600 font-normal leading-relaxed">
                           <span className="inline-block font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded mb-1 border border-blue-100">Tự liên hệ</span><br />
                           <span className="font-semibold text-gray-700">Vị trí:</span> {reg.other_company_role} <br />
                           <span className="font-semibold text-gray-700">Liên hệ:</span> {reg.other_company_contact}
                           {reg.note && <><br /><span className="font-semibold text-gray-700">Lưu ý thêm:</span> {reg.note}</>}
                         </div>
-                      ) : reg.company_name === 'Thực tập ở trường' ? (
+                      ) : reg.company_name === 'Trường Đại học Công nghệ' ? (
                         <div className="text-xs text-gray-600 font-normal leading-relaxed">
                           <span className="font-semibold text-gray-700">GVHD:</span> {reg.other_company_contact}
                           {reg.note && <><br /><span className="font-semibold text-gray-700">Ghi chú:</span> {reg.note}</>}
@@ -1841,7 +1840,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 {myRegs.map((reg: any, idx: number) => (
                   <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-blue-900">
-                      <strong>NV{idx + 1}:</strong> {reg.company_name === 'Khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : reg.company_name}
+                      <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
                     </span>
                     <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
                       {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}

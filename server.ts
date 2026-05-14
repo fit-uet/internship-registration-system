@@ -143,29 +143,29 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) { }
 
-  const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0];
+  const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
   if (!otherExist) {
     await db.execute({
       sql: `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, args: ['Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '']
+    `, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách phải đảm bảo công ty đó đáp ứng được chất lượng thực tập. Các công ty nằm trong danh sách do Khoa thẩm định sẽ được phê duyệt ngay lập tức. Các công ty còn lại cần được Khoa xem xét.', 9999, '', '', '', '', '', '', '']
     });
   }
 
-  const schoolExist = (await db.execute("SELECT id FROM companies WHERE name = 'Thực tập ở trường'")).rows[0];
+  const schoolExist = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0];
   if (!schoolExist) {
     await db.execute({
       sql: `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, args: ['Thực tập ở trường', 'Thực tập tại các Lab/Dự án trong trường', 9999, '', '', '', '', '', '', '']
+    `, args: ['Trường Đại học Công nghệ', 'Sinh viên thực tập tại các Lab/Dự án trong trường. Lưu ý, cần phải liên hệ và được sự đồng ý của Giảng viên từ trước và không được đăng ký thực tập ở công ty.', 9999, '', '', '', '', '', '', '']
     });
   }
 }
 
 async function seedCompaniesIfEmpty() {
-  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Khác' AND name != 'Thực tập ở trường'")).rows[0] as { count: number };
+  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Công ty khác' AND name != 'Trường Đại học Công nghệ'")).rows[0] as { count: number };
   if (count.count > 0) return;
 
   const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
@@ -427,54 +427,54 @@ async function startServer() {
     }
     processingUsers.add(userId);
     try {
-    const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer } = req.body;
+      const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer } = req.body;
 
-    if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
-      return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
-    }
-
-    const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Khác'")).rows[0] as any;
-    const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Thực tập ở trường'")).rows[0] as any;
-    const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
-    const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
-
-    if (dob) {
-      const d = new Date(dob);
-      if (isNaN(d.getTime()) || d > new Date()) {
-        return res.status(400).json({ error: 'Ngày sinh không hợp lệ.' });
+      if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
+        return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
       }
-    }
 
-    if (totalWishes === 0) {
-      return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
-    }
-    if (normal_company_ids.includes(schoolCompany?.id)) {
-      if (!school_lecturer) {
-        return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
-      }
-      const p = join(process.cwd(), 'lectures-list.csv');
-      let lecturers: string[] = [];
-      if (fs.existsSync(p)) {
-        lecturers = fs.readFileSync(p, 'utf-8').split('\n').map((l: string) => l.trim()).filter(Boolean);
-      }
-      if (lecturers.length > 0 && !lecturers.includes(school_lecturer)) {
-        return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
-      }
-    }
-    if (totalWishes > 5) {
-      return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 công ty.' });
-    }
+      const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0] as any;
+      const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
+      const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
+      const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
 
-    if (other_companies && other_companies.length > 0) {
-      for (const other of other_companies) {
-        if (!other.name || !other.role || !other.contact) {
-          return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' });
+      if (dob) {
+        const d = new Date(dob);
+        if (isNaN(d.getTime()) || d > new Date()) {
+          return res.status(400).json({ error: 'Ngày sinh không hợp lệ.' });
         }
       }
-    }
 
-    // Delete existing registrations first
-    await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
+      if (totalWishes === 0) {
+        return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
+      }
+      if (normal_company_ids.includes(schoolCompany?.id)) {
+        if (!school_lecturer) {
+          return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
+        }
+        const p = join(process.cwd(), 'lectures-list.csv');
+        let lecturers: string[] = [];
+        if (fs.existsSync(p)) {
+          lecturers = fs.readFileSync(p, 'utf-8').split('\n').map((l: string) => l.trim()).filter(Boolean);
+        }
+        if (lecturers.length > 0 && !lecturers.includes(school_lecturer)) {
+          return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        }
+      }
+      if (totalWishes > 5) {
+        return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 công ty.' });
+      }
+
+      if (other_companies && other_companies.length > 0) {
+        for (const other of other_companies) {
+          if (!other.name || !other.role || !other.contact) {
+            return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' });
+          }
+        }
+      }
+
+      // Delete existing registrations first
+      await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
       const insertSql2 = "INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
 
@@ -652,10 +652,10 @@ async function startServer() {
         r.dob as "Ngày sinh",
         r.class_name as "Lớp KH",
         r.course_code as "Mã môn học",
-        CASE WHEN c.name = 'Khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Nơi thực tập",
-        CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
-        CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
-        CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
+        CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
+        CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
+        CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
+        CASE WHEN c.name = 'Trường Đại học Công nghệ' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
         r.status as "Trạng thái",
         r.created_at as "Thời gian đăng ký"
       FROM registrations r
@@ -714,10 +714,10 @@ async function startServer() {
           r.dob as "Ngày sinh",
           r.class_name as "Lớp KH",
           r.course_code as "Mã môn học",
-          CASE WHEN c.name = 'Khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') WHEN c.name = 'Thực tập ở trường' THEN 'Trường Đại học Công nghệ' ELSE c.name END as "Nơi thực tập",
-          CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
-          CASE WHEN c.name = 'Khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
-          CASE WHEN c.name = 'Thực tập ở trường' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
+          CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
+          CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
+          CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
+          CASE WHEN c.name = 'Trường Đại học Công nghệ' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
           r.status as "Trạng thái",
           r.created_at as "Thời gian đăng ký"
         FROM registrations r
@@ -950,7 +950,7 @@ async function startServer() {
         importedCount++;
       }
 
-      insertStmt.run('Khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '');
+      insertStmt.run('Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '');
       res.json({ success: true, count: importedCount });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
