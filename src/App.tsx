@@ -1758,39 +1758,6 @@ function AdminSettings({ token }: { token: string }) {
         </div>
       </div>
 
-          <div className="border-t border-slate-100 mt-2 mx-[-24px]">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                  <th className="font-semibold p-4 pl-6 border-b border-slate-200">Email</th>
-                  <th className="font-semibold p-4 border-b border-slate-200">Họ và tên</th>
-                  <th className="font-semibold p-4 pr-6 border-b border-slate-200 text-right">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {admins.map(admin => (
-                  <tr key={admin.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                    <td className="p-4 pl-6 font-medium text-slate-800">{admin.email}</td>
-                    <td className="p-4 text-slate-600">{admin.name || 'Chưa cập nhật'}</td>
-                    <td className="p-4 pr-6 text-right">
-                      <button
-                        onClick={() => handleRemoveAdmin(admin.id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-md transition-colors"
-                        title="Xóa quyền admin"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {admins.length === 0 && (
-                  <tr><td colSpan={3} className="p-4 text-center text-slate-500">Chưa có admin nào</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
 
       <div className="bg-blue-50 text-blue-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">
         <strong className="block mb-2 text-base">💡 Mẹo nhập dữ liệu vào Google Sheets:</strong>
