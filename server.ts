@@ -299,6 +299,7 @@ async function startServer() {
       if (!req.user) return res.status(401).json({ error: 'User not found' });
       next();
     } catch (e) {
+      console.error('Auth Error:', e);
       res.status(401).json({ error: 'Invalid token' });
     }
   };

@@ -280,8 +280,11 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         setCampaign(campData);
       }
 
-      setItCompanyList(await itListRes.json());
-      setLecturers(await lecRes.json());
+      const itListData = await itListRes.json();
+      setItCompanyList(Array.isArray(itListData) ? itListData : []);
+      
+      const lecData = await lecRes.json();
+      setLecturers(Array.isArray(lecData) ? lecData : []);
     } catch (e) {
       console.error(e);
     }
@@ -820,6 +823,7 @@ function AdminPanel({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/registrations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
     } catch (e) { }
@@ -1196,8 +1200,9 @@ function LecturerRegistry({ token }: { token: string }) {
   const fetchLecturers = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
-      setLecturers(data);
+      setLecturers(Array.isArray(data) ? data : []);
     } catch (e) {
       alert('Lỗi lấy danh sách giảng viên');
     } finally {
@@ -1471,7 +1476,9 @@ function AdminSettings({ token }: { token: string }) {
   const fetchAdmins = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/admins`, { headers: { Authorization: `Bearer ${token}` } });
-      setAdmins(await res.json());
+      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
+      const data = await res.json();
+      setAdmins(Array.isArray(data) ? data : []);
     } catch (e) { }
   };
 
@@ -2151,8 +2158,9 @@ function StudentRegistry({ token }: { token: string }) {
   const fetchStudents = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/students`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
-      setStudents(data);
+      setStudents(Array.isArray(data) ? data : []);
     } catch (e) {
       alert('Lỗi lấy danh sách sinh viên');
     } finally {
