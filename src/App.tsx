@@ -452,11 +452,11 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           <div className="space-y-3 border-t border-slate-100 pt-4">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Bắt đầu:</span>
-              <span className="font-medium">{campaign.start}</span>
+              <span className="font-medium">{campaign.registration_open_at ? formatGMT7(campaign.registration_open_at) + ' (GMT+7)' : '—'}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Kết thúc:</span>
-              <span className="font-medium">{campaign.end}</span>
+              <span className="font-medium">{campaign.registration_close_at ? formatGMT7(campaign.registration_close_at) + ' (GMT+7)' : '—'}</span>
             </div>
           </div>
         </div>
@@ -1908,7 +1908,7 @@ function AdminSettings({ token }: { token: string }) {
   const [sheetUrl, setSheetUrl] = useState('');
   const [exportSheetUrl, setExportSheetUrl] = useState('');
   const [planContent, setPlanContent] = useState('');
-  const [campaign, setCampaign] = useState({ year: '', start: '', end: '' });
+  const [campaign, setCampaign] = useState({ year: '', registration_open_at: '', registration_close_at: '', classes_list: '' } as any);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -2092,64 +2092,56 @@ function AdminSettings({ token }: { token: string }) {
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
         <h3 className="font-bold text-lg text-slate-800">Cài đặt học phần</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Năm học / Khóa</label>
             <input type="text" value={campaign.year} onChange={e => setCampaign({ ...campaign, year: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian bắt đầu đợt</label>
-            <input type="text" value={campaign.start} onChange={e => setCampaign({ ...campaign, start: e.target.value })} placeholder="DD/MM/YYYY" className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).registration_open_at || ''}
+              onChange={e => setCampaign({ ...campaign, registration_open_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc đợt</label>
-            <input type="text" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} placeholder="DD/MM/YYYY" className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">⏱️ Đóng đăng ký lúc <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).registration_close_at || ''}
+              onChange={e => setCampaign({ ...campaign, registration_close_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+            />
           </div>
-          <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học (mỗi lớp cách nhau bởi dấu phẩy)</label>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học <span className="text-slate-400 font-normal">(mỗi lớp cách nhau bởi dấu phẩy)</span></label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
           </div>
-        </div>
-
-        {/* Registration Time Window */}
-        <div className="border-t border-slate-100 pt-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock size={18} className="text-orange-500" />
-            <h4 className="font-semibold text-slate-800">Thời gian đăng ký (GMT+7)</h4>
-          </div>
-          <p className="text-xs text-slate-500 mb-3">Sinh viên chỉ có thể đăng ký trong khoảng thời gian này. Để trống nếu không giới hạn thời gian.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc</label>
-              <input
-                type="datetime-local"
-                value={(campaign as any).registration_open_at || ''}
-                onChange={e => setCampaign({ ...campaign, registration_open_at: e.target.value } as any)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">⏱️ Đóng đăng ký lúc</label>
-              <input
-                type="datetime-local"
-                value={(campaign as any).registration_close_at || ''}
-                onChange={e => setCampaign({ ...campaign, registration_close_at: e.target.value } as any)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
-              />
-            </div>
-          </div>
+          <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
-            <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
-              <strong>Hiện tại:</strong> Đăng ký 
-              {(() => {
+            <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${
+              (() => {
                 const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
                 const now = new Date();
                 const open = toUTC((campaign as any).registration_open_at);
                 const close = toUTC((campaign as any).registration_close_at);
-                if (open && now < open) return <span className="font-semibold text-orange-700">chưa mở</span>;
-                if (close && now > close) return <span className="font-semibold text-red-700">đã đóng</span>;
-                return <span className="font-semibold text-green-700">đang mở</span>;
-              })()}
+                if (open && now < open) return 'bg-orange-50 border border-orange-200 text-orange-800';
+                if (close && now > close) return 'bg-red-50 border border-red-200 text-red-800';
+                return 'bg-green-50 border border-green-200 text-green-800';
+              })()
+            }`}>
+              <Clock size={16} className="shrink-0" />
+              <span>Trạng thái hiện tại: {(() => {
+                const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+                const now = new Date();
+                const open = toUTC((campaign as any).registration_open_at);
+                const close = toUTC((campaign as any).registration_close_at);
+                if (open && now < open) return <strong>Chưa mở</strong>;
+                if (close && now > close) return <strong>Đã đóng</strong>;
+                return <strong>Đang mở</strong>;
+              })()}</span>
             </div>
           )}
         </div>
