@@ -1092,23 +1092,14 @@ async function startServer() {
       // Clear companies and optionally registrations
       const { keepRegistrations } = req.body || {};
 
-      // Save old company_id → name mapping BEFORE deleting, for remapping registrations later
-      let oldCompanyMap: { id: number; name: string }[] = [];
-      if (keepRegistrations) {
-        oldCompanyMap = (await db.execute('SELECT id, name FROM companies')).rows as any[];
-      }
-
-      // Disable FK checks so we can delete companies while registrations still reference them
-      await db.execute('PRAGMA foreign_keys = OFF');
+      // If NOT keeping registrations, clear everything (old behavior)
       if (!keepRegistrations) {
         await db.executeMultiple('DELETE FROM registrations');
+        await db.executeMultiple('DELETE FROM companies');
       }
-      await db.executeMultiple('DELETE FROM companies');
 
-      const insertSql1 = `
-      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      // Collect all company names from CSV
+      const csvCompanyNames = new Set<string>();
 
       let importedCount = 0;
       for (const record of records) {
@@ -1116,6 +1107,8 @@ async function startServer() {
 
         const name = record["Tên doanh nghiệp"]?.trim();
         if (!name) continue;
+
+        csvCompanyNames.add(name);
 
         const slotsStr = record["Số lượng sinh viên cần tuyển  "]?.trim() || record["Số lượng sinh viên cần tuyển"]?.trim() || "0";
         const slots = parseInt(slotsStr) || 5;
@@ -1138,34 +1131,37 @@ async function startServer() {
           if (phones.length > 0) phone = phones.join(', ');
         }
 
-        let qualifications = '';
-
+        const qualifications = '';
         const description = `Tuyển ${slots} sinh viên thực tập.`;
         const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
-        await db.execute({ sql: insertSql1, args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName] });
+
+        // UPSERT: if company exists (by name), update its info; otherwise insert new
+        const existing = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [name] })).rows[0] as any;
+        if (existing) {
+          await db.execute({
+            sql: `UPDATE companies SET description = ?, slots = ?, contact_email = ?, history = ?, qualifications = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`,
+            args: [description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName, existing.id]
+          });
+        } else {
+          await db.execute({
+            sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName]
+          });
+        }
         importedCount++;
       }
 
-      // Re-add "Công ty khác"
-      await db.execute({ sql: insertSql1, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', ''] });
-
-      // If keeping registrations, remap company_id using old name mapping
-      if (keepRegistrations && oldCompanyMap.length > 0) {
-        for (const old of oldCompanyMap) {
-          const newCompany = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [old.name] })).rows[0] as any;
-          if (newCompany) {
-            await db.execute({ sql: 'UPDATE registrations SET company_id = ? WHERE company_id = ?', args: [newCompany.id, old.id] });
-          }
-        }
+      // Ensure "Công ty khác" always exists
+      const khacExists = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
+      if (!khacExists) {
+        await db.execute({
+          sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '']
+        });
       }
-
-      // Re-enable FK checks
-      await db.execute('PRAGMA foreign_keys = ON');
 
       res.json({ success: true, count: importedCount });
     } catch (e: any) {
-      // Make sure FK is re-enabled even on error
-      try { await db.execute('PRAGMA foreign_keys = ON'); } catch (_) {}
       res.status(500).json({ error: e.message });
     }
   });
