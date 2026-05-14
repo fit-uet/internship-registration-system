@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import mammoth from 'mammoth';
@@ -230,6 +230,27 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const navigate = useNavigate();
 
   const hasRegistered = myRegs.length > 0;
+
+  // Compute registration time window status (GMT+7)
+  const registrationWindowStatus = useMemo(() => {
+    const openStr = campaign?.registration_open_at;
+    const closeStr = campaign?.registration_close_at;
+    if (!openStr && !closeStr) return 'open'; // no restriction
+    const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const openUTC = openStr ? toUTC(openStr) : null;
+    const closeUTC = closeStr ? toUTC(closeStr) : null;
+    if (openUTC && now < openUTC) return 'not_open_yet';
+    if (closeUTC && now > closeUTC) return 'closed';
+    return 'open';
+  }, [campaign]);
+
+  const formatGMT7 = (isoLocal: string) => {
+    if (!isoLocal) return '';
+    const [date, time] = isoLocal.split('T');
+    const [y, m, d] = date.split('-');
+    return `${d}/${m}/${y} ${time}`;
+  };
 
   const khacCompany = companies.find(c => c.name === 'Công ty khác');
   const hasSelectedKhac = khacCompany && selectedCompanies.has(khacCompany.id);
@@ -537,16 +558,53 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
               {!hasRegistered && (
-                <button
-                  disabled={selectedCompanies.size === 0}
-                  onClick={() => setRegisterModalOpen(true)}
-                  className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedCompanies.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                >
-                  Đăng ký ({selectedCompanies.size})
-                </button>
+                <>
+                  {registrationWindowStatus !== 'open' ? (
+                    <button
+                      disabled
+                      className="px-5 py-1.5 rounded-md text-sm font-bold bg-slate-200 text-slate-400 cursor-not-allowed shadow-none whitespace-nowrap"
+                      title={registrationWindowStatus === 'not_open_yet'
+                        ? `Chưa mở đăng ký. Mở lúc: ${formatGMT7(campaign.registration_open_at)} (GMT+7)`
+                        : `Đã đóng đăng ký. Kết thúc lúc: ${formatGMT7(campaign.registration_close_at)} (GMT+7)`}
+                    >
+                      <Clock size={14} className="inline mr-1" />
+                      {registrationWindowStatus === 'not_open_yet' ? 'Chưa mở' : 'Đã đóng'}
+                    </button>
+                  ) : (
+                    <button
+                      disabled={selectedCompanies.size === 0}
+                      onClick={() => setRegisterModalOpen(true)}
+                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedCompanies.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                    >
+                      Đăng ký ({selectedCompanies.size})
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
+
+          {/* Registration time window banner */}
+          {!hasRegistered && (campaign?.registration_open_at || campaign?.registration_close_at) && (
+            <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${
+              registrationWindowStatus === 'open'
+                ? 'bg-green-50 border-green-100 text-green-800'
+                : registrationWindowStatus === 'not_open_yet'
+                  ? 'bg-orange-50 border-orange-100 text-orange-800'
+                  : 'bg-red-50 border-red-100 text-red-800'
+            }`}>
+              <Clock size={16} className="shrink-0" />
+              {registrationWindowStatus === 'open' && (
+                <span>Đăng ký đang <strong>mở</strong>{campaign.registration_close_at && <> — đóng lúc <strong>{formatGMT7(campaign.registration_close_at)}</strong> (GMT+7)</>}.</span>
+              )}
+              {registrationWindowStatus === 'not_open_yet' && (
+                <span>Đăng ký <strong>chưa mở</strong>{campaign.registration_open_at && <> — sẽ mở lúc <strong>{formatGMT7(campaign.registration_open_at)}</strong> (GMT+7)</>}. Vui lòng quay lại đúng giờ.</span>
+              )}
+              {registrationWindowStatus === 'closed' && (
+                <span>Đã <strong>hết thời gian</strong> đăng ký{campaign.registration_close_at && <> (đóng lúc <strong>{formatGMT7(campaign.registration_close_at)}</strong> GMT+7)</>}. Vui lòng liên hệ bộ phận quản lý.</span>
+              )}
+            </div>
+          )}
 
           <div className="flex-1 overflow-x-auto">
             <table className="w-full border-collapse text-left min-w-[700px]">
@@ -2040,18 +2098,62 @@ function AdminSettings({ token }: { token: string }) {
             <input type="text" value={campaign.year} onChange={e => setCampaign({ ...campaign, year: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian bắt đầu</label>
-            <input type="date" value={campaign.start} onChange={e => setCampaign({ ...campaign, start: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian bắt đầu đợt</label>
+            <input type="text" value={campaign.start} onChange={e => setCampaign({ ...campaign, start: e.target.value })} placeholder="DD/MM/YYYY" className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc</label>
-            <input type="date" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Thời gian kết thúc đợt</label>
+            <input type="text" value={campaign.end} onChange={e => setCampaign({ ...campaign, end: e.target.value })} placeholder="DD/MM/YYYY" className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
           </div>
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học (mỗi lớp cách nhau bởi dấu phẩy)</label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
           </div>
         </div>
+
+        {/* Registration Time Window */}
+        <div className="border-t border-slate-100 pt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={18} className="text-orange-500" />
+            <h4 className="font-semibold text-slate-800">Thời gian đăng ký (GMT+7)</h4>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">Sinh viên chỉ có thể đăng ký trong khoảng thời gian này. Để trống nếu không giới hạn thời gian.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc</label>
+              <input
+                type="datetime-local"
+                value={(campaign as any).registration_open_at || ''}
+                onChange={e => setCampaign({ ...campaign, registration_open_at: e.target.value } as any)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">⏱️ Đóng đăng ký lúc</label>
+              <input
+                type="datetime-local"
+                value={(campaign as any).registration_close_at || ''}
+                onChange={e => setCampaign({ ...campaign, registration_close_at: e.target.value } as any)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+              />
+            </div>
+          </div>
+          {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
+            <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+              <strong>Hiện tại:</strong> Đăng ký 
+              {(() => {
+                const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+                const now = new Date();
+                const open = toUTC((campaign as any).registration_open_at);
+                const close = toUTC((campaign as any).registration_close_at);
+                if (open && now < open) return <span className="font-semibold text-orange-700">chưa mở</span>;
+                if (close && now > close) return <span className="font-semibold text-red-700">đã đóng</span>;
+                return <span className="font-semibold text-green-700">đang mở</span>;
+              })()}
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end mt-2">
           <button
             onClick={handleSaveCampaign}

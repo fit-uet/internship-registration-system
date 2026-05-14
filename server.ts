@@ -74,6 +74,8 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_year', '2026')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_open_at', '')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_close_at', '')`);
   const defaultClasses = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${defaultClasses}')`);
 
@@ -491,6 +493,29 @@ async function startServer() {
     try {
       const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, phone, personal_email } = req.body;
 
+      // Check registration time window (GMT+7)
+      const openAtRow = (await db.execute("SELECT value FROM settings WHERE key = 'registration_open_at'")).rows[0] as { value: string };
+      const closeAtRow = (await db.execute("SELECT value FROM settings WHERE key = 'registration_close_at'")).rows[0] as { value: string };
+      const openAt = openAtRow?.value;
+      const closeAt = closeAtRow?.value;
+      if (openAt || closeAt) {
+        // Values stored as 'YYYY-MM-DDTHH:mm' in GMT+7, convert to UTC for comparison
+        const toUTC = (localStr: string) => {
+          if (!localStr) return null;
+          // localStr is GMT+7, subtract 7h to get UTC
+          const d = new Date(localStr + ':00+07:00');
+          return isNaN(d.getTime()) ? null : d;
+        };
+        const nowUTC = new Date();
+        const openUTC = openAt ? toUTC(openAt) : null;
+        const closeUTC = closeAt ? toUTC(closeAt) : null;
+        if (openUTC && nowUTC < openUTC) {
+          return res.status(403).json({ error: `Chưa đến giờ đăng ký. Thời gian mở đăng ký: ${new Date(openUTC.getTime() + 7*3600000).toISOString().replace('T',' ').slice(0,16)} (GMT+7).` });
+        }
+        if (closeUTC && nowUTC > closeUTC) {
+          return res.status(403).json({ error: `Đã hết thời gian đăng ký. Thời gian kết thúc: ${new Date(closeUTC.getTime() + 7*3600000).toISOString().replace('T',' ').slice(0,16)} (GMT+7).` });
+        }
+      }
       if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
         return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
       }
@@ -1043,20 +1068,26 @@ async function startServer() {
     const start = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_start'")).rows[0] as { value: string };
     const end = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_end'")).rows[0] as { value: string };
     const classes = (await db.execute("SELECT value FROM settings WHERE key = 'classes_list'")).rows[0] as { value: string };
+    const openAt = (await db.execute("SELECT value FROM settings WHERE key = 'registration_open_at'")).rows[0] as { value: string };
+    const closeAt = (await db.execute("SELECT value FROM settings WHERE key = 'registration_close_at'")).rows[0] as { value: string };
 
     res.json({
       year: year ? year.value : '2026',
       start: start ? start.value : '22/05/2026',
       end: end ? end.value : '15/06/2026',
-      classes_list: classes ? classes.value : 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN'
+      classes_list: classes ? classes.value : 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN',
+      registration_open_at: openAt ? openAt.value : '',
+      registration_close_at: closeAt ? closeAt.value : ''
     });
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list } = req.body;
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end] });
+    const { year, start, end, classes_list, registration_open_at, registration_close_at } = req.body;
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end || null] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_open_at', ?)", args: [registration_open_at || ''] });
+    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] });
     if (classes_list) {
       await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
     }
