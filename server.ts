@@ -1091,6 +1091,13 @@ async function startServer() {
 
       // Clear companies and optionally registrations
       const { keepRegistrations } = req.body || {};
+
+      // Save old company_id → name mapping BEFORE deleting, for remapping registrations later
+      let oldCompanyMap: { id: number; name: string }[] = [];
+      if (keepRegistrations) {
+        oldCompanyMap = (await db.execute('SELECT id, name FROM companies')).rows as any[];
+      }
+
       // Disable FK checks so we can delete companies while registrations still reference them
       await db.execute('PRAGMA foreign_keys = OFF');
       if (!keepRegistrations) {
@@ -1142,13 +1149,12 @@ async function startServer() {
       // Re-add "Công ty khác"
       await db.execute({ sql: insertSql1, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', ''] });
 
-      // If keeping registrations, remap company_id by matching company name
-      if (keepRegistrations) {
-        const regs = (await db.execute('SELECT DISTINCT company_name FROM registrations')).rows as any[];
-        for (const reg of regs) {
-          const newCompany = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [reg.company_name] })).rows[0] as any;
+      // If keeping registrations, remap company_id using old name mapping
+      if (keepRegistrations && oldCompanyMap.length > 0) {
+        for (const old of oldCompanyMap) {
+          const newCompany = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [old.name] })).rows[0] as any;
           if (newCompany) {
-            await db.execute({ sql: 'UPDATE registrations SET company_id = ? WHERE company_name = ?', args: [newCompany.id, reg.company_name] });
+            await db.execute({ sql: 'UPDATE registrations SET company_id = ? WHERE company_id = ?', args: [newCompany.id, old.id] });
           }
         }
       }
