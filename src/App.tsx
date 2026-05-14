@@ -241,6 +241,18 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     sessionStorage.setItem('selectedCompanies', JSON.stringify(Array.from(selectedCompanies)));
   }, [selectedCompanies]);
 
+  // Sync registerForm whenever user profile updates (e.g. after registration saves phone/personal_email)
+  useEffect(() => {
+    setRegisterForm((prev: any) => ({
+      ...prev,
+      student_id: user?.student_id || studentIdFromEmail || prev.student_id,
+      class_name: user?.class_name || prev.class_name,
+      course_code: user?.course_code || prev.course_code,
+      phone: user?.phone || prev.phone,
+      personal_email: user?.personal_email || prev.personal_email,
+    }));
+  }, [user]);
+
   const toggleCompanySelection = (companyId: number) => {
     setSelectedCompanies(prev => {
       const next = new Set(prev);
@@ -2338,6 +2350,19 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
         .catch(() => { });
     }
   }, [token, isAdmin]);
+
+  // Sync formData when user prop changes (e.g. after registration updates phone/personal_email)
+  useEffect(() => {
+    setFormData({
+      name: user?.name || '',
+      student_id: user?.student_id || user?.email?.split('@')[0] || '',
+      dob: user?.dob || '',
+      class_name: user?.class_name || '',
+      course_code: user?.course_code || '',
+      phone: user?.phone || '',
+      personal_email: user?.personal_email || ''
+    });
+  }, [user]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
