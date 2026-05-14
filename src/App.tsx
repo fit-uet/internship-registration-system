@@ -1856,6 +1856,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
 function StudentRegistry({ token }: { token: string }) {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [override, setOverride] = useState(false);
 
   const fetchStudents = async () => {
     try {
@@ -1901,7 +1902,7 @@ function StudentRegistry({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/students/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ students: imported })
+        body: JSON.stringify({ students: imported, override })
       });
       if (res.ok) {
         alert('Import thành công!');
@@ -1936,10 +1937,14 @@ function StudentRegistry({ token }: { token: string }) {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
           <p className="text-sm text-slate-500 mt-1">Danh sách sinh viên dùng để tự động điền thông tin khi đăng nhập.</p>
         </div>
-        <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" />
+            Ghi đè thông tin nếu SV đã tồn tại
+          </label>
           <label className="bg-green-600 text-white px-5 py-2.5 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
             <Upload size={16} /> Import CSV
-            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
         </div>
       </div>
