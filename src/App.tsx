@@ -1253,17 +1253,46 @@ function LecturerRegistry({ token }: { token: string }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const text = await file.text();
-    const lines = text.split('\n');
-    const imported = [];
-    for (let i = 1; i < lines.length; i++) {
+    const lines = text.split(/\r?\n/);
+    const imported: { name: string; email?: string }[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-      if (parts.length >= 2) {
-        imported.push(parts[1]); // Assuming STT, Tên
-      } else if (parts.length === 1 && parts[0]) {
-        imported.push(parts[0]); // fallback
+      // Strip BOM if present
+      const line = lines[i].replace(/^\uFEFF/, '');
+      const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+
+      // Detect format:
+      // Format A: STT, Tên, Email  (3+ cols, col0 is a number)
+      // Format B: Tên, Email        (2 cols)
+      // Format C: Tên only          (1 col)
+      // Skip header rows
+      if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'họ và tên' || parts[0].toLowerCase() === 'tên')) continue;
+
+      const isNumeric = (s: string) => /^\d+$/.test(s);
+
+      let name = '';
+      let email = '';
+
+      if (parts.length >= 3 && isNumeric(parts[0])) {
+        // Format A: STT, Tên, Email
+        name = parts[1];
+        email = parts[2];
+      } else if (parts.length >= 2 && !isNumeric(parts[0]) && parts[1].includes('@')) {
+        // Format B: Tên, Email
+        name = parts[0];
+        email = parts[1];
+      } else if (parts.length >= 2 && isNumeric(parts[0])) {
+        // Format A without email: STT, Tên
+        name = parts[1];
+      } else if (parts.length === 1) {
+        // Format C: Tên only
+        name = parts[0];
       }
+
+      if (name) imported.push({ name, email: email || undefined });
     }
+
     if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
 
     try {

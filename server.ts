@@ -179,9 +179,14 @@ async function initDb() {
     const p = join(process.cwd(), 'lectures-list.csv');
     if (fs.existsSync(p)) {
       const text = fs.readFileSync(p, 'utf-8');
-      const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
-      for (const name of lines) {
-        await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)", args: [name] });
+      const lines = text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const parts = line.split(',').map((s: string) => s.trim());
+        const name = parts[0];
+        const email = parts[1] && parts[1].includes('@') ? parts[1] : null;
+        if (name) {
+          await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)", args: [name, email] });
+        }
       }
     }
   }
@@ -690,18 +695,28 @@ async function startServer() {
   // 17. Admin: Bulk Import Lecturers
   app.post('/api/admin/lecturers/bulk', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { lecturers, override } = req.body;
-    if (!Array.isArray(lecturers)) return res.status(400).json({ error: 'Expected array of strings' });
+    if (!Array.isArray(lecturers)) return res.status(400).json({ error: 'Expected array' });
     try {
       if (override) {
         await db.execute("DELETE FROM lecturers");
       }
       let count = 0;
-      for (const name of lecturers) {
-        if (!name || typeof name !== 'string') continue;
+      for (const item of lecturers) {
+        // Accept both plain string and {name, email} object
+        const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
+        const email = typeof item === 'string' ? null : item?.email?.trim() || null;
+        if (!name) continue;
         await db.execute({
-          sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)",
-          args: [name.trim()]
+          sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)",
+          args: [name, email]
         });
+        // If already exists (IGNORE), update email if provided
+        if (email) {
+          await db.execute({
+            sql: "UPDATE lecturers SET email = ? WHERE name = ? AND (email IS NULL OR email = '')",
+            args: [email, name]
+          });
+        }
         count++;
       }
       res.json({ success: true, count });
