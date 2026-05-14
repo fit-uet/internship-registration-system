@@ -387,6 +387,12 @@ async function startServer() {
   // 1.5. Update user profile
   app.put('/api/users/profile', requireAuth, async (req: any, res: any) => {
     const { name, student_id, dob, class_name, course_code } = req.body;
+    if (dob) {
+      const d = new Date(dob);
+      if (isNaN(d.getTime()) || d > new Date()) {
+        return res.status(400).json({ error: 'Ngày sinh không hợp lệ.' });
+      }
+    }
     try {
       await db.execute({
         sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
@@ -432,11 +438,28 @@ async function startServer() {
     const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
     const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
 
+    if (dob) {
+      const d = new Date(dob);
+      if (isNaN(d.getTime()) || d > new Date()) {
+        return res.status(400).json({ error: 'Ngày sinh không hợp lệ.' });
+      }
+    }
+
     if (totalWishes === 0) {
       return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
     }
-    if (normal_company_ids.includes(schoolCompany?.id) && !school_lecturer) {
-      return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
+    if (normal_company_ids.includes(schoolCompany?.id)) {
+      if (!school_lecturer) {
+        return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
+      }
+      const p = join(process.cwd(), 'lectures-list.csv');
+      let lecturers: string[] = [];
+      if (fs.existsSync(p)) {
+        lecturers = fs.readFileSync(p, 'utf-8').split('\n').map((l: string) => l.trim()).filter(Boolean);
+      }
+      if (lecturers.length > 0 && !lecturers.includes(school_lecturer)) {
+        return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+      }
     }
     if (totalWishes > 5) {
       return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 công ty.' });
@@ -491,7 +514,13 @@ async function startServer() {
         }
       }
 
-      res.json({ success: true });
+      await db.execute({
+        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
+        args: [student_id || req.user.student_id, dob || req.user.dob, class_name || req.user.class_name, course_code || req.user.course_code, req.user.id]
+      });
+      const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
+
+      res.json({ success: true, user: updatedUser });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     } finally {

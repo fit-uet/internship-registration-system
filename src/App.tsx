@@ -130,7 +130,7 @@ function App() {
               </div>
             ) : (
               <Routes>
-                <Route path="/" element={<Dashboard user={user} token={token} />} />
+                <Route path="/" element={<Dashboard user={user} setUser={setUser} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
@@ -177,7 +177,7 @@ function App() {
   );
 }
 
-function Dashboard({ user, token }: { user: any, token: string }) {
+function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: string }) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [myRegs, setMyRegs] = useState<any[]>([]);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
@@ -185,7 +185,13 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set());
+  const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(() => {
+    try {
+      const saved = sessionStorage.getItem('selectedCompanies');
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { }
+    return new Set();
+  });
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
@@ -213,8 +219,12 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const khacCompany = companies.find(c => c.name === 'Khác');
   const hasSelectedKhac = khacCompany && selectedCompanies.has(khacCompany.id);
 
-  const schoolCompany = companies.find(c => c.name === 'Thực tập ở trường');
+  const schoolCompany = companies.find(c => c.name === 'Thực tập ở trường' || c.name === 'Trường Đại học Công nghệ');
   const hasSelectedSchool = schoolCompany && selectedCompanies.has(schoolCompany.id);
+
+  useEffect(() => {
+    sessionStorage.setItem('selectedCompanies', JSON.stringify(Array.from(selectedCompanies)));
+  }, [selectedCompanies]);
 
   const toggleCompanySelection = (companyId: number) => {
     setSelectedCompanies(prev => {
@@ -226,11 +236,11 @@ function Dashboard({ user, token }: { user: any, token: string }) {
         next.delete(companyId);
       } else {
         if (isSchool) {
-          alert("Lưu ý: Khi đăng ký Thực tập ở trường, bạn sẽ không được đăng ký thêm công ty nào khác.");
+          alert("Lưu ý: Khi đăng ký Trường Đại học Công nghệ, bạn sẽ không được đăng ký thêm công ty nào khác.");
           return new Set([companyId]);
         }
         if (hasSchool) {
-          alert("Bạn đã chọn Thực tập ở trường nên không thể chọn thêm công ty ngoài.");
+          alert("Bạn đã chọn Trường Đại học Công nghệ nên không thể chọn thêm công ty ngoài.");
           return prev;
         }
         if (next.size >= 5) return prev;
@@ -341,9 +351,13 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.user) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: user?.student_id || studentIdFromEmail, dob: user?.dob || '', class_name: user?.class_name || '', course_code: user?.course_code || '', school_lecturer: '', note: '' });
+        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', school_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -552,7 +566,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                           onClick={() => navigate(`/company/${company.id}`)}
                           className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
                         >
-                          {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
+                          {company.name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
                         </button>
                       </td>
                       <td className="px-6 py-4 text-slate-600">{company.address}</td>
@@ -637,22 +651,23 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
                 {Array.from(selectedCompanies).map((cId, idx) => {
                   const comp = companies.find(c => c.id === cId);
-                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {comp?.name || 'Không rõ'}</li>;
+                  const name = comp?.name === 'Thực tập ở trường' ? 'Trường Đại học Công nghệ' : comp?.name;
+                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {name || 'Không rõ'}</li>;
                 })}
               </ul>
             </div>
             <form onSubmit={submitRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Mã sinh viên *</label>
-                <input required readOnly type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.student_id} onChange={e => setRegisterForm({ ...registerForm, student_id: e.target.value })} placeholder="VD: 20021234" />
+                <input required disabled={!!user?.student_id} type="text" className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.student_id ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.student_id} onChange={e => setRegisterForm({ ...registerForm, student_id: e.target.value })} placeholder="VD: 20021234" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                <input required type="date" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
+                <input required disabled={!!user?.dob} type="date" max={new Date().toISOString().split('T')[0]} className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.dob ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Lớp khóa học *</label>
-                <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.class_name} onChange={e => setRegisterForm({ ...registerForm, class_name: e.target.value })}>
+                <select required disabled={!!user?.class_name} className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.class_name ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.class_name} onChange={e => setRegisterForm({ ...registerForm, class_name: e.target.value })}>
                   <option value="">-- Chọn lớp khóa học --</option>
                   {(campaign.classes_list ? campaign.classes_list.split(',').map((c: string) => c.trim()) : []).map((c: string) => (
                     <option key={c} value={c}>{c}</option>
@@ -661,7 +676,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Học phần thực tập *</label>
-                <select required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={registerForm.course_code} onChange={e => setRegisterForm({ ...registerForm, course_code: e.target.value })}>
+                <select required disabled={!!user?.course_code} className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.course_code ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.course_code} onChange={e => setRegisterForm({ ...registerForm, course_code: e.target.value })}>
                   <option value="">-- Chọn mã môn học --</option>
                   <option value="Thực tập Doanh nghiệp INT4002">1. Thực tập Doanh nghiệp INT4002</option>
                   <option value="Thực tập Chuyên ngành INT3508">2. Thực tập Chuyên ngành INT3508</option>
@@ -677,7 +692,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
               {hasSelectedSchool && (
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-blue-800">Thông tin Thực tập ở trường</h4>
+                    <h4 className="text-sm font-bold text-blue-800">Thông tin Thực tập tại Trường</h4>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn *</label>
@@ -1780,6 +1795,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
               <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
               <input
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 required
                 value={formData.dob}
                 onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
@@ -1857,6 +1873,8 @@ function StudentRegistry({ token }: { token: string }) {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [override, setOverride] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const fetchStudents = async () => {
     try {
@@ -1871,6 +1889,50 @@ function StudentRegistry({ token }: { token: string }) {
   };
 
   useEffect(() => { fetchStudents(); }, [token]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredAndSortedStudents = React.useMemo(() => {
+    let result = [...students];
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(s =>
+        s.student_id?.toLowerCase().includes(lower) ||
+        s.name?.toLowerCase().includes(lower) ||
+        s.class_name?.toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key] || '';
+        const bVal = b[sortConfig.key] || '';
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [students, searchTerm, sortConfig]);
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp khoá học'];
+    const rows = filteredAndSortedStudents.map((s, idx) => [
+      idx + 1,
+      s.student_id,
+      s.name,
+      s.dob,
+      s.class_name
+    ]);
+    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'danh_sach_sinh_vien.csv');
+  };
 
   const handleFileUpload = async (e: any) => {
     const file = e.target.files?.[0];
@@ -1937,15 +1999,28 @@ function StudentRegistry({ token }: { token: string }) {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
           <p className="text-sm text-slate-500 mt-1">Danh sách sinh viên dùng để tự động điền thông tin khi đăng nhập.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm theo Mã SV, Tên, Lớp..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
             <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" />
-            Ghi đè thông tin nếu SV đã tồn tại
+            Ghi đè SV
           </label>
-          <label className="bg-green-600 text-white px-5 py-2.5 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
-            <Upload size={16} /> Import CSV
+          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Upload size={16} /> Import
             <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
+          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất CSV
+          </button>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -1953,15 +2028,23 @@ function StudentRegistry({ token }: { token: string }) {
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
               <th className="p-4 font-semibold whitespace-nowrap">STT</th>
-              <th className="p-4 font-semibold whitespace-nowrap">Mã SV</th>
-              <th className="p-4 font-semibold whitespace-nowrap">Họ và tên</th>
-              <th className="p-4 font-semibold whitespace-nowrap">Ngày sinh</th>
-              <th className="p-4 font-semibold whitespace-nowrap">Lớp khoá học</th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('student_id')}>
+                Mã SV {sortConfig?.key === 'student_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
+                Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('dob')}>
+                Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('class_name')}>
+                Lớp khoá học {sortConfig?.key === 'class_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="p-4 font-semibold whitespace-nowrap text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {students.map((s, idx) => (
+            {filteredAndSortedStudents.map((s, idx) => (
               <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
                 <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
