@@ -1091,10 +1091,12 @@ async function startServer() {
 
       // Clear companies and optionally registrations
       const { keepRegistrations } = req.body || {};
-      await db.executeMultiple('DELETE FROM companies');
+      // Disable FK checks so we can delete companies while registrations still reference them
+      await db.execute('PRAGMA foreign_keys = OFF');
       if (!keepRegistrations) {
         await db.executeMultiple('DELETE FROM registrations');
       }
+      await db.executeMultiple('DELETE FROM companies');
 
       const insertSql1 = `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
@@ -1137,9 +1139,27 @@ async function startServer() {
         importedCount++;
       }
 
-      insertStmt.run('Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '');
+      // Re-add "Công ty khác"
+      await db.execute({ sql: insertSql1, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', ''] });
+
+      // If keeping registrations, remap company_id by matching company name
+      if (keepRegistrations) {
+        const regs = (await db.execute('SELECT DISTINCT company_name FROM registrations')).rows as any[];
+        for (const reg of regs) {
+          const newCompany = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [reg.company_name] })).rows[0] as any;
+          if (newCompany) {
+            await db.execute({ sql: 'UPDATE registrations SET company_id = ? WHERE company_name = ?', args: [newCompany.id, reg.company_name] });
+          }
+        }
+      }
+
+      // Re-enable FK checks
+      await db.execute('PRAGMA foreign_keys = ON');
+
       res.json({ success: true, count: importedCount });
     } catch (e: any) {
+      // Make sure FK is re-enabled even on error
+      try { await db.execute('PRAGMA foreign_keys = ON'); } catch (_) {}
       res.status(500).json({ error: e.message });
     }
   });
