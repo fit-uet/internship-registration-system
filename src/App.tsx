@@ -181,6 +181,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(new Set());
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const [lecturers, setLecturers] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
@@ -307,6 +308,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
   const submitRegister = async (e: any) => {
     e.preventDefault();
     if (selectedCompanies.size === 0) return;
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
       const res = await fetch(`${API_BASE}/api/registrations`, {
@@ -342,6 +345,8 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       }
     } catch (e) {
       alert("Đăng ký lỗi!");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -750,8 +755,17 @@ function Dashboard({ user, token }: { user: any, token: string }) {
                 <button type="button" onClick={() => setRegisterModalOpen(false)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                   Hủy
                 </button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">
-                  Xác nhận đăng ký
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                      Đang xử lý...
+                    </>
+                  ) : 'Xác nhận đăng ký'}
                 </button>
               </div>
             </form>

@@ -50,7 +50,7 @@ async function initDb() {
       class_name TEXT,
       note TEXT,
       status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
       FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (company_id) REFERENCES companies (id)
     );
@@ -233,6 +233,10 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // In-memory lock to prevent duplicate concurrent registration requests
+  const processingUsers = new Set<number>();
+
+
   app.use(express.json());
   app.use(cors({
     origin: process.env.CORS_ORIGIN || 'https://fit-uet.github.io',
@@ -410,6 +414,12 @@ async function startServer() {
 
   // 4. Register for companies (batch - up to 5)
   app.post('/api/registrations', requireAuth, async (req: any, res: any) => {
+    const userId = req.user.id;
+    if (processingUsers.has(userId)) {
+      return res.status(429).json({ error: 'Yêu cầu đăng ký đang được xử lý, vui lòng không nhấn thêm.' });
+    }
+    processingUsers.add(userId);
+    try {
     const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer } = req.body;
 
     if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
@@ -443,7 +453,7 @@ async function startServer() {
       // Delete existing registrations first
       await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
-      const insertSql2 = 'INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      const insertSql2 = "INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
 
       for (const companyId of normal_company_ids) {
         const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
@@ -484,6 +494,8 @@ async function startServer() {
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
+    } finally {
+      processingUsers.delete(userId);
     }
   });
 
