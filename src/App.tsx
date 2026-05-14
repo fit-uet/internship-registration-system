@@ -843,7 +843,7 @@ function AdminPanel({ token }: { token: string }) {
   };
 
   const generateCSVContent = (dataList: any[]) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
       if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
@@ -861,6 +861,7 @@ function AdminPanel({ token }: { token: string }) {
         i + 1,
         r.student_id,
         r.student_name,
+        r.dob,
         r.phone || '',
         r.personal_email || '',
         r.class_name,
@@ -1115,6 +1116,9 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('student_name')}>
                   <div className="flex items-center gap-1">Họ và tên {getSortIcon('student_name')}</div>
                 </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('dob')}>
+                  <div className="flex items-center gap-1">Ngày sinh {getSortIcon('dob')}</div>
+                </th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('phone')}>
                   <div className="flex items-center gap-1">SĐT {getSortIcon('phone')}</div>
                 </th>
@@ -1144,13 +1148,14 @@ function AdminPanel({ token }: { token: string }) {
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 filteredRegistrations.map(reg => (
                   <tr key={reg.registration_id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
                     <td className="px-6 py-4">{reg.student_id || '-'}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{reg.student_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{reg.dob ? new Date(reg.dob).toLocaleDateString('vi-VN') : '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{reg.phone || '-'}</td>
                     <td className="px-6 py-4">{reg.personal_email ? <a href={`mailto:${reg.personal_email}`} className="text-blue-600 hover:underline">{reg.personal_email}</a> : '-'}</td>
                     <td className="px-6 py-4">{reg.class_name || '-'}</td>
@@ -2305,6 +2310,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   const [formData, setFormData] = useState({
     name: user?.name || '',
     student_id: user?.student_id || user?.email?.split('@')[0] || '',
+    dob: user?.dob || '',
     class_name: user?.class_name || '',
     course_code: user?.course_code || '',
     phone: user?.phone || '',
@@ -2439,6 +2445,17 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    required
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
                   />
                 </div>
@@ -2583,11 +2600,12 @@ function StudentRegistry({ token }: { token: string }) {
   }, [students, searchTerm, sortConfig]);
 
   const exportCSV = () => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'SĐT', 'Email cá nhân', 'Lớp khoá học'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp khoá học'];
     const rows = filteredAndSortedStudents.map((s, idx) => [
       idx + 1,
       s.student_id,
       s.name,
+      s.dob,
       s.phone || '',
       s.personal_email || '',
       s.class_name
@@ -2697,6 +2715,9 @@ function StudentRegistry({ token }: { token: string }) {
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
                 Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('dob')}>
+                Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
                 SĐT {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
@@ -2715,6 +2736,7 @@ function StudentRegistry({ token }: { token: string }) {
                 <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
                 <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
                 <td className="p-4 text-sm text-slate-800">{s.name}</td>
+                <td className="p-4 text-sm text-slate-600">{s.dob}</td>
                 <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
                 <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
                 <td className="p-4 text-sm text-slate-600">

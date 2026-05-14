@@ -443,7 +443,7 @@ async function startServer() {
     try {
       await db.execute({
         sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
-        args: [name, student_id, dob, class_name, course_code, phone || null, personal_email || null, req.user.id]
+        args: [name || null, student_id || null, dob || null, class_name || null, course_code || null, phone || null, personal_email || null, req.user.id]
       });
       // If this admin is also a lecturer, sync name change to lecturers table using email as key
       if (req.user.role === 'admin' && req.user.is_lecturer && name) {
@@ -538,7 +538,7 @@ async function startServer() {
 
       for (const companyId of normal_company_ids) {
         const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
-        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id, dob, class_name, note, 'approved', null, null, contactInfo, course_code] });
+        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id || null, dob || null, class_name || null, note || null, 'approved', null, null, contactInfo || null, course_code || null] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -558,15 +558,15 @@ async function startServer() {
             args: [
               req.user.id,
               khacCompany.id,
-              student_id,
-              dob,
-              class_name,
-              note,
+              student_id || null,
+              dob || null,
+              class_name || null,
+              note || null,
               status,
-              other.name,
-              other.role,
-              other.contact,
-              course_code
+              other.name || null,
+              other.role || null,
+              other.contact || null,
+              course_code || null
             ]
           });
         }
@@ -574,7 +574,7 @@ async function startServer() {
 
       await db.execute({
         sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
-        args: [student_id || req.user.student_id, dob || req.user.dob, class_name || req.user.class_name, course_code || req.user.course_code, phone || req.user.phone || null, personal_email || req.user.personal_email || null, req.user.id]
+        args: [student_id || req.user.student_id || null, dob || req.user.dob || null, class_name || req.user.class_name || null, course_code || req.user.course_code || null, phone || req.user.phone || null, personal_email || req.user.personal_email || null, req.user.id]
       });
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 
