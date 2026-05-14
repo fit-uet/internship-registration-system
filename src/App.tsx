@@ -444,10 +444,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trạng thái Hệ thống</h2>
           <div className="flex items-center gap-3 mb-4">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              {registrationWindowStatus === 'open' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${registrationWindowStatus === 'open' ? 'bg-green-500' : registrationWindowStatus === 'not_open_yet' ? 'bg-orange-500' : 'bg-red-500'}`}></span>
             </span>
-            <span className="text-sm font-semibold text-green-700">Đang mở đăng ký</span>
+            <span className={`text-sm font-semibold ${registrationWindowStatus === 'open' ? 'text-green-700' : registrationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
+              {registrationWindowStatus === 'open' ? 'Đang mở đăng ký' : registrationWindowStatus === 'not_open_yet' ? 'Chưa mở đăng ký' : 'Đã đóng đăng ký'}
+            </span>
           </div>
           <div className="space-y-3 border-t border-slate-100 pt-4">
             <div className="flex justify-between text-sm">
