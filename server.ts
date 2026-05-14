@@ -424,14 +424,24 @@ async function startServer() {
       }
     }
     try {
-      const oldName = req.user.name;
       await db.execute({
         sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
         args: [name, student_id, dob, class_name, course_code, req.user.id]
       });
-      // If this admin is also a lecturer, sync name change to lecturers table
-      if (req.user.role === 'admin' && req.user.is_lecturer && name && name !== oldName) {
-        await db.execute({ sql: 'UPDATE lecturers SET name = ? WHERE name = ?', args: [name, oldName] });
+      // If this admin is also a lecturer, sync name change to lecturers table using email as key
+      if (req.user.role === 'admin' && req.user.is_lecturer && name) {
+        const updated = await db.execute({
+          sql: 'UPDATE lecturers SET name = ? WHERE email = ?',
+          args: [name, req.user.email]
+        });
+        // Fallback: if no row matched by email (lecturer was added without email), try to insert/update by matching email
+        if (updated.rowsAffected === 0) {
+          // Ensure there's a record with this email
+          await db.execute({
+            sql: 'INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)',
+            args: [name, req.user.email]
+          });
+        }
       }
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
       res.json(updatedUser);
