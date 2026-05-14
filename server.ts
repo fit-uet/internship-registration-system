@@ -28,7 +28,9 @@ async function initDb() {
       name TEXT NOT NULL,
       picture TEXT,
       role TEXT DEFAULT 'student', -- 'student' or 'admin'
-      is_lecturer INTEGER DEFAULT 0  -- 1 if admin is also a lecturer
+      is_lecturer INTEGER DEFAULT 0,  -- 1 if admin is also a lecturer
+      phone TEXT,
+      personal_email TEXT
     );
     CREATE TABLE IF NOT EXISTS companies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,6 +154,9 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN is_lecturer INTEGER DEFAULT 0'); } catch (e) { }
   // Migration: add email to lecturers if not exists
   try { await db.executeMultiple('ALTER TABLE lecturers ADD COLUMN email TEXT'); } catch (e) { }
+  // Migration: add phone and personal_email to users if not exists
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN personal_email TEXT'); } catch (e) { }
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
   if (!otherExist) {
@@ -428,7 +433,7 @@ async function startServer() {
 
   // 1.5. Update user profile
   app.put('/api/users/profile', requireAuth, async (req: any, res: any) => {
-    const { name, student_id, dob, class_name, course_code } = req.body;
+    const { name, student_id, dob, class_name, course_code, phone, personal_email } = req.body;
     if (dob) {
       const d = new Date(dob);
       if (isNaN(d.getTime()) || d > new Date()) {
@@ -437,8 +442,8 @@ async function startServer() {
     }
     try {
       await db.execute({
-        sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
-        args: [name, student_id, dob, class_name, course_code, req.user.id]
+        sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
+        args: [name, student_id, dob, class_name, course_code, phone || null, personal_email || null, req.user.id]
       });
       // If this admin is also a lecturer, sync name change to lecturers table using email as key
       if (req.user.role === 'admin' && req.user.is_lecturer && name) {
@@ -484,7 +489,7 @@ async function startServer() {
     }
     processingUsers.add(userId);
     try {
-      const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer } = req.body;
+      const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, phone, personal_email } = req.body;
 
       if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
         return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
@@ -568,8 +573,8 @@ async function startServer() {
       }
 
       await db.execute({
-        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
-        args: [student_id || req.user.student_id, dob || req.user.dob, class_name || req.user.class_name, course_code || req.user.course_code, req.user.id]
+        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
+        args: [student_id || req.user.student_id, dob || req.user.dob, class_name || req.user.class_name, course_code || req.user.course_code, phone || req.user.phone || null, personal_email || req.user.personal_email || null, req.user.id]
       });
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 
@@ -601,7 +606,7 @@ async function startServer() {
 
   // 12. Admin: Get Students (exclude admins)
   app.get('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows;
+    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name, phone, personal_email FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows;
     res.json(students);
   });
 
@@ -784,6 +789,90 @@ async function startServer() {
     }
   });
 
+  // ── Admin: Company CRUD ──
+
+  // 19a. Admin: Add Single Company
+  app.post('/api/admin/companies', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const { name, description, slots, contact_email, address, recruitment_link, phone, contact_name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Tên công ty không được để trống' });
+      const result = await db.execute({
+        sql: `INSERT INTO companies (name, description, slots, contact_email, address, recruitment_link, phone, contact_name, history, qualifications)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '')`,
+        args: [name.trim(), description || '', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '']
+      });
+      const newComp = (await db.execute({ sql: 'SELECT * FROM companies WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0];
+      res.json(newComp);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 19b. Admin: Update Single Company
+  app.put('/api/admin/companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const { name, description, slots, contact_email, address, recruitment_link, phone, contact_name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Tên công ty không được để trống' });
+      await db.execute({
+        sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`,
+        args: [name.trim(), description || '', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '', req.params.id]
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 19c. Admin: Delete Single Company
+  app.delete('/api/admin/companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      // Also delete registrations for this company
+      await db.execute({ sql: 'DELETE FROM registrations WHERE company_id = ?', args: [req.params.id] });
+      await db.execute({ sql: 'DELETE FROM companies WHERE id = ?', args: [req.params.id] });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 19d. Admin: Bulk Import Companies from CSV
+  app.post('/api/admin/companies/bulk', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { companies, override } = req.body;
+    if (!Array.isArray(companies)) return res.status(400).json({ error: 'Expected array' });
+    try {
+      if (override) {
+        await db.executeMultiple('DELETE FROM registrations');
+        await db.executeMultiple('DELETE FROM companies');
+      }
+      let count = 0;
+      for (const item of companies) {
+        const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
+        if (!name) continue;
+        const slots = item?.slots || 5;
+        const contact_email = item?.contact_email || '';
+        const address = item?.address || '';
+        const phone = item?.phone || '';
+        const contact_name = item?.contact_name || '';
+        const existing = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [name] })).rows[0];
+        if (!existing) {
+          await db.execute({
+            sql: `INSERT INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
+            args: [name, `Tuyển ${slots} sinh viên thực tập.`, slots, contact_email, address, phone, contact_name]
+          });
+          count++;
+        }
+      }
+      // Ensure "Công ty khác" always exists
+      const khac = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
+      if (!khac) {
+        await db.execute({ sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, '', '', '', '', '', '')`, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, ''] });
+      }
+      res.json({ success: true, count });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
   // 6. Admin: Get all registrations
   app.get('/api/admin/registrations', requireAuth, requireAdmin, async (req, res) => {
     const data = (await db.execute(`
@@ -802,7 +891,9 @@ async function startServer() {
         r.other_company_role,
         r.other_company_contact,
         r.course_code,
-        c.contact_email
+        c.contact_email,
+        u.phone,
+        u.personal_email
       FROM registrations r
       JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id

@@ -95,6 +95,9 @@ function App() {
                             <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
                             </Link>
+                            <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
+                            </Link>
                             <Link to="/admin/admins" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <Shield size={16} className="text-purple-500" /> Quản lý Quản trị viên
                             </Link>
@@ -142,6 +145,7 @@ function App() {
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/companies" element={user.role === 'admin' ? <CompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
@@ -209,9 +213,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState<any>({
     student_id: user?.student_id || studentIdFromEmail,
-    dob: user?.dob || '',
     class_name: user?.class_name || '',
     course_code: user?.course_code || '',
+    phone: user?.phone || '',
+    personal_email: user?.personal_email || '',
     school_lecturer: '',
     note: ''
   });
@@ -347,9 +352,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         body: JSON.stringify({
           company_ids: Array.from(selectedCompanies).filter(id => id !== khacCompany?.id),
           student_id: registerForm.student_id,
-          dob: registerForm.dob,
           class_name: registerForm.class_name,
           course_code: registerForm.course_code,
+          phone: registerForm.phone,
+          personal_email: registerForm.personal_email,
           school_lecturer: registerForm.school_lecturer,
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
@@ -367,7 +373,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         }
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', school_lecturer: '', note: '' });
+        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -671,8 +677,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 <input required disabled={!!user?.student_id} type="text" className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.student_id ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.student_id} onChange={e => setRegisterForm({ ...registerForm, student_id: e.target.value })} placeholder="VD: 20021234" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
-                <input required disabled={!!user?.dob} type="date" max={new Date().toISOString().split('T')[0]} className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.dob ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
+                <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại *</label>
+                <input required type="tel" className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.phone ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} disabled={!!user?.phone} value={registerForm.phone} onChange={e => setRegisterForm({ ...registerForm, phone: e.target.value })} placeholder="VD: 0912345678" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Email cá nhân (khác VNU) *</label>
+                <input required type="email" className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.personal_email ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} disabled={!!user?.personal_email} value={registerForm.personal_email} onChange={e => setRegisterForm({ ...registerForm, personal_email: e.target.value })} placeholder="VD: abc@gmail.com" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Lớp khóa học *</label>
@@ -833,7 +843,7 @@ function AdminPanel({ token }: { token: string }) {
   };
 
   const generateCSVContent = (dataList: any[]) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
       if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
@@ -851,7 +861,8 @@ function AdminPanel({ token }: { token: string }) {
         i + 1,
         r.student_id,
         r.student_name,
-        r.dob,
+        r.phone || '',
+        r.personal_email || '',
         r.class_name,
         r.course_code,
         noi_tt,
@@ -1104,8 +1115,11 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('student_name')}>
                   <div className="flex items-center gap-1">Họ và tên {getSortIcon('student_name')}</div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('dob')}>
-                  <div className="flex items-center gap-1">Ngày sinh {getSortIcon('dob')}</div>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('phone')}>
+                  <div className="flex items-center gap-1">SĐT {getSortIcon('phone')}</div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('personal_email')}>
+                  <div className="flex items-center gap-1">Email cá nhân {getSortIcon('personal_email')}</div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('class_name')}>
                   <div className="flex items-center gap-1">Lớp KH {getSortIcon('class_name')}</div>
@@ -1130,14 +1144,15 @@ function AdminPanel({ token }: { token: string }) {
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 filteredRegistrations.map(reg => (
                   <tr key={reg.registration_id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
                     <td className="px-6 py-4">{reg.student_id || '-'}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{reg.student_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{reg.dob ? new Date(reg.dob).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{reg.phone || '-'}</td>
+                    <td className="px-6 py-4">{reg.personal_email ? <a href={`mailto:${reg.personal_email}`} className="text-blue-600 hover:underline">{reg.personal_email}</a> : '-'}</td>
                     <td className="px-6 py-4">{reg.class_name || '-'}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4">
@@ -1502,6 +1517,311 @@ function LecturerRegistry({ token }: { token: string }) {
             </div>
             <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu giảng viên.</p>
             <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file CSV hoặc thêm thủ công.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CompanyRegistry({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [override, setOverride] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCompany, setNewCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editCompany, setEditCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setCompanies(data);
+    } catch (e) {
+      alert('Lỗi lấy danh sách công ty');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCompanies(); }, [token]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    let result = [...companies];
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(c =>
+        c.name?.toLowerCase().includes(lower) ||
+        c.address?.toLowerCase().includes(lower) ||
+        c.contact_email?.toLowerCase().includes(lower) ||
+        c.contact_name?.toLowerCase().includes(lower)
+      );
+    }
+    if (sortConfig) {
+      result.sort((a, b) => {
+        let aVal = a[sortConfig.key] ?? '';
+        let bVal = b[sortConfig.key] ?? '';
+        if (sortConfig.key === 'slots' || sortConfig.key === 'applicant_count' || sortConfig.key === 'remaining_slots') {
+          aVal = Number(aVal) || 0; bVal = Number(bVal) || 0;
+        }
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [companies, searchTerm, sortConfig]);
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
+    const rows = filteredAndSorted.map((c, idx) => [idx + 1, c.name, c.slots, c.applicant_count ?? 0, c.contact_email || '', c.contact_name || '', c.phone || '', c.address || '']);
+    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x ?? ''}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'danh_sach_cong_ty.csv');
+  };
+
+  const handleFileUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/);
+    const imported: { name: string; slots?: number; contact_email?: string; address?: string; phone?: string; contact_name?: string }[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const line = lines[i].replace(/^\uFEFF/, '');
+      const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+
+      // Skip header
+      if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'tên doanh nghiệp' || parts[0].toLowerCase() === 'tên')) continue;
+
+      const isNumeric = (s: string) => /^\d+$/.test(s);
+      let name = '';
+      let slots = 5;
+
+      if (parts.length >= 3 && isNumeric(parts[0])) {
+        // STT, Tên, Chỉ tiêu, ...
+        name = parts[1];
+        if (parts[2] && isNumeric(parts[2])) slots = parseInt(parts[2]);
+      } else if (parts.length >= 1 && !isNumeric(parts[0])) {
+        name = parts[0];
+        if (parts[1] && isNumeric(parts[1])) slots = parseInt(parts[1]);
+      }
+
+      if (name) imported.push({ name, slots });
+    }
+
+    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ companies: imported, override })
+      });
+      if (res.ok) {
+        alert('Import thành công!');
+        fetchCompanies();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi import');
+    }
+    e.target.value = '';
+  };
+
+  const handleAdd = async () => {
+    if (!newCompany.name.trim()) return alert('Vui lòng nhập tên công ty');
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newCompany)
+      });
+      if (res.ok) {
+        setNewCompany({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
+        setShowAddForm(false);
+        fetchCompanies();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi thêm công ty');
+    }
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editCompany.name.trim()) return alert('Vui lòng nhập tên công ty');
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(editCompany)
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchCompanies();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi cập nhật');
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Bạn có chắc muốn xóa "${name}"? Toàn bộ đăng ký liên quan sẽ bị xóa.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) fetchCompanies();
+      else alert('Xóa thất bại');
+    } catch (e) {
+      alert('Lỗi xóa');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => (
+    <span className="ml-1 text-xs">{sortConfig?.key === col ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+  );
+
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách công ty / doanh nghiệp tiếp nhận thực tập. Tổng: <strong>{companies.length}</strong></p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm theo tên, địa chỉ, email..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
+            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4" />
+            Ghi đè
+          </label>
+          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Upload size={16} /> Import
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          </label>
+          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Add company form */}
+      {!showAddForm ? (
+        <div className="mb-6">
+          <button onClick={() => setShowAddForm(true)} className="bg-orange-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
+            <Plus size={16} /> Thêm Công ty
+          </button>
+        </div>
+      ) : (
+        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-orange-800">Thêm công ty mới</h3>
+            <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input type="number" placeholder="Chỉ tiêu" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input placeholder="Địa chỉ" value={newCompany.address} onChange={e => setNewCompany({ ...newCompany, address: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <input placeholder="Link tuyển dụng" value={newCompany.recruitment_link} onChange={e => setNewCompany({ ...newCompany, recruitment_link: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+          <button onClick={handleAdd} className="bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
+            <Plus size={16} /> Lưu công ty
+          </button>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
+              <th className="p-3 font-semibold w-12">STT</th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên doanh nghiệp<SortIcon col="name" /></th>
+              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('slots')}>Chỉ tiêu<SortIcon col="slots" /></th>
+              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('applicant_count')}>ƯV<SortIcon col="applicant_count" /></th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('contact_email')}>Email<SortIcon col="contact_email" /></th>
+              <th className="p-3 font-semibold">Người LH</th>
+              <th className="p-3 font-semibold">SĐT</th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('address')}>Địa chỉ<SortIcon col="address" /></th>
+              <th className="p-3 font-semibold text-right w-28">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredAndSorted.map((c, idx) => (
+              <tr key={c.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+                <td className="p-3 text-slate-500">{idx + 1}</td>
+                {editingId === c.id ? (
+                  <>
+                    <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-400 rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
+                    <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3 text-right flex items-center justify-end gap-1">
+                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="p-3 text-slate-800 font-medium">{c.name}</td>
+                    <td className="p-3 text-center">{c.name === 'Công ty khác' ? '∞' : c.slots}</td>
+                    <td className="p-3 text-center">{c.applicant_count ?? 0}</td>
+                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address}>{c.address || <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-right flex items-center justify-end gap-1">
+                      <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {companies.length === 0 && !loading && (
+          <div className="text-center py-16 px-4">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+              <Building2 size={24} className="text-slate-400" />
+            </div>
+            <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu công ty.</p>
+            <p className="text-slate-400 text-sm mt-1">Vui lòng đồng bộ từ Google Sheet hoặc thêm thủ công.</p>
           </div>
         )}
       </div>
@@ -1985,9 +2305,10 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   const [formData, setFormData] = useState({
     name: user?.name || '',
     student_id: user?.student_id || user?.email?.split('@')[0] || '',
-    dob: user?.dob || '',
     class_name: user?.class_name || '',
-    course_code: user?.course_code || ''
+    course_code: user?.course_code || '',
+    phone: user?.phone || '',
+    personal_email: user?.personal_email || ''
   });
   const [saving, setSaving] = useState(false);
   const [classesList, setClassesList] = useState<string[]>([]);
@@ -2122,14 +2443,23 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Số điện thoại</label>
                   <input
-                    type="date"
-                    max={new Date().toISOString().split('T')[0]}
-                    required
-                    value={formData.dob}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    placeholder="VD: 0912345678"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email cá nhân (khác VNU)</label>
+                  <input
+                    type="email"
+                    value={formData.personal_email}
+                    onChange={(e) => setFormData({ ...formData, personal_email: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    placeholder="VD: abc@gmail.com"
                   />
                 </div>
                 <div>
@@ -2253,12 +2583,13 @@ function StudentRegistry({ token }: { token: string }) {
   }, [students, searchTerm, sortConfig]);
 
   const exportCSV = () => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp khoá học'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'SĐT', 'Email cá nhân', 'Lớp khoá học'];
     const rows = filteredAndSortedStudents.map((s, idx) => [
       idx + 1,
       s.student_id,
       s.name,
-      s.dob,
+      s.phone || '',
+      s.personal_email || '',
       s.class_name
     ]);
     const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
@@ -2366,8 +2697,11 @@ function StudentRegistry({ token }: { token: string }) {
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
                 Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('dob')}>
-                Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
+                SĐT {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('personal_email')}>
+                Email cá nhân {sortConfig?.key === 'personal_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('class_name')}>
                 Lớp khoá học {sortConfig?.key === 'class_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -2381,7 +2715,8 @@ function StudentRegistry({ token }: { token: string }) {
                 <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
                 <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
                 <td className="p-4 text-sm text-slate-800">{s.name}</td>
-                <td className="p-4 text-sm text-slate-600">{s.dob}</td>
+                <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
+                <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
                 <td className="p-4 text-sm text-slate-600">
                   <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
                 </td>
