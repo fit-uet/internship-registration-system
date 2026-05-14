@@ -1,8 +1,8 @@
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -49,7 +49,7 @@ function App() {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <HashRouter basename={import.meta.env.BASE_URL}>
         <div className="w-full h-full min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans overflow-x-hidden">
           {/* Header */}
           <header className="h-20 bg-[#004a99] text-white px-8 flex items-center justify-between shadow-lg z-10 sticky top-0 w-full">
@@ -172,7 +172,7 @@ function App() {
             </div>
           )}
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </GoogleOAuthProvider>
   );
 }
@@ -1897,7 +1897,7 @@ function StudentRegistry({ token }: { token: string }) {
     setSortConfig({ key, direction });
   };
 
-  const filteredAndSortedStudents = React.useMemo(() => {
+  const filteredAndSortedStudents = useMemo(() => {
     let result = [...students];
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
