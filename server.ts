@@ -61,7 +61,8 @@ async function initDb() {
     );
     CREATE TABLE IF NOT EXISTS lecturers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL
+      name TEXT UNIQUE NOT NULL,
+      email TEXT
     );
   `);
 
@@ -149,6 +150,8 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) { }
   // Migration: add is_lecturer to users if not exists
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN is_lecturer INTEGER DEFAULT 0'); } catch (e) { }
+  // Migration: add email to lecturers if not exists
+  try { await db.executeMultiple('ALTER TABLE lecturers ADD COLUMN email TEXT'); } catch (e) { }
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
   if (!otherExist) {
@@ -183,10 +186,12 @@ async function initDb() {
     }
   }
 
-  // Sync admin lecturers to lecturers table
-  const adminLecturers = (await db.execute("SELECT name FROM users WHERE role = 'admin' AND is_lecturer = 1")).rows;
+  // Sync admin lecturers to lecturers table (including email)
+  const adminLecturers = (await db.execute("SELECT name, email FROM users WHERE role = 'admin' AND is_lecturer = 1")).rows;
   for (const al of adminLecturers) {
-    await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)", args: [(al as any).name] });
+    await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)", args: [(al as any).name, (al as any).email] });
+    // Also update email in case it changed
+    await db.execute({ sql: "UPDATE lecturers SET email = ? WHERE name = ?", args: [(al as any).email, (al as any).name] });
   }
 }
 
@@ -593,13 +598,12 @@ async function startServer() {
       await db.execute({ sql: 'UPDATE users SET is_lecturer = ? WHERE id = ?', args: [is_lecturer ? 1 : 0, req.params.id] });
 
       if (is_lecturer) {
-        // Add to lecturers table
-        await db.execute({ sql: 'INSERT OR IGNORE INTO lecturers (name) VALUES (?)', args: [adminUser.name] });
+        // Add to lecturers table with email
+        await db.execute({ sql: 'INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)', args: [adminUser.name, adminUser.email] });
+        // Update email if already exists
+        await db.execute({ sql: 'UPDATE lecturers SET email = ? WHERE name = ?', args: [adminUser.email, adminUser.name] });
       } else {
-        // Remove from lecturers table only if they were added as admin-lecturer (not manually added)
-        // We keep them in lecturers if they were separately managed, but remove the auto-synced one
-        await db.execute({ sql: 'DELETE FROM lecturers WHERE name = ? AND id NOT IN (SELECT lecturer_id FROM lecturers WHERE lecturer_id IS NOT NULL)', args: [adminUser.name] });
-        // Simpler: just remove by name since admin lecturers are synced by name
+        // Remove from lecturers table (admin-synced entries are identified by email match)
         await db.execute({ sql: 'DELETE FROM lecturers WHERE name = ?', args: [adminUser.name] });
       }
 
@@ -709,9 +713,9 @@ async function startServer() {
   // 17b. Admin: Add Single Lecturer
   app.post('/api/admin/lecturers', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const { name } = req.body;
+      const { name, email } = req.body;
       if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
-      const result = await db.execute({ sql: "INSERT INTO lecturers (name) VALUES (?)", args: [name.trim()] });
+      const result = await db.execute({ sql: "INSERT INTO lecturers (name, email) VALUES (?, ?)", args: [name.trim(), email?.trim() || null] });
       const newLec = (await db.execute({ sql: "SELECT * FROM lecturers WHERE id = ?", args: [Number(result.lastInsertRowid)] })).rows[0];
       res.json(newLec);
     } catch (e: any) {
@@ -723,9 +727,9 @@ async function startServer() {
   // 17c. Admin: Update Single Lecturer
   app.put('/api/admin/lecturers/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const { name } = req.body;
+      const { name, email } = req.body;
       if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
-      await db.execute({ sql: "UPDATE lecturers SET name = ? WHERE id = ?", args: [name.trim(), req.params.id] });
+      await db.execute({ sql: "UPDATE lecturers SET name = ?, email = ? WHERE id = ?", args: [name.trim(), email?.trim() || null, req.params.id] });
       res.json({ success: true });
     } catch (e: any) {
       if (e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Tên giảng viên đã tồn tại' });

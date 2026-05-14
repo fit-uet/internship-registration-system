@@ -1196,8 +1196,10 @@ function LecturerRegistry({ token }: { token: string }) {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   const fetchLecturers = async () => {
     try {
@@ -1225,7 +1227,7 @@ function LecturerRegistry({ token }: { token: string }) {
     let result = [...lecturers];
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      result = result.filter(l => l.name?.toLowerCase().includes(lower));
+      result = result.filter(l => l.name?.toLowerCase().includes(lower) || l.email?.toLowerCase().includes(lower));
     }
     if (sortConfig) {
       result.sort((a, b) => {
@@ -1240,8 +1242,8 @@ function LecturerRegistry({ token }: { token: string }) {
   }, [lecturers, searchTerm, sortConfig]);
 
   const exportCSV = () => {
-    const headers = ['STT', 'Họ và tên'];
-    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name]);
+    const headers = ['STT', 'Họ và tên', 'Email'];
+    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '']);
     const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'danh_sach_giang_vien.csv');
@@ -1289,10 +1291,11 @@ function LecturerRegistry({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/lecturers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: newName.trim() })
+        body: JSON.stringify({ name: newName.trim(), email: newEmail.trim() || undefined })
       });
       if (res.ok) {
         setNewName('');
+        setNewEmail('');
         fetchLecturers();
       } else {
         const err = await res.json();
@@ -1309,7 +1312,7 @@ function LecturerRegistry({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/lecturers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: editName.trim() })
+        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || undefined })
       });
       if (res.ok) {
         setEditingId(null);
@@ -1372,16 +1375,24 @@ function LecturerRegistry({ token }: { token: string }) {
         </div>
       </div>
 
-      <div className="mb-6 flex gap-3 items-center">
-        <input 
-          type="text" 
-          placeholder="Nhập tên giảng viên mới..." 
+      <div className="mb-6 flex flex-wrap gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Họ và tên giảng viên..."
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          className="flex-1 max-w-sm border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
-        <button onClick={handleAdd} className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-sm">
+        <input
+          type="email"
+          placeholder="Email (tuỳ chọn)"
+          value={newEmail}
+          onChange={e => setNewEmail(e.target.value)}
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+        />
+        <button onClick={handleAdd} className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap">
           <Plus size={16} /> Thêm Giảng viên
         </button>
       </div>
@@ -1390,9 +1401,12 @@ function LecturerRegistry({ token }: { token: string }) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
-              <th className="p-4 font-semibold whitespace-nowrap w-24">STT</th>
+              <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
                 Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
+                Email {sortConfig?.key === 'email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th className="p-4 font-semibold whitespace-nowrap text-right w-40">Thao tác</th>
             </tr>
@@ -1403,9 +1417,9 @@ function LecturerRegistry({ token }: { token: string }) {
                 <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
                 <td className="p-4 text-sm text-slate-800 font-medium">
                   {editingId === l.id ? (
-                    <input 
+                    <input
                       autoFocus
-                      type="text" 
+                      type="text"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
@@ -1414,28 +1428,37 @@ function LecturerRegistry({ token }: { token: string }) {
                         if (e.key === 'Escape') setEditingId(null);
                       }}
                     />
+                  ) : l.name}
+                </td>
+                <td className="p-4 text-sm">
+                  {editingId === l.id ? (
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={e => setEditEmail(e.target.value)}
+                      placeholder="Email..."
+                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleUpdate(l.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                    />
                   ) : (
-                    l.name
+                    l.email
+                      ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
+                      : <span className="text-slate-400 italic text-xs">Chưa có</span>
                   )}
                 </td>
                 <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
                   {editingId === l.id ? (
                     <>
-                      <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors tooltip" title="Lưu">
-                        <Save size={18} />
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors tooltip" title="Hủy">
-                        <X size={18} />
-                      </button>
+                      <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
-                        <Edit2 size={18} />
-                      </button>
-                      <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
-                        <Trash2 size={18} />
-                      </button>
+                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
+                      <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
                     </>
                   )}
                 </td>
@@ -1916,6 +1939,7 @@ function PlanView() {
 }
 
 function Profile({ user, setUser, token }: { user: any, setUser: any, token: string }) {
+  const isAdmin = user?.role === 'admin';
   const [formData, setFormData] = useState({
     name: user?.name || '',
     student_id: user?.student_id || user?.email?.split('@')[0] || '',
@@ -1929,34 +1953,34 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
-        if (data.classes_list) {
-          setClassesList(data.classes_list.split(',').map((c: string) => c.trim()));
-        }
-      })
-      .catch(() => { });
+    if (!isAdmin) {
+      fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data.classes_list) {
+            setClassesList(data.classes_list.split(',').map((c: string) => c.trim()));
+          }
+        })
+        .catch(() => { });
 
-    fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
-        setMyRegs(Array.isArray(data) ? data : []);
-      })
-      .catch(() => { });
-  }, [token]);
+      fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => { setMyRegs(Array.isArray(data) ? data : []); })
+        .catch(() => { });
+    }
+  }, [token, isAdmin]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload = isAdmin
+        ? { name: formData.name }  // admins only update name
+        : formData;
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         const updatedUser = await res.json();
@@ -1965,7 +1989,8 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
         alert('Cập nhật hồ sơ thành công!');
         navigate('/');
       } else {
-        alert('Có lỗi xảy ra khi cập nhật hồ sơ.');
+        const err = await res.json();
+        alert(err.error || 'Có lỗi xảy ra khi cập nhật hồ sơ.');
       }
     } catch (e) {
       alert('Lỗi kết nối.');
@@ -1980,9 +2005,12 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
         <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm flex items-center gap-1">&larr; Quay lại</button>
       </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân
+        </h2>
 
         <form onSubmit={handleSave} className="space-y-5">
+          {/* Avatar + info banner */}
           <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
             {user.picture ? (
               <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
@@ -1991,93 +2019,130 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             )}
             <div>
               <p className="font-semibold text-slate-800 text-lg">{user.email}</p>
-              <p className="text-xs text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full mt-1 uppercase tracking-wider font-medium">{user.role}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full uppercase tracking-wider font-medium">{user.role}</p>
+                {user.is_lecturer ? (
+                  <p className="text-xs text-teal-700 bg-teal-50 border border-teal-100 inline-block px-2 py-0.5 rounded-full font-semibold">Giảng viên</p>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Mã sinh viên <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                required
-                value={formData.student_id}
-                onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-mono"
-              />
+          {isAdmin ? (
+            /* ── ADMIN / LECTURER VIEW ── */
+            <div className="space-y-5">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+                Với tư cách <strong>Quản trị viên{user.is_lecturer ? ' / Giảng viên' : ''}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
+                {user.is_lecturer && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email (không thể thay đổi)</label>
+                <input
+                  type="text"
+                  value={user.email}
+                  disabled
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
-              <input
-                type="date"
-                max={new Date().toISOString().split('T')[0]}
-                required
-                value={formData.dob}
-                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Lớp khóa học <span className="text-red-500">*</span></label>
-              <select
-                required
-                value={formData.class_name}
-                onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              >
-                <option value="">-- Chọn lớp khóa học --</option>
-                {classesList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Học phần thực tập <span className="text-red-500">*</span></label>
-              <select
-                required
-                value={formData.course_code}
-                onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              >
-                <option value="">-- Chọn học phần --</option>
-                <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
-                <option value="Thực tập Chuyên ngành INT3508">Thực tập Chuyên ngành INT3508</option>
-                <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">Thực tập Doanh nghiệp Nhật Bản INT4003</option>
-              </select>
-            </div>
-          </div>
+          ) : (
+            /* ── STUDENT VIEW ── */
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Mã sinh viên <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.student_id}
+                    onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    required
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Lớp khóa học <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={formData.class_name}
+                    onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  >
+                    <option value="">-- Chọn lớp khóa học --</option>
+                    {classesList.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Học phần thực tập <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={formData.course_code}
+                    onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  >
+                    <option value="">-- Chọn học phần --</option>
+                    <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
+                    <option value="Thực tập Chuyên ngành INT3508">Thực tập Chuyên ngành INT3508</option>
+                    <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">Thực tập Doanh nghiệp Nhật Bản INT4003</option>
+                  </select>
+                </div>
+              </div>
 
-          <div className="pt-6 border-t border-slate-100">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Building2 size={20} className="text-blue-600" /> Nơi đăng ký thực tập
-            </h3>
-            {myRegs.length > 0 ? (
-              <ul className="space-y-3">
-                {myRegs.map((reg: any, idx: number) => (
-                  <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <span className="text-blue-900">
-                      <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
-                    </span>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg border border-slate-100">Bạn chưa đăng ký nơi thực tập nào. Vui lòng quay lại trang chủ để đăng ký.</p>
-            )}
-          </div>
+              <div className="pt-6 border-t border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Building2 size={20} className="text-blue-600" /> Nơi đăng ký thực tập
+                </h3>
+                {myRegs.length > 0 ? (
+                  <ul className="space-y-3">
+                    {myRegs.map((reg: any, idx: number) => (
+                      <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-blue-900">
+                          <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
+                        </span>
+                        <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg border border-slate-100">Bạn chưa đăng ký nơi thực tập nào. Vui lòng quay lại trang chủ để đăng ký.</p>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
