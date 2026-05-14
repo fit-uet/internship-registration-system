@@ -308,10 +308,7 @@ async function startServer() {
   app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
     try {
-      // Decode locally OR verify with google API if client ID is real
-      // For development, we just decode the credential
       let payload: any;
-
       try {
         const ticket = await oAuth2Client.verifyIdToken({
           idToken: credential,
@@ -319,7 +316,6 @@ async function startServer() {
         });
         payload = ticket.getPayload();
       } catch (e) {
-        // Fallback to simple decode if we have an invalid mock client ID
         const jwtDecode = (await import('jwt-decode')).jwtDecode;
         payload = jwtDecode(credential);
       }
@@ -329,32 +325,48 @@ async function startServer() {
       }
 
       const email = payload.email;
-
       const adminEmail = process.env.ADMIN_EMAIL;
 
-      // Strict filter for @vnu.edu.vn and admin email
       if (!email.endsWith('@vnu.edu.vn') && email !== adminEmail) {
         return res.status(403).json({ error: 'Chỉ chấp nhận email @vnu.edu.vn' });
       }
 
       const role = (email === adminEmail) ? 'admin' : 'student';
 
+      // Check if this email exists in the lecturers table
+      const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
+      // Use lecturer name from DB if available, otherwise use Google name
+      const displayName = lecturerRecord?.name || payload.name;
+      const isLecturerInDb = !!lecturerRecord;
+
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
         const studentId = email.split('@')[0];
         const result = await db.execute({
-          sql:
-            'INSERT INTO users (email, name, picture, role, student_id) VALUES (?, ?, ?, ?, ?)'
-          , args: [email, payload.name, payload.picture, role, studentId]
+          sql: 'INSERT INTO users (email, name, picture, role, student_id, is_lecturer) VALUES (?, ?, ?, ?, ?, ?)',
+          args: [email, displayName, payload.picture, role, studentId, isLecturerInDb ? 1 : 0]
         });
-        user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role, student_id: studentId, dob: null, class_name: null };
+        user = { id: result.lastInsertRowid, email, name: displayName, picture: payload.picture, role, student_id: studentId, dob: null, class_name: null, is_lecturer: isLecturerInDb ? 1 : 0 };
       } else {
-        await db.execute({ sql: 'UPDATE users SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
+        // Update picture; also sync name from lecturers table if found and user hasn't customized it
+        const updateFields: any = { picture: payload.picture };
+        if (isLecturerInDb) {
+          updateFields.name = lecturerRecord.name;
+          updateFields.is_lecturer = 1;
+        }
+        await db.execute({
+          sql: 'UPDATE users SET picture = ?, name = CASE WHEN ? = 1 THEN ? ELSE name END, is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE is_lecturer END WHERE id = ?',
+          args: [payload.picture, isLecturerInDb ? 1 : 0, displayName, isLecturerInDb ? 1 : 0, user.id]
+        });
+        if (isLecturerInDb) {
+          user.name = displayName;
+          user.is_lecturer = 1;
+        }
         user.picture = payload.picture;
       }
 
       const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ token, user: { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, student_id: user.student_id, dob: user.dob, class_name: user.class_name, course_code: user.course_code } });
+      res.json({ token, user: { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, student_id: user.student_id, dob: user.dob, class_name: user.class_name, course_code: user.course_code, is_lecturer: user.is_lecturer } });
     } catch (err: any) {
       res.status(500).json({ error: 'Authenticaton failed', details: err.message });
     }
@@ -1004,13 +1016,29 @@ async function startServer() {
       return res.status(400).json({ error: 'Chỉ hỗ trợ email @vnu.edu.vn' });
     }
     try {
+      // Check if this email exists in the lecturers table
+      const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
+      const nameFromLecturer = lecturerRecord?.name || null;
+      const isLecturer = !!lecturerRecord;
+
       await db.execute({
         sql: `
-        INSERT INTO users (email, name, role) VALUES (?, 'Admin', 'admin')
-        ON CONFLICT(email) DO UPDATE SET role = 'admin'
-      `, args: [email]
+          INSERT INTO users (email, name, role, is_lecturer)
+          VALUES (?, ?, 'admin', ?)
+          ON CONFLICT(email) DO UPDATE SET
+            role = 'admin',
+            name = CASE WHEN ? IS NOT NULL THEN ? ELSE name END,
+            is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE is_lecturer END
+        `,
+        args: [email, nameFromLecturer || 'Admin', isLecturer ? 1 : 0, nameFromLecturer, nameFromLecturer, isLecturer ? 1 : 0]
       });
-      res.json({ success: true });
+      res.json({
+        success: true,
+        isLecturer,
+        message: isLecturer
+          ? `Đã thêm admin. Email này tồn tại trong danh sách Giảng viên nên đã tự động bật "Là Giảng viên" và dùng tên "${nameFromLecturer}".`
+          : 'Đã thêm admin thành công.'
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

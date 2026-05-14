@@ -2429,8 +2429,10 @@ function AdminRegistry({ token }: { token: string }) {
         body: JSON.stringify({ email: newAdminEmail.trim() })
       });
       if (res.ok) {
+        const data = await res.json();
         setNewAdminEmail('');
         fetchAdmins();
+        alert(data.message || 'Đã thêm admin thành công.');
       } else {
         const err = await res.json();
         alert(err.error || 'Lỗi khi thêm admin');
