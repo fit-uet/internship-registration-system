@@ -58,6 +58,10 @@ async function initDb() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS lecturers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
   `);
 
   // Seed settings if empty
@@ -161,6 +165,19 @@ async function initDb() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, args: ['Trường Đại học Công nghệ', 'Sinh viên thực tập tại các Lab/Dự án trong trường. Lưu ý, cần phải liên hệ và được sự đồng ý của Giảng viên từ trước và không được đăng ký thực tập ở công ty.', 9999, '', '', '', '', '', '', '']
     });
+  }
+
+  // Seed lecturers if empty but csv exists
+  const lecCount = (await db.execute("SELECT COUNT(*) as count FROM lecturers")).rows[0] as { count: number };
+  if (lecCount.count === 0) {
+    const p = join(process.cwd(), 'lectures-list.csv');
+    if (fs.existsSync(p)) {
+      const text = fs.readFileSync(p, 'utf-8');
+      const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      for (const name of lines) {
+        await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)", args: [name] });
+      }
+    }
   }
 }
 
@@ -354,14 +371,8 @@ async function startServer() {
   // 2c. Get lecturers
   app.get('/api/lecturers', async (req: any, res: any) => {
     try {
-      const p = join(process.cwd(), 'lectures-list.csv');
-      if (fs.existsSync(p)) {
-        const text = fs.readFileSync(p, 'utf-8');
-        const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
-        res.json(lines);
-      } else {
-        res.json([]);
-      }
+      const lecturers = (await db.execute("SELECT name FROM lecturers ORDER BY name ASC")).rows.map((r: any) => r.name);
+      res.json(lecturers);
     } catch (e) {
       res.json([]);
     }
@@ -452,12 +463,8 @@ async function startServer() {
         if (!school_lecturer) {
           return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
         }
-        const p = join(process.cwd(), 'lectures-list.csv');
-        let lecturers: string[] = [];
-        if (fs.existsSync(p)) {
-          lecturers = fs.readFileSync(p, 'utf-8').split('\n').map((l: string) => l.trim()).filter(Boolean);
-        }
-        if (lecturers.length > 0 && !lecturers.includes(school_lecturer)) {
+        const validLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [school_lecturer] })).rows[0];
+        if (!validLecturer) {
           return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
         }
       }
@@ -610,6 +617,76 @@ async function startServer() {
         await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] });
         await db.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [user.id] });
       }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 16. Admin: Get Lecturers
+  app.get('/api/admin/lecturers', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const lecturers = (await db.execute("SELECT * FROM lecturers ORDER BY name ASC")).rows;
+      res.json(lecturers);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 17. Admin: Bulk Import Lecturers
+  app.post('/api/admin/lecturers/bulk', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { lecturers, override } = req.body;
+    if (!Array.isArray(lecturers)) return res.status(400).json({ error: 'Expected array of strings' });
+    try {
+      if (override) {
+        await db.execute("DELETE FROM lecturers");
+      }
+      let count = 0;
+      for (const name of lecturers) {
+        if (!name || typeof name !== 'string') continue;
+        await db.execute({
+          sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)",
+          args: [name.trim()]
+        });
+        count++;
+      }
+      res.json({ success: true, count });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 17b. Admin: Add Single Lecturer
+  app.post('/api/admin/lecturers', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
+      const result = await db.execute({ sql: "INSERT INTO lecturers (name) VALUES (?)", args: [name.trim()] });
+      const newLec = (await db.execute({ sql: "SELECT * FROM lecturers WHERE id = ?", args: [Number(result.lastInsertRowid)] })).rows[0];
+      res.json(newLec);
+    } catch (e: any) {
+      if (e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Giảng viên đã tồn tại' });
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 17c. Admin: Update Single Lecturer
+  app.put('/api/admin/lecturers/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
+      await db.execute({ sql: "UPDATE lecturers SET name = ? WHERE id = ?", args: [name.trim(), req.params.id] });
+      res.json({ success: true });
+    } catch (e: any) {
+      if (e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Tên giảng viên đã tồn tại' });
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 18. Admin: Delete Single Lecturer
+  app.delete('/api/admin/lecturers/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      await db.execute({ sql: "DELETE FROM lecturers WHERE id = ?", args: [req.params.id] });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });

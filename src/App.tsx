@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -90,6 +90,9 @@ function App() {
                             <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
                             </Link>
+                            <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
+                            </Link>
                             <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
                             </Link>
@@ -133,6 +136,7 @@ function App() {
                 <Route path="/" element={<Dashboard user={user} setUser={setUser} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
@@ -1173,6 +1177,275 @@ function AdminPanel({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LecturerRegistry({ token }: { token: string }) {
+  const [lecturers, setLecturers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [override, setOverride] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+  const [newName, setNewName] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const fetchLecturers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setLecturers(data);
+    } catch (e) {
+      alert('Lỗi lấy danh sách giảng viên');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLecturers(); }, [token]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    let result = [...lecturers];
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(l => l.name?.toLowerCase().includes(lower));
+    }
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key] || '';
+        const bVal = b[sortConfig.key] || '';
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [lecturers, searchTerm, sortConfig]);
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Họ và tên'];
+    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name]);
+    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'danh_sach_giang_vien.csv');
+  };
+
+  const handleFileUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split('\n');
+    const imported = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      if (parts.length >= 2) {
+        imported.push(parts[1]); // Assuming STT, Tên
+      } else if (parts.length === 1 && parts[0]) {
+        imported.push(parts[0]); // fallback
+      }
+    }
+    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ lecturers: imported, override })
+      });
+      if (res.ok) {
+        alert('Import thành công!');
+        fetchLecturers();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi import');
+    }
+    e.target.value = '';
+  };
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return alert('Vui lòng nhập tên giảng viên');
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newName.trim() })
+      });
+      if (res.ok) {
+        setNewName('');
+        fetchLecturers();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi thêm giảng viên');
+    }
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editName.trim()) return alert('Vui lòng nhập tên giảng viên');
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editName.trim() })
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchLecturers();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi cập nhật');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa giảng viên này?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchLecturers();
+      } else {
+        alert('Xóa thất bại');
+      }
+    } catch (e) {
+      alert('Lỗi xóa');
+    }
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserIcon className="text-teal-600" /> Quản lý Giảng viên</h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách giảng viên dùng để sinh viên chọn hướng dẫn.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Tìm theo Tên..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4" />
+            Ghi đè GV
+          </label>
+          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Upload size={16} /> Import
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          </label>
+          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6 flex gap-3 items-center">
+        <input 
+          type="text" 
+          placeholder="Nhập tên giảng viên mới..." 
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          className="flex-1 max-w-sm border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+        />
+        <button onClick={handleAdd} className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-sm">
+          <Plus size={16} /> Thêm Giảng viên
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
+              <th className="p-4 font-semibold whitespace-nowrap w-24">STT</th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
+                Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap text-right w-40">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredAndSorted.map((l, idx) => (
+              <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
+                <td className="p-4 text-sm text-slate-800 font-medium">
+                  {editingId === l.id ? (
+                    <input 
+                      autoFocus
+                      type="text" 
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleUpdate(l.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                    />
+                  ) : (
+                    l.name
+                  )}
+                </td>
+                <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
+                  {editingId === l.id ? (
+                    <>
+                      <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors tooltip" title="Lưu">
+                        <Save size={18} />
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors tooltip" title="Hủy">
+                        <X size={18} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
+                        <Edit2 size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
+                        <Trash2 size={18} />
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {lecturers.length === 0 && !loading && (
+          <div className="text-center py-16 px-4">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+              <UserIcon size={24} className="text-slate-400" />
+            </div>
+            <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu giảng viên.</p>
+            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file CSV hoặc thêm thủ công.</p>
+          </div>
+        )}
       </div>
     </div>
   );
