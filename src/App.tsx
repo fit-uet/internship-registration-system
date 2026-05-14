@@ -660,7 +660,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                       <td className="px-6 py-4 text-slate-600">{company.address}</td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-[11px] text-slate-500 font-bold">
-                          {company.name === 'Công ty khác' ? 'Không giới hạn' : company.slots}
+                          {company.slots}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -1876,7 +1876,7 @@ function CompanyRegistry({ token }: { token: string }) {
                 ) : (
                   <>
                     <td className="p-3 text-slate-800 font-medium">{c.name}</td>
-                    <td className="p-3 text-center">{c.name === 'Công ty khác' ? '∞' : c.slots}</td>
+                    <td className="p-3 text-center">{c.slots}</td>
                     <td className="p-3 text-center">{c.applicant_count ?? 0}</td>
                     <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
