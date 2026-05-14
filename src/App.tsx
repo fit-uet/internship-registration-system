@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LogOut, User as UserIcon, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -86,9 +86,14 @@ function App() {
                           <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
                         </Link>
                         {user.role === 'admin' && (
-                          <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                            <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
-                          </Link>
+                          <>
+                            <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
+                            </Link>
+                            <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
+                            </Link>
+                          </>
                         )}
                         <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
                           <LogOut size={16} /> Đăng xuất
@@ -127,6 +132,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard user={user} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
@@ -189,7 +195,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
     student_id: user?.student_id || studentIdFromEmail,
     dob: user?.dob || '',
     class_name: user?.class_name || '',
-    course_code: '',
+    course_code: user?.course_code || '',
     school_lecturer: '',
     note: ''
   });
@@ -337,7 +343,7 @@ function Dashboard({ user, token }: { user: any, token: string }) {
       if (res.ok) {
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: studentIdFromEmail, dob: '', class_name: '', course_code: '', school_lecturer: '', note: '' });
+        setRegisterForm({ student_id: user?.student_id || studentIdFromEmail, dob: user?.dob || '', class_name: user?.class_name || '', course_code: user?.course_code || '', school_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -1674,7 +1680,8 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
     name: user?.name || '',
     student_id: user?.student_id || user?.email?.split('@')[0] || '',
     dob: user?.dob || '',
-    class_name: user?.class_name || ''
+    class_name: user?.class_name || '',
+    course_code: user?.course_code || ''
   });
   const [saving, setSaving] = useState(false);
   const [classesList, setClassesList] = useState<string[]>([]);
@@ -1793,6 +1800,20 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Học phần thực tập <span className="text-red-500">*</span></label>
+              <select
+                required
+                value={formData.course_code}
+                onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              >
+                <option value="">-- Chọn học phần --</option>
+                <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
+                <option value="Thực tập Chuyên ngành INT3508">Thực tập Chuyên ngành INT3508</option>
+                <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">Thực tập Doanh nghiệp Nhật Bản INT4003</option>
+              </select>
+            </div>
           </div>
 
           <div className="pt-6 border-t border-slate-100">
@@ -1827,6 +1848,141 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function StudentRegistry({ token }: { token: string }) {
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setStudents(data);
+    } catch (e) {
+      alert('Lỗi lấy danh sách sinh viên');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchStudents(); }, [token]);
+
+  const handleFileUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split('\n');
+    const imported = [];
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      // Handle simple CSV splitting. Does not support commas inside quotes.
+      const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      if (parts.length >= 5) {
+        let dob = parts[3];
+        if (dob.includes('/')) {
+          const d = dob.split('/');
+          if (d.length === 3) dob = `${d[2]}-${d[1]}-${d[0]}`;
+        }
+        imported.push({
+          student_id: parts[1],
+          name: parts[2],
+          dob,
+          class_name: parts[4]
+        });
+      }
+    }
+    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ students: imported })
+      });
+      if (res.ok) {
+        alert('Import thành công!');
+        fetchStudents();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch (e) {
+      alert('Lỗi import');
+    }
+    e.target.value = '';
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Bạn có chắc muốn xoá sinh viên này khỏi CSDL?')) return;
+    try {
+      await fetch(`${API_BASE}/api/admin/students/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchStudents();
+    } catch (e) {
+      alert('Lỗi xoá');
+    }
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách sinh viên dùng để tự động điền thông tin khi đăng nhập.</p>
+        </div>
+        <div>
+          <label className="bg-green-600 text-white px-5 py-2.5 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
+            <Upload size={16} /> Import CSV
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+          </label>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
+              <th className="p-4 font-semibold whitespace-nowrap">STT</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Mã SV</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Họ và tên</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Ngày sinh</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Lớp khoá học</th>
+              <th className="p-4 font-semibold whitespace-nowrap text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {students.map((s, idx) => (
+              <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
+                <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
+                <td className="p-4 text-sm text-slate-800">{s.name}</td>
+                <td className="p-4 text-sm text-slate-600">{s.dob}</td>
+                <td className="p-4 text-sm text-slate-600">
+                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
+                </td>
+                <td className="p-4 text-sm text-right">
+                  <button onClick={() => handleDelete(s.student_id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {students.length === 0 && !loading && (
+          <div className="text-center py-16 px-4">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+              <Users size={24} className="text-slate-400" />
+            </div>
+            <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu sinh viên.</p>
+            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file CSV có định dạng: STT, Mã SV, Họ Tên, Ngày Sinh, Lớp</p>
+          </div>
+        )}
       </div>
     </div>
   );

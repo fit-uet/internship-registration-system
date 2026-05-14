@@ -58,6 +58,12 @@ async function initDb() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS students_registry (
+      student_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      dob TEXT,
+      class_name TEXT
+    );
   `);
 
   // Seed settings if empty
@@ -132,6 +138,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN dob TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN class_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN course_code TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) { }
@@ -305,19 +312,35 @@ async function startServer() {
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
         const studentId = email.split('@')[0];
+        const registryInfo = (await db.execute({ sql: 'SELECT * FROM students_registry WHERE student_id = ?', args: [studentId] })).rows[0] as any;
+        const finalName = registryInfo?.name || payload.name;
+        const finalDob = registryInfo?.dob || null;
+        const finalClass = registryInfo?.class_name || null;
+
         const result = await db.execute({
           sql:
-            'INSERT INTO users (email, name, picture, role, student_id) VALUES (?, ?, ?, ?, ?)'
-          , args: [email, payload.name, payload.picture, role, studentId]
+            'INSERT INTO users (email, name, picture, role, student_id, dob, class_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          , args: [email, finalName, payload.picture, role, studentId, finalDob, finalClass]
         });
-        user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role, student_id: studentId, dob: null, class_name: null };
+        user = { id: result.lastInsertRowid, email, name: finalName, picture: payload.picture, role, student_id: studentId, dob: finalDob, class_name: finalClass };
       } else {
-        await db.execute({ sql: 'UPDATE users SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
+        const registryInfo = (await db.execute({ sql: 'SELECT * FROM students_registry WHERE student_id = ?', args: [user.student_id] })).rows[0] as any;
+        if (registryInfo && (!user.dob || !user.class_name)) {
+          user.name = registryInfo.name || user.name;
+          user.dob = registryInfo.dob || user.dob;
+          user.class_name = registryInfo.class_name || user.class_name;
+          await db.execute({
+            sql: 'UPDATE users SET picture = ?, name = ?, dob = ?, class_name = ? WHERE id = ?',
+            args: [payload.picture, user.name, user.dob, user.class_name, user.id]
+          });
+        } else {
+          await db.execute({ sql: 'UPDATE users SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
+        }
         user.picture = payload.picture;
       }
 
       const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ token, user: { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role } });
+      res.json({ token, user: { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, student_id: user.student_id, dob: user.dob, class_name: user.class_name, course_code: user.course_code } });
     } catch (err: any) {
       res.status(500).json({ error: 'Authenticaton failed', details: err.message });
     }
@@ -385,11 +408,11 @@ async function startServer() {
 
   // 1.5. Update user profile
   app.put('/api/users/profile', requireAuth, async (req: any, res: any) => {
-    const { name, student_id, dob, class_name } = req.body;
+    const { name, student_id, dob, class_name, course_code } = req.body;
     try {
       await db.execute({
-        sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ? WHERE id = ?',
-        args: [name, student_id, dob, class_name, req.user.id]
+        sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
+        args: [name, student_id, dob, class_name, course_code, req.user.id]
       });
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
       res.json(updatedUser);
@@ -514,6 +537,63 @@ async function startServer() {
     }
     await db.execute({ sql: 'DELETE FROM registrations WHERE id = ?', args: [id] });
     res.json({ success: true });
+  });
+
+  // 12. Admin: Get Students Registry
+  app.get('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const students = (await db.execute('SELECT * FROM students_registry ORDER BY student_id ASC')).rows;
+    res.json(students);
+  });
+
+  // 13. Admin: Bulk Import Students Registry
+  app.post('/api/admin/students/bulk', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { students } = req.body;
+    if (!Array.isArray(students)) return res.status(400).json({ error: 'Expected array of students' });
+    try {
+      let count = 0;
+      for (const s of students) {
+        if (!s.student_id || !s.name) continue;
+        await db.execute({
+          sql: `INSERT INTO students_registry (student_id, name, dob, class_name) 
+                VALUES (?, ?, ?, ?) 
+                ON CONFLICT(student_id) DO UPDATE SET 
+                name=excluded.name, dob=excluded.dob, class_name=excluded.class_name`,
+          args: [s.student_id, s.name, s.dob || '', s.class_name || '']
+        });
+        count++;
+      }
+      res.json({ success: true, count });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 14. Admin: Add/Update Single Student
+  app.post('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { student_id, name, dob, class_name } = req.body;
+    if (!student_id || !name) return res.status(400).json({ error: 'Mã SV và Họ tên là bắt buộc' });
+    try {
+      await db.execute({
+        sql: `INSERT INTO students_registry (student_id, name, dob, class_name) 
+              VALUES (?, ?, ?, ?) 
+              ON CONFLICT(student_id) DO UPDATE SET 
+              name=excluded.name, dob=excluded.dob, class_name=excluded.class_name`,
+        args: [student_id, name, dob || '', class_name || '']
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 15. Admin: Delete Single Student
+  app.delete('/api/admin/students/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      await db.execute({ sql: 'DELETE FROM students_registry WHERE student_id = ?', args: [req.params.id] });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
   });
 
   // 6. Admin: Get all registrations
