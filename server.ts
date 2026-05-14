@@ -22,21 +22,13 @@ async function initDb() {
   });
 
   await db.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS students (
+    CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       picture TEXT,
-      student_id TEXT,
-      dob TEXT,
-      class_name TEXT,
-      course_code TEXT
-    );
-    CREATE TABLE IF NOT EXISTS admins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      picture TEXT
+      role TEXT DEFAULT 'student', -- 'student' or 'admin'
+      is_lecturer INTEGER DEFAULT 0  -- 1 if admin is also a lecturer
     );
     CREATE TABLE IF NOT EXISTS companies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +52,7 @@ async function initDb() {
       note TEXT,
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
-      FOREIGN KEY (user_id) REFERENCES students (id),
+      FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (company_id) REFERENCES companies (id)
     );
     CREATE TABLE IF NOT EXISTS settings (
@@ -69,21 +61,9 @@ async function initDb() {
     );
     CREATE TABLE IF NOT EXISTS lecturers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
-      email TEXT
+      name TEXT UNIQUE NOT NULL
     );
   `);
-
-  try {
-    const hasUsersTable = (await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")).rows.length > 0;
-    if (hasUsersTable) {
-      await db.execute("INSERT OR IGNORE INTO admins (id, email, name, picture) SELECT id, email, name, picture FROM users WHERE role = 'admin'");
-      await db.execute("INSERT OR IGNORE INTO students (id, email, name, picture, student_id, dob, class_name, course_code) SELECT id, email, name, picture, student_id, dob, class_name, course_code FROM users WHERE role = 'student'");
-      await db.execute("DROP TABLE users");
-    }
-  } catch (e) {
-    console.error("Migration error:", e);
-  }
 
   // Seed settings if empty
   const defaultSheetUrl = 'https://docs.google.com/spreadsheets/d/1VVH_O6glb3e9ugXa7SZcm0JuSNxm9NtarHRKubwJeY4/export?format=csv';
@@ -154,10 +134,10 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch (e) { }
 
-  try { await db.executeMultiple('ALTER TABLE students ADD COLUMN student_id TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE students ADD COLUMN dob TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE students ADD COLUMN class_name TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE students ADD COLUMN course_code TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN student_id TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN dob TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN class_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN course_code TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) { }
@@ -167,6 +147,8 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) { }
+  // Migration: add is_lecturer to users if not exists
+  try { await db.executeMultiple('ALTER TABLE users ADD COLUMN is_lecturer INTEGER DEFAULT 0'); } catch (e) { }
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
   if (!otherExist) {
@@ -199,6 +181,12 @@ async function initDb() {
         await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)", args: [name] });
       }
     }
+  }
+
+  // Sync admin lecturers to lecturers table
+  const adminLecturers = (await db.execute("SELECT name FROM users WHERE role = 'admin' AND is_lecturer = 1")).rows;
+  for (const al of adminLecturers) {
+    await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name) VALUES (?)", args: [(al as any).name] });
   }
 }
 
@@ -291,15 +279,10 @@ async function startServer() {
 
     try {
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      if (decoded.role === 'admin') {
-        req.user = (await db.execute({ sql: 'SELECT *, "admin" as role FROM admins WHERE id = ?', args: [decoded.id] })).rows[0];
-      } else {
-        req.user = (await db.execute({ sql: 'SELECT *, "student" as role FROM students WHERE id = ?', args: [decoded.id] })).rows[0];
-      }
+      req.user = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [decoded.id] })).rows[0];
       if (!req.user) return res.status(401).json({ error: 'User not found' });
       next();
     } catch (e) {
-      console.error('Auth Error:', e);
       res.status(401).json({ error: 'Invalid token' });
     }
   };
@@ -344,37 +327,19 @@ async function startServer() {
         return res.status(403).json({ error: 'Chỉ chấp nhận email @vnu.edu.vn' });
       }
 
-      let admin = (await db.execute({ sql: 'SELECT * FROM admins WHERE email = ?', args: [email] })).rows[0] as any;
-      let student = null;
-      if (!admin) {
-        student = (await db.execute({ sql: 'SELECT * FROM students WHERE email = ?', args: [email] })).rows[0] as any;
-      }
-      
-      let user = admin ? { ...admin, role: 'admin' } : student ? { ...student, role: 'student' } : null;
+      const role = (email === adminEmail) ? 'admin' : 'student';
 
+      let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user) {
-        if (email.endsWith('@vnu.edu.vn')) {
-          const studentId = email.split('@')[0];
-          const result = await db.execute({
-            sql: 'INSERT INTO students (email, name, picture, student_id) VALUES (?, ?, ?, ?)',
-            args: [email, payload.name, payload.picture || '', studentId]
-          });
-          user = { id: Number(result.lastInsertRowid), email, name: payload.name, picture: payload.picture, role: 'student', student_id: studentId, dob: null, class_name: null, course_code: null };
-        } else if (email === adminEmail) {
-           const result = await db.execute({
-             sql: 'INSERT INTO admins (email, name, picture) VALUES (?, ?, ?)',
-             args: [email, payload.name, payload.picture || '']
-           });
-           user = { id: Number(result.lastInsertRowid), email, name: payload.name, picture: payload.picture, role: 'admin' };
-        } else {
-          return res.status(403).json({ error: 'Chỉ chấp nhận email @vnu.edu.vn' });
-        }
+        const studentId = email.split('@')[0];
+        const result = await db.execute({
+          sql:
+            'INSERT INTO users (email, name, picture, role, student_id) VALUES (?, ?, ?, ?, ?)'
+          , args: [email, payload.name, payload.picture, role, studentId]
+        });
+        user = { id: result.lastInsertRowid, email, name: payload.name, picture: payload.picture, role, student_id: studentId, dob: null, class_name: null };
       } else {
-        if (user.role === 'admin') {
-          await db.execute({ sql: 'UPDATE admins SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
-        } else {
-          await db.execute({ sql: 'UPDATE students SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
-        }
+        await db.execute({ sql: 'UPDATE users SET picture = ? WHERE id = ?', args: [payload.picture, user.id] });
         user.picture = payload.picture;
       }
 
@@ -449,10 +414,15 @@ async function startServer() {
       }
     }
     try {
+      const oldName = req.user.name;
       await db.execute({
         sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ? WHERE id = ?',
         args: [name, student_id, dob, class_name, course_code, req.user.id]
       });
+      // If this admin is also a lecturer, sync name change to lecturers table
+      if (req.user.role === 'admin' && req.user.is_lecturer && name && name !== oldName) {
+        await db.execute({ sql: 'UPDATE lecturers SET name = ? WHERE name = ?', args: [name, oldName] });
+      }
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
       res.json(updatedUser);
     } catch (e: any) {
@@ -597,10 +567,46 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // 12. Admin: Get Students
+  // 12. Admin: Get Students (exclude admins)
   app.get('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name FROM students ORDER BY student_id ASC")).rows;
+    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows;
     res.json(students);
+  });
+
+  // 12b. Admin: Get Admins list
+  app.get('/api/admin/admins', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const admins = (await db.execute("SELECT id, email, name, picture, is_lecturer FROM users WHERE role = 'admin' ORDER BY name ASC")).rows;
+      res.json(admins);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 12c. Admin: Toggle is_lecturer for an admin
+  app.put('/api/admin/admins/:id/lecturer', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const { is_lecturer } = req.body;
+      const adminUser = (await db.execute({ sql: "SELECT * FROM users WHERE id = ? AND role = 'admin'", args: [req.params.id] })).rows[0] as any;
+      if (!adminUser) return res.status(404).json({ error: 'Admin not found' });
+
+      await db.execute({ sql: 'UPDATE users SET is_lecturer = ? WHERE id = ?', args: [is_lecturer ? 1 : 0, req.params.id] });
+
+      if (is_lecturer) {
+        // Add to lecturers table
+        await db.execute({ sql: 'INSERT OR IGNORE INTO lecturers (name) VALUES (?)', args: [adminUser.name] });
+      } else {
+        // Remove from lecturers table only if they were added as admin-lecturer (not manually added)
+        // We keep them in lecturers if they were separately managed, but remove the auto-synced one
+        await db.execute({ sql: 'DELETE FROM lecturers WHERE name = ? AND id NOT IN (SELECT lecturer_id FROM lecturers WHERE lecturer_id IS NOT NULL)', args: [adminUser.name] });
+        // Simpler: just remove by name since admin lecturers are synced by name
+        await db.execute({ sql: 'DELETE FROM lecturers WHERE name = ?', args: [adminUser.name] });
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
   });
 
   // 13. Admin: Bulk Import Students
@@ -656,10 +662,10 @@ async function startServer() {
   // 15. Admin: Delete Single Student
   app.delete('/api/admin/students/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = (await db.execute({ sql: "SELECT id FROM students WHERE student_id = ?", args: [req.params.id] })).rows[0] as any;
+      const user = (await db.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [req.params.id] })).rows[0] as any;
       if (user) {
         await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] });
-        await db.execute({ sql: 'DELETE FROM students WHERE id = ?', args: [user.id] });
+        await db.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [user.id] });
       }
       res.json({ success: true });
     } catch (e: any) {
@@ -757,7 +763,7 @@ async function startServer() {
         r.course_code,
         c.contact_email
       FROM registrations r
-      JOIN students u ON r.user_id = u.id
+      JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
     `)).rows;
@@ -780,7 +786,7 @@ async function startServer() {
         r.status as "Trạng thái",
         r.created_at as "Thời gian đăng ký"
       FROM registrations r
-      JOIN students u ON r.user_id = u.id
+      JOIN users u ON r.user_id = u.id
       JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
     `)).rows as any[];
@@ -842,7 +848,7 @@ async function startServer() {
           r.status as "Trạng thái",
           r.created_at as "Thời gian đăng ký"
         FROM registrations r
-        JOIN students u ON r.user_id = u.id
+        JOIN users u ON r.user_id = u.id
         JOIN companies c ON r.company_id = c.id
         ORDER BY r.created_at DESC
       `)).rows as any[];
@@ -959,7 +965,7 @@ async function startServer() {
 
   // 11. Admin: Manage admins
   app.get('/api/admin/admins', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const admins = (await db.execute("SELECT id, email, name FROM admins")).rows;
+    const admins = (await db.execute("SELECT id, email, name FROM users WHERE role = 'admin'")).rows;
     res.json(admins);
   });
 
@@ -971,7 +977,8 @@ async function startServer() {
     try {
       await db.execute({
         sql: `
-        INSERT OR IGNORE INTO admins (email, name) VALUES (?, 'Admin')
+        INSERT INTO users (email, name, role) VALUES (?, 'Admin', 'admin')
+        ON CONFLICT(email) DO UPDATE SET role = 'admin'
       `, args: [email]
       });
       res.json({ success: true });
@@ -986,7 +993,7 @@ async function startServer() {
       return res.status(400).json({ error: 'Không thể tự hủy quyền của chính mình' });
     }
     try {
-      await db.execute({ sql: "DELETE FROM admins WHERE id = ?", args: [id] });
+      await db.execute({ sql: "UPDATE users SET role = 'student' WHERE id = ?", args: [id] });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

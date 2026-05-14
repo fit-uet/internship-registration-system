@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2 } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -93,6 +93,9 @@ function App() {
                             <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
                             </Link>
+                            <Link to="/admin/admins" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <Shield size={16} className="text-purple-500" /> Quản lý Quản trị viên
+                            </Link>
                             <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
                             </Link>
@@ -137,6 +140,7 @@ function App() {
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
@@ -280,11 +284,8 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         setCampaign(campData);
       }
 
-      const itListData = await itListRes.json();
-      setItCompanyList(Array.isArray(itListData) ? itListData : []);
-      
-      const lecData = await lecRes.json();
-      setLecturers(Array.isArray(lecData) ? lecData : []);
+      setItCompanyList(await itListRes.json());
+      setLecturers(await lecRes.json());
     } catch (e) {
       console.error(e);
     }
@@ -823,7 +824,6 @@ function AdminPanel({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/registrations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
     } catch (e) { }
@@ -1200,9 +1200,8 @@ function LecturerRegistry({ token }: { token: string }) {
   const fetchLecturers = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
-      setLecturers(Array.isArray(data) ? data : []);
+      setLecturers(data);
     } catch (e) {
       alert('Lỗi lấy danh sách giảng viên');
     } finally {
@@ -1476,9 +1475,7 @@ function AdminSettings({ token }: { token: string }) {
   const fetchAdmins = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/admins`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
-      const data = await res.json();
-      setAdmins(Array.isArray(data) ? data : []);
+      setAdmins(await res.json());
     } catch (e) { }
   };
 
@@ -2158,9 +2155,8 @@ function StudentRegistry({ token }: { token: string }) {
   const fetchStudents = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/students`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/'; return; }
       const data = await res.json();
-      setStudents(Array.isArray(data) ? data : []);
+      setStudents(data);
     } catch (e) {
       alert('Lỗi lấy danh sách sinh viên');
     } finally {
@@ -2357,3 +2353,118 @@ function StudentRegistry({ token }: { token: string }) {
 }
 
 export default App;
+
+function AdminRegistry({ token }: { token: string }) {
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAdmins = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/admin/admins`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setAdmins(data);
+    } catch (e) {
+      alert('Lỗi lấy danh sách admin');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAdmins(); }, [token]);
+
+  const toggleLecturer = async (admin: any) => {
+    const newVal = !admin.is_lecturer;
+    const action = newVal ? 'thêm' : 'xóa';
+    if (!confirm(`Bạn có muốn ${action} "${admin.name}" khỏi danh sách Giảng viên?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/admins/${admin.id}/lecturer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_lecturer: newVal })
+      });
+      if (res.ok) {
+        fetchAdmins();
+      } else {
+        const err = await res.json();
+        alert('Lỗi: ' + err.error);
+      }
+    } catch {
+      alert('Lỗi cập nhật');
+    }
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <Shield className="text-purple-600" /> Quản lý Quản trị viên
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên.
+        </p>
+      </div>
+
+      <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6 text-sm text-purple-800 leading-relaxed">
+        <strong>Lưu ý:</strong> Tích vào ô <strong>"Là Giảng viên"</strong> sẽ tự động đồng bộ tên của Admin đó vào danh sách Giảng viên để sinh viên có thể chọn khi đăng ký thực tập tại Trường.
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
+              <th className="p-4 font-semibold w-12 text-center">STT</th>
+              <th className="p-4 font-semibold">Họ và Tên</th>
+              <th className="p-4 font-semibold">Email</th>
+              <th className="p-4 font-semibold text-center">Là Giảng viên</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Đang tải...</td></tr>
+            ) : admins.length === 0 ? (
+              <tr><td colSpan={4} className="text-center py-10 text-slate-400">Chưa có admin nào</td></tr>
+            ) : (
+              admins.map((admin, idx) => (
+                <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4 text-sm text-slate-500 text-center">{idx + 1}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      {admin.picture ? (
+                        <img src={admin.picture} alt={admin.name} className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                          <UserIcon size={14} className="text-purple-600" />
+                        </div>
+                      )}
+                      <span className="font-semibold text-slate-800 text-sm">{admin.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-slate-600">{admin.email}</td>
+                  <td className="p-4 text-center">
+                    <button
+                      onClick={() => toggleLecturer(admin)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                        admin.is_lecturer ? 'bg-teal-500' : 'bg-slate-200'
+                      }`}
+                      title={admin.is_lecturer ? 'Click để bỏ khỏi danh sách GV' : 'Click để thêm vào danh sách GV'}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                          admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    {admin.is_lecturer ? (
+                      <span className="ml-2 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">GV</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
