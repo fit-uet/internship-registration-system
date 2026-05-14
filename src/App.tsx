@@ -464,7 +464,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 onClick={() => navigate('/admin')}
                 className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors"
               >
-                <LayoutDashboard size={14} /> QUẢN TRỊ ADMIN
+                <LayoutDashboard size={14} /> DANH SÁCH ĐĂNG KÝ
               </button>
             )}
           </div>
@@ -587,7 +587,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-[11px] text-slate-500 font-bold">
-                          {company.name === 'Công ty khác' ? '—' : (company.applicant_count ?? 0)}
+                          {company.applicant_count ?? 0}
                         </span>
                       </td>
                     </tr>
@@ -837,7 +837,7 @@ function AdminPanel({ token }: { token: string }) {
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
       if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
-      
+
       let vi_tri = r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh';
       let lien_he = r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || '');
       let ghi_chu = r.note || '';
@@ -1651,17 +1651,31 @@ function AdminSettings({ token }: { token: string }) {
   };
 
   const handleSyncCompanies = async () => {
-    if (!confirm('Bạn có chắc chắn muốn đồng bộ danh sách công ty từ Google Sheet? Hành động này sẽ xoá danh sách công ty hiện tại và danh sách sinh viên đã đăng ký.')) return;
+    // Show a choice dialog
+    const choice = prompt(
+      'Đồng bộ danh sách công ty từ Google Sheet:\n\n'
+      + '1 — Giữ lại toàn bộ đăng ký hiện tại\n'
+      + '2 — Xoá toàn bộ đăng ký hiện tại\n\n'
+      + 'Nhập 1 hoặc 2 để tiếp tục (hoặc bấm Hủy):'
+    );
+    if (choice !== '1' && choice !== '2') return;
+
+    const keepRegistrations = choice === '1';
+    const confirmMsg = keepRegistrations
+      ? 'Hệ thống sẽ cập nhật danh sách công ty và GIỮ LẠI toàn bộ đăng ký hiện tại. Tiếp tục?'
+      : 'Hệ thống sẽ cập nhật danh sách công ty và XOÁ TOÀN BỘ đăng ký hiện tại. Tiếp tục?';
+    if (!confirm(confirmMsg)) return;
 
     setSyncing(true);
     try {
       const res = await fetch(`${API_BASE}/api/settings/import-companies`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ keepRegistrations })
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Đã đồng bộ thành công ${data.count} công ty.`);
+        alert(`Đã đồng bộ thành công ${data.count} công ty.${keepRegistrations ? ' Các đăng ký hiện tại được giữ nguyên.' : ' Toàn bộ đăng ký đã bị xoá.'}`);
       } else {
         alert('Lỗi đồng bộ: ' + data.error);
       }
@@ -1759,7 +1773,7 @@ function AdminSettings({ token }: { token: string }) {
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
             <div className="text-sm text-slate-600">
               <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
-              <p className="text-xs">Hành động này sẽ cập nhật lại toàn bộ danh sách công ty và xóa đăng ký hiện tại.</p>
+              <p className="text-xs">Cập nhật danh sách công ty từ Google Sheet. Bạn có thể chọn giữ lại hoặc xoá đăng ký hiện tại.</p>
             </div>
             <button
               onClick={handleSyncCompanies}
@@ -1773,11 +1787,10 @@ function AdminSettings({ token }: { token: string }) {
           <div className="pt-4 border-t border-slate-200">
             <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung Kế hoạch triển khai (Markdown)</label>
             <div className="mb-2 flex items-center gap-2">
-              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border ${
-                importingDocx
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border ${importingDocx
                   ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                   : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-              }`}>
+                }`}>
                 <Upload size={16} />
                 {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
                 <input
@@ -2555,14 +2568,12 @@ function AdminRegistry({ token }: { token: string }) {
                   <td className="p-4 text-center">
                     <button
                       onClick={() => toggleLecturer(admin)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                        admin.is_lecturer ? 'bg-teal-500' : 'bg-slate-200'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${admin.is_lecturer ? 'bg-teal-500' : 'bg-slate-200'
+                        }`}
                       title={admin.is_lecturer ? 'Click để bỏ khỏi danh sách GV' : 'Click để thêm vào danh sách GV'}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                        admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
-                      }`} />
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
                     </button>
                     {admin.is_lecturer ? (
                       <span className="ml-2 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">GV</span>

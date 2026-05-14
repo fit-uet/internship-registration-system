@@ -1089,9 +1089,12 @@ async function startServer() {
         return res.status(400).json({ error: 'No records found in CSV' });
       }
 
-      // We clear the tables
+      // Clear companies and optionally registrations
+      const { keepRegistrations } = req.body || {};
       await db.executeMultiple('DELETE FROM companies');
-      await db.executeMultiple('DELETE FROM registrations');
+      if (!keepRegistrations) {
+        await db.executeMultiple('DELETE FROM registrations');
+      }
 
       const insertSql1 = `
       INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
