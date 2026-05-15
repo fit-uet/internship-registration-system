@@ -51,3 +51,5 @@ Add these repository secrets in GitHub:
 - `CLOUDFLARE_ACCOUNT_ID`
 
 Cloudflare Worker runtime secrets such as `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and `JWT_SECRET` are still stored in Cloudflare via `wrangler secret put`; they are not stored in GitHub Actions.
+
+If you use Cloudflare Dashboard Git integration instead of GitHub Actions, set the install command to `npm install`. This repo does not rely on `package-lock.json`, so Cloudflare's default `npm ci` can fail if it expects a lock file.
