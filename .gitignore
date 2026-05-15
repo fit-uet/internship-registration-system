@@ -13,3 +13,7 @@ coverage/
 !tsconfig.json
 database.sqlite
 Đăng ký thực tập FIT UET.md
+internship-db.db
+internship-db.db-shm
+internship-db.db-wal
+internship-db.db.before-users-consolidation.bak

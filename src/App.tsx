@@ -141,7 +141,7 @@ function App() {
               </div>
             ) : (
               <Routes>
-                <Route path="/" element={<Dashboard user={user} setUser={setUser} token={token} />} />
+                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} /> : <Dashboard user={user} setUser={setUser} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
@@ -2413,8 +2413,49 @@ function PlanView() {
   );
 }
 
+function LecturerHome({ user }: { user: any }) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+        <div className="flex items-start gap-4">
+          {user.picture ? (
+            <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700">
+              <UserIcon size={26} />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-teal-700 mb-1">Giảng viên</p>
+            <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+            <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
+          </div>
+        </div>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors"
+          >
+            <UserIcon size={18} /> Cập nhật hồ sơ
+          </button>
+          <button
+            onClick={() => navigate('/plan')}
+            className="flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-200 shadow-sm transition-colors"
+          >
+            <FileText size={18} /> Kế hoạch triển khai
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Profile({ user, setUser, token }: { user: any, setUser: any, token: string }) {
   const isAdmin = user?.role === 'admin';
+  const isLecturer = user?.role === 'lecturer';
+  const isStaff = isAdmin || isLecturer;
   const [formData, setFormData] = useState({
     name: user?.name || '',
     student_id: user?.student_id || user?.email?.split('@')[0] || '',
@@ -2430,7 +2471,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isStaff) {
       fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => res.json())
         .then(data => {
@@ -2445,7 +2486,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
         .then(data => { setMyRegs(Array.isArray(data) ? data : []); })
         .catch(() => { });
     }
-  }, [token, isAdmin]);
+  }, [token, isStaff]);
 
   // Sync formData when user prop changes (e.g. after registration updates phone/personal_email)
   useEffect(() => {
@@ -2464,8 +2505,8 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = isAdmin
-        ? { name: formData.name }  // admins only update name
+      const payload = isStaff
+        ? { name: formData.name }
         : formData;
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
@@ -2518,12 +2559,12 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             </div>
           </div>
 
-          {isAdmin ? (
+          {isStaff ? (
             /* ── ADMIN / LECTURER VIEW ── */
             <div className="space-y-5">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-                Với tư cách <strong>Quản trị viên{user.is_lecturer ? ' / Giảng viên' : ''}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
-                {user.is_lecturer && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
+                Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
+                {(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email (không thể thay đổi)</label>
