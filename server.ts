@@ -436,6 +436,12 @@ async function startServer() {
   // 1.5. Update user profile
   app.put('/api/users/profile', requireAuth, async (req: any, res: any) => {
     const { name, student_id, dob, class_name, course_code, phone, personal_email } = req.body;
+    if (phone) {
+      const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+      if (!/^(0|\+84)[35789]\d{8}$/.test(cleanPhone)) {
+        return res.status(400).json({ error: 'Số điện thoại cá nhân không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 10 chữ số).' });
+      }
+    }
     if (dob) {
       const d = new Date(dob);
       if (isNaN(d.getTime()) || d > new Date()) {
@@ -522,8 +528,15 @@ async function startServer() {
 
       const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0] as any;
       const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
-      const normal_company_ids = Array.isArray(company_ids) ? company_ids.filter((id: number) => id !== khacCompany?.id) : [];
+      const normal_company_ids = Array.isArray(company_ids) ? Array.from(new Set(company_ids.filter((id: number) => id !== khacCompany?.id))) : [];
       const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
+
+      if (phone) {
+        const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+        if (!/^(0|\+84)[35789]\d{8}$/.test(cleanPhone)) {
+          return res.status(400).json({ error: 'Số điện thoại cá nhân không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 10 chữ số).' });
+        }
+      }
 
       if (dob) {
         const d = new Date(dob);
@@ -549,9 +562,28 @@ async function startServer() {
       }
 
       if (other_companies && other_companies.length > 0) {
+        const seenOtherNames = new Set();
+        let selectedCompanyNames: string[] = [];
+        if (normal_company_ids.length > 0) {
+          const selectedRes = await db.execute({
+            sql: `SELECT name FROM companies WHERE id IN (${normal_company_ids.map(() => '?').join(',')})`,
+            args: normal_company_ids
+          });
+          selectedCompanyNames = selectedRes.rows.map(r => (r.name as string).trim().toLowerCase());
+        }
+
         for (const other of other_companies) {
           if (!other.name || !other.role || !other.contact) {
             return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' });
+          }
+          const otherNameNorm = other.name.trim().toLowerCase();
+          if (seenOtherNames.has(otherNameNorm)) {
+            return res.status(400).json({ error: `Bạn đã nhập trùng lặp công ty "${other.name}" trong danh sách tự liên hệ.` });
+          }
+          seenOtherNames.add(otherNameNorm);
+          
+          if (selectedCompanyNames.includes(otherNameNorm)) {
+            return res.status(400).json({ error: `Công ty "${other.name}" đã được bạn chọn trong danh sách chính thức, vui lòng không đăng ký lại ở phần tự liên hệ.` });
           }
         }
       }
