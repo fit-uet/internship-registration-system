@@ -157,6 +157,15 @@ async function syncLecturerUsers() {
 
 async function ensureDbIndexes() {
   await db.executeMultiple(`
+    DELETE FROM registrations
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM registrations
+      GROUP BY user_id, company_id, COALESCE(other_company_name, '')
+    );
+  `);
+
+  await db.executeMultiple(`
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id_unique
       ON users(student_id)
