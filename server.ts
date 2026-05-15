@@ -155,18 +155,25 @@ async function syncLecturerUsers() {
   `);
 }
 
-async function syncUserRegistrationProfile(userId: number | string) {
-  await db.execute({
-    sql: `
-      UPDATE registrations
-      SET student_id = (SELECT student_id FROM users WHERE id = ?),
-          dob = (SELECT dob FROM users WHERE id = ?),
-          class_name = (SELECT class_name FROM users WHERE id = ?),
-          course_code = (SELECT course_code FROM users WHERE id = ?)
-      WHERE user_id = ?
-    `,
-    args: [userId, userId, userId, userId, userId]
-  });
+async function ensureDbIndexes() {
+  await db.executeMultiple(`
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id_unique
+      ON users(student_id)
+      WHERE role = 'student' AND student_id IS NOT NULL AND student_id != '';
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_name_unique ON companies(name);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_lecturers_email_unique
+      ON lecturers(email)
+      WHERE email IS NOT NULL AND email != '';
+
+    CREATE INDEX IF NOT EXISTS idx_registrations_user_id ON registrations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_registrations_company_status ON registrations(company_id, status);
+    CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_registrations_user_company_other_unique
+      ON registrations(user_id, company_id, COALESCE(other_company_name, ''));
+  `);
 }
 
 async function initDb() {
@@ -182,6 +189,7 @@ async function initDb() {
     url: databaseUrl,
     authToken: process.env.TURSO_AUTH_TOKEN
   });
+  await db.execute('PRAGMA foreign_keys = ON');
 
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
@@ -189,8 +197,12 @@ async function initDb() {
       email TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       picture TEXT,
-      role TEXT DEFAULT 'student', -- 'student', 'lecturer', or 'admin'
+      role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'lecturer', 'admin')),
       is_lecturer INTEGER DEFAULT 0,  -- 1 if this user is in the lecturer directory
+      student_id TEXT,
+      dob TEXT,
+      class_name TEXT,
+      course_code TEXT,
       phone TEXT,
       personal_email TEXT
     );
@@ -210,11 +222,8 @@ async function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       company_id INTEGER NOT NULL,
-      student_id TEXT,
-      dob TEXT,
-      class_name TEXT,
       note TEXT,
-      status TEXT DEFAULT 'pending',
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
       created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
       FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (company_id) REFERENCES companies (id)
@@ -306,14 +315,15 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN class_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN course_code TEXT'); } catch (e) { }
 
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN student_id TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN dob TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN class_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
-  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN course_code TEXT'); } catch (e) { }
+  // Legacy denormalized profile columns; reports now read these fields from users.
+  try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN student_id'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN dob'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN class_name'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN course_code'); } catch (e) { }
   // Migration: add is_lecturer to users if not exists
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN is_lecturer INTEGER DEFAULT 0'); } catch (e) { }
   // Migration: add email to lecturers if not exists
@@ -323,6 +333,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN personal_email TEXT'); } catch (e) { }
 
   await consolidateLegacyPeopleTables();
+  await ensureDbIndexes();
 
   const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
   if (!otherExist) {
@@ -655,7 +666,6 @@ async function startServer() {
           sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
           args: [name, student_id || null, dob || null, class_name || null, course_code || null, phone || null, personal_email || null, req.user.id]
         });
-        await syncUserRegistrationProfile(req.user.id);
       }
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
       res.json(updatedUser);
@@ -687,6 +697,14 @@ async function startServer() {
     processingUsers.add(userId);
     try {
       const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, phone, personal_email } = req.body;
+      const profile = {
+        student_id: student_id || req.user.student_id || null,
+        dob: dob || req.user.dob || null,
+        class_name: class_name || req.user.class_name || null,
+        course_code: course_code || req.user.course_code || null,
+        phone: phone || req.user.phone || null,
+        personal_email: personal_email || req.user.personal_email || null
+      };
 
       // Check registration time window (GMT+7)
       const openAtRow = (await db.execute("SELECT value FROM settings WHERE key = 'registration_open_at'")).rows[0] as { value: string };
@@ -720,15 +738,19 @@ async function startServer() {
       const normal_company_ids = Array.isArray(company_ids) ? Array.from(new Set(company_ids.filter((id: number) => id !== khacCompany?.id))) : [];
       const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
 
-      if (phone) {
-        const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+      if (!profile.student_id || !profile.dob || !profile.class_name || !profile.course_code || !profile.phone || !profile.personal_email) {
+        return res.status(400).json({ error: 'Vui lòng cập nhật đầy đủ Mã SV, ngày sinh, lớp khóa học, học phần thực tập, số điện thoại và email cá nhân trước khi đăng ký.' });
+      }
+
+      if (profile.phone) {
+        const cleanPhone = profile.phone.replace(/[\s\-\.]/g, '');
         if (!/^(0|\+84)[35789]\d{8}$/.test(cleanPhone)) {
           return res.status(400).json({ error: 'Số điện thoại cá nhân không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 10 chữ số).' });
         }
       }
 
-      if (dob) {
-        const d = new Date(dob);
+      if (profile.dob) {
+        const d = new Date(profile.dob);
         if (isNaN(d.getTime()) || d > new Date()) {
           return res.status(400).json({ error: 'Ngày sinh không hợp lệ.' });
         }
@@ -780,11 +802,16 @@ async function startServer() {
       // Delete existing registrations first
       await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
 
-      const insertSql2 = "INSERT INTO registrations (user_id, company_id, student_id, dob, class_name, note, status, other_company_name, other_company_role, other_company_contact, course_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
+      await db.execute({
+        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
+        args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, req.user.id]
+      });
+
+      const insertSql2 = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
 
       for (const companyId of normal_company_ids) {
         const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
-        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, student_id || null, dob || null, class_name || null, note || null, 'approved', null, null, contactInfo || null, course_code || null] });
+        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, null, contactInfo || null] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -804,24 +831,16 @@ async function startServer() {
             args: [
               req.user.id,
               khacCompany.id,
-              student_id || null,
-              dob || null,
-              class_name || null,
               note || null,
               status,
               other.name || null,
               other.role || null,
-              other.contact || null,
-              course_code || null
+              other.contact || null
             ]
           });
         }
       }
 
-      await db.execute({
-        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
-        args: [student_id || req.user.student_id || null, dob || req.user.dob || null, class_name || req.user.class_name || null, course_code || req.user.course_code || null, phone || req.user.phone || null, personal_email || req.user.personal_email || null, req.user.id]
-      });
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 
       res.json({ success: true, user: updatedUser });
@@ -899,8 +918,6 @@ async function startServer() {
                   name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`,
             args: [email, s.name, s.student_id, s.dob || '', s.class_name || '']
           });
-          const user = (await db.execute({ sql: "SELECT id FROM users WHERE email = ?", args: [email] })).rows[0] as any;
-          if (user) await syncUserRegistrationProfile(user.id);
         } else {
           await db.execute({
             sql: `INSERT OR IGNORE INTO users (email, name, role, student_id, dob, class_name) 
@@ -928,8 +945,6 @@ async function startServer() {
               name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`,
         args: [`${student_id}@vnu.edu.vn`, name, student_id, dob || '', class_name || '']
       });
-      const user = (await db.execute({ sql: "SELECT id FROM users WHERE email = ?", args: [`${student_id}@vnu.edu.vn`] })).rows[0] as any;
-      if (user) await syncUserRegistrationProfile(user.id);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
@@ -1151,9 +1166,9 @@ async function startServer() {
         r.id as registration_id,
         u.email,
         u.name as student_name,
-        r.student_id,
-        r.dob,
-        r.class_name,
+        u.student_id,
+        u.dob,
+        u.class_name,
         r.note,
         c.name as company_name,
         r.status,
@@ -1161,7 +1176,7 @@ async function startServer() {
         r.other_company_name,
         r.other_company_role,
         r.other_company_contact,
-        r.course_code,
+        u.course_code,
         c.contact_email,
         u.phone,
         u.personal_email
@@ -1177,11 +1192,11 @@ async function startServer() {
   app.get('/api/admin/export.csv', requireAuth, requireAdmin, async (req, res) => {
     const data = (await db.execute(`
       SELECT 
-        r.student_id as "Mã SV",
+        u.student_id as "Mã SV",
         u.name as "Họ và tên",
-        r.dob as "Ngày sinh",
-        r.class_name as "Lớp KH",
-        r.course_code as "Mã môn học",
+        u.dob as "Ngày sinh",
+        u.class_name as "Lớp KH",
+        u.course_code as "Mã môn học",
         CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
@@ -1239,11 +1254,11 @@ async function startServer() {
 
       const data = (await db.execute(`
         SELECT 
-          r.student_id as "Mã SV",
+          u.student_id as "Mã SV",
           u.name as "Họ và tên",
-          r.dob as "Ngày sinh",
-          r.class_name as "Lớp KH",
-          r.course_code as "Mã môn học",
+          u.dob as "Ngày sinh",
+          u.class_name as "Lớp KH",
+          u.course_code as "Mã môn học",
           CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
           CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
           CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",

@@ -213,6 +213,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
   const [registerForm, setRegisterForm] = useState<any>({
     student_id: user?.student_id || studentIdFromEmail,
+    dob: user?.dob || '',
     class_name: user?.class_name || '',
     course_code: user?.course_code || '',
     phone: user?.phone || '',
@@ -267,6 +268,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     setRegisterForm((prev: any) => ({
       ...prev,
       student_id: user?.student_id || studentIdFromEmail || prev.student_id,
+      dob: user?.dob || prev.dob,
       class_name: user?.class_name || prev.class_name,
       course_code: user?.course_code || prev.course_code,
       phone: user?.phone || prev.phone,
@@ -385,6 +387,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         body: JSON.stringify({
           company_ids: Array.from(selectedCompanies).filter(id => id !== khacCompany?.id),
           student_id: registerForm.student_id,
+          dob: registerForm.dob,
           class_name: registerForm.class_name,
           course_code: registerForm.course_code,
           phone: registerForm.phone,
@@ -406,7 +409,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         }
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', note: '' });
+        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -747,6 +750,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Mã sinh viên *</label>
                 <input required disabled={!!user?.student_id} type="text" className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.student_id ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.student_id} onChange={e => setRegisterForm({ ...registerForm, student_id: e.target.value })} placeholder="VD: 20021234" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Ngày sinh *</label>
+                <input required disabled={!!user?.dob} type="date" max={new Date().toISOString().split('T')[0]} className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${user?.dob ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} value={registerForm.dob} onChange={e => setRegisterForm({ ...registerForm, dob: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại *</label>

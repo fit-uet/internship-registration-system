@@ -16,8 +16,31 @@ async function getSqliteObjectType(name: string) {
   return row?.type || null;
 }
 
+async function ensureDbIndexes() {
+  await db.executeMultiple(`
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_student_id_unique
+      ON users(student_id)
+      WHERE role = 'student' AND student_id IS NOT NULL AND student_id != '';
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_name_unique ON companies(name);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_lecturers_email_unique
+      ON lecturers(email)
+      WHERE email IS NOT NULL AND email != '';
+
+    CREATE INDEX IF NOT EXISTS idx_registrations_user_id ON registrations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_registrations_company_status ON registrations(company_id, status);
+    CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_registrations_user_company_other_unique
+      ON registrations(user_id, company_id, COALESCE(other_company_name, ''));
+  `);
+}
+
 async function run() {
   try {
+    await db.execute('PRAGMA foreign_keys = ON');
+
     const studentsType = await getSqliteObjectType('students');
     if (studentsType === 'table') {
       await db.executeMultiple(`
@@ -64,6 +87,11 @@ async function run() {
         FROM users
         WHERE role = 'admin';
     `);
+
+    try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN student_id'); } catch (e) { }
+    try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN dob'); } catch (e) { }
+    try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN class_name'); } catch (e) { }
+    try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN course_code'); } catch (e) { }
 
     await db.executeMultiple(`
       DELETE FROM lecturers
@@ -145,6 +173,8 @@ async function run() {
           WHERE lecturers.email = users.email
         );
     `);
+
+    await ensureDbIndexes();
 
     console.log('Migration successful: users is now the source of truth for students/admins.');
   } catch (e: any) {
