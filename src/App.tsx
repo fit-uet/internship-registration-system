@@ -903,6 +903,7 @@ function AdminPanel({ token }: { token: string }) {
   const [filterCompany, setFilterCompany] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [savingToSheet, setSavingToSheet] = useState(false);
 
   const navigate = useNavigate();
 
@@ -992,7 +993,10 @@ function AdminPanel({ token }: { token: string }) {
   };
 
   const handleSaveToGoogleSheets = async () => {
+    if (savingToSheet) return;
     if (!confirm('Hệ thống sẽ ghi đè toàn bộ dữ liệu hiện tại lên Google Sheets. Bạn có chắc chắn?')) return;
+    setSavingToSheet(true);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
       const res = await fetch(`${API_BASE}/api/admin/export-to-sheet`, {
         method: 'POST',
@@ -1006,6 +1010,8 @@ function AdminPanel({ token }: { token: string }) {
       }
     } catch (e) {
       alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSavingToSheet(false);
     }
   };
 
@@ -1158,12 +1164,21 @@ function AdminPanel({ token }: { token: string }) {
           </div>
           <button
             onClick={handleSaveToGoogleSheets}
-            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap"
+            disabled={savingToSheet}
+            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap disabled:opacity-70 disabled:cursor-wait"
           >
-            <Download size={18} /> Lưu vào Google Sheets
+            {savingToSheet ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+            {savingToSheet ? 'Đang lưu...' : 'Lưu vào Google Sheets'}
           </button>
         </div>
       </div>
+
+      {savingToSheet && (
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <RefreshCw size={18} className="animate-spin shrink-0" />
+          <span>Đang ghi danh sách đăng ký lên Google Sheets, vui lòng đợi...</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
@@ -1290,6 +1305,8 @@ function AdminPanel({ token }: { token: string }) {
 function LecturerRegistry({ token }: { token: string }) {
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
@@ -1351,50 +1368,57 @@ function LecturerRegistry({ token }: { token: string }) {
   const handleFileUpload = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.split(/\r?\n/);
-    const imported: { name: string; email?: string }[] = [];
+    setImporting(true);
+    setImportMessage(`Đang đọc file "${file.name}"...`);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/);
+      const imported: { name: string; email?: string }[] = [];
 
-    for (let i = 0; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      // Strip BOM if present
-      const line = lines[i].replace(/^\uFEFF/, '');
-      const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      for (let i = 0; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        // Strip BOM if present
+        const line = lines[i].replace(/^\uFEFF/, '');
+        const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
 
-      // Detect format:
-      // Format A: STT, Tên, Email  (3+ cols, col0 is a number)
-      // Format B: Tên, Email        (2 cols)
-      // Format C: Tên only          (1 col)
-      // Skip header rows
-      if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'họ và tên' || parts[0].toLowerCase() === 'tên')) continue;
+        // Detect format:
+        // Format A: STT, Tên, Email  (3+ cols, col0 is a number)
+        // Format B: Tên, Email        (2 cols)
+        // Format C: Tên only          (1 col)
+        // Skip header rows
+        if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'họ và tên' || parts[0].toLowerCase() === 'tên')) continue;
 
-      const isNumeric = (s: string) => /^\d+$/.test(s);
+        const isNumeric = (s: string) => /^\d+$/.test(s);
 
-      let name = '';
-      let email = '';
+        let name = '';
+        let email = '';
 
-      if (parts.length >= 3 && isNumeric(parts[0])) {
-        // Format A: STT, Tên, Email
-        name = parts[1];
-        email = parts[2];
-      } else if (parts.length >= 2 && !isNumeric(parts[0]) && parts[1].includes('@')) {
-        // Format B: Tên, Email
-        name = parts[0];
-        email = parts[1];
-      } else if (parts.length >= 2 && isNumeric(parts[0])) {
-        // Format A without email: STT, Tên
-        name = parts[1];
-      } else if (parts.length === 1) {
-        // Format C: Tên only
-        name = parts[0];
+        if (parts.length >= 3 && isNumeric(parts[0])) {
+          // Format A: STT, Tên, Email
+          name = parts[1];
+          email = parts[2];
+        } else if (parts.length >= 2 && !isNumeric(parts[0]) && parts[1].includes('@')) {
+          // Format B: Tên, Email
+          name = parts[0];
+          email = parts[1];
+        } else if (parts.length >= 2 && isNumeric(parts[0])) {
+          // Format A without email: STT, Tên
+          name = parts[1];
+        } else if (parts.length === 1) {
+          // Format C: Tên only
+          name = parts[0];
+        }
+
+        if (name) imported.push({ name, email: email || undefined });
       }
 
-      if (name) imported.push({ name, email: email || undefined });
-    }
+      if (imported.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file');
+        return;
+      }
 
-    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
-
-    try {
+      setImportMessage(`Đang import ${imported.length} giảng viên lên hệ thống...`);
       const res = await fetch(`${API_BASE}/api/admin/lecturers/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1409,8 +1433,11 @@ function LecturerRegistry({ token }: { token: string }) {
       }
     } catch (e) {
       alert('Lỗi import');
+    } finally {
+      setImporting(false);
+      setImportMessage('');
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleAdd = async () => {
@@ -1490,18 +1517,25 @@ function LecturerRegistry({ token }: { token: string }) {
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4" />
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
             Ghi đè GV
           </label>
-          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
-            <Upload size={16} /> Import
-            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất CSV
           </button>
         </div>
       </div>
+
+      {importing && (
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <RefreshCw size={18} className="animate-spin shrink-0" />
+          <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap gap-3 items-center">
         <input
@@ -1612,12 +1646,14 @@ function CompanyRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCompany, setNewCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
+  const [newCompany, setNewCompany] = useState({ name: '', slots: '', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editCompany, setEditCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
 
@@ -1678,37 +1714,44 @@ function CompanyRegistry({ token }: { token: string }) {
   const handleFileUpload = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.split(/\r?\n/);
-    const imported: { name: string; slots?: number; contact_email?: string; address?: string; phone?: string; contact_name?: string }[] = [];
+    setImporting(true);
+    setImportMessage(`Đang đọc file "${file.name}"...`);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/);
+      const imported: { name: string; slots?: number; contact_email?: string; address?: string; phone?: string; contact_name?: string }[] = [];
 
-    for (let i = 0; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      const line = lines[i].replace(/^\uFEFF/, '');
-      const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      for (let i = 0; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const line = lines[i].replace(/^\uFEFF/, '');
+        const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
 
-      // Skip header
-      if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'tên doanh nghiệp' || parts[0].toLowerCase() === 'tên')) continue;
+        // Skip header
+        if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'tên doanh nghiệp' || parts[0].toLowerCase() === 'tên')) continue;
 
-      const isNumeric = (s: string) => /^\d+$/.test(s);
-      let name = '';
-      let slots = 5;
+        const isNumeric = (s: string) => /^\d+$/.test(s);
+        let name = '';
+        let slots = 5;
 
-      if (parts.length >= 3 && isNumeric(parts[0])) {
-        // STT, Tên, Chỉ tiêu, ...
-        name = parts[1];
-        if (parts[2] && isNumeric(parts[2])) slots = parseInt(parts[2]);
-      } else if (parts.length >= 1 && !isNumeric(parts[0])) {
-        name = parts[0];
-        if (parts[1] && isNumeric(parts[1])) slots = parseInt(parts[1]);
+        if (parts.length >= 3 && isNumeric(parts[0])) {
+          // STT, Tên, Chỉ tiêu, ...
+          name = parts[1];
+          if (parts[2] && isNumeric(parts[2])) slots = parseInt(parts[2]);
+        } else if (parts.length >= 1 && !isNumeric(parts[0])) {
+          name = parts[0];
+          if (parts[1] && isNumeric(parts[1])) slots = parseInt(parts[1]);
+        }
+
+        if (name) imported.push({ name, slots });
       }
 
-      if (name) imported.push({ name, slots });
-    }
+      if (imported.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file');
+        return;
+      }
 
-    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
-
-    try {
+      setImportMessage(`Đang import ${imported.length} doanh nghiệp lên hệ thống...`);
       const res = await fetch(`${API_BASE}/api/admin/companies/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1723,8 +1766,11 @@ function CompanyRegistry({ token }: { token: string }) {
       }
     } catch (e) {
       alert('Lỗi import');
+    } finally {
+      setImporting(false);
+      setImportMessage('');
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleAdd = async () => {
@@ -1736,7 +1782,7 @@ function CompanyRegistry({ token }: { token: string }) {
         body: JSON.stringify(newCompany)
       });
       if (res.ok) {
-        setNewCompany({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
+        setNewCompany({ name: '', slots: '', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
         setShowAddForm(false);
         fetchCompanies();
       } else {
@@ -1806,18 +1852,25 @@ function CompanyRegistry({ token }: { token: string }) {
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
-            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4" />
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60" />
             Ghi đè
           </label>
-          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
-            <Upload size={16} /> Import
-            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất CSV
           </button>
         </div>
       </div>
+
+      {importing && (
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <RefreshCw size={18} className="animate-spin shrink-0" />
+          <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
+        </div>
+      )}
 
       {/* Add company form */}
       {!showAddForm ? (
@@ -1834,7 +1887,7 @@ function CompanyRegistry({ token }: { token: string }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input type="number" placeholder="Chỉ tiêu" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input type="number" min="1" placeholder="Chỉ tiêu tiếp nhận" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
             <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
             <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
             <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
@@ -2722,6 +2775,8 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
 function StudentRegistry({ token }: { token: string }) {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
@@ -2789,30 +2844,37 @@ function StudentRegistry({ token }: { token: string }) {
   const handleFileUpload = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.split('\n');
-    const imported = [];
-    for (let i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      // Handle simple CSV splitting. Does not support commas inside quotes.
-      const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-      if (parts.length >= 5) {
-        let dob = parts[3];
-        if (dob.includes('/')) {
-          const d = dob.split('/');
-          if (d.length === 3) dob = `${d[2]}-${d[1]}-${d[0]}`;
-        }
-        imported.push({
-          student_id: parts[1],
-          name: parts[2],
-          dob,
-          class_name: parts[4]
-        });
-      }
-    }
-    if (imported.length === 0) return alert('Không tìm thấy dữ liệu hợp lệ trong file');
-
+    setImporting(true);
+    setImportMessage(`Đang đọc file "${file.name}"...`);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
+      const text = await file.text();
+      const lines = text.split('\n');
+      const imported = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        // Handle simple CSV splitting. Does not support commas inside quotes.
+        const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+        if (parts.length >= 5) {
+          let dob = parts[3];
+          if (dob.includes('/')) {
+            const d = dob.split('/');
+            if (d.length === 3) dob = `${d[2]}-${d[1]}-${d[0]}`;
+          }
+          imported.push({
+            student_id: parts[1],
+            name: parts[2],
+            dob,
+            class_name: parts[4]
+          });
+        }
+      }
+      if (imported.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file');
+        return;
+      }
+
+      setImportMessage(`Đang import ${imported.length} sinh viên lên hệ thống...`);
       const res = await fetch(`${API_BASE}/api/admin/students/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -2827,8 +2889,11 @@ function StudentRegistry({ token }: { token: string }) {
       }
     } catch (e) {
       alert('Lỗi import');
+    } finally {
+      setImporting(false);
+      setImportMessage('');
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleDelete = async (id: string) => {
@@ -2863,18 +2928,24 @@ function StudentRegistry({ token }: { token: string }) {
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4" />
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60" />
             Ghi đè SV
           </label>
-          <label className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-green-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
-            <Upload size={16} /> Import
-            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất CSV
           </button>
         </div>
       </div>
+      {importing && (
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <RefreshCw size={18} className="animate-spin shrink-0" />
+          <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>

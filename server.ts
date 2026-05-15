@@ -7,13 +7,43 @@ import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { parse } from 'csv-parse/sync';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'uyet-vnu-secret-key-1234';
+const DEFAULT_JWT_SECRET = 'uyet-vnu-secret-key-1234';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 
 // A mock OAuth client ID. In production, this must match the frontend client ID.
 const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '123456789-mock.apps.googleusercontent.com';
 const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 let db: Client;
+const DB_BATCH_SIZE = 100;
+
+async function executeBatch(statements: any[], mode: 'read' | 'write' = 'write') {
+  for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
+    await (db as any).batch(statements.slice(i, i + DB_BATCH_SIZE), mode);
+  }
+}
+
+function rowsToSettings(rows: any[]) {
+  return Object.fromEntries(rows.map(row => [row.key, row.value])) as Record<string, string>;
+}
+
+let cachedItCompanyNames: { mtimeMs: number; names: Set<string> } | null = null;
+
+function getItCompanyNameSet() {
+  const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
+  if (!fs.existsSync(itCompaniesFile)) return new Set<string>();
+
+  const stat = fs.statSync(itCompaniesFile);
+  if (cachedItCompanyNames && cachedItCompanyNames.mtimeMs === stat.mtimeMs) {
+    return cachedItCompanyNames.names;
+  }
+
+  const content = fs.readFileSync(itCompaniesFile, 'utf8');
+  const records = parse(content, { columns: true, skip_empty_lines: true });
+  const names = new Set<string>(records.map((r: any) => r['Tên công ty']?.trim()).filter(Boolean));
+  cachedItCompanyNames = { mtimeMs: stat.mtimeMs, names };
+  return names;
+}
 
 async function getSqliteObjectType(name: string) {
   const row = (await db.execute({
@@ -185,7 +215,29 @@ async function ensureDbIndexes() {
   `);
 }
 
+async function ensureSpecialCompanies() {
+  await db.execute({
+    sql: `
+      INSERT OR IGNORE INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách phải đảm bảo công ty đó đáp ứng được chất lượng thực tập. Các công ty nằm trong danh sách do Khoa thẩm định sẽ được phê duyệt ngay lập tức. Các công ty còn lại cần được Khoa xem xét.', 9999, '', '', '', '', '', '', '']
+  });
+
+  await db.execute({
+    sql: `
+      INSERT OR IGNORE INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: ['Trường Đại học Công nghệ', 'Sinh viên thực tập tại các Lab/Dự án trong trường. Lưu ý, cần phải liên hệ và được sự đồng ý của Giảng viên từ trước và không được đăng ký thực tập ở công ty.', 9999, '', '', '', '', '', '', '']
+  });
+}
+
 async function initDb() {
+  if (process.env.NODE_ENV === 'production' && JWT_SECRET === DEFAULT_JWT_SECRET) {
+    throw new Error('JWT_SECRET is required in production.');
+  }
+
   const databaseUrl = process.env.TURSO_DATABASE_URL || (process.env.NODE_ENV === 'production' ? '' : 'file:./internship-db.db');
   if (!databaseUrl) {
     throw new Error('TURSO_DATABASE_URL is required in production.');
@@ -344,25 +396,7 @@ async function initDb() {
   await consolidateLegacyPeopleTables();
   await ensureDbIndexes();
 
-  const otherExist = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
-  if (!otherExist) {
-    await db.execute({
-      sql: `
-      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách phải đảm bảo công ty đó đáp ứng được chất lượng thực tập. Các công ty nằm trong danh sách do Khoa thẩm định sẽ được phê duyệt ngay lập tức. Các công ty còn lại cần được Khoa xem xét.', 9999, '', '', '', '', '', '', '']
-    });
-  }
-
-  const schoolExist = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0];
-  if (!schoolExist) {
-    await db.execute({
-      sql: `
-      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, args: ['Trường Đại học Công nghệ', 'Sinh viên thực tập tại các Lab/Dự án trong trường. Lưu ý, cần phải liên hệ và được sự đồng ý của Giảng viên từ trước và không được đăng ký thực tập ở công ty.', 9999, '', '', '', '', '', '', '']
-    });
-  }
+  await ensureSpecialCompanies();
 
   // Seed lecturers if empty but csv exists
   const lecCount = (await db.execute("SELECT COUNT(*) as count FROM lecturers")).rows[0] as { count: number };
@@ -371,13 +405,17 @@ async function initDb() {
     if (fs.existsSync(p)) {
       const text = fs.readFileSync(p, 'utf-8');
       const lines = text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-      for (const line of lines) {
-        const parts = line.split(',').map((s: string) => s.trim());
-        const name = parts[0];
-        const email = parts[1] && parts[1].includes('@') ? parts[1] : null;
-        if (name) {
-          await db.execute({ sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)", args: [name, email] });
-        }
+      const statements = lines
+        .map((line: string) => {
+          const parts = line.split(',').map((s: string) => s.trim());
+          const name = parts[0];
+          const email = parts[1] && parts[1].includes('@') ? parts[1] : null;
+          if (!name) return null;
+          return { sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)", args: [name, email] };
+        })
+        .filter(Boolean);
+      if (statements.length > 0) {
+        await executeBatch(statements);
       }
     }
   }
@@ -407,41 +445,47 @@ async function seedCompaniesIfEmpty() {
     const csvData = await response.text();
     const records = parse(csvData, { columns: true, skip_empty_lines: true });
 
-    const insertSql1 = `
-      INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    const statements = records
+      .map((record: any) => {
+        if (!record["Timestamp"]) return null;
+        const name = record["Tên doanh nghiệp"]?.trim();
+        if (!name) return null;
 
-    for (const record of records) {
-      if (!record["Timestamp"]) continue;
-      const name = record["Tên doanh nghiệp"]?.trim();
-      if (!name) continue;
+        const slotsStr = record["Số lượng sinh viên cần tuyển  "]?.trim() || record["Số lượng sinh viên cần tuyển"]?.trim() || "0";
+        const slots = parseInt(slotsStr) || 5;
+        let contactEmail = record["Email liên hệ"]?.trim() || record["Email Address"]?.trim() || '';
+        const contactName = record["Họ và tên người liên hệ phụ trách thực tập"]?.trim() || '';
+        let phone = record["Điện thoại liên hệ"]?.trim() || '';
+        const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
+        const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
 
-      const slotsStr = record["Số lượng sinh viên cần tuyển  "]?.trim() || record["Số lượng sinh viên cần tuyển"]?.trim() || "0";
-      const slots = parseInt(slotsStr) || 5;
-      let contactEmail = record["Email liên hệ"]?.trim() || record["Email Address"]?.trim() || '';
-      const contactName = record["Họ và tên người liên hệ phụ trách thực tập"]?.trim() || '';
-      let phone = record["Điện thoại liên hệ"]?.trim() || '';
-      const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
-      const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
-
-      if (contactEmail && !phone) {
-        const parts = contactEmail.split(/[\/,;\s]+/);
-        const emails: string[] = [];
-        const phones: string[] = [];
-        for (const p of parts) {
-          if (p.includes('@')) emails.push(p);
-          else if (p.match(/[\d]{8,}/)) phones.push(p);
+        if (contactEmail && !phone) {
+          const parts = contactEmail.split(/[\/,;\s]+/);
+          const emails: string[] = [];
+          const phones: string[] = [];
+          for (const p of parts) {
+            if (p.includes('@')) emails.push(p);
+            else if (p.match(/[\d]{8,}/)) phones.push(p);
+          }
+          if (emails.length > 0) contactEmail = emails.join(', ');
+          if (phones.length > 0) phone = phones.join(', ');
         }
-        if (emails.length > 0) contactEmail = emails.join(', ');
-        if (phones.length > 0) phone = phones.join(', ');
-      }
 
-      const description = `Tuyển ${slots} sinh viên thực tập.`;
-      let qualifications = '';
-      const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
+        const description = `Tuyển ${slots} sinh viên thực tập.`;
+        const qualifications = '';
+        const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
-      await db.execute({ sql: insertSql1, args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName] });
+        return {
+          sql: `
+            INSERT OR IGNORE INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName]
+        };
+      })
+      .filter(Boolean);
+    if (statements.length > 0) {
+      await executeBatch(statements);
     }
   } catch (e) {
     console.error("Error seeding companies:", e);
@@ -460,8 +504,15 @@ async function startServer() {
 
 
   app.use(express.json());
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'https://fit-uet.github.io')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'https://fit-uet.github.io',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   }));
 
@@ -587,25 +638,23 @@ async function startServer() {
   // 2. Get Companies
   app.get('/api/companies', requireAuth, requireStudentOrAdmin, async (req: any, res: any) => {
     const companies = (await db.execute(`
-      SELECT c.*, 
-             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
-             (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
+      SELECT c.*,
+             c.slots - COALESCE(rc.applicant_count, 0) as remaining_slots,
+             COALESCE(rc.applicant_count, 0) as applicant_count
       FROM companies c
+      LEFT JOIN (
+        SELECT company_id, COUNT(*) as applicant_count
+        FROM registrations
+        WHERE status != 'rejected'
+        GROUP BY company_id
+      ) rc ON rc.company_id = c.id
     `)).rows;
     res.json(companies);
   });
 
   app.get('/api/companies/it-list', requireAuth, requireStudentOrAdmin, (req, res) => {
     try {
-      const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
-      if (fs.existsSync(itCompaniesFile)) {
-        const content = fs.readFileSync(itCompaniesFile, 'utf8');
-        const records = parse(content, { columns: true, skip_empty_lines: true });
-        const list = records.map((r: any) => r['Tên công ty']?.trim()).filter(Boolean);
-        res.json(list);
-      } else {
-        res.json([]);
-      }
+      res.json(Array.from(getItCompanyNameSet()));
     } catch (e) {
       res.json([]);
     }
@@ -625,10 +674,16 @@ async function startServer() {
   app.get('/api/companies/:id', requireAuth, requireStudentOrAdmin, async (req: any, res: any) => {
     const company = (await db.execute({
       sql: `
-      SELECT c.*, 
-             c.slots - (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as remaining_slots,
-             (SELECT COUNT(*) FROM registrations r WHERE r.company_id = c.id AND r.status != 'rejected') as applicant_count
-      FROM companies c 
+      SELECT c.*,
+             c.slots - COALESCE(rc.applicant_count, 0) as remaining_slots,
+             COALESCE(rc.applicant_count, 0) as applicant_count
+      FROM companies c
+      LEFT JOIN (
+        SELECT company_id, COUNT(*) as applicant_count
+        FROM registrations
+        WHERE status != 'rejected'
+        GROUP BY company_id
+      ) rc ON rc.company_id = c.id
       WHERE c.id = ?
     `, args: [req.params.id]
     })).rows[0];
@@ -716,10 +771,12 @@ async function startServer() {
       };
 
       // Check registration time window (GMT+7)
-      const openAtRow = (await db.execute("SELECT value FROM settings WHERE key = 'registration_open_at'")).rows[0] as { value: string };
-      const closeAtRow = (await db.execute("SELECT value FROM settings WHERE key = 'registration_close_at'")).rows[0] as { value: string };
-      const openAt = openAtRow?.value;
-      const closeAt = closeAtRow?.value;
+      const registrationWindow = rowsToSettings((await db.execute(`
+        SELECT key, value FROM settings
+        WHERE key IN ('registration_open_at', 'registration_close_at')
+      `)).rows);
+      const openAt = registrationWindow.registration_open_at;
+      const closeAt = registrationWindow.registration_close_at;
       if (openAt || closeAt) {
         // Values stored as 'YYYY-MM-DDTHH:mm' in GMT+7, convert to UTC for comparison
         const toUTC = (localStr: string) => {
@@ -808,34 +865,27 @@ async function startServer() {
         }
       }
 
-      // Delete existing registrations first
-      await db.execute({ sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] });
-
-      await db.execute({
-        sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
-        args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, req.user.id]
-      });
-
       const insertSql2 = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
+      const writeStatements: any[] = [
+        { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] },
+        {
+          sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
+          args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, req.user.id]
+        }
+      ];
 
       for (const companyId of normal_company_ids) {
         const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
-        await db.execute({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, null, contactInfo || null] });
+        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, null, contactInfo || null] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {
+        const itCompanyNames = getItCompanyNameSet();
         for (const other of other_companies) {
-          let inList = false;
-          const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
-          if (fs.existsSync(itCompaniesFile) && other.name) {
-            const content = fs.readFileSync(itCompaniesFile, 'utf8');
-            const records = parse(content, { columns: true, skip_empty_lines: true });
-            const list = records.map((r: any) => r['Tên công ty']?.trim()).filter(Boolean);
-            inList = list.includes(other.name.trim());
-          }
+          const inList = other.name ? itCompanyNames.has(other.name.trim()) : false;
           const status = inList ? 'approved' : 'pending';
 
-          await db.execute({
+          writeStatements.push({
             sql: insertSql2,
             args: [
               req.user.id,
@@ -849,6 +899,7 @@ async function startServer() {
           });
         }
       }
+      await executeBatch(writeStatements);
 
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 
@@ -915,28 +966,29 @@ async function startServer() {
     const { students, override } = req.body;
     if (!Array.isArray(students)) return res.status(400).json({ error: 'Expected array of students' });
     try {
-      let count = 0;
-      for (const s of students) {
-        if (!s.student_id || !s.name) continue;
-        const email = `${s.student_id}@vnu.edu.vn`;
-        if (override) {
-          await db.execute({
-            sql: `INSERT INTO users (email, name, role, student_id, dob, class_name) 
-                  VALUES (?, ?, 'student', ?, ?, ?) 
-                  ON CONFLICT(email) DO UPDATE SET 
-                  name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`,
-            args: [email, s.name, s.student_id, s.dob || '', s.class_name || '']
-          });
-        } else {
-          await db.execute({
+      const statements = students
+        .filter((s: any) => s?.student_id && s?.name)
+        .map((s: any) => {
+          const email = `${s.student_id}@vnu.edu.vn`;
+          if (override) {
+            return {
+              sql: `INSERT INTO users (email, name, role, student_id, dob, class_name) 
+                    VALUES (?, ?, 'student', ?, ?, ?) 
+                    ON CONFLICT(email) DO UPDATE SET 
+                    name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`,
+              args: [email, s.name, s.student_id, s.dob || '', s.class_name || '']
+            };
+          }
+          return {
             sql: `INSERT OR IGNORE INTO users (email, name, role, student_id, dob, class_name) 
                   VALUES (?, ?, 'student', ?, ?, ?)`,
             args: [email, s.name, s.student_id, s.dob || '', s.class_name || '']
-          });
-        }
-        count++;
+          };
+        });
+      if (statements.length > 0) {
+        await executeBatch(statements);
       }
-      res.json({ success: true, count });
+      res.json({ success: true, count: statements.length });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -992,27 +1044,31 @@ async function startServer() {
       if (override) {
         await db.execute("DELETE FROM lecturers");
       }
-      let count = 0;
-      for (const item of lecturers) {
-        // Accept both plain string and {name, email} object
-        const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
-        const email = typeof item === 'string' ? null : item?.email?.trim() || null;
-        if (!name) continue;
-        await db.execute({
-          sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)",
-          args: [name, email]
-        });
-        // If already exists (IGNORE), update email if provided
-        if (email) {
-          await db.execute({
-            sql: "UPDATE lecturers SET email = ? WHERE name = ? AND (email IS NULL OR email = '')",
-            args: [email, name]
-          });
-        }
-        count++;
+      const statements = lecturers
+        .map((item: any) => {
+          const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
+          const email = typeof item === 'string' ? null : item?.email?.trim() || null;
+          if (!name) return null;
+          return {
+            sql: `
+              INSERT INTO lecturers (name, email)
+              VALUES (?, ?)
+              ON CONFLICT(name) DO UPDATE SET
+                email = CASE
+                  WHEN excluded.email IS NOT NULL AND excluded.email != '' AND (lecturers.email IS NULL OR lecturers.email = '')
+                  THEN excluded.email
+                  ELSE lecturers.email
+                END
+            `,
+            args: [name, email]
+          };
+        })
+        .filter(Boolean);
+      if (statements.length > 0) {
+        await executeBatch(statements);
       }
       await syncLecturerUsers();
-      res.json({ success: true, count });
+      res.json({ success: true, count: statements.length });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -1139,30 +1195,26 @@ async function startServer() {
         await db.executeMultiple('DELETE FROM registrations');
         await db.executeMultiple('DELETE FROM companies');
       }
-      let count = 0;
-      for (const item of companies) {
-        const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
-        if (!name) continue;
-        const slots = item?.slots || 5;
-        const contact_email = item?.contact_email || '';
-        const address = item?.address || '';
-        const phone = item?.phone || '';
-        const contact_name = item?.contact_name || '';
-        const existing = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [name] })).rows[0];
-        if (!existing) {
-          await db.execute({
-            sql: `INSERT INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
+      const statements = companies
+        .map((item: any) => {
+          const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
+          if (!name) return null;
+          const slots = parseInt(item?.slots) || 5;
+          const contact_email = item?.contact_email || '';
+          const address = item?.address || '';
+          const phone = item?.phone || '';
+          const contact_name = item?.contact_name || '';
+          return {
+            sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
             args: [name, `Tuyển ${slots} sinh viên thực tập.`, slots, contact_email, address, phone, contact_name]
-          });
-          count++;
-        }
+          };
+        })
+        .filter(Boolean);
+      if (statements.length > 0) {
+        await executeBatch(statements);
       }
-      // Ensure "Công ty khác" always exists
-      const khac = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
-      if (!khac) {
-        await db.execute({ sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, '', '', '', '', '', '')`, args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, ''] });
-      }
-      res.json({ success: true, count });
+      await ensureSpecialCompanies();
+      res.json({ success: true, count: statements.length });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -1334,58 +1386,64 @@ async function startServer() {
   });
 
   app.get('/api/settings/campaign', async (req: any, res: any) => {
-    const year = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_year'")).rows[0] as { value: string };
-    const start = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_start'")).rows[0] as { value: string };
-    const end = (await db.execute("SELECT value FROM settings WHERE key = 'campaign_end'")).rows[0] as { value: string };
-    const classes = (await db.execute("SELECT value FROM settings WHERE key = 'classes_list'")).rows[0] as { value: string };
-    const openAt = (await db.execute("SELECT value FROM settings WHERE key = 'registration_open_at'")).rows[0] as { value: string };
-    const closeAt = (await db.execute("SELECT value FROM settings WHERE key = 'registration_close_at'")).rows[0] as { value: string };
+    const settings = rowsToSettings((await db.execute(`
+      SELECT key, value FROM settings
+      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at')
+    `)).rows);
 
     res.json({
-      year: year ? year.value : '2026',
-      start: start ? start.value : '22/05/2026',
-      end: end ? end.value : '15/06/2026',
-      classes_list: classes ? classes.value : 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN',
-      registration_open_at: openAt ? openAt.value : '',
-      registration_close_at: closeAt ? closeAt.value : ''
+      year: settings.campaign_year || '2026',
+      start: settings.campaign_start || '22/05/2026',
+      end: settings.campaign_end || '15/06/2026',
+      classes_list: settings.classes_list || 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN',
+      registration_open_at: settings.registration_open_at || '',
+      registration_close_at: settings.registration_close_at || ''
     });
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { year, start, end, classes_list, registration_open_at, registration_close_at } = req.body;
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end || null] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_open_at', ?)", args: [registration_open_at || ''] });
-    await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] });
+    const statements: any[] = [
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end || null] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_open_at', ?)", args: [registration_open_at || ''] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] }
+    ];
     if (classes_list) {
-      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
+      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
     }
+    await executeBatch(statements);
     res.json({ success: true });
   });
 
   // 9. Admin: Settings
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
-    const exportSetting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
-    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
+    const settings = rowsToSettings((await db.execute(`
+      SELECT key, value FROM settings
+      WHERE key IN ('google_sheet_url', 'export_google_sheet_url', 'implementation_plan_md')
+    `)).rows);
     res.json({
-      url: setting ? setting.value : '',
-      export_url: exportSetting ? exportSetting.value : '',
-      plan: planSetting ? planSetting.value : ''
+      url: settings.google_sheet_url || '',
+      export_url: settings.export_google_sheet_url || '',
+      plan: settings.implementation_plan_md || ''
     });
   });
 
   app.put('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { url, export_url, plan } = req.body;
+    const statements: any[] = [];
     if (url !== undefined) {
-      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
+      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('google_sheet_url', ?)", args: [url] });
     }
     if (export_url !== undefined) {
-      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('export_google_sheet_url', ?)", args: [export_url] });
+      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('export_google_sheet_url', ?)", args: [export_url] });
     }
     if (plan !== undefined) {
-      await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('implementation_plan_md', ?)", args: [plan] });
+      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('implementation_plan_md', ?)", args: [plan] });
+    }
+    if (statements.length > 0) {
+      await executeBatch(statements);
     }
     res.json({ success: true });
   });
@@ -1486,69 +1544,65 @@ async function startServer() {
         await db.executeMultiple('DELETE FROM companies');
       }
 
-      // Collect all company names from CSV
-      const csvCompanyNames = new Set<string>();
+      const statements = records
+        .map((record: any) => {
+          if (!record["Timestamp"]) return null;
 
-      let importedCount = 0;
-      for (const record of records) {
-        if (!record["Timestamp"]) continue;
+          const name = record["Tên doanh nghiệp"]?.trim();
+          if (!name) return null;
 
-        const name = record["Tên doanh nghiệp"]?.trim();
-        if (!name) continue;
+          const slotsStr = record["Số lượng sinh viên cần tuyển  "]?.trim() || record["Số lượng sinh viên cần tuyển"]?.trim() || "0";
+          const slots = parseInt(slotsStr) || 5;
+          let contactEmail = record["Email liên hệ"]?.trim() || record["Email Address"]?.trim() || '';
+          const contactName = record["Họ và tên người liên hệ phụ trách thực tập"]?.trim() || '';
+          let phone = record["Điện thoại liên hệ"]?.trim() || '';
+          const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
+          const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
 
-        csvCompanyNames.add(name);
-
-        const slotsStr = record["Số lượng sinh viên cần tuyển  "]?.trim() || record["Số lượng sinh viên cần tuyển"]?.trim() || "0";
-        const slots = parseInt(slotsStr) || 5;
-        let contactEmail = record["Email liên hệ"]?.trim() || record["Email Address"]?.trim() || '';
-        const contactName = record["Họ và tên người liên hệ phụ trách thực tập"]?.trim() || '';
-        let phone = record["Điện thoại liên hệ"]?.trim() || '';
-        const address = record["Địa chỉ nơi thực tập"]?.trim() || '';
-        const infoLink = record["Thông tin vị trí tuyển thực tập"]?.trim() || '';
-
-        // Clean up email/phone if they are combined in the email field
-        if (contactEmail && !phone) {
-          const parts = contactEmail.split(/[\/,;\s]+/);
-          const emails: string[] = [];
-          const phones: string[] = [];
-          for (const p of parts) {
-            if (p.includes('@')) emails.push(p);
-            else if (p.match(/[\d]{8,}/)) phones.push(p);
+          // Clean up email/phone if they are combined in the email field
+          if (contactEmail && !phone) {
+            const parts = contactEmail.split(/[\/,;\s]+/);
+            const emails: string[] = [];
+            const phones: string[] = [];
+            for (const p of parts) {
+              if (p.includes('@')) emails.push(p);
+              else if (p.match(/[\d]{8,}/)) phones.push(p);
+            }
+            if (emails.length > 0) contactEmail = emails.join(', ');
+            if (phones.length > 0) phone = phones.join(', ');
           }
-          if (emails.length > 0) contactEmail = emails.join(', ');
-          if (phones.length > 0) phone = phones.join(', ');
-        }
 
-        const qualifications = '';
-        const description = `Tuyển ${slots} sinh viên thực tập.`;
-        const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
+          const qualifications = '';
+          const description = `Tuyển ${slots} sinh viên thực tập.`;
+          const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
-        // UPSERT: if company exists (by name), update its info; otherwise insert new
-        const existing = (await db.execute({ sql: 'SELECT id FROM companies WHERE name = ?', args: [name] })).rows[0] as any;
-        if (existing) {
-          await db.execute({
-            sql: `UPDATE companies SET description = ?, slots = ?, contact_email = ?, history = ?, qualifications = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`,
-            args: [description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName, existing.id]
-          });
-        } else {
-          await db.execute({
-            sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          return {
+            sql: `
+              INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(name) DO UPDATE SET
+                description = excluded.description,
+                slots = excluded.slots,
+                contact_email = excluded.contact_email,
+                history = excluded.history,
+                qualifications = excluded.qualifications,
+                address = excluded.address,
+                recruitment_link = excluded.recruitment_link,
+                phone = excluded.phone,
+                contact_name = excluded.contact_name
+            `,
             args: [name, description, slots, contactEmail, history, qualifications, address, infoLink, phone, contactName]
-          });
-        }
-        importedCount++;
+          };
+        })
+        .filter(Boolean);
+
+      if (statements.length > 0) {
+        await executeBatch(statements);
       }
 
-      // Ensure "Công ty khác" always exists
-      const khacExists = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0];
-      if (!khacExists) {
-        await db.execute({
-          sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: ['Công ty khác', 'Đăng ký công ty ngoài danh sách', 9999, '', '', '', '', '', '', '']
-        });
-      }
+      await ensureSpecialCompanies();
 
-      res.json({ success: true, count: importedCount });
+      res.json({ success: true, count: statements.length });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
