@@ -1,0 +1,10 @@
+TURSO_DATABASE_URL="libsql://your-database.turso.io"
+TURSO_AUTH_TOKEN="your-turso-auth-token"
+JWT_SECRET="generate-a-long-random-secret"
+VITE_GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+ADMIN_EMAIL="admin@example.com"
+CORS_ORIGIN="http://localhost:5173,https://fit-uet.github.io"
+
+# Optional, only for exporting registrations to Google Sheets from the Worker.
+GOOGLE_SERVICE_ACCOUNT_EMAIL="your-service-account@project.iam.gserviceaccount.com"
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"

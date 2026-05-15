@@ -1,0 +1,15 @@
+name = "internship-api"
+main = "src/worker.ts"
+compatibility_date = "2026-05-15"
+
+[vars]
+CORS_ORIGIN = "https://fit-uet.github.io"
+
+# Set these as Cloudflare Worker secrets, not plain vars:
+# wrangler secret put TURSO_DATABASE_URL
+# wrangler secret put TURSO_AUTH_TOKEN
+# wrangler secret put JWT_SECRET
+# wrangler secret put VITE_GOOGLE_CLIENT_ID
+# wrangler secret put ADMIN_EMAIL
+# wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
+# wrangler secret put GOOGLE_PRIVATE_KEY

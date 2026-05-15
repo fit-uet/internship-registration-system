@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "dev:worker": "wrangler dev src/worker.ts",
     "build": "vite build && tsx ./scripts/build-server.ts",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
+    "deploy:worker": "wrangler deploy",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
@@ -45,9 +47,11 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.14.0",
     "@types/turndown": "^5.0.5",
+    "@cloudflare/workers-types": "^4.20260512.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "wrangler": "^4.15.0"
   }
 }
