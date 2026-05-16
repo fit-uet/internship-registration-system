@@ -19,19 +19,19 @@ Phạm vi hiện tại tập trung chủ yếu vào giai đoạn trước và tr
 Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 
 - Khoa chỉ duyệt thủ công khi doanh nghiệp sinh viên tự liên hệ không nằm trong danh sách công ty đã được Khoa thẩm định trong `it-companies-list.csv`. Danh sách này không công khai cho sinh viên.
-- Có thể bổ sung chức năng quản lý danh sách công ty đã thẩm định, nhưng mức ưu tiên thấp hơn các luồng sau đăng ký.
+- Danh sách công ty đã thẩm định được quản lý riêng trong màn “Danh sách công ty thẩm định nội bộ” bên trong khu “Quản lý công ty”, có CRUD, import/export CSV, tìm kiếm và sắp xếp.
 - Kết quả phỏng vấn do công ty xác nhận trực tiếp với sinh viên; Khoa không cần nhập trạng thái `PASS/FAIL` cho từng sinh viên trên hệ thống.
 - Sinh viên chịu trách nhiệm xác nhận 1 nơi thực tập chính thức mà mình đã trúng tuyển để thực tập, nộp báo cáo và tính điểm.
 - Sau khi có kết quả phỏng vấn trong thời hạn Khoa cho phép, sinh viên đăng nhập hệ thống để xác nhận nơi thực tập chính thức và cam kết thông tin là đúng.
 - Nếu sinh viên không trúng tuyển tất cả nơi đã đăng ký, hệ thống cho phép sinh viên đăng ký/xác nhận phương án thực tập tại trường.
 - Sinh viên không được xác nhận nơi thực tập tại công ty chưa được Khoa duyệt.
 - Với sinh viên thực tập tại công ty, Khoa tự phân công giảng viên hướng dẫn.
-- Với sinh viên thực tập tại trường, sinh viên tự đăng ký giảng viên hướng dẫn theo sự đồng ý trước của giảng viên.
+- Với sinh viên thực tập tại trường, nếu đã được giảng viên đồng ý thì sinh viên chọn giảng viên đó; nếu chưa có giảng viên đồng ý thì chọn “Nhờ Khoa phân công” để Khoa tổng hợp và phân công sau.
 - Giảng viên cử nhân, nhận diện theo tên có chữ `CN`, không được làm giảng viên hướng dẫn chính, chỉ được đồng hướng dẫn.
 - Chỉ tiêu dự kiến tính gộp cả hướng dẫn chính và đồng hướng dẫn: `GS`/`PGS` không quá 10 sinh viên; `TS` và `ThS` không quá 15 sinh viên.
 - Tạm thời không có ngoại lệ chỉ tiêu theo từng giảng viên; nếu vượt chỉ tiêu thì Khoa cần phân công sang giảng viên khác.
 - Sinh viên không tìm được cơ hội thực tập tại doanh nghiệp sau thời hạn sẽ được Khoa chủ động chuyển trạng thái và phân công phương án thực tập tại trường hoặc đối tác khác.
-- Báo cáo định kỳ được nộp qua email cho giảng viên; hệ thống chỉ cần quản lý báo cáo final theo deadline của đợt.
+- Báo cáo định kỳ được nộp qua email cho giảng viên; hệ thống chỉ cần quản lý báo cáo final theo khoảng thời gian mở/đóng nộp của đợt.
 - Báo cáo final nộp trên hệ thống ở định dạng PDF.
 - Để có phương án miễn phí cho khoảng 900 sinh viên, ưu tiên lưu file PDF trên Cloudflare R2 và giới hạn dung lượng mỗi file tối đa 10 MB. Với giới hạn này, 900 báo cáo tương đương khoảng 9 GB, nằm trong mức free tier 10 GB-month của R2 tại thời điểm cập nhật tài liệu. Hệ thống từ chối file PDF lớn hơn 10 MB và yêu cầu sinh viên nén lại trước khi nộp.
 - Điểm 60% đánh giá công ty/GVHD do giảng viên tự nhập dựa trên trao đổi và bản cứng sinh viên nộp.
@@ -235,13 +235,23 @@ Admin cấu hình:
 - Năm/đợt thực tập.
 - Thời điểm mở đăng ký.
 - Thời điểm đóng đăng ký.
+- Thời điểm mở/đóng xác nhận nơi thực tập chính thức.
+- Thời điểm mở/đóng nộp báo cáo final.
 - Danh sách lớp khóa học được chọn trong form.
 
 Sinh viên chỉ có thể đăng ký trong khoảng thời gian mở/đóng nếu các mốc này được cấu hình.
 
 ### 5.4. Quản lý danh sách doanh nghiệp
 
-Admin có thể thêm/sửa/xóa/import/export doanh nghiệp.
+Admin có thể thêm/sửa/xóa/import/export doanh nghiệp chính thức.
+
+Riêng trong màn “Quản lý Công ty”, hệ thống hiển thị danh sách vận hành gồm:
+
+- Công ty chính thức trong bảng `companies`.
+- Các công ty sinh viên tự liên hệ đã phát sinh đăng ký, lấy từ `registrations.other_company_name`, thay vì chỉ hiện một dòng chung “Công ty khác”.
+- Nếu tên công ty tự liên hệ trùng với một công ty chính thức, đăng ký được gộp vào đúng dòng công ty chính thức để Khoa quản lý theo một đầu mối.
+
+Mỗi dòng công ty trong màn admin hiển thị số ứng viên, số đăng ký đã duyệt, trạng thái đã gửi doanh nghiệp, nút xuất danh sách đăng ký theo công ty, nút soạn email và nút đánh dấu “Đã gửi DN”.
 
 Hệ thống hiển thị cho sinh viên:
 
@@ -250,6 +260,19 @@ Hệ thống hiển thị cho sinh viên:
 - Chỉ tiêu.
 - Số ứng viên đã đăng ký.
 - Chi tiết tuyển dụng và liên hệ.
+
+### 5.4.1. Quản lý danh sách công ty thẩm định nội bộ
+
+Từ màn “Quản lý Công ty”, admin mở màn “Danh sách công ty thẩm định nội bộ”.
+
+Màn này hỗ trợ:
+
+- Thêm/sửa/xóa công ty thẩm định.
+- Import CSV danh sách công ty thẩm định nội bộ.
+- Export CSV danh sách đang xem.
+- Tìm kiếm và sắp xếp theo tên, nguồn, ngày tạo.
+
+Danh sách này không hiển thị cho sinh viên. Hệ thống chỉ dùng danh sách để tự động duyệt công ty tự liên hệ khi tên công ty sau chuẩn hóa trùng với một công ty đã thẩm định.
 
 ### 5.5. Sinh viên đăng ký nguyện vọng thực tập
 
@@ -267,7 +290,7 @@ Khi đăng ký, sinh viên bắt buộc cung cấp:
 Các loại đăng ký:
 
 - Doanh nghiệp có trong danh sách chính thức: tự động ghi nhận trạng thái `approved`.
-- Công ty tự liên hệ: sinh viên nhập tên công ty, vị trí, người liên hệ, số điện thoại, email. Theo nghiệp vụ cần triển khai, hệ thống phải đối chiếu với danh sách thẩm định nội bộ `it-companies-list.csv`: nếu có trong danh sách thì tự động `approved`, nếu không thì `pending` để Khoa duyệt thủ công. Hiện Worker đang đối chiếu theo bảng `companies`, nên phần này cần chỉnh để đúng nghiệp vụ.
+- Công ty tự liên hệ: sinh viên nhập tên công ty, vị trí, người liên hệ, số điện thoại, email. Hệ thống đối chiếu với bảng công ty thẩm định nội bộ: nếu có trong danh sách thì tự động `approved`, nếu không thì `pending` để Khoa duyệt thủ công.
 - Thực tập tại trường: sinh viên chọn `Trường Đại học Công nghệ` và nhập/chọn giảng viên hướng dẫn. Hệ thống yêu cầu có tên GVHD.
 
 Quy tắc đặc biệt:
@@ -285,7 +308,7 @@ Admin xem toàn bộ đăng ký và đổi trạng thái:
 
 Admin có thể duyệt tất cả các đăng ký đang chờ.
 
-Theo nghiệp vụ đã xác nhận, việc duyệt thủ công chỉ cần áp dụng với công ty tự liên hệ chưa nằm trong danh sách thẩm định nội bộ. Các công ty đã nằm trong danh sách này được xem là đủ điều kiện để sinh viên xác nhận thực tập nếu sinh viên đã được công ty nhận. Đây là điểm cần chỉnh trong Worker để dùng đúng nguồn `it-companies-list.csv` hoặc một bảng quản trị tương đương.
+Theo nghiệp vụ đã xác nhận, việc duyệt thủ công chỉ cần áp dụng với công ty tự liên hệ chưa nằm trong danh sách thẩm định nội bộ. Các công ty đã nằm trong danh sách này được xem là đủ điều kiện để sinh viên xác nhận thực tập nếu sinh viên đã được công ty nhận. Hệ thống hiện dùng bảng `approved_company_names` để phục vụ đối chiếu này.
 
 ### 5.7. Xuất danh sách cho Khoa/doanh nghiệp
 
@@ -295,8 +318,9 @@ Admin có thể:
 - Xuất theo học phần ra ZIP.
 - Xuất theo công ty ra ZIP.
 - Ghi toàn bộ dữ liệu đăng ký lên Google Sheets.
+- Trong màn “Quản lý Công ty”, xuất danh sách đăng ký riêng cho từng công ty và đánh dấu danh sách đã gửi doanh nghiệp theo từng công ty.
 
-Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn, nhưng hiện mới dừng ở mức xuất danh sách thủ công. Hệ thống chưa có luồng gửi email tự động, cổng doanh nghiệp, hoặc trạng thái xác nhận doanh nghiệp đã nhận danh sách.
+Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống có thể tạo email bằng `mailto:` và xuất CSV theo từng công ty, nhưng chưa gửi email tự động từ backend và chưa có cổng doanh nghiệp.
 
 ## 6. Đối chiếu với quy trình trong kế hoạch thực tập
 
@@ -306,7 +330,7 @@ Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký 
 | Sinh viên theo dõi thông tin tuyển thực tập | Có danh sách doanh nghiệp và trang chi tiết | Đáp ứng cơ bản |
 | Sinh viên đăng ký công ty trong danh sách | Có chọn tối đa 5 nơi thực tập | Đáp ứng tốt |
 | Sinh viên đăng ký công ty tự liên hệ | Có `Công ty khác`, lưu tên/vị trí/liên hệ | Đáp ứng cơ bản |
-| Khoa xét duyệt công ty ngoài danh sách thẩm định nội bộ | Có trạng thái `pending/approved/rejected`, nhưng Worker chưa đối chiếu trực tiếp với `it-companies-list.csv` và chưa có màn hình quản lý danh sách thẩm định riêng | Đáp ứng một phần |
+| Khoa xét duyệt công ty ngoài danh sách thẩm định nội bộ | Có trạng thái `pending/approved/rejected`, đã có bảng và màn quản lý danh sách thẩm định nội bộ để tự động duyệt công ty tự liên hệ | Đáp ứng phần chính |
 | Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp | Có export CSV/ZIP/Google Sheets | Đáp ứng một phần |
 | Doanh nghiệp phỏng vấn và phản hồi kết quả | Kết quả phỏng vấn được công ty xác nhận trực tiếp với sinh viên, hệ thống không cần ghi nhận `PASS/FAIL` từ công ty | Ngoài phạm vi hệ thống |
 | Sinh viên kiểm tra kết quả phỏng vấn | Sinh viên tự nhận kết quả từ công ty ngoài hệ thống | Ngoài phạm vi hệ thống |
@@ -314,7 +338,7 @@ Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký 
 | Khoa phân công giảng viên hướng dẫn | Có danh sách GV và sinh viên chọn GV khi thực tập tại trường; chưa có phân công của Khoa cho sinh viên thực tập tại công ty | Đáp ứng một phần |
 | Sinh viên thực tập tại trường nếu chưa có công ty | Có lựa chọn `Trường Đại học Công nghệ`, nhưng chưa có luồng Khoa chủ động chuyển trạng thái/phân công sau hạn | Đáp ứng cơ bản |
 | Sinh viên báo cáo định kỳ với giảng viên | Nghiệp vụ thực hiện qua email, không cần quản lý chi tiết trên hệ thống | Ngoài phạm vi hệ thống |
-| Sinh viên nộp báo cáo thực tập | Chưa có upload báo cáo final PDF theo deadline | Chưa đáp ứng |
+| Sinh viên nộp báo cáo thực tập | Chưa có upload báo cáo final PDF theo khoảng thời gian mở/đóng nộp | Chưa đáp ứng |
 | Giảng viên đánh giá và chấm điểm | Chưa có rubric/chấm điểm | Chưa đáp ứng |
 | Giảng viên nộp điểm cho Khoa | Chưa có luồng nộp điểm/tổng hợp điểm | Chưa đáp ứng |
 | Khoa tổng hợp và nhập hệ thống đào tạo | Có thể export danh sách đăng ký, chưa export bảng điểm cuối kỳ | Chưa đáp ứng |
@@ -372,11 +396,11 @@ Gợi ý model:
 
 ### Ưu tiên 3: Nộp báo cáo final và chấm điểm
 
-Theo nghiệp vụ đã xác nhận, báo cáo định kỳ được sinh viên gửi qua email cho giảng viên. Hệ thống chỉ cần quản lý việc nộp báo cáo final theo deadline của đợt.
+Theo nghiệp vụ đã xác nhận, báo cáo định kỳ được sinh viên gửi qua email cho giảng viên. Hệ thống chỉ cần quản lý việc nộp báo cáo final theo khoảng thời gian mở/đóng của đợt.
 
 Cần bổ sung:
 
-- Admin cấu hình deadline nộp báo cáo final.
+- Admin cấu hình thời điểm mở và đóng nộp báo cáo final.
 - Sinh viên upload báo cáo final định dạng PDF.
 - File PDF được lưu trên Cloudflare R2, giới hạn mặc định 10 MB/file để khoảng 900 sinh viên vẫn nằm trong mức miễn phí 10 GB-month. Hệ thống cần kiểm tra MIME type, phần mở rộng `.pdf`, kích thước file và đặt tên object theo đợt/sinh viên để tránh trùng. File lớn hơn 10 MB bị từ chối, sinh viên phải nén lại và nộp lại.
 - Trạng thái báo cáo: chưa nộp, đã nộp, nộp muộn, cần nộp lại, đã chấp nhận.
@@ -460,7 +484,7 @@ Về triển khai, có thể dùng một dịch vụ email transaction miễn ph
 
 ### Giai đoạn C: Đủ dùng đến cuối học phần
 
-- Nộp báo cáo final PDF theo deadline.
+- Nộp báo cáo final PDF theo khoảng thời gian mở/đóng nộp.
 - Lưu báo cáo final trên Cloudflare R2 với giới hạn 10 MB/file.
 - Giảng viên nhập điểm theo rubric 20/20/60.
 - Giảng viên nộp điểm.
@@ -490,8 +514,10 @@ Mục tiêu: sửa các điểm lệch nghiệp vụ hiện tại trước khi t
 Phạm vi:
 
 - Dùng danh sách công ty thẩm định nội bộ để tự động duyệt công ty tự liên hệ.
-- Bổ sung cấu hình thời hạn xác nhận nơi thực tập và deadline nộp báo cáo final.
-- Bổ sung trạng thái/ngày gửi danh sách sang doanh nghiệp nếu Khoa muốn theo dõi thao tác gửi.
+- Bổ sung cấu hình thời hạn xác nhận nơi thực tập và khoảng thời gian nộp báo cáo final.
+- Bổ sung trạng thái/ngày gửi danh sách sang doanh nghiệp theo từng công ty.
+- Màn “Quản lý Công ty” bao gồm cả công ty tự liên hệ đã phát sinh đăng ký, hỗ trợ xuất danh sách và đánh dấu “Đã gửi DN” theo công ty.
+- Tách màn quản lý danh sách thẩm định nội bộ khỏi Cài đặt hệ thống, đặt trong khu “Quản lý công ty”.
 
 Thiết kế dữ liệu:
 
@@ -514,14 +540,19 @@ Thiết kế API:
 
 - `POST /api/admin/approved-companies/import`: import danh sách thẩm định từ CSV.
 - `GET /api/admin/approved-companies`: xem/tìm kiếm danh sách thẩm định.
+- `POST /api/admin/approved-companies`: thêm công ty thẩm định.
+- `PUT /api/admin/approved-companies/:id`: sửa công ty thẩm định.
+- `DELETE /api/admin/approved-companies/:id`: xóa công ty thẩm định.
 - `PUT /api/admin/registrations/mark-sent`: đánh dấu đã gửi danh sách sang doanh nghiệp theo công ty hoặc theo đăng ký.
-- `PUT /api/settings/campaign`: bổ sung `confirmation_open_at`, `confirmation_close_at`, `final_report_due_at`.
+- `GET /api/admin/companies`: danh sách công ty vận hành cho admin, gồm công ty chính thức và công ty tự liên hệ đã phát sinh đăng ký.
+- `PUT /api/settings/campaign`: bổ sung `confirmation_open_at`, `confirmation_close_at`, `final_report_open_at`, `final_report_close_at`.
 
 Tiêu chí nghiệm thu:
 
 - Công ty tự liên hệ có trong danh sách thẩm định được tự động `approved`.
 - Công ty tự liên hệ không có trong danh sách thẩm định là `pending`.
 - Admin xuất/đánh dấu được danh sách đã gửi sang doanh nghiệp.
+- Admin không phải quản lý các đăng ký tự liên hệ dưới một dòng “Công ty khác”; mỗi công ty tự liên hệ có dòng riêng trong màn “Quản lý Công ty”.
 - Không phá luồng đăng ký hiện tại.
 
 ### 9.3. P1 - Xác nhận nơi thực tập chính thức
@@ -540,6 +571,8 @@ CREATE TABLE IF NOT EXISTS final_internships (
   status TEXT NOT NULL DEFAULT 'confirmed',
   student_attested INTEGER NOT NULL DEFAULT 0,
   attestation_text TEXT,
+  school_lecturer TEXT,
+  school_assignment_request INTEGER NOT NULL DEFAULT 0,
   confirmed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   confirmed_by INTEGER,
   locked_at DATETIME,
@@ -560,6 +593,7 @@ Quy tắc xác nhận:
 - Nếu là công ty, sinh viên phải tick cam kết đã được công ty nhận thực tập.
 - Hệ thống không kiểm tra `PASS/FAIL`; trách nhiệm xác nhận đúng thuộc về sinh viên.
 - Nếu không trúng tuyển tất cả nơi đã đăng ký, sinh viên có thể chọn phương án thực tập tại trường nếu Khoa mở lựa chọn này.
+- Khi thực tập tại trường, sinh viên chọn giảng viên đã đồng ý hoặc chọn “Nhờ Khoa phân công”; hệ thống lưu `school_assignment_request = 1` để Khoa tổng hợp.
 - Với thực tập tại trường hoặc đối tác khác, Khoa có thể tạo/cập nhật hồ sơ thay sinh viên.
 - Mỗi sinh viên chỉ có 1 bản ghi `final_internships`.
 - Sau khi khóa, chỉ admin được thay đổi.
@@ -650,7 +684,7 @@ Thiết kế UI:
   - Import CSV: `student_id, lecturer_email_or_name, role, note`.
 - Giảng viên:
   - Trang “Sinh viên phụ trách”.
-  - Hiển thị nơi thực tập, email, số điện thoại, deadline báo cáo, trạng thái nộp báo cáo, điểm.
+  - Hiển thị nơi thực tập, email, số điện thoại, thời hạn báo cáo, trạng thái nộp báo cáo, điểm.
 - Sinh viên:
   - Hiển thị GVHD trong hồ sơ thực tập chính thức.
 
@@ -709,7 +743,7 @@ Thiết kế UI:
 
 - Sinh viên:
   - Widget nộp báo cáo final.
-  - Hiển thị deadline, trạng thái, tên file, dung lượng, thời điểm nộp.
+  - Hiển thị thời gian mở/đóng nộp, trạng thái, tên file, dung lượng, thời điểm nộp.
   - Nếu file > 10 MB, báo rõ “Vui lòng nén PDF xuống tối đa 10 MB”.
 - Giảng viên:
   - Cột trạng thái báo cáo trong danh sách sinh viên phụ trách.

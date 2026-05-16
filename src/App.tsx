@@ -146,6 +146,7 @@ function App() {
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/companies" element={user.role === 'admin' ? <CompanyRegistry token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/approved-companies" element={user.role === 'admin' ? <ApprovedCompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
@@ -212,6 +213,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const [finalConfirmMode, setFinalConfirmMode] = useState<'company' | 'school'>('company');
   const [selectedFinalRegId, setSelectedFinalRegId] = useState('');
   const [finalSchoolLecturer, setFinalSchoolLecturer] = useState('');
+  const [finalSchoolMode, setFinalSchoolMode] = useState<'lecturer' | 'assignment'>('lecturer');
   const [finalAttested, setFinalAttested] = useState(false);
   const [finalNote, setFinalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -468,6 +470,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     setFinalConfirmMode(mode);
     setSelectedFinalRegId(mode === 'company' ? String(approvedFinalOptions[0]?.id || '') : '');
     setFinalSchoolLecturer('');
+    setFinalSchoolMode('lecturer');
     setFinalAttested(false);
     setFinalNote('');
     setConfirmFinalOpen(true);
@@ -479,7 +482,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     setIsConfirmingFinal(true);
     try {
       const payload = finalConfirmMode === 'school'
-        ? { internship_type: 'school', school_lecturer: finalSchoolLecturer, note: finalNote }
+        ? {
+          internship_type: 'school',
+          school_lecturer: finalSchoolMode === 'lecturer' ? finalSchoolLecturer : '',
+          school_assignment_request: finalSchoolMode === 'assignment',
+          note: finalNote
+        }
         : { internship_type: 'company', registration_id: Number(selectedFinalRegId), attested: finalAttested, note: finalNote };
       const res = await fetch(`${API_BASE}/api/internships/final/confirm`, {
         method: 'POST',
@@ -622,6 +630,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                       Đã xác nhận: <strong>{finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}</strong>
                     </p>
                     {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
+                    {finalInternship.school_assignment_request ? <p>GVHD: <strong>Nhờ Khoa phân công</strong></p> : null}
                     <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
                     {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Hồ sơ đã được Khoa khóa.</p>}
                   </div>
@@ -900,21 +909,45 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                   </label>
                 </>
               ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn tại trường *</label>
-                  <input
-                    type="text"
-                    list="final-lecturers-list"
-                    required
-                    value={finalSchoolLecturer}
-                    onChange={e => setFinalSchoolLecturer(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                    placeholder="Gõ để tìm kiếm giảng viên..."
-                  />
-                  <datalist id="final-lecturers-list">
-                    {lecturers.map(lec => <option key={lec} value={lec} />)}
-                  </datalist>
-                  <p className="text-xs text-slate-500 mt-1.5">Chỉ chọn phương án này nếu bạn không trúng tuyển các nơi đã đăng ký và đã trao đổi với giảng viên/Khoa.</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFinalSchoolMode('lecturer')}
+                      className={`px-3 py-2 rounded-lg text-sm font-bold border ${finalSchoolMode === 'lecturer' ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      Đã có GV đồng ý
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setFinalSchoolMode('assignment'); setFinalSchoolLecturer(''); }}
+                      className={`px-3 py-2 rounded-lg text-sm font-bold border ${finalSchoolMode === 'assignment' ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      Nhờ Khoa phân công
+                    </button>
+                  </div>
+                  {finalSchoolMode === 'lecturer' ? (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên đã đồng ý hướng dẫn *</label>
+                      <input
+                        type="text"
+                        list="final-lecturers-list"
+                        required
+                        value={finalSchoolLecturer}
+                        onChange={e => setFinalSchoolLecturer(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                        placeholder="Gõ để tìm kiếm giảng viên..."
+                      />
+                      <datalist id="final-lecturers-list">
+                        {lecturers.map(lec => <option key={lec} value={lec} />)}
+                      </datalist>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-orange-100 bg-orange-50 p-3 text-sm text-orange-900">
+                      Hệ thống sẽ ghi nhận nhu cầu thực tập tại trường để Khoa tổng hợp và phân công giảng viên hướng dẫn sau.
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500">Chỉ chọn thực tập tại trường khi bạn không trúng tuyển công ty nào hoặc thực hiện theo sắp xếp của Khoa.</p>
                 </div>
               )}
 
@@ -935,7 +968,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 </button>
                 <button
                   type="submit"
-                  disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId)}
+                  disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId) || (finalConfirmMode === 'school' && finalSchoolMode === 'lecturer' && !finalSchoolLecturer.trim())}
                   className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isConfirmingFinal ? 'Đang xác nhận...' : 'Xác nhận'}
@@ -1296,29 +1329,6 @@ function AdminPanel({ token }: { token: string }) {
     }
   };
 
-  const handleMarkSentCurrent = async () => {
-    const approvedIds = filteredRegistrations.filter(r => r.status === 'approved').map(r => r.registration_id);
-    if (approvedIds.length === 0) {
-      alert('Danh sách đang lọc không có đăng ký đã duyệt để đánh dấu gửi.');
-      return;
-    }
-    if (!confirm(`Đánh dấu ${approvedIds.length} đăng ký đã được gửi đến doanh nghiệp?`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/registrations/mark-sent`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ registration_ids: approvedIds })
-      });
-      if (res.ok) fetchRegistrations();
-      else {
-        const data = await res.json();
-        alert(data.error || 'Cập nhật thất bại');
-      }
-    } catch (e) {
-      alert('Lỗi kết nối');
-    }
-  };
-
   const sortedRegistrations = [...registrations].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
@@ -1385,13 +1395,6 @@ function AdminPanel({ token }: { token: string }) {
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
-          <button
-            onClick={handleMarkSentCurrent}
-            className="flex items-center gap-2 bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <CheckCircle2 size={18} /> Đã gửi DN
-          </button>
-
           <div className="relative">
             <button
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1603,7 +1606,7 @@ function AdminPanel({ token }: { token: string }) {
                     <td className="px-6 py-4">
                       {item.company_name === 'Công ty khác' ? `Công ty khác: ${item.other_company_name || ''}` : (item.company_name || '-')}
                     </td>
-                    <td className="px-6 py-4">{item.school_lecturer || '-'}</td>
+                    <td className="px-6 py-4">{item.school_assignment_request ? 'Nhờ Khoa phân công' : (item.school_lecturer || '-')}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
                     <td className="px-6 py-4">{item.locked_at ? <span className="text-emerald-700 font-semibold">Đã khóa</span> : <span className="text-slate-400">Chưa khóa</span>}</td>
                   </tr>
@@ -1960,8 +1963,10 @@ function LecturerRegistry({ token }: { token: string }) {
 function CompanyRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [markingSentKey, setMarkingSentKey] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState('');
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1973,10 +1978,16 @@ function CompanyRegistry({ token }: { token: string }) {
   const [editCompany, setEditCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
 
   const fetchCompanies = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setCompanies(data);
+      const [companyRes, regRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/companies`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/registrations`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      const companyData = await companyRes.json();
+      const regData = await regRes.json();
+      setCompanies(Array.isArray(companyData) ? companyData : []);
+      setRegistrations(Array.isArray(regData) ? regData : []);
     } catch (e) {
       alert('Lỗi lấy danh sách công ty');
     } finally {
@@ -2000,14 +2011,15 @@ function CompanyRegistry({ token }: { token: string }) {
         c.name?.toLowerCase().includes(lower) ||
         c.address?.toLowerCase().includes(lower) ||
         c.contact_email?.toLowerCase().includes(lower) ||
-        c.contact_name?.toLowerCase().includes(lower)
+        c.contact_name?.toLowerCase().includes(lower) ||
+        c.contacts?.toLowerCase().includes(lower)
       );
     }
     if (sortConfig) {
       result.sort((a, b) => {
         let aVal = a[sortConfig.key] ?? '';
         let bVal = b[sortConfig.key] ?? '';
-        if (sortConfig.key === 'slots' || sortConfig.key === 'applicant_count' || sortConfig.key === 'remaining_slots') {
+        if (['slots', 'applicant_count', 'approved_applicant_count', 'sent_count', 'remaining_slots'].includes(sortConfig.key)) {
           aVal = Number(aVal) || 0; bVal = Number(bVal) || 0;
         }
         if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -2018,12 +2030,92 @@ function CompanyRegistry({ token }: { token: string }) {
     return result;
   }, [companies, searchTerm, sortConfig]);
 
+  const getCompanyRegistrations = (company: any) => registrations.filter((r: any) => {
+    if (company.record_type === 'other') {
+      return (r.other_company_name || '').trim().toLowerCase() === (company.name || '').trim().toLowerCase();
+    }
+    return Number(r.company_id) === Number(company.id) ||
+      (r.other_company_name || '').trim().toLowerCase() === (company.name || '').trim().toLowerCase();
+  });
+
+  const extractEmails = (value: string) => Array.from(new Set((value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []));
+
   const exportCSV = () => {
-    const headers = ['STT', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
-    const rows = filteredAndSorted.map((c, idx) => [idx + 1, c.name, c.slots, c.applicant_count ?? 0, c.contact_email || '', c.contact_name || '', c.phone || '', c.address || '']);
+    const headers = ['STT', 'Loại', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Đã duyệt', 'Đã gửi DN', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
+    const rows = filteredAndSorted.map((c, idx) => [
+      idx + 1,
+      c.record_type === 'other' ? 'Tự liên hệ' : 'Danh sách chính thức',
+      c.name,
+      c.record_type === 'other' ? '' : c.slots,
+      c.applicant_count ?? 0,
+      c.approved_applicant_count ?? 0,
+      c.sent_count ? `${c.sent_count}${c.last_sent_at ? ` (${new Date(c.last_sent_at).toLocaleString('vi-VN')})` : ''}` : '',
+      c.contact_email || extractEmails(c.contacts || '').join('; '),
+      c.contact_name || '',
+      c.phone || '',
+      c.address || ''
+    ]);
     const csvContent = [headers, ...rows].map(e => e.map(x => `"${x ?? ''}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'danh_sach_cong_ty.csv');
+  };
+
+  const exportApplicantsForCompany = (company: any) => {
+    const data = getCompanyRegistrations(company);
+    if (data.length === 0) return alert('Công ty này chưa có đăng ký.');
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
+    const rows = data.map((r, idx) => [
+      idx + 1,
+      r.student_id || '',
+      r.student_name || '',
+      r.dob || '',
+      r.phone || '',
+      r.personal_email || '',
+      r.class_name || '',
+      r.course_code || '',
+      r.company_name === 'Công ty khác' ? (r.other_company_name || '') : (r.company_name || ''),
+      r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh',
+      r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || ''),
+      r.note || '',
+      r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt',
+      r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
+      r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : ''
+    ]);
+    const csvContent = [headers, ...rows].map(row => row.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const safeName = (company.name || 'cong_ty').replace(/[^a-z0-9]+/gi, '_');
+    saveAs(new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }), `dang_ky_${safeName}.csv`);
+  };
+
+  const markCompanySent = async (company: any) => {
+    const approvedCount = Number(company.approved_applicant_count || 0);
+    if (approvedCount === 0) return alert('Công ty này chưa có đăng ký đã duyệt để đánh dấu gửi.');
+    if (!confirm(`Đánh dấu ${approvedCount} đăng ký đã duyệt của "${company.name}" là đã gửi đến doanh nghiệp?`)) return;
+    setMarkingSentKey(company.company_key || String(company.id || company.name));
+    try {
+      const payload = company.record_type === 'other'
+        ? { other_company_name: company.name }
+        : { company_name: company.name };
+      const res = await fetch(`${API_BASE}/api/admin/registrations/mark-sent`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Cập nhật trạng thái gửi thất bại.');
+      fetchCompanies();
+    } catch (e) {
+      alert('Lỗi kết nối khi cập nhật trạng thái gửi.');
+    } finally {
+      setMarkingSentKey(null);
+    }
+  };
+
+  const openCompanyEmail = (company: any) => {
+    const emails = company.record_type === 'other' ? extractEmails(company.contacts || '') : extractEmails(company.contact_email || '');
+    if (emails.length === 0) return alert('Chưa có email liên hệ cho công ty này. Vui lòng xuất danh sách và gửi thủ công.');
+    const subject = encodeURIComponent(`Danh sách sinh viên đăng ký thực tập - ${company.name}`);
+    const body = encodeURIComponent('Kính gửi Quý Công ty,\n\nKhoa CNTT gửi danh sách sinh viên đăng ký thực tập tại Quý Công ty trong file đính kèm.\n\nTrân trọng.');
+    window.location.href = `mailto:${emails.join(',')}?subject=${subject}&body=${body}`;
   };
 
   const handleFileUpload = async (e: any) => {
@@ -2153,9 +2245,15 @@ function CompanyRegistry({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
-          <p className="text-sm text-slate-500 mt-1">Danh sách công ty / doanh nghiệp tiếp nhận thực tập. Tổng: <strong>{companies.length}</strong></p>
+          <p className="text-sm text-slate-500 mt-1">Bao gồm công ty chính thức và công ty sinh viên tự liên hệ đã phát sinh đăng ký. Tổng: <strong>{companies.length}</strong></p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => navigate('/admin/approved-companies')}
+            className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
+          >
+            <Shield size={16} /> Công ty thẩm định
+          </button>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -2221,24 +2319,30 @@ function CompanyRegistry({ token }: { token: string }) {
             <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
               <th className="p-3 font-semibold w-12">STT</th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên doanh nghiệp<SortIcon col="name" /></th>
+              <th className="p-3 font-semibold">Loại</th>
               <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('slots')}>Chỉ tiêu<SortIcon col="slots" /></th>
               <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('applicant_count')}>ƯV<SortIcon col="applicant_count" /></th>
+              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-24" onClick={() => handleSort('approved_applicant_count')}>Đã duyệt<SortIcon col="approved_applicant_count" /></th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('last_sent_at')}>Gửi DN<SortIcon col="last_sent_at" /></th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('contact_email')}>Email<SortIcon col="contact_email" /></th>
               <th className="p-3 font-semibold">Người LH</th>
               <th className="p-3 font-semibold">SĐT</th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('address')}>Địa chỉ<SortIcon col="address" /></th>
-              <th className="p-3 font-semibold text-right w-28">Thao tác</th>
+              <th className="p-3 font-semibold text-right w-44">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredAndSorted.map((c, idx) => (
-              <tr key={c.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+              <tr key={c.company_key || c.id || `${c.record_type}-${c.name}`} className="hover:bg-slate-50/50 transition-colors text-xs">
                 <td className="p-3 text-slate-500">{idx + 1}</td>
-                {editingId === c.id ? (
+                {editingId === c.id && c.record_type !== 'other' ? (
                   <>
                     <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                    <td className="p-3"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-semibold">Chính thức</span></td>
                     <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-400 rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
+                    <td className="p-3 text-center text-slate-500">{c.approved_applicant_count ?? 0}</td>
+                    <td className="p-3 text-slate-500">{c.last_sent_at ? new Date(c.last_sent_at).toLocaleString('vi-VN') : 'Chưa gửi'}</td>
                     <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
@@ -2250,16 +2354,42 @@ function CompanyRegistry({ token }: { token: string }) {
                   </>
                 ) : (
                   <>
-                    <td className="p-3 text-slate-800 font-medium">{c.name}</td>
-                    <td className="p-3 text-center">{c.slots}</td>
+                    <td className="p-3 text-slate-800 font-medium">
+                      {c.name}
+                      {c.record_type === 'other' && <div className="text-[11px] text-slate-500 font-normal mt-1">Từ đăng ký “Công ty khác”</div>}
+                    </td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full font-semibold ${c.record_type === 'other' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-600'}`}>
+                        {c.record_type === 'other' ? 'Tự liên hệ' : 'Chính thức'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">{c.record_type === 'other' ? '—' : c.slots}</td>
                     <td className="p-3 text-center">{c.applicant_count ?? 0}</td>
-                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-center">{c.approved_applicant_count ?? 0}</td>
+                    <td className="p-3 text-slate-600 whitespace-nowrap">
+                      {c.last_sent_at ? (
+                        <span className="text-emerald-700 font-semibold">{new Date(c.last_sent_at).toLocaleString('vi-VN')}</span>
+                      ) : (
+                        <span className="text-slate-300">Chưa gửi</span>
+                      )}
+                      {Number(c.sent_count || 0) > 0 && <div className="text-[11px] text-slate-400">{c.sent_count} đăng ký</div>}
+                    </td>
+                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
                     <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address}>{c.address || <span className="text-slate-300">—</span>}</td>
+                    <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-right flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                      <button onClick={() => exportApplicantsForCompany(c)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Xuất danh sách đăng ký"><Download size={16} /></button>
+                      <button onClick={() => openCompanyEmail(c)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors" title="Soạn email gửi DN"><FileText size={16} /></button>
+                      <button onClick={() => markCompanySent(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Đánh dấu đã gửi DN">
+                        {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                      </button>
+                      {c.record_type !== 'other' && (
+                        <>
+                          <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                        </>
+                      )}
                     </td>
                   </>
                 )}
@@ -2281,6 +2411,252 @@ function CompanyRegistry({ token }: { token: string }) {
   );
 }
 
+function ApprovedCompanyRegistry({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [override, setOverride] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+  const [newName, setNewName] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const fetchCompanies = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/approved-companies`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setCompanies(Array.isArray(data) ? data : []);
+    } catch (e) {
+      alert('Lỗi lấy danh sách công ty thẩm định');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCompanies(); }, [token]);
+
+  const csvCells = (line: string) => {
+    const cells: string[] = [];
+    let value = '';
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      const next = line[i + 1];
+      if (ch === '"' && quoted && next === '"') {
+        value += '"';
+        i++;
+      } else if (ch === '"') {
+        quoted = !quoted;
+      } else if (ch === ',' && !quoted) {
+        cells.push(value.trim());
+        value = '';
+      } else {
+        value += ch;
+      }
+    }
+    cells.push(value.trim());
+    return cells;
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    const lower = searchTerm.trim().toLowerCase();
+    const result = companies.filter(c =>
+      !lower ||
+      c.name?.toLowerCase().includes(lower) ||
+      c.source?.toLowerCase().includes(lower) ||
+      c.created_at?.toLowerCase().includes(lower)
+    );
+    result.sort((a, b) => {
+      const aVal = String(a[sortConfig.key] ?? '').toLowerCase();
+      const bVal = String(b[sortConfig.key] ?? '').toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [companies, searchTerm, sortConfig]);
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+  };
+
+  const SortIcon = ({ col }: { col: string }) => (
+    <span className="ml-1 text-xs">{sortConfig.key === col ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+  );
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return alert('Vui lòng nhập tên công ty');
+    const res = await fetch(`${API_BASE}/api/admin/approved-companies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: newName.trim(), source: 'manual' })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Thêm công ty thất bại');
+    setNewName('');
+    fetchCompanies();
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editName.trim()) return alert('Vui lòng nhập tên công ty');
+    const res = await fetch(`${API_BASE}/api/admin/approved-companies/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: editName.trim(), source: 'manual' })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Cập nhật thất bại');
+    setEditingId(null);
+    fetchCompanies();
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Xóa "${name}" khỏi danh sách thẩm định nội bộ?`)) return;
+    const res = await fetch(`${API_BASE}/api/admin/approved-companies/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return alert('Xóa thất bại');
+    fetchCompanies();
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const headerCells = csvCells(lines[0] || '').map(cell => cell.toLowerCase());
+      const hasHeader = headerCells.some(cell => cell.includes('tên') || cell.includes('ten') || cell === 'stt');
+      const nameIndex = Math.max(0, headerCells.findIndex(cell => cell.includes('tên công ty') || cell.includes('ten cong ty') || cell === 'name'));
+      const bodyLines = hasHeader ? lines.slice(1) : lines;
+      const companiesToImport = bodyLines.map(line => {
+        const cells = csvCells(line);
+        if (nameIndex > 0) return cells[nameIndex] || '';
+        if (/^\d+$/.test(cells[0] || '') && cells[1]) return cells[1];
+        return cells[0] || '';
+      }).map(name => name.trim()).filter(Boolean);
+      if (companiesToImport.length === 0) return alert('Không tìm thấy tên công ty hợp lệ trong CSV.');
+      const res = await fetch(`${API_BASE}/api/admin/approved-companies/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ companies: companiesToImport, override, source: file.name })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Import thất bại');
+      alert(`Đã import ${data.count || companiesToImport.length} công ty thẩm định.`);
+      fetchCompanies();
+    } catch (err) {
+      alert('Không thể đọc/import file CSV.');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Tên công ty', 'Nguồn', 'Ngày tạo'];
+    const rows = filteredAndSorted.map((c, idx) => [idx + 1, c.name || '', c.source || '', c.created_at || '']);
+    const csv = [headers, ...rows].map(row => row.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'danh_sach_cong_ty_tham_dinh_noi_bo.csv');
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+        <div>
+          <button onClick={() => navigate('/admin/companies')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản lý công ty</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-teal-600" /> Danh sách công ty thẩm định nội bộ</h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách này dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên. Tổng: <strong>{companies.length}</strong></p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm tên, nguồn..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
+            Ghi đè
+          </label>
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait pointer-events-none' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import CSV'}
+            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+          </label>
+          <button onClick={exportCSV} disabled={loading || importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Download size={16} /> Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6 bg-teal-50 border border-teal-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+        <input
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+          placeholder="Tên công ty đã thẩm định"
+          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
+        />
+        <button onClick={handleAdd} className="bg-teal-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
+          <Plus size={16} /> Thêm
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
+              <th className="p-3 font-semibold w-12">STT</th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên công ty<SortIcon col="name" /></th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100 w-40" onClick={() => handleSort('source')}>Nguồn<SortIcon col="source" /></th>
+              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100 w-44" onClick={() => handleSort('created_at')}>Ngày tạo<SortIcon col="created_at" /></th>
+              <th className="p-3 font-semibold text-right w-28">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredAndSorted.map((c, idx) => (
+              <tr key={c.id} className="hover:bg-slate-50 text-sm">
+                <td className="p-3 text-slate-500">{idx + 1}</td>
+                <td className="p-3">
+                  {editingId === c.id ? (
+                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-teal-400 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500" />
+                  ) : (
+                    <span className="font-medium text-slate-800">{c.name}</span>
+                  )}
+                </td>
+                <td className="p-3 text-slate-600">{c.source || 'manual'}</td>
+                <td className="p-3 text-slate-600 whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString('vi-VN') : '-'}</td>
+                <td className="p-3 text-right">
+                  {editingId === c.id ? (
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!loading && filteredAndSorted.length === 0 && (
+          <div className="text-center py-12 text-slate-500 text-sm">Không có công ty thẩm định phù hợp.</div>
+        )}
+        {loading && (
+          <div className="text-center py-12 text-slate-500 text-sm">Đang tải danh sách...</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AdminSettings({ token }: { token: string }) {
   const [sheetUrl, setSheetUrl] = useState('');
   const [exportSheetUrl, setExportSheetUrl] = useState('');
@@ -2290,7 +2666,6 @@ function AdminSettings({ token }: { token: string }) {
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importingDocx, setImportingDocx] = useState(false);
-  const [importingApprovedCompanies, setImportingApprovedCompanies] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -2459,49 +2834,6 @@ function AdminSettings({ token }: { token: string }) {
     }
   };
 
-  const handleImportApprovedCompanies = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportingApprovedCompanies(true);
-    try {
-      const text = await file.text();
-      const firstCsvCell = (line: string) => {
-        let value = '';
-        let quoted = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          const next = line[i + 1];
-          if (ch === '"' && quoted && next === '"') {
-            value += '"';
-            i++;
-          } else if (ch === '"') {
-            quoted = !quoted;
-          } else if (ch === ',' && !quoted) {
-            break;
-          } else {
-            value += ch;
-          }
-        }
-        return value.trim();
-      };
-      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-      const companies = lines.slice(1).map(firstCsvCell).filter(Boolean);
-      const res = await fetch(`${API_BASE}/api/admin/approved-companies/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ companies, override: true, source: file.name })
-      });
-      const data = await res.json();
-      if (res.ok) alert(`Đã import ${data.count || companies.length} công ty thẩm định.`);
-      else alert(data.error || 'Import danh sách thẩm định thất bại.');
-    } catch (err) {
-      alert('Không thể đọc/import file CSV.');
-    } finally {
-      setImportingApprovedCompanies(false);
-      e.target.value = '';
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
@@ -2554,12 +2886,21 @@ function AdminSettings({ token }: { token: string }) {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Deadline nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mở nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
             <input
               type="datetime-local"
-              value={(campaign as any).final_report_due_at || ''}
-              onChange={e => setCampaign({ ...campaign, final_report_due_at: e.target.value } as any)}
+              value={(campaign as any).final_report_open_at || ''}
+              onChange={e => setCampaign({ ...campaign, final_report_open_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đóng nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).final_report_close_at || ''}
+              onChange={e => setCampaign({ ...campaign, final_report_close_at: e.target.value } as any)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             />
           </div>
@@ -2661,25 +3002,6 @@ function AdminSettings({ token }: { token: string }) {
             >
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
             </button>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
-            <div className="text-sm text-slate-600">
-              <p className="font-medium text-slate-800">Danh sách công ty thẩm định nội bộ</p>
-              <p className="text-xs">Import file CSV có cột "Tên công ty". Danh sách này chỉ dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên.</p>
-            </div>
-            <label className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap ${importingApprovedCompanies ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white hover:bg-teal-700 cursor-pointer'}`}>
-              {importingApprovedCompanies ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
-              {importingApprovedCompanies ? 'Đang import...' : 'Import CSV'}
-              <input
-                type="file"
-                accept=".csv"
-                disabled={importingApprovedCompanies}
-                className="hidden"
-                onChange={handleImportApprovedCompanies}
-                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-              />
-            </label>
           </div>
 
           <div className="pt-4 border-t border-slate-200">

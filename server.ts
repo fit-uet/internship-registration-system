@@ -344,6 +344,7 @@ async function initDb() {
       student_attested INTEGER NOT NULL DEFAULT 0,
       attestation_text TEXT,
       school_lecturer TEXT,
+      school_assignment_request INTEGER NOT NULL DEFAULT 0,
       confirmed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       confirmed_by INTEGER,
       locked_at DATETIME,
@@ -370,7 +371,8 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_close_at', '')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('confirmation_open_at', '')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('confirmation_close_at', '')`);
-  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_due_at', '')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_open_at', '')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_close_at', '')`);
   const defaultClasses = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${defaultClasses}')`);
 
@@ -458,6 +460,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN personal_email TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0'); } catch (e) { }
 
   await consolidateLegacyPeopleTables();
   await ensureDbIndexes();
@@ -850,17 +853,30 @@ async function startServer() {
       const type = req.body.internship_type === 'school' ? 'school' : 'company';
       const school = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
       if (type === 'school') {
+        const requestAssignment = !!req.body.school_assignment_request;
         const lecturerName = String(req.body.school_lecturer || '').trim();
-        if (!lecturerName) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi xác nhận thực tập tại trường.' });
-        const validLecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0];
-        if (!validLecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        if (!requestAssignment) {
+          if (!lecturerName) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn hoặc chọn Nhờ Khoa phân công.' });
+          const validLecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0];
+          if (!validLecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        }
         await db.execute({
-          sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, confirmed_by, note, confirmed_at)
-                VALUES (?, NULL, ?, 'school', 'confirmed', 1, ?, ?, ?, ?, datetime('now', '+7 hours'))
+          sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
+                VALUES (?, NULL, ?, 'school', 'confirmed', 1, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))
                 ON CONFLICT(user_id) DO UPDATE SET registration_id = NULL, company_id = excluded.company_id, internship_type = 'school',
                   status = 'confirmed', student_attested = 1, attestation_text = excluded.attestation_text, school_lecturer = excluded.school_lecturer,
-                  confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
-          args: [req.user.id, school?.id || null, 'Tôi xác nhận đăng ký thực tập tại trường theo hướng dẫn của Khoa.', lecturerName, req.user.id, req.body.note || null],
+                  school_assignment_request = excluded.school_assignment_request, confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
+          args: [
+            req.user.id,
+            school?.id || null,
+            requestAssignment
+              ? 'Tôi xác nhận chưa trúng tuyển công ty nào và nhờ Khoa phân công giảng viên hướng dẫn thực tập tại trường.'
+              : 'Tôi xác nhận đã được giảng viên đồng ý hướng dẫn thực tập tại trường.',
+            requestAssignment ? null : lecturerName,
+            requestAssignment ? 1 : 0,
+            req.user.id,
+            req.body.note || null,
+          ],
         });
         return res.json({ success: true });
       }
@@ -878,11 +894,11 @@ async function startServer() {
       if (reg.status !== 'approved') return res.status(400).json({ error: 'Bạn chỉ có thể xác nhận nơi thực tập đã được Khoa duyệt.' });
       if (reg.company_name === 'Trường Đại học Công nghệ') return res.status(400).json({ error: 'Vui lòng chọn hình thức thực tập tại trường.' });
       await db.execute({
-        sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, confirmed_by, note, confirmed_at)
-              VALUES (?, ?, ?, 'company', 'confirmed', 1, ?, ?, ?, datetime('now', '+7 hours'))
+        sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_assignment_request, confirmed_by, note, confirmed_at)
+              VALUES (?, ?, ?, 'company', 'confirmed', 1, ?, 0, ?, ?, datetime('now', '+7 hours'))
               ON CONFLICT(user_id) DO UPDATE SET registration_id = excluded.registration_id, company_id = excluded.company_id, internship_type = 'company',
                 status = 'confirmed', student_attested = 1, attestation_text = excluded.attestation_text, school_lecturer = NULL,
-                confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
+                school_assignment_request = 0, confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
         args: [req.user.id, registrationId, reg.company_id, 'Tôi xác nhận đã được đơn vị này tiếp nhận thực tập và chịu trách nhiệm về thông tin khai báo.', req.user.id, req.body.note || null],
       });
       res.json({ success: true });
@@ -1326,6 +1342,69 @@ async function startServer() {
     }
   });
 
+  app.get('/api/admin/companies', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const officialRows = (await db.execute(`
+        SELECT c.*,
+               'company' as record_type,
+               CAST(c.id AS TEXT) as company_key,
+               c.name as display_name,
+               COALESCE(rc.applicant_count, 0) as applicant_count,
+               COALESCE(rc.approved_count, 0) as approved_applicant_count,
+               COALESCE(rc.sent_count, 0) as sent_count,
+               rc.last_sent_at,
+               c.slots - COALESCE(rc.applicant_count, 0) as remaining_slots
+        FROM companies c
+        LEFT JOIN (
+          SELECT c2.id as company_id,
+                 COUNT(r.id) as applicant_count,
+                 SUM(CASE WHEN r.status = 'approved' THEN 1 ELSE 0 END) as approved_count,
+                 SUM(CASE WHEN r.sent_to_company_at IS NOT NULL THEN 1 ELSE 0 END) as sent_count,
+                 MAX(r.sent_to_company_at) as last_sent_at
+          FROM companies c2
+          LEFT JOIN registrations r
+            ON (r.company_id = c2.id AND COALESCE(r.other_company_name, '') = '')
+            OR lower(trim(r.other_company_name)) = lower(trim(c2.name))
+          WHERE c2.name != 'Công ty khác'
+          GROUP BY c2.id
+        ) rc ON rc.company_id = c.id
+        WHERE c.name != 'Công ty khác'
+        ORDER BY c.name ASC
+      `)).rows;
+      const otherRows = (await db.execute(`
+        SELECT NULL as id,
+               'other' as record_type,
+               'other:' || lower(trim(other_company_name)) as company_key,
+               other_company_name as name,
+               other_company_name as display_name,
+               '' as description,
+               0 as slots,
+               '' as contact_email,
+               '' as contact_name,
+               '' as history,
+               '' as qualifications,
+               '' as address,
+               '' as recruitment_link,
+               '' as phone,
+               COUNT(*) as applicant_count,
+               SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_applicant_count,
+               SUM(CASE WHEN sent_to_company_at IS NOT NULL THEN 1 ELSE 0 END) as sent_count,
+               MAX(sent_to_company_at) as last_sent_at,
+               0 as remaining_slots,
+               GROUP_CONCAT(DISTINCT other_company_role) as roles,
+               GROUP_CONCAT(DISTINCT other_company_contact) as contacts
+        FROM registrations
+        WHERE other_company_name IS NOT NULL AND trim(other_company_name) != ''
+          AND lower(trim(other_company_name)) NOT IN (SELECT lower(trim(name)) FROM companies WHERE name != 'Công ty khác')
+        GROUP BY lower(trim(other_company_name)), other_company_name
+        ORDER BY other_company_name ASC
+      `)).rows;
+      res.json([...officialRows, ...otherRows]);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
   // 19c. Admin: Delete Single Company
   app.delete('/api/admin/companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
@@ -1381,6 +1460,7 @@ async function startServer() {
     const data = (await db.execute(`
       SELECT 
         r.id as registration_id,
+        r.company_id,
         u.email,
         u.name as student_name,
         u.student_id,
@@ -1434,6 +1514,42 @@ async function startServer() {
     }
   });
 
+  app.post('/api/admin/approved-companies', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const name = String(req.body.name || '').trim();
+      const normalized = normalizeCompanyName(name);
+      if (!name || !normalized) return res.status(400).json({ error: 'Tên công ty không được để trống.' });
+      const result = await db.execute({
+        sql: `INSERT INTO approved_company_names (name, normalized_name, source) VALUES (?, ?, ?)`,
+        args: [name, normalized, req.body.source || 'manual'],
+      });
+      const row = (await db.execute({ sql: 'SELECT * FROM approved_company_names WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0];
+      res.json(row);
+    } catch (e: any) {
+      res.status(400).json({ error: 'Công ty này đã có trong danh sách thẩm định.' });
+    }
+  });
+
+  app.put('/api/admin/approved-companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const name = String(req.body.name || '').trim();
+      const normalized = normalizeCompanyName(name);
+      if (!name || !normalized) return res.status(400).json({ error: 'Tên công ty không được để trống.' });
+      await db.execute({
+        sql: `UPDATE approved_company_names SET name = ?, normalized_name = ?, source = ? WHERE id = ?`,
+        args: [name, normalized, req.body.source || 'manual', Number(req.params.id)],
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: 'Tên công ty bị trùng với một mục đã có.' });
+    }
+  });
+
+  app.delete('/api/admin/approved-companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    await db.execute({ sql: 'DELETE FROM approved_company_names WHERE id = ?', args: [Number(req.params.id)] });
+    res.json({ success: true });
+  });
+
   app.put('/api/admin/registrations/mark-sent', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const note = req.body.note || null;
@@ -1451,8 +1567,20 @@ async function startServer() {
         await db.execute({
           sql: `UPDATE registrations SET sent_to_company_at = datetime('now', '+7 hours'), sent_to_company_note = ?
                 WHERE status = 'approved'
-                  AND company_id IN (SELECT id FROM companies WHERE name = ?)`,
-          args: [note, req.body.company_name],
+                  AND (
+                    company_id IN (SELECT id FROM companies WHERE name = ?)
+                    OR lower(trim(other_company_name)) = lower(trim(?))
+                  )`,
+          args: [note, req.body.company_name, req.body.company_name],
+        });
+        return res.json({ success: true });
+      }
+      if (req.body.other_company_name) {
+        await db.execute({
+          sql: `UPDATE registrations SET sent_to_company_at = datetime('now', '+7 hours'), sent_to_company_note = ?
+                WHERE status = 'approved'
+                  AND lower(trim(other_company_name)) = lower(trim(?))`,
+          args: [note, req.body.other_company_name],
         });
         return res.json({ success: true });
       }
@@ -1492,14 +1620,15 @@ async function startServer() {
         const school = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
         companyId = school?.id || null;
       }
+      const schoolAssignmentRequest = req.body.school_assignment_request ? 1 : 0;
       await db.execute({
-        sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, confirmed_by, note, confirmed_at)
-              VALUES (?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, datetime('now', '+7 hours'))
+        sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
+              VALUES (?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))
               ON CONFLICT(user_id) DO UPDATE SET registration_id = excluded.registration_id, company_id = excluded.company_id,
                 internship_type = excluded.internship_type, status = 'confirmed', student_attested = excluded.student_attested,
                 attestation_text = excluded.attestation_text, school_lecturer = excluded.school_lecturer,
-                confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
-        args: [targetUserId, registrationId, companyId, type, req.body.student_attested ? 1 : 0, req.body.attestation_text || null, req.body.school_lecturer || null, req.user.id, req.body.note || null],
+                school_assignment_request = excluded.school_assignment_request, confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
+        args: [targetUserId, registrationId, companyId, type, req.body.student_attested ? 1 : 0, req.body.attestation_text || null, req.body.school_lecturer || null, schoolAssignmentRequest, req.user.id, req.body.note || null],
       });
       res.json({ success: true });
     } catch (e: any) {
@@ -1658,7 +1787,7 @@ async function startServer() {
   app.get('/api/settings/campaign', async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`
       SELECT key, value FROM settings
-      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_due_at')
+      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')
     `)).rows);
 
     res.json({
@@ -1670,12 +1799,13 @@ async function startServer() {
       registration_close_at: settings.registration_close_at || '',
       confirmation_open_at: settings.confirmation_open_at || '',
       confirmation_close_at: settings.confirmation_close_at || '',
-      final_report_due_at: settings.final_report_due_at || ''
+      final_report_open_at: settings.final_report_open_at || '',
+      final_report_close_at: settings.final_report_close_at || ''
     });
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_due_at } = req.body;
+    const { year, start, end, classes_list, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
     const statements: any[] = [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
@@ -1684,7 +1814,8 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_open_at', ?)", args: [confirmation_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_close_at', ?)", args: [confirmation_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_due_at', ?)", args: [final_report_due_at || ''] }
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] }
     ];
     if (classes_list) {
       statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
