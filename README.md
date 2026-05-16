@@ -392,7 +392,7 @@ Cần bổ sung:
 Gợi ý model:
 
 - `advisor_assignments(id, user_id, lecturer_id, role, assigned_by, assigned_at, note)`
-- `lecturer_quotas(id, lecturer_id, max_primary_students, max_co_students, note)`
+- `lecturer_quotas(id, lecturer_id, max_total_students, note)`
 
 ### Ưu tiên 3: Nộp báo cáo final và chấm điểm
 
@@ -628,7 +628,7 @@ Tiêu chí nghiệm thu:
 
 ### 9.4. P2 - Phân công giảng viên hướng dẫn
 
-Mục tiêu: Khoa phân công GVHD cho sinh viên thực tập tại công ty, đồng thời quản lý chỉ tiêu.
+Mục tiêu: Khoa phân công GVHD cho sinh viên thực tập tại công ty, đồng thời quản lý chỉ tiêu. Phần lõi đã được triển khai ở backend và UI admin/giảng viên/sinh viên.
 
 Thiết kế dữ liệu:
 
@@ -647,9 +647,8 @@ CREATE TABLE IF NOT EXISTS advisor_assignments (
 CREATE TABLE IF NOT EXISTS lecturer_quotas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   lecturer_id INTEGER UNIQUE NOT NULL,
-  max_total_students INTEGER NOT NULL,
-  rule_source TEXT,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  max_total_students INTEGER,
+  note TEXT
 );
 ```
 
@@ -670,7 +669,9 @@ Thiết kế API:
 - `GET /api/admin/advisor-assignments`: danh sách phân công.
 - `POST /api/admin/advisor-assignments`: phân công 1 sinh viên.
 - `POST /api/admin/advisor-assignments/bulk`: import CSV phân công.
+- `POST /api/admin/advisor-assignments/auto-primary`: tự phân công GVHD chính cho sinh viên chưa có GVHD theo quota.
 - `DELETE /api/admin/advisor-assignments/:id`: xóa phân công.
+- `PUT /api/admin/lecturer-quotas/:id`: cập nhật chỉ tiêu tổng cho giảng viên.
 - `GET /api/lecturer/students`: giảng viên xem sinh viên phụ trách.
 - `GET /api/advisor/my`: sinh viên xem GVHD.
 
@@ -678,15 +679,18 @@ Thiết kế UI:
 
 - Admin:
   - Bảng phân công theo sinh viên.
-  - Bộ lọc: chưa phân công, quá chỉ tiêu, GVHD, lớp, học phần, nơi thực tập.
-  - Cảnh báo khi chọn giảng viên vượt chỉ tiêu.
-  - Cảnh báo khi chọn `CN` làm hướng dẫn chính.
+  - Tìm kiếm theo sinh viên, lớp, học phần, nơi thực tập.
+  - Chặn khi chọn giảng viên vượt chỉ tiêu.
+  - Chặn khi chọn `CN` làm hướng dẫn chính.
   - Import CSV: `student_id, lecturer_email_or_name, role, note`.
+  - Tự phân công GVHD chính cho sinh viên chưa có GVHD theo quota còn trống.
+  - Cập nhật chỉ tiêu giảng viên ngay trên màn phân công.
 - Giảng viên:
   - Trang “Sinh viên phụ trách”.
-  - Hiển thị nơi thực tập, email, số điện thoại, thời hạn báo cáo, trạng thái nộp báo cáo, điểm.
+  - Hiển thị nơi thực tập, email, số điện thoại, học phần.
 - Sinh viên:
   - Hiển thị GVHD trong hồ sơ thực tập chính thức.
+  - Nếu sinh viên xác nhận thực tập tại trường với một giảng viên đã đồng ý, hệ thống tự tạo phân công hướng dẫn chính và vẫn kiểm tra quy tắc `CN`/quota.
 
 Tiêu chí nghiệm thu:
 

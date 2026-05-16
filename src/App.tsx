@@ -95,6 +95,9 @@ function App() {
                             <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
                             </Link>
+                            <Link to="/admin/advisors" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <Users size={16} className="text-emerald-500" /> Phân công GVHD
+                            </Link>
                             <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
                             </Link>
@@ -141,10 +144,11 @@ function App() {
               </div>
             ) : (
               <Routes>
-                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} /> : <Dashboard user={user} setUser={setUser} token={token} />} />
+                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : <Dashboard user={user} setUser={setUser} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/advisors" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/companies" element={user.role === 'admin' ? <CompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/approved-companies" element={user.role === 'admin' ? <ApprovedCompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
@@ -196,6 +200,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const [companies, setCompanies] = useState<any[]>([]);
   const [myRegs, setMyRegs] = useState<any[]>([]);
   const [finalInternship, setFinalInternship] = useState<any>(null);
+  const [myAdvisors, setMyAdvisors] = useState<any[]>([]);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -330,10 +335,11 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes, finalRes, campRes, itListRes, lecRes] = await Promise.all([
+      const [compRes, regRes, finalRes, advisorRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
@@ -347,6 +353,9 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
       const finalData = await finalRes.json();
       setFinalInternship(finalData && !finalData.error ? finalData : null);
+
+      const advisorData = await advisorRes.json();
+      setMyAdvisors(Array.isArray(advisorData) ? advisorData : []);
 
       const campData = await campRes.json();
       if (campData && !campData.error) {
@@ -631,6 +640,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                     </p>
                     {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
                     {finalInternship.school_assignment_request ? <p>GVHD: <strong>Nhờ Khoa phân công</strong></p> : null}
+                    {myAdvisors.length > 0 && (
+                      <p>
+                        GVHD đã phân công:{' '}
+                        <strong>{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</strong>
+                      </p>
+                    )}
                     <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
                     {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Hồ sơ đã được Khoa khóa.</p>}
                   </div>
@@ -1395,6 +1410,12 @@ function AdminPanel({ token }: { token: string }) {
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
           </button>
+          <button
+            onClick={() => navigate('/admin/advisors')}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm transition-colors whitespace-nowrap"
+          >
+            <Users size={18} /> Phân công GVHD
+          </button>
           <div className="relative">
             <button
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1614,6 +1635,291 @@ function AdminPanel({ token }: { token: string }) {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdvisorAssignmentAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState<any[]>([]);
+  const [lecturers, setLecturers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLecturers, setSelectedLecturers] = useState<Record<string, string>>({});
+  const [selectedRoles, setSelectedRoles] = useState<Record<string, 'primary' | 'co'>>({});
+  const [assigningKey, setAssigningKey] = useState<string | null>(null);
+  const [quotaEdits, setQuotaEdits] = useState<Record<string, string>>({});
+  const [importing, setImporting] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setRows(Array.isArray(data.rows) ? data.rows : []);
+      setLecturers(Array.isArray(data.lecturers) ? data.lecturers : []);
+    } catch (e) {
+      alert('Không tải được danh sách phân công.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, [token]);
+
+  const parseAssignments = (value: string | null) => String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => {
+      const [id, name, email] = item.split('|');
+      return { id: Number(id), name, email };
+    })
+    .filter(item => item.id && item.name);
+
+  const filteredRows = rows.filter(row => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      row.student_id?.toLowerCase().includes(term) ||
+      row.student_name?.toLowerCase().includes(term) ||
+      row.class_name?.toLowerCase().includes(term) ||
+      row.course_code?.toLowerCase().includes(term) ||
+      row.internship_place?.toLowerCase().includes(term)
+    );
+  });
+
+  const assign = async (row: any) => {
+    const key = String(row.user_id);
+    const lecturerId = selectedLecturers[key];
+    if (!lecturerId) return alert('Vui lòng chọn giảng viên.');
+    setAssigningKey(key);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ user_id: row.user_id, lecturer_id: Number(lecturerId), role: selectedRoles[key] || 'primary' })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Phân công thất bại.');
+      setSelectedLecturers(prev => ({ ...prev, [key]: '' }));
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi phân công.');
+    } finally {
+      setAssigningKey(null);
+    }
+  };
+
+  const removeAssignment = async (id: number) => {
+    if (!confirm('Xóa phân công này?')) return;
+    const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) fetchData();
+    else alert('Xóa phân công thất bại.');
+  };
+
+  const saveQuota = async (lecturer: any) => {
+    const value = Number(quotaEdits[String(lecturer.id)] || lecturer.max_total_students);
+    if (!value || value < 1) return alert('Chỉ tiêu không hợp lệ.');
+    const res = await fetch(`${API_BASE}/api/admin/lecturer-quotas/${lecturer.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ max_total_students: value })
+    });
+    if (res.ok) fetchData();
+    else alert('Lưu chỉ tiêu thất bại.');
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const dataLines = lines[0]?.toLowerCase().includes('student_id') || lines[0]?.toLowerCase().includes('mã sv')
+        ? lines.slice(1)
+        : lines;
+      const items = dataLines.map(line => {
+        const parts = line.split(',').map(part => part.trim().replace(/^"|"$/g, ''));
+        return {
+          student_id: parts[0],
+          lecturer_email_or_name: parts[1],
+          role: parts[2] === 'co' ? 'co' : 'primary',
+          note: parts[3] || ''
+        };
+      }).filter(item => item.student_id && item.lecturer_email_or_name);
+      if (items.length === 0) return alert('CSV cần cột: student_id, lecturer_email_or_name, role, note');
+      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ assignments: items })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Import thất bại.');
+      alert(`Đã import ${data.count || 0} phân công.${data.errors?.length ? `\nLỗi:\n${data.errors.slice(0, 10).join('\n')}` : ''}`);
+      fetchData();
+    } catch (err) {
+      alert('Không đọc được file CSV.');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const autoAssignPrimary = async () => {
+    if (!confirm('Tự phân công GVHD chính cho tất cả sinh viên đã xác nhận nhưng chưa có GVHD chính?')) return;
+    setAutoAssigning(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/auto-primary`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Tự phân công thất bại.');
+      alert(`Đã phân công ${data.count || 0} sinh viên.${data.errors?.length ? `\nCòn lỗi:\n${data.errors.slice(0, 10).join('\n')}` : ''}`);
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi tự phân công.');
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
+    const data = filteredRows.map((row, idx) => [
+      idx + 1,
+      row.student_id || '',
+      row.student_name || '',
+      row.class_name || '',
+      row.course_code || '',
+      row.internship_place || '',
+      parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
+      parseAssignments(row.co_assignments).map(a => a.name).join('; ')
+    ]);
+    const csv = [headers, ...data].map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'phan_cong_gvhd.csv');
+  };
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải phân công...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> Phân công giảng viên hướng dẫn</h2>
+          <p className="text-sm text-slate-500 mt-1">Phân công trên danh sách sinh viên đã xác nhận nơi thực tập chính thức.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full sm:w-80 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import CSV
+            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+          </label>
+          <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
+          </button>
+          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Sinh viên</th>
+                <th className="px-4 py-3">Nơi thực tập</th>
+                <th className="px-4 py-3">GVHD hiện tại</th>
+                <th className="px-4 py-3">Phân công</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRows.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên cần phân công.</td></tr>
+              ) : filteredRows.map(row => {
+                const key = String(row.user_id);
+                const primary = parseAssignments(row.primary_assignments);
+                const co = parseAssignments(row.co_assignments);
+                return (
+                  <tr key={key} className="hover:bg-slate-50 align-top">
+                    <td className="px-4 py-4">
+                      <div className="font-semibold text-slate-900">{row.student_name}</div>
+                      <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
+                      <div className="text-xs text-slate-500">{row.class_name || '-'} · {row.course_code || '-'}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="font-medium text-slate-800">{row.internship_place || '-'}</div>
+                      {row.school_assignment_request ? <div className="text-xs text-orange-700 mt-1">Sinh viên nhờ Khoa phân công</div> : null}
+                    </td>
+                    <td className="px-4 py-4 space-y-2">
+                      {[...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].length === 0 ? (
+                        <span className="text-slate-400 text-sm">Chưa phân công</span>
+                      ) : (
+                        [...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].map(a => (
+                          <div key={a.id} className="flex items-center gap-2">
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
+                            <span className="text-sm">{a.name}</span>
+                            <button onClick={() => removeAssignment(a.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title="Xóa"><Trash2 size={14} /></button>
+                          </div>
+                        ))
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col lg:flex-row gap-2">
+                        <select value={selectedRoles[key] || 'primary'} onChange={e => setSelectedRoles(prev => ({ ...prev, [key]: e.target.value as 'primary' | 'co' }))} className="border border-slate-300 rounded-lg px-2 py-2 text-sm">
+                          <option value="primary">Hướng dẫn chính</option>
+                          <option value="co">Đồng hướng dẫn</option>
+                        </select>
+                        <select value={selectedLecturers[key] || ''} onChange={e => setSelectedLecturers(prev => ({ ...prev, [key]: e.target.value }))} className="border border-slate-300 rounded-lg px-2 py-2 text-sm min-w-[220px]">
+                          <option value="">-- Chọn giảng viên --</option>
+                          {lecturers.map(lecturer => (
+                            <option key={lecturer.id} value={lecturer.id}>
+                              {lecturer.name} ({lecturer.assignment_count}/{lecturer.max_total_students})
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => assign(row)} disabled={assigningKey === key} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2">
+                          {assigningKey === key ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />} Gán
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+        <h3 className="font-bold text-slate-800 mb-3">Chỉ tiêu giảng viên</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {lecturers.map(lecturer => (
+            <div key={lecturer.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-sm text-slate-800 truncate">{lecturer.name}</div>
+                <div className="text-xs text-slate-500">{lecturer.assignment_count}/{lecturer.max_total_students} sinh viên</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="number" min="1" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-16 border border-slate-300 rounded px-2 py-1 text-sm text-center" />
+                <button onClick={() => saveQuota(lecturer)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Lưu chỉ tiêu"><Save size={16} /></button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -3200,11 +3506,21 @@ function PlanView() {
   );
 }
 
-function LecturerHome({ user }: { user: any }) {
+function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
+  const [students, setStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/lecturer/students`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setStudents(Array.isArray(data) ? data : []))
+      .catch(() => setStudents([]))
+      .finally(() => setLoadingStudents(false));
+  }, [token]);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
         <div className="flex items-start gap-4">
           {user.picture ? (
@@ -3233,6 +3549,49 @@ function LecturerHome({ user }: { user: any }) {
           >
             <FileText size={18} /> Kế hoạch triển khai
           </button>
+        </div>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/60">
+          <h3 className="font-bold text-slate-800">Sinh viên phụ trách</h3>
+          <p className="text-xs text-slate-500 mt-1">Danh sách sinh viên đã được Khoa phân công cho giảng viên.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Mã SV</th>
+                <th className="px-4 py-3">Họ tên</th>
+                <th className="px-4 py-3">Vai trò</th>
+                <th className="px-4 py-3">Nơi thực tập</th>
+                <th className="px-4 py-3">Liên hệ</th>
+                <th className="px-4 py-3">Môn học</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loadingStudents ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
+              ) : students.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
+              ) : students.map((student: any) => (
+                <tr key={student.assignment_id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono">{student.student_id || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">{student.student_name}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${student.advisor_role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{student.internship_place || '-'}</td>
+                  <td className="px-4 py-3 text-xs leading-relaxed">
+                    <div>{student.phone || '-'}</div>
+                    <div>{student.personal_email || student.email || '-'}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs">{student.course_code || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

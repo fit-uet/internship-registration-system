@@ -116,6 +116,17 @@ function normalizeCompanyName(name: string) {
     .replace(/\s+/g, ' ');
 }
 
+function lecturerDefaultQuota(name: string) {
+  const upper = String(name || '').toUpperCase();
+  if (/\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')) return 10;
+  return 15;
+}
+
+function isBachelorLecturer(name: string) {
+  const upper = String(name || '').toUpperCase();
+  return /\bCN\b/.test(upper) || upper.includes('CN.');
+}
+
 async function ensureSpecialCompanies(database: Client) {
   await executeBatch(database, [
     {
@@ -222,6 +233,22 @@ async function initDb(env: Env) {
         locked_at DATETIME,
         note TEXT
       );
+      CREATE TABLE IF NOT EXISTS advisor_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        lecturer_id INTEGER NOT NULL,
+        role TEXT NOT NULL DEFAULT 'primary',
+        assigned_by INTEGER,
+        assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        note TEXT,
+        UNIQUE(user_id, lecturer_id, role)
+      );
+      CREATE TABLE IF NOT EXISTS lecturer_quotas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lecturer_id INTEGER UNIQUE NOT NULL,
+        max_total_students INTEGER,
+        note TEXT
+      );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
     `);
@@ -247,6 +274,7 @@ async function initDb(env: Env) {
       'ALTER TABLE registrations ADD COLUMN sent_to_company_note TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -274,6 +302,11 @@ async function initDb(env: Env) {
         ON approved_company_names(normalized_name);
       CREATE INDEX IF NOT EXISTS idx_final_internships_user_id ON final_internships(user_id);
       CREATE INDEX IF NOT EXISTS idx_final_internships_company_id ON final_internships(company_id);
+      CREATE INDEX IF NOT EXISTS idx_advisor_assignments_user_id ON advisor_assignments(user_id);
+      CREATE INDEX IF NOT EXISTS idx_advisor_assignments_lecturer_id ON advisor_assignments(lecturer_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_advisor_assignments_primary_unique
+        ON advisor_assignments(user_id)
+        WHERE role = 'primary';
     `);
     await ensureSpecialCompanies(database);
   })();
@@ -531,10 +564,17 @@ async function route(request: Request, env: Env) {
     if (type === 'school') {
       const requestAssignment = !!body.school_assignment_request;
       const lecturerName = String(body.school_lecturer || '').trim();
+      let validLecturer: any = null;
       if (!requestAssignment) {
         if (!lecturerName) return json({ error: 'Vui lòng chọn giảng viên hướng dẫn hoặc chọn Nhờ Khoa phân công.' }, 400);
-        const validLecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0];
+        validLecturer = (await database.execute({ sql: 'SELECT * FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0] as any;
         if (!validLecturer) return json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' }, 400);
+        if (isBachelorLecturer(validLecturer.name)) return json({ error: 'Giảng viên CN không được làm hướng dẫn chính. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.' }, 400);
+        const quotaRow = (await database.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [Number(validLecturer.id)] })).rows[0] as any;
+        const maxTotal = Number(quotaRow?.max_total_students || lecturerDefaultQuota(validLecturer.name));
+        const current = (await database.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [Number(validLecturer.id)] })).rows[0] as any;
+        const already = (await database.execute({ sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?', args: [user.id, Number(validLecturer.id), 'primary'] })).rows[0];
+        if (!already && Number(current?.count || 0) >= maxTotal) return json({ error: `Giảng viên đã đủ chỉ tiêu ${maxTotal} sinh viên. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.` }, 400);
       }
       await database.execute({
         sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
@@ -554,6 +594,15 @@ async function route(request: Request, env: Env) {
           body.note || null,
         ],
       });
+      if (!requestAssignment && validLecturer) {
+        try {
+          await database.execute({
+            sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
+                  VALUES (?, ?, 'primary', ?, 'Sinh viên xác nhận GVHD thực tập tại trường', datetime('now', '+7 hours'))`,
+            args: [user.id, Number(validLecturer.id), user.id],
+          });
+        } catch (e) { }
+      }
       return json({ success: true });
     }
 
@@ -647,6 +696,41 @@ async function route(request: Request, env: Env) {
     await executeBatch(database, statements);
     const updatedUser = (await database.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows[0];
     return json({ success: true, user: updatedUser });
+  }
+
+  if (method === 'GET' && path === '/api/advisor/my') {
+    requireRole(user, ['student']);
+    const rows = (await database.execute({
+      sql: `SELECT aa.*, l.name as lecturer_name, l.email as lecturer_email
+            FROM advisor_assignments aa
+            JOIN lecturers l ON l.id = aa.lecturer_id
+            WHERE aa.user_id = ?
+            ORDER BY CASE aa.role WHEN 'primary' THEN 0 ELSE 1 END, l.name ASC`,
+      args: [user.id],
+    })).rows;
+    return json(rows);
+  }
+
+  if (method === 'GET' && path === '/api/lecturer/students') {
+    requireRole(user, ['lecturer', 'admin']);
+    const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [user.email, user.name] })).rows[0] as any;
+    if (!lecturer) return json([]);
+    const rows = (await database.execute({
+      sql: `SELECT aa.id as assignment_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
+                   u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
+                   f.internship_type, f.confirmed_at,
+                   CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+                   r.other_company_role, r.other_company_contact
+            FROM advisor_assignments aa
+            JOIN users u ON u.id = aa.user_id
+            LEFT JOIN final_internships f ON f.user_id = aa.user_id
+            LEFT JOIN companies c ON c.id = f.company_id
+            LEFT JOIN registrations r ON r.id = f.registration_id
+            WHERE aa.lecturer_id = ?
+            ORDER BY u.student_id ASC`,
+      args: [Number(lecturer.id)],
+    })).rows;
+    return json(rows);
   }
 
   if (path.startsWith('/api/admin/')) requireRole(user, ['admin']);
@@ -980,6 +1064,168 @@ async function route(request: Request, env: Env) {
     await database.execute({
       sql: `UPDATE final_internships SET locked_at = ${body.locked === false ? 'NULL' : "datetime('now', '+7 hours')"} WHERE user_id = ?`,
       args: [Number(finalLock[1])],
+    });
+    return json({ success: true });
+  }
+
+  async function resolveLecturerId(body: any) {
+    if (body.lecturer_id) return Number(body.lecturer_id);
+    const key = String(body.lecturer_email_or_name || body.lecturer || '').trim();
+    if (!key) return 0;
+    const row = (await database.execute({
+      sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1',
+      args: [key, key],
+    })).rows[0] as any;
+    return row ? Number(row.id) : 0;
+  }
+
+  async function createAdvisorAssignment(body: any) {
+    const userId = Number(body.user_id);
+    const lecturerId = await resolveLecturerId(body);
+    const role = body.role === 'co' ? 'co' : 'primary';
+    if (!userId || !lecturerId) return { error: 'Sinh viên hoặc giảng viên không hợp lệ.', status: 400 };
+    const final = (await database.execute({ sql: 'SELECT id FROM final_internships WHERE user_id = ?', args: [userId] })).rows[0];
+    if (!final) return { error: 'Sinh viên chưa xác nhận nơi thực tập chính thức.', status: 400 };
+    const lecturer = (await database.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [lecturerId] })).rows[0] as any;
+    if (!lecturer) return { error: 'Không tìm thấy giảng viên.', status: 404 };
+    if (role === 'primary' && isBachelorLecturer(lecturer.name)) return { error: 'Giảng viên CN không được làm hướng dẫn chính.', status: 400 };
+    const quotaRow = (await database.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
+    const maxTotal = Number(quotaRow?.max_total_students || lecturerDefaultQuota(lecturer.name));
+    const current = (await database.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
+    const alreadyAssigned = (await database.execute({
+      sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?',
+      args: [userId, lecturerId, role],
+    })).rows[0];
+    if (!alreadyAssigned && Number(current?.count || 0) >= maxTotal) return { error: `Giảng viên đã đủ chỉ tiêu ${maxTotal} sinh viên.`, status: 400 };
+    try {
+      const result = await database.execute({
+        sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
+              VALUES (?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+        args: [userId, lecturerId, role, user.id, body.note || null],
+      });
+      return { row: (await database.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
+    } catch (e) {
+      return { error: role === 'primary' ? 'Sinh viên đã có giảng viên hướng dẫn chính.' : 'Phân công này đã tồn tại.', status: 400 };
+    }
+  }
+
+  async function autoAssignPrimaryAdvisors() {
+    const candidates = (await database.execute(`
+      SELECT l.id, l.name,
+             COALESCE(q.max_total_students, CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END) as max_total_students,
+             COALESCE(ac.assignment_count, 0) as assignment_count
+      FROM lecturers l
+      LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
+      LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
+      ORDER BY assignment_count ASC, l.name ASC
+    `)).rows
+      .map((row: any) => ({ ...row, id: Number(row.id), max_total_students: Number(row.max_total_students || lecturerDefaultQuota(row.name)), assignment_count: Number(row.assignment_count || 0) }))
+      .filter((row: any) => !isBachelorLecturer(row.name) && row.assignment_count < row.max_total_students);
+    const students = (await database.execute(`
+      SELECT f.user_id, u.student_id
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM advisor_assignments aa
+        WHERE aa.user_id = f.user_id AND aa.role = 'primary'
+      )
+      ORDER BY u.student_id ASC
+    `)).rows as any[];
+
+    let count = 0;
+    const errors: string[] = [];
+    for (const student of students) {
+      candidates.sort((a: any, b: any) => (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi'));
+      const lecturer = candidates.find((item: any) => item.assignment_count < item.max_total_students);
+      if (!lecturer) {
+        errors.push(`${student.student_id || student.user_id}: không còn giảng viên đủ chỉ tiêu`);
+        continue;
+      }
+      await database.execute({
+        sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
+              VALUES (?, ?, 'primary', ?, 'Tự phân công theo quota', datetime('now', '+7 hours'))`,
+        args: [Number(student.user_id), lecturer.id, user.id],
+      });
+      lecturer.assignment_count += 1;
+      count++;
+    }
+    return { count, errors };
+  }
+
+  if (method === 'GET' && path === '/api/admin/advisor-assignments') {
+    const rows = (await database.execute(`
+      SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+             u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
+             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      LEFT JOIN companies c ON c.id = f.company_id
+      LEFT JOIN registrations r ON r.id = f.registration_id
+      LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+      LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+      GROUP BY f.user_id
+      ORDER BY u.student_id ASC
+    `)).rows;
+    const lecturers = (await database.execute(`
+      SELECT l.*, COALESCE(q.max_total_students, CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END) as max_total_students,
+             COALESCE(ac.assignment_count, 0) as assignment_count
+      FROM lecturers l
+      LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
+      LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
+      ORDER BY l.name ASC
+    `)).rows;
+    return json({ rows, lecturers });
+  }
+
+  if (method === 'POST' && path === '/api/admin/advisor-assignments') {
+    const body = await readBody(request);
+    const result = await createAdvisorAssignment(body);
+    if (result.error) return json({ error: result.error }, result.status || 400);
+    return json(result.row);
+  }
+
+  if (method === 'POST' && path === '/api/admin/advisor-assignments/bulk') {
+    const body = await readBody(request);
+    const items = Array.isArray(body.assignments) ? body.assignments : [];
+    let count = 0;
+    const errors: string[] = [];
+    for (const item of items) {
+      const studentId = String(item.student_id || '').trim();
+      const student = (await database.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [studentId] })).rows[0] as any;
+      if (!student) {
+        errors.push(`${studentId}: không tìm thấy sinh viên`);
+        continue;
+      }
+      const result = await createAdvisorAssignment({ ...item, user_id: student.id });
+      if (result.error) errors.push(`${studentId}: ${result.error}`);
+      else count++;
+    }
+    return json({ success: true, count, errors });
+  }
+
+  if (method === 'POST' && path === '/api/admin/advisor-assignments/auto-primary') {
+    const result = await autoAssignPrimaryAdvisors();
+    return json({ success: true, ...result });
+  }
+
+  const advisorDelete = path.match(/^\/api\/admin\/advisor-assignments\/(\d+)$/);
+  if (advisorDelete && method === 'DELETE') {
+    await database.execute({ sql: 'DELETE FROM advisor_assignments WHERE id = ?', args: [Number(advisorDelete[1])] });
+    return json({ success: true });
+  }
+
+  const quotaMatch = path.match(/^\/api\/admin\/lecturer-quotas\/(\d+)$/);
+  if (quotaMatch && method === 'PUT') {
+    const body = await readBody(request);
+    const maxTotal = Number(body.max_total_students);
+    if (!maxTotal || maxTotal < 1) return json({ error: 'Chỉ tiêu không hợp lệ.' }, 400);
+    await database.execute({
+      sql: `INSERT INTO lecturer_quotas (lecturer_id, max_total_students, note)
+            VALUES (?, ?, ?)
+            ON CONFLICT(lecturer_id) DO UPDATE SET max_total_students = excluded.max_total_students, note = excluded.note`,
+      args: [Number(quotaMatch[1]), maxTotal, body.note || null],
     });
     return json({ success: true });
   }
