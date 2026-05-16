@@ -194,6 +194,7 @@ function App() {
 function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: string }) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [myRegs, setMyRegs] = useState<any[]>([]);
+  const [finalInternship, setFinalInternship] = useState<any>(null);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -207,7 +208,14 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     return new Set();
   });
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [confirmFinalOpen, setConfirmFinalOpen] = useState(false);
+  const [finalConfirmMode, setFinalConfirmMode] = useState<'company' | 'school'>('company');
+  const [selectedFinalRegId, setSelectedFinalRegId] = useState('');
+  const [finalSchoolLecturer, setFinalSchoolLecturer] = useState('');
+  const [finalAttested, setFinalAttested] = useState(false);
+  const [finalNote, setFinalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmingFinal, setIsConfirmingFinal] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const [lecturers, setLecturers] = useState<string[]>([]);
   const studentIdFromEmail = user?.email?.split('@')[0] || '';
@@ -237,6 +245,19 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     const openStr = campaign?.registration_open_at;
     const closeStr = campaign?.registration_close_at;
     if (!openStr && !closeStr) return 'open'; // no restriction
+    const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const openUTC = openStr ? toUTC(openStr) : null;
+    const closeUTC = closeStr ? toUTC(closeStr) : null;
+    if (openUTC && now < openUTC) return 'not_open_yet';
+    if (closeUTC && now > closeUTC) return 'closed';
+    return 'open';
+  }, [campaign]);
+
+  const confirmationWindowStatus = useMemo(() => {
+    const openStr = campaign?.confirmation_open_at;
+    const closeStr = campaign?.confirmation_close_at;
+    if (!openStr && !closeStr) return 'open';
     const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
     const now = new Date();
     const openUTC = openStr ? toUTC(openStr) : null;
@@ -307,9 +328,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes, campRes, itListRes, lecRes] = await Promise.all([
+      const [compRes, regRes, finalRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
@@ -320,6 +342,9 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
       const regData = await regRes.json();
       setMyRegs(Array.isArray(regData) ? regData : []);
+
+      const finalData = await finalRes.json();
+      setFinalInternship(finalData && !finalData.error ? finalData : null);
 
       const campData = await campRes.json();
       if (campData && !campData.error) {
@@ -437,6 +462,44 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     }
   };
 
+  const approvedFinalOptions = myRegs.filter((reg: any) => reg.status === 'approved' && reg.company_name !== 'Trường Đại học Công nghệ');
+
+  const openFinalConfirm = (mode: 'company' | 'school') => {
+    setFinalConfirmMode(mode);
+    setSelectedFinalRegId(mode === 'company' ? String(approvedFinalOptions[0]?.id || '') : '');
+    setFinalSchoolLecturer('');
+    setFinalAttested(false);
+    setFinalNote('');
+    setConfirmFinalOpen(true);
+  };
+
+  const submitFinalConfirmation = async (e: any) => {
+    e.preventDefault();
+    if (isConfirmingFinal) return;
+    setIsConfirmingFinal(true);
+    try {
+      const payload = finalConfirmMode === 'school'
+        ? { internship_type: 'school', school_lecturer: finalSchoolLecturer, note: finalNote }
+        : { internship_type: 'company', registration_id: Number(selectedFinalRegId), attested: finalAttested, note: finalNote };
+      const res = await fetch(`${API_BASE}/api/internships/final/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Xác nhận thất bại');
+        return;
+      }
+      setConfirmFinalOpen(false);
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi xác nhận nơi thực tập.');
+    } finally {
+      setIsConfirmingFinal(false);
+    }
+  };
+
   if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
 
   return (
@@ -542,6 +605,59 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         ) : (
           <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 text-blue-800 text-sm">
             Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 công ty từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.
+          </div>
+        )}
+
+        {hasRegistered && (
+          <div className={`border rounded-2xl p-6 shadow-sm ${finalInternship ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className={finalInternship ? 'text-emerald-600' : 'text-slate-400'} size={20} />
+                  <h3 className={`text-base font-bold ${finalInternship ? 'text-emerald-900' : 'text-slate-800'}`}>Nơi thực tập chính thức</h3>
+                </div>
+                {finalInternship ? (
+                  <div className="text-sm text-emerald-800 space-y-1">
+                    <p>
+                      Đã xác nhận: <strong>{finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}</strong>
+                    </p>
+                    {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
+                    <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
+                    {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Hồ sơ đã được Khoa khóa.</p>}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600 space-y-2">
+                    <p>Sau khi có kết quả từ doanh nghiệp, bạn cần xác nhận một nơi thực tập chính thức để Khoa phân công GVHD và tính điểm.</p>
+                    {confirmationWindowStatus !== 'open' && (
+                      <p className={`text-xs font-semibold ${confirmationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
+                        {confirmationWindowStatus === 'not_open_yet'
+                          ? `Chưa mở xác nhận${campaign.confirmation_open_at ? `: ${formatGMT7(campaign.confirmation_open_at)} (GMT+7)` : ''}.`
+                          : `Đã hết hạn xác nhận${campaign.confirmation_close_at ? `: ${formatGMT7(campaign.confirmation_close_at)} (GMT+7)` : ''}.`}
+                      </p>
+                    )}
+                    {approvedFinalOptions.length === 0 && <p className="text-xs text-orange-700">Hiện chưa có công ty đã duyệt để xác nhận. Nếu không trúng tuyển nơi nào, bạn có thể chọn thực tập tại trường khi Khoa mở xác nhận.</p>}
+                  </div>
+                )}
+              </div>
+              {!finalInternship && (
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  <button
+                    onClick={() => openFinalConfirm('company')}
+                    disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    Xác nhận công ty
+                  </button>
+                  <button
+                    onClick={() => openFinalConfirm('school')}
+                    disabled={confirmationWindowStatus !== 'open'}
+                    className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    Thực tập tại trường
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -727,6 +843,109 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         </div>
       )}
 
+      {confirmFinalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-800">Xác nhận nơi thực tập chính thức</h3>
+              <button onClick={() => setConfirmFinalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={submitFinalConfirmation} className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setFinalConfirmMode('company')}
+                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'company' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
+                >
+                  Công ty
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFinalConfirmMode('school')}
+                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'school' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
+                >
+                  Tại trường
+                </button>
+              </div>
+
+              {finalConfirmMode === 'company' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nơi thực tập đã trúng tuyển *</label>
+                    <select
+                      required
+                      value={selectedFinalRegId}
+                      onChange={e => setSelectedFinalRegId(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Chọn nơi thực tập --</option>
+                      {approvedFinalOptions.map((reg: any) => (
+                        <option key={reg.id} value={reg.id}>
+                          {reg.company_name === 'Công ty khác' ? `Công ty khác: ${reg.other_company_name || ''}` : reg.company_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-900">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={finalAttested}
+                      onChange={e => setFinalAttested(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300"
+                    />
+                    <span>Tôi xác nhận đã được đơn vị này tiếp nhận thực tập và chịu trách nhiệm về thông tin khai báo.</span>
+                  </label>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn tại trường *</label>
+                  <input
+                    type="text"
+                    list="final-lecturers-list"
+                    required
+                    value={finalSchoolLecturer}
+                    onChange={e => setFinalSchoolLecturer(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                    placeholder="Gõ để tìm kiếm giảng viên..."
+                  />
+                  <datalist id="final-lecturers-list">
+                    {lecturers.map(lec => <option key={lec} value={lec} />)}
+                  </datalist>
+                  <p className="text-xs text-slate-500 mt-1.5">Chỉ chọn phương án này nếu bạn không trúng tuyển các nơi đã đăng ký và đã trao đổi với giảng viên/Khoa.</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú</label>
+                <textarea
+                  rows={3}
+                  value={finalNote}
+                  onChange={e => setFinalNote(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  placeholder="Thông tin liên hệ mentor, thời gian bắt đầu, ghi chú với Khoa..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setConfirmFinalOpen(false)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId)}
+                  className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConfirmingFinal ? 'Đang xác nhận...' : 'Xác nhận'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Register Modal */}
       {registerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
@@ -897,6 +1116,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
 function AdminPanel({ token }: { token: string }) {
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [finalInternships, setFinalInternships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -913,17 +1133,20 @@ function AdminPanel({ token }: { token: string }) {
 
   const fetchRegistrations = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/registrations`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [res, finalRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/registrations`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/final-internships`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
+      const finalData = await finalRes.json();
+      setFinalInternships(Array.isArray(finalData) ? finalData : []);
     } catch (e) { }
     setLoading(false);
   };
 
   const generateCSVContent = (dataList: any[]) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Thời gian đăng ký'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
       if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
@@ -951,6 +1174,7 @@ function AdminPanel({ token }: { token: string }) {
         lien_he,
         ghi_chu,
         r.status === 'approved' ? 'Đã duyệt' : (r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'),
+        r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
         new Date(r.created_at).toLocaleString('vi-VN')
       ];
     });
@@ -1072,6 +1296,29 @@ function AdminPanel({ token }: { token: string }) {
     }
   };
 
+  const handleMarkSentCurrent = async () => {
+    const approvedIds = filteredRegistrations.filter(r => r.status === 'approved').map(r => r.registration_id);
+    if (approvedIds.length === 0) {
+      alert('Danh sách đang lọc không có đăng ký đã duyệt để đánh dấu gửi.');
+      return;
+    }
+    if (!confirm(`Đánh dấu ${approvedIds.length} đăng ký đã được gửi đến doanh nghiệp?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/registrations/mark-sent`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ registration_ids: approvedIds })
+      });
+      if (res.ok) fetchRegistrations();
+      else {
+        const data = await res.json();
+        alert(data.error || 'Cập nhật thất bại');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối');
+    }
+  };
+
   const sortedRegistrations = [...registrations].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
@@ -1107,6 +1354,7 @@ function AdminPanel({ token }: { token: string }) {
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
   const rejectedRegistrations = registrations.filter(r => r.status === 'rejected').length;
+  const confirmedFinalCount = finalInternships.length;
 
   if (loading) return <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>;
 
@@ -1136,6 +1384,12 @@ function AdminPanel({ token }: { token: string }) {
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
+          </button>
+          <button
+            onClick={handleMarkSentCurrent}
+            className="flex items-center gap-2 bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm transition-colors whitespace-nowrap"
+          >
+            <CheckCircle2 size={18} /> Đã gửi DN
           </button>
 
           <div className="relative">
@@ -1197,6 +1451,10 @@ function AdminPanel({ token }: { token: string }) {
           <span className="text-red-600 text-sm font-medium mb-1">Từ chối</span>
           <span className="text-3xl font-bold text-red-700">{rejectedRegistrations}</span>
         </div>
+        <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col">
+          <span className="text-emerald-600 text-sm font-medium mb-1">Đã xác nhận nơi TT</span>
+          <span className="text-3xl font-bold text-emerald-700">{confirmedFinalCount}</span>
+        </div>
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
@@ -1234,6 +1492,9 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('created_at')}>
                   <div className="flex items-center gap-1">Thời gian {getSortIcon('created_at')}</div>
                 </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('sent_to_company_at')}>
+                  <div className="flex items-center gap-1">Gửi DN {getSortIcon('sent_to_company_at')}</div>
+                </th>
                 <th className="px-6 py-4 text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('status')}>
                   <div className="flex items-center justify-center gap-1">Trạng thái {getSortIcon('status')}</div>
                 </th>
@@ -1242,7 +1503,7 @@ function AdminPanel({ token }: { token: string }) {
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={12} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 filteredRegistrations.map(reg => (
@@ -1277,6 +1538,13 @@ function AdminPanel({ token }: { token: string }) {
                       )}
                     </td>
                     <td className="px-6 py-4">{new Date(reg.created_at).toLocaleString('vi-VN')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs">
+                      {reg.sent_to_company_at ? (
+                        <span className="text-emerald-700 font-semibold">{new Date(reg.sent_to_company_at).toLocaleString('vi-VN')}</span>
+                      ) : (
+                        <span className="text-slate-400">Chưa gửi</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <select
                         value={reg.status}
@@ -1291,6 +1559,53 @@ function AdminPanel({ token }: { token: string }) {
                         <option value="rejected" className="bg-white text-gray-900">Từ Chối</option>
                       </select>
                     </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
+          <h3 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập chính thức</h3>
+          <p className="text-xs text-slate-500 mt-1">Sinh viên tự xác nhận nơi đã trúng tuyển hoặc phương án thực tập tại trường.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600">
+            <thead className="bg-gray-50 text-gray-700 uppercase font-medium border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4">Mã SV</th>
+                <th className="px-6 py-4">Họ và tên</th>
+                <th className="px-6 py-4">Loại</th>
+                <th className="px-6 py-4">Nơi thực tập</th>
+                <th className="px-6 py-4">GVHD tại trường</th>
+                <th className="px-6 py-4">Thời gian xác nhận</th>
+                <th className="px-6 py-4">Khóa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {finalInternships.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
+                </tr>
+              ) : (
+                finalInternships.map(item => (
+                  <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
+                    <td className="px-6 py-4 font-mono">{item.student_id || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{item.student_name}</td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${item.internship_type === 'school' ? 'bg-blue-100 text-blue-700' : item.internship_type === 'partner' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {item.internship_type === 'school' ? 'Tại trường' : item.internship_type === 'partner' ? 'Đối tác' : 'Công ty'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {item.company_name === 'Công ty khác' ? `Công ty khác: ${item.other_company_name || ''}` : (item.company_name || '-')}
+                    </td>
+                    <td className="px-6 py-4">{item.school_lecturer || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
+                    <td className="px-6 py-4">{item.locked_at ? <span className="text-emerald-700 font-semibold">Đã khóa</span> : <span className="text-slate-400">Chưa khóa</span>}</td>
                   </tr>
                 ))
               )}
@@ -1975,6 +2290,7 @@ function AdminSettings({ token }: { token: string }) {
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importingDocx, setImportingDocx] = useState(false);
+  const [importingApprovedCompanies, setImportingApprovedCompanies] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -2143,6 +2459,49 @@ function AdminSettings({ token }: { token: string }) {
     }
   };
 
+  const handleImportApprovedCompanies = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingApprovedCompanies(true);
+    try {
+      const text = await file.text();
+      const firstCsvCell = (line: string) => {
+        let value = '';
+        let quoted = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          const next = line[i + 1];
+          if (ch === '"' && quoted && next === '"') {
+            value += '"';
+            i++;
+          } else if (ch === '"') {
+            quoted = !quoted;
+          } else if (ch === ',' && !quoted) {
+            break;
+          } else {
+            value += ch;
+          }
+        }
+        return value.trim();
+      };
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const companies = lines.slice(1).map(firstCsvCell).filter(Boolean);
+      const res = await fetch(`${API_BASE}/api/admin/approved-companies/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ companies, override: true, source: file.name })
+      });
+      const data = await res.json();
+      if (res.ok) alert(`Đã import ${data.count || companies.length} công ty thẩm định.`);
+      else alert(data.error || 'Import danh sách thẩm định thất bại.');
+    } catch (err) {
+      alert('Không thể đọc/import file CSV.');
+    } finally {
+      setImportingApprovedCompanies(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
@@ -2175,6 +2534,33 @@ function AdminSettings({ token }: { token: string }) {
               value={(campaign as any).registration_close_at || ''}
               onChange={e => setCampaign({ ...campaign, registration_close_at: e.target.value } as any)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mở xác nhận nơi TT <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).confirmation_open_at || ''}
+              onChange={e => setCampaign({ ...campaign, confirmation_open_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đóng xác nhận nơi TT <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).confirmation_close_at || ''}
+              onChange={e => setCampaign({ ...campaign, confirmation_close_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Deadline nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).final_report_due_at || ''}
+              onChange={e => setCampaign({ ...campaign, final_report_due_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             />
           </div>
           <div className="md:col-span-2">
@@ -2275,6 +2661,25 @@ function AdminSettings({ token }: { token: string }) {
             >
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
             </button>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+            <div className="text-sm text-slate-600">
+              <p className="font-medium text-slate-800">Danh sách công ty thẩm định nội bộ</p>
+              <p className="text-xs">Import file CSV có cột "Tên công ty". Danh sách này chỉ dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên.</p>
+            </div>
+            <label className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap ${importingApprovedCompanies ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white hover:bg-teal-700 cursor-pointer'}`}>
+              {importingApprovedCompanies ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+              {importingApprovedCompanies ? 'Đang import...' : 'Import CSV'}
+              <input
+                type="file"
+                accept=".csv"
+                disabled={importingApprovedCompanies}
+                className="hidden"
+                onChange={handleImportApprovedCompanies}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+              />
+            </label>
           </div>
 
           <div className="pt-4 border-t border-slate-200">
