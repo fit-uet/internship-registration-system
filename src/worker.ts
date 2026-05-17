@@ -29,6 +29,57 @@ type DatabaseClient = {
   batch(statements: SqlStatement[]): Promise<DatabaseResult[]>;
 };
 
+function splitSqlStatements(sql: string) {
+  const statements: string[] = [];
+  let statement = '';
+  let quote: "'" | '"' | '`' | null = null;
+  let lineComment = false;
+  let blockComment = false;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+    if (lineComment) {
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (ch === '*' && next === '/') {
+        blockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (!quote && ch === '-' && next === '-') {
+      lineComment = true;
+      i++;
+      continue;
+    }
+    if (!quote && ch === '/' && next === '*') {
+      blockComment = true;
+      i++;
+      continue;
+    }
+    statement += ch;
+    if (quote) {
+      if (ch === quote && next === quote) {
+        statement += next;
+        i++;
+      } else if (ch === quote) {
+        quote = null;
+      }
+    } else if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch;
+    } else if (ch === ';') {
+      const trimmed = statement.trim().replace(/;$/, '').trim();
+      if (trimmed) statements.push(trimmed);
+      statement = '';
+    }
+  }
+  const trimmed = statement.trim();
+  if (trimmed) statements.push(trimmed);
+  return statements;
+}
+
 function db(env: Env) {
   if (!env.DB) throw new Error('Missing Cloudflare D1 binding: DB');
   const toResult = (result: any): DatabaseResult => ({
@@ -44,7 +95,11 @@ function db(env: Env) {
       return toResult(await statement.all());
     },
     async executeMultiple(sql: string) {
-      await env.DB.exec(sql);
+      const statements = splitSqlStatements(sql);
+      for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
+        const prepared = statements.slice(i, i + DB_BATCH_SIZE).map(statement => env.DB.prepare(statement));
+        await env.DB.batch(prepared);
+      }
     },
     async batch(statements: SqlStatement[]) {
       const prepared = statements.map(statement => env.DB.prepare(statement.sql).bind(...(statement.args || [])));
@@ -468,7 +523,10 @@ async function initDb(env: Env) {
         WHERE role = 'primary';
     `);
     await ensureSpecialCompanies(database);
-  })();
+  })().catch(error => {
+    initPromise = null;
+    throw error;
+  });
   return initPromise;
 }
 

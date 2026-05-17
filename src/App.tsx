@@ -4694,8 +4694,13 @@ function StudentRegistry({ token }: { token: string }) {
     try {
       const res = await fetch(`${API_BASE}/api/admin/students`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setStudents(data);
+      if (!res.ok) {
+        setStudents([]);
+        return alert(data.error || 'Lỗi lấy danh sách sinh viên');
+      }
+      setStudents(Array.isArray(data) ? data : []);
     } catch (e) {
+      setStudents([]);
       alert('Lỗi lấy danh sách sinh viên');
     } finally {
       setLoading(false);
