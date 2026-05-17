@@ -1565,10 +1565,17 @@ function AdminPanel({ token }: { token: string }) {
   });
 
   const totalRegistrations = registrations.length;
+  const totalStudents = new Set(registrations.map(r => r.user_id || r.student_id || r.email).filter(Boolean)).size;
+  const totalCompanies = new Set(registrations.map(r => (
+    r.company_name === 'Công ty khác'
+      ? (r.other_company_name || r.company_name)
+      : r.company_name
+  )).filter(Boolean)).size;
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
   const rejectedRegistrations = registrations.filter(r => r.status === 'rejected').length;
   const confirmedFinalCount = finalInternships.length;
+  const schoolInternshipCount = finalInternships.filter(item => item.internship_type === 'school').length;
 
   if (loading) return <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>;
 
@@ -1598,30 +1605,6 @@ function AdminPanel({ token }: { token: string }) {
             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
           >
             <CheckCircle2 size={18} /> Duyệt tất cả
-          </button>
-          <button
-            onClick={() => navigate('/admin/advisors')}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <Users size={18} /> Phân công GVHD
-          </button>
-          <button
-            onClick={() => navigate('/admin/reports')}
-            className="flex items-center gap-2 bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-800 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <FileText size={18} /> Báo cáo final
-          </button>
-          <button
-            onClick={() => navigate('/admin/grades')}
-            className="flex items-center gap-2 bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-800 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <CheckCircle2 size={18} /> Bảng điểm
-          </button>
-          <button
-            onClick={() => navigate('/admin/notifications')}
-            className="flex items-center gap-2 bg-amber-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 shadow-sm transition-colors whitespace-nowrap"
-          >
-            <Clock size={18} /> Thông báo
           </button>
           <div className="relative">
             <button
@@ -1665,10 +1648,18 @@ function AdminPanel({ token }: { token: string }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
           <span className="text-slate-500 text-sm font-medium mb-1">Tổng đăng ký</span>
           <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
+        </div>
+        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
+          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên</span>
+          <span className="text-3xl font-bold text-blue-700">{totalStudents}</span>
+        </div>
+        <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
+          <span className="text-cyan-700 text-sm font-medium mb-1">Số công ty</span>
+          <span className="text-3xl font-bold text-cyan-800">{totalCompanies}</span>
         </div>
         <div className="bg-orange-50 p-5 rounded-xl border border-orange-100 shadow-sm flex flex-col">
           <span className="text-orange-600 text-sm font-medium mb-1">Chờ duyệt</span>
@@ -1685,6 +1676,10 @@ function AdminPanel({ token }: { token: string }) {
         <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col">
           <span className="text-emerald-600 text-sm font-medium mb-1">Đã xác nhận nơi TT</span>
           <span className="text-3xl font-bold text-emerald-700">{confirmedFinalCount}</span>
+        </div>
+        <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
+          <span className="text-indigo-600 text-sm font-medium mb-1">TT ở trường</span>
+          <span className="text-3xl font-bold text-indigo-700">{schoolInternshipCount}</span>
         </div>
       </div>
 
