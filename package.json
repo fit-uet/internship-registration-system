@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "wrangler dev src/worker.ts",
+    "dev:server": "tsx server.ts",
     "dev:worker": "wrangler dev src/worker.ts",
     "build": "vite build && tsx ./scripts/build-server.ts",
     "start": "node dist/server.cjs",

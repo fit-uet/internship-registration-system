@@ -13,9 +13,18 @@ CORS_ORIGIN = "https://fit-uet.github.io"
 binding = "REPORTS_BUCKET"
 bucket_name = "internship-final-reports"
 
+# Dashboard-only D1 setup:
+# - Cloudflare Dashboard > Workers & Pages > D1 SQL Database > Create database.
+# - Open this Worker > Settings > Bindings > Add > D1 database.
+# - Set Variable name to DB and select the created database.
+#
+# If you deploy with wrangler instead of Dashboard, uncomment and fill database_id:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "internship-registration-system-db"
+# database_id = "<database_id>"
+
 # Set these as Cloudflare Worker secrets, not plain vars:
-# wrangler secret put TURSO_DATABASE_URL
-# wrangler secret put TURSO_AUTH_TOKEN
 # wrangler secret put JWT_SECRET
 # wrangler secret put VITE_GOOGLE_CLIENT_ID
 # wrangler secret put ADMIN_EMAIL

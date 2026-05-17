@@ -54,8 +54,8 @@ Frontend:
 Backend:
 
 - Cloudflare Worker entrypoint: `src/worker.ts`.
-- Express server cho môi trường local/build: `server.ts`.
-- Cơ sở dữ liệu Turso/libSQL.
+- Express server legacy cho môi trường local/build: `server.ts`.
+- Cơ sở dữ liệu chính trên Cloudflare: D1 Free qua binding `DB`.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
 - Cloudflare R2 lưu báo cáo final PDF qua binding `REPORTS_BUCKET`.
@@ -63,8 +63,7 @@ Backend:
 
 Các biến/secrets chính:
 
-- `TURSO_DATABASE_URL`
-- `TURSO_AUTH_TOKEN`
+- D1 binding `DB` trong `wrangler.toml`.
 - `JWT_SECRET`
 - `VITE_GOOGLE_CLIENT_ID`
 - `ADMIN_EMAIL`
@@ -82,24 +81,38 @@ Gửi email thật:
 - `GOOGLE_PRIVATE_KEY`
 - R2 binding cho bucket lưu báo cáo final, ví dụ `REPORTS_BUCKET`
 
-Chạy local:
+Chạy local nếu cần:
 
 ```bash
 npm install
-npm run dev
+npm run dev:worker
 ```
 
-Deploy Cloudflare Worker:
+Thiết lập trên Cloudflare Dashboard:
 
-```bash
-npx wrangler login
-npx wrangler secret put TURSO_DATABASE_URL
-npx wrangler secret put TURSO_AUTH_TOKEN
-npx wrangler secret put JWT_SECRET
-npx wrangler secret put VITE_GOOGLE_CLIENT_ID
-npx wrangler secret put ADMIN_EMAIL
-npm run deploy:worker
-```
+1. Vào Cloudflare Dashboard > Workers & Pages > D1 SQL Database > Create database.
+2. Tạo database tên `internship-registration-system-db`.
+3. Mở Worker `internship-registration-system` > Settings > Bindings.
+4. Add binding > D1 database:
+   - Variable name: `DB`
+   - D1 database: `internship-registration-system-db`
+5. Add binding > R2 bucket nếu dùng nộp báo cáo:
+   - Variable name: `REPORTS_BUCKET`
+   - Bucket: `internship-final-reports`
+6. Vào Settings > Variables and Secrets, thêm các secret/variable:
+   - `JWT_SECRET`
+   - `VITE_GOOGLE_CLIENT_ID`
+   - `ADMIN_EMAIL`
+   - `CORS_ORIGIN`
+   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
+   - `RESEND_API_KEY`, `EMAIL_FROM` nếu gửi email thật.
+
+Lưu ý chuyển từ Turso sang D1:
+
+- Runtime chính trên Cloudflare đọc/ghi qua binding `env.DB`.
+- `server.ts` vẫn còn đường local legacy dùng libSQL/Turso để tiện tham chiếu, nhưng không còn là runtime chính khi triển khai Cloudflare.
+- Schema hiện vẫn được bootstrap trong `src/worker.ts` khi Worker khởi động. Sau khi ổn định, nên tách thành migration D1 có version.
+- Nếu đã có dữ liệu Turso cần giữ lại, có thể ưu tiên import từng bảng qua các màn quản trị XLSX đã có. Với dữ liệu đầy đủ nhiều bảng, có thể dùng Dashboard D1 SQL console để chạy script SQL đã export.
 
 Nếu dùng tính năng xuất dữ liệu vào Google Sheets:
 
@@ -754,11 +767,7 @@ Quy tắc upload:
 
 Cloudflare Worker binding:
 
-```toml
-[[r2_buckets]]
-binding = "REPORTS_BUCKET"
-bucket_name = "internship-final-reports"
-```
+Trên Dashboard cần có D1 binding tên `DB` và R2 binding tên `REPORTS_BUCKET`. Code Worker đang đọc đúng hai binding này.
 
 Thiết kế API:
 

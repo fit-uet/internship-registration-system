@@ -1,8 +1,5 @@
-import { createClient, type Client } from '@libsql/client/web';
-
 type Env = {
-  TURSO_DATABASE_URL: string;
-  TURSO_AUTH_TOKEN: string;
+  DB: D1Database;
   JWT_SECRET: string;
   VITE_GOOGLE_CLIENT_ID: string;
   ADMIN_EMAIL?: string;
@@ -22,17 +19,39 @@ const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
 Khoa CNTT thông báo triển khai Thực tập học kỳ. Sinh viên đăng nhập bằng email @vnu.edu.vn, cập nhật hồ sơ và đăng ký tối đa 5 nguyện vọng thực tập trong thời gian hệ thống mở.`;
 
-let client: Client | null = null;
 let initPromise: Promise<void> | null = null;
 
+type SqlStatement = { sql: string; args?: unknown[] };
+type DatabaseResult = { rows: any[]; lastInsertRowid?: number; rowsAffected?: number };
+type DatabaseClient = {
+  execute(input: string | SqlStatement): Promise<DatabaseResult>;
+  executeMultiple(sql: string): Promise<void>;
+  batch(statements: SqlStatement[]): Promise<DatabaseResult[]>;
+};
+
 function db(env: Env) {
-  if (!client) {
-    client = createClient({
-      url: env.TURSO_DATABASE_URL,
-      authToken: env.TURSO_AUTH_TOKEN,
-    });
-  }
-  return client;
+  if (!env.DB) throw new Error('Missing Cloudflare D1 binding: DB');
+  const toResult = (result: any): DatabaseResult => ({
+    rows: result?.results || [],
+    lastInsertRowid: result?.meta?.last_row_id,
+    rowsAffected: result?.meta?.changes,
+  });
+  return {
+    async execute(input: string | SqlStatement) {
+      const sql = typeof input === 'string' ? input : input.sql;
+      const args = typeof input === 'string' ? [] : (input.args || []);
+      const statement = env.DB.prepare(sql).bind(...args);
+      return toResult(await statement.all());
+    },
+    async executeMultiple(sql: string) {
+      await env.DB.exec(sql);
+    },
+    async batch(statements: SqlStatement[]) {
+      const prepared = statements.map(statement => env.DB.prepare(statement.sql).bind(...(statement.args || [])));
+      const results = await env.DB.batch(prepared);
+      return results.map(toResult);
+    },
+  } satisfies DatabaseClient;
 }
 
 function json(data: unknown, status = 200, headers: HeadersInit = {}) {
@@ -98,9 +117,9 @@ async function verifyJwt(token: string, secret: string) {
   return claims;
 }
 
-async function executeBatch(database: Client, statements: any[]) {
+async function executeBatch(database: DatabaseClient, statements: SqlStatement[]) {
   for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
-    await database.batch(statements.slice(i, i + DB_BATCH_SIZE), 'write');
+    await database.batch(statements.slice(i, i + DB_BATCH_SIZE));
   }
 }
 
@@ -158,7 +177,7 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
   return Math.round((progressScore * 0.2 + reportScore * 0.2 + companyScore * 0.6) * 100) / 100;
 }
 
-async function createNotification(database: Client, data: {
+async function createNotification(database: DatabaseClient, data: {
   user_id?: number | null;
   recipient_email: string;
   type: string;
@@ -179,7 +198,7 @@ async function createNotification(database: Client, data: {
   }
 }
 
-async function sendNotificationEmail(database: Client, env: Env, notificationId: number, data: {
+async function sendNotificationEmail(database: DatabaseClient, env: Env, notificationId: number, data: {
   recipient_email: string;
   subject: string;
   body: string;
@@ -216,7 +235,7 @@ async function sendNotificationEmail(database: Client, env: Env, notificationId:
   }
 }
 
-async function ensureSpecialCompanies(database: Client) {
+async function ensureSpecialCompanies(database: DatabaseClient) {
   await executeBatch(database, [
     {
       sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name)
@@ -231,7 +250,7 @@ async function ensureSpecialCompanies(database: Client) {
   ]);
 }
 
-async function syncLecturerUsers(database: Client) {
+async function syncLecturerUsers(database: DatabaseClient) {
   await database.executeMultiple(`
     DELETE FROM lecturers
     WHERE email IN (SELECT email FROM users WHERE role = 'admin' AND COALESCE(is_lecturer, 0) = 0);
