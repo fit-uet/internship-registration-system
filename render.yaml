@@ -32,6 +32,16 @@ services:
         sync: false
       - key: GOOGLE_PRIVATE_KEY
         sync: false
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_DAILY_SEND_CAP
+        value: "250"
+      - key: EMAIL_BATCH_SIZE
+        value: "25"
+      - key: EMAIL_SEND_IMMEDIATE
+        value: "false"
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

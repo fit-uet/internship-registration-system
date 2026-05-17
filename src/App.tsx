@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -2438,13 +2438,19 @@ function NotificationAdmin({ token }: { token: string }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [creatingReminders, setCreatingReminders] = useState(false);
+  const [sendingQueue, setSendingQueue] = useState(false);
+  const [stats, setStats] = useState<any>(null);
 
   const fetchRows = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      const [res, statsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/notifications`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/notifications/stats`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
       const data = await res.json();
       setRows(Array.isArray(data) ? data : []);
+      if (statsRes.ok) setStats(await statsRes.json());
     } catch (e) {
       alert('Không tải được lịch sử thông báo.');
     } finally {
@@ -2503,6 +2509,26 @@ function NotificationAdmin({ token }: { token: string }) {
     }
   };
 
+  const sendQueued = async () => {
+    if (!confirm('Gửi một lô email đang chờ theo giới hạn/ngày đã cấu hình?')) return;
+    setSendingQueue(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/notifications/send-queued`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi email đang chờ thất bại.');
+      alert(`Đã gửi ${data.sent || 0}, lỗi ${data.failed || 0}. Còn quota hôm nay: ${data.remaining_today ?? '-'} email.`);
+      fetchRows();
+    } catch (e) {
+      alert('Lỗi kết nối khi gửi hàng đợi.');
+    } finally {
+      setSendingQueue(false);
+    }
+  };
+
   const types = Array.from(new Set(rows.map(row => row.type).filter(Boolean))).sort();
   const filtered = rows.filter(row => {
     const term = searchTerm.trim().toLowerCase();
@@ -2526,9 +2552,17 @@ function NotificationAdmin({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Clock className="text-amber-600" /> Lịch sử thông báo</h2>
-          <p className="text-sm text-slate-500 mt-1">Ghi nhận các email/thông báo quan trọng. Nếu chưa cấu hình provider, trạng thái sẽ ở hàng đợi.</p>
+          <p className="text-sm text-slate-500 mt-1">Ghi nhận email quan trọng và gửi theo lô để tránh vượt quota Brevo Free.</p>
+          {stats && (
+            <p className="text-xs text-slate-500 mt-1">
+              Provider: <strong>{stats.provider}</strong> · Đã gửi hôm nay: <strong>{stats.sent_today}/{stats.daily_cap}</strong> · Đang chờ: <strong>{stats.statuses?.queued || 0}</strong> · Batch: <strong>{stats.batch_size}</strong>
+            </p>
+          )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={sendQueued} disabled={sendingQueue || !stats?.statuses?.queued} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            {sendingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi hàng đợi
+          </button>
           <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <CheckCircle2 size={16} /> Mở xác nhận
           </button>

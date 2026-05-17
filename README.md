@@ -59,7 +59,7 @@ Backend:
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
 - Báo cáo final PDF được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong bảng `final_reports`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports`; khi chạy production bắt buộc cấu hình R2.
-- Notification history ghi vào bảng `notifications`; nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, hệ thống gửi email thật qua Resend và cập nhật trạng thái `sent/failed`.
+- Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công.
 
 Các biến/secrets chính:
 
@@ -71,14 +71,17 @@ Các biến/secrets chính:
 - `CORS_ORIGIN`, đặt bằng domain frontend/Render cần cho phép.
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` để lưu báo cáo final PDF trên Cloudflare R2.
 - `R2_ENDPOINT` nếu muốn khai báo endpoint thủ công; nếu bỏ trống hệ thống dùng `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`.
-- `RESEND_API_KEY` nếu muốn gửi email thật qua Resend.
+- `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY` nếu muốn gửi email thật qua Brevo.
+- `EMAIL_DAILY_SEND_CAP`, ví dụ `250`, để chừa quota phát sinh trong giới hạn Brevo Free 300 email/ngày.
+- `EMAIL_BATCH_SIZE`, ví dụ `25`, số email gửi mỗi lần bấm gửi hàng đợi.
+- `EMAIL_SEND_IMMEDIATE=false` để các notification hàng loạt chỉ vào queue, không gửi ngay.
 - `EMAIL_FROM`, ví dụ `FIT UET Internship <no-reply@domain.edu.vn>`, cần là sender/domain đã xác minh ở provider.
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
 
 Gửi email thật:
 
-- Mặc định hệ thống luôn ghi bản ghi vào `notifications`.
-- Nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, backend gọi Resend API để gửi email ngay khi tạo notification.
+- Mặc định hệ thống luôn ghi bản ghi vào `notifications` với trạng thái `queued`.
+- Admin vào site Thông báo và bấm `Gửi hàng đợi` để gửi từng batch theo `EMAIL_BATCH_SIZE` và `EMAIL_DAILY_SEND_CAP`.
 - Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`.
 - Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công.
 Chạy local:
@@ -105,7 +108,8 @@ Deploy Render:
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
    - `R2_ENDPOINT` nếu không muốn dùng endpoint mặc định theo account id.
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
-   - `RESEND_API_KEY`, `EMAIL_FROM` nếu gửi email thật.
+   - `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM` nếu gửi email thật qua Brevo.
+   - `EMAIL_DAILY_SEND_CAP=250`, `EMAIL_BATCH_SIZE=25`, `EMAIL_SEND_IMMEDIATE=false`.
 4. Nếu frontend và backend phục vụ cùng Render service thì `VITE_API_BASE_URL` có thể để trống khi build. Nếu frontend vẫn ở GitHub Pages, đặt `VITE_API_BASE_URL` về URL Render backend và `CORS_ORIGIN` về URL GitHub Pages.
 
 Lưu ý khi quay lại Render:
@@ -342,7 +346,7 @@ Admin có thể:
 - Ghi toàn bộ dữ liệu đăng ký lên Google Sheets.
 - Trong màn “Quản lý Công ty”, xuất danh sách đăng ký riêng cho từng công ty và đánh dấu danh sách đã gửi doanh nghiệp theo từng công ty.
 
-Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống xuất XLSX theo từng công ty, ghi notification history, và nếu đã cấu hình Resend thì có thể gửi email thật cho doanh nghiệp với danh sách sinh viên đã duyệt trong nội dung email rồi tự đánh dấu “Đã gửi DN”.
+Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống xuất XLSX theo từng công ty, ghi notification history, và nếu đã cấu hình Brevo thì có thể gửi email thật cho doanh nghiệp với danh sách sinh viên đã duyệt trong nội dung email rồi tự đánh dấu “Đã gửi DN”.
 
 ## 6. Đối chiếu với quy trình trong kế hoạch thực tập
 
@@ -868,7 +872,7 @@ Tiêu chí nghiệm thu:
 
 ### 9.7. P5 - Email tự động và lịch sử thông báo
 
-Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn. Phần lõi đã được triển khai: hệ thống ghi notification history khi có sự kiện quan trọng, có trang admin để xem/lọc/xuất XLSX/đánh dấu trạng thái, và có thể gửi email thật qua Resend khi cấu hình provider.
+Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn. Phần lõi đã được triển khai: hệ thống ghi notification history khi có sự kiện quan trọng, có trang admin để xem/lọc/xuất XLSX/đánh dấu trạng thái, và có thể gửi email thật qua Brevo theo hàng đợi khi cấu hình provider.
 
 Thiết kế dữ liệu:
 
@@ -883,7 +887,11 @@ CREATE TABLE IF NOT EXISTS notifications (
   status TEXT NOT NULL DEFAULT 'queued',
   error TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  sent_at DATETIME
+  sent_at DATETIME,
+  provider TEXT,
+  provider_message_id TEXT,
+  attempt_count INTEGER DEFAULT 0,
+  last_attempt_at DATETIME
 );
 ```
 
@@ -901,7 +909,10 @@ Thiết kế API/worker:
 
 - Khi sự kiện xảy ra, ghi bản ghi `notifications` với trạng thái `queued`.
 - Nếu chưa chọn provider, vẫn lưu lịch sử thông báo để sau này gửi lại hoặc đánh dấu thủ công.
+- Với Brevo Free, đặt `EMAIL_DAILY_SEND_CAP=250` và `EMAIL_BATCH_SIZE=25`; khoảng 900 sinh viên sẽ được gửi trong 4 ngày để không vượt mức 300 email/ngày.
 - `GET /api/admin/notifications`: admin xem lịch sử thông báo.
+- `GET /api/admin/notifications/stats`: admin xem provider, số đã gửi hôm nay, quota còn lại và số queued.
+- `POST /api/admin/notifications/send-queued`: gửi một batch email đang chờ theo giới hạn/ngày.
 - `PUT /api/admin/notifications/:id/status`: admin cập nhật `queued/sent/failed`.
 - `POST /api/admin/notifications/final-confirmation-open`: tạo thông báo mở xác nhận nơi thực tập cho sinh viên chưa xác nhận.
 - `POST /api/admin/notifications/final-report-reminders`: tạo thông báo nhắc nộp báo cáo final cho sinh viên chưa nộp hoặc cần nộp lại.

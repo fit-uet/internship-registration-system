@@ -179,12 +179,45 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
   return Math.round((progressScore * 0.2 + reportScore * 0.2 + companyScore * 0.6) * 100) / 100;
 }
 
+function parseEmailAddress(value: string | undefined) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(.*?)\s*<([^>]+)>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^"|"$/g, '');
+    return { email: match[2].trim(), name: name || undefined };
+  }
+  return { email: raw };
+}
+
+function emailDailySendCap() {
+  const configured = Number(process.env.EMAIL_DAILY_SEND_CAP || process.env.BREVO_DAILY_SEND_CAP || 250);
+  if (!Number.isFinite(configured) || configured < 1) return 250;
+  return Math.min(Math.floor(configured), 300);
+}
+
+function emailBatchSize() {
+  const configured = Number(process.env.EMAIL_BATCH_SIZE || 25);
+  if (!Number.isFinite(configured) || configured < 1) return 25;
+  return Math.min(Math.floor(configured), 100);
+}
+
+async function emailSentTodayCount() {
+  const row = (await db.execute(`
+    SELECT COUNT(*) as count
+    FROM notifications
+    WHERE status = 'sent'
+      AND date(sent_at) = date('now', '+7 hours')
+  `)).rows[0] as any;
+  return Number(row?.count || 0);
+}
+
 async function createNotification(data: {
   user_id?: number | null;
   recipient_email: string;
   type: string;
   subject: string;
   body: string;
+  send_now?: boolean;
 }) {
   try {
     if (!data.recipient_email) return;
@@ -193,7 +226,10 @@ async function createNotification(data: {
             VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
       args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
     });
-    return await sendNotificationEmail(Number(result.lastInsertRowid), data);
+    if (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true') {
+      return await sendNotificationEmail(Number(result.lastInsertRowid), data);
+    }
+    return 'queued';
   } catch (e) {
     // Notification failures must not block the main business flow.
   }
@@ -204,36 +240,121 @@ async function sendNotificationEmail(notificationId: number, data: {
   subject: string;
   body: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || process.env.NOTIFICATION_EMAIL_FROM;
-  if (!apiKey || !from || !notificationId) return 'queued';
+  const provider = (process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : process.env.RESEND_API_KEY ? 'resend' : '')).toLowerCase();
+  if (!from || !notificationId) return 'queued';
+  if ((await emailSentTodayCount()) >= emailDailySendCap()) return 'queued';
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [data.recipient_email],
-        subject: data.subject,
-        text: data.body,
-      }),
-    });
-    if (!response.ok) throw new Error((await response.text()).slice(0, 1000));
+    let response: Response;
+    let providerMessageId: string | null = null;
+    if (provider === 'brevo') {
+      const apiKey = process.env.BREVO_API_KEY;
+      if (!apiKey) return 'queued';
+      response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: parseEmailAddress(from),
+          to: [parseEmailAddress(data.recipient_email)],
+          subject: data.subject,
+          textContent: data.body,
+        }),
+      });
+    } else if (provider === 'resend') {
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) return 'queued';
+      response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to: [data.recipient_email],
+          subject: data.subject,
+          text: data.body,
+        }),
+      });
+    } else {
+      return 'queued';
+    }
+    const responseText = await response.text();
+    if (response.status === 429) {
+      await db.execute({
+        sql: `UPDATE notifications
+              SET error = ?, provider = ?, last_attempt_at = datetime('now', '+7 hours')
+              WHERE id = ?`,
+        args: ['Provider rate limit exceeded; giữ trong hàng đợi để gửi lại sau.', provider, notificationId],
+      });
+      return 'queued';
+    }
+    if (!response.ok) throw new Error(responseText.slice(0, 1000));
+    try {
+      const json = JSON.parse(responseText);
+      providerMessageId = json.messageId || json.id || null;
+    } catch (e) { }
     await db.execute({
-      sql: `UPDATE notifications SET status = 'sent', sent_at = datetime('now', '+7 hours'), error = NULL WHERE id = ?`,
-      args: [notificationId],
+      sql: `UPDATE notifications
+            SET status = 'sent', sent_at = datetime('now', '+7 hours'), error = NULL,
+                provider = ?, provider_message_id = ?, attempt_count = COALESCE(attempt_count, 0) + 1,
+                last_attempt_at = datetime('now', '+7 hours')
+            WHERE id = ?`,
+      args: [provider, providerMessageId, notificationId],
     });
     return 'sent';
   } catch (e: any) {
     await db.execute({
-      sql: `UPDATE notifications SET status = 'failed', error = ? WHERE id = ?`,
-      args: [String(e?.message || e).slice(0, 1000), notificationId],
+      sql: `UPDATE notifications
+            SET status = 'failed', error = ?, provider = ?,
+                attempt_count = COALESCE(attempt_count, 0) + 1,
+                last_attempt_at = datetime('now', '+7 hours')
+            WHERE id = ?`,
+      args: [String(e?.message || e).slice(0, 1000), process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : 'resend'), notificationId],
     });
     return 'failed';
   }
+}
+
+async function sendQueuedNotificationBatch(requestedLimit?: number) {
+  const sentToday = await emailSentTodayCount();
+  const remainingToday = Math.max(0, emailDailySendCap() - sentToday);
+  const limit = Math.max(0, Math.min(Number(requestedLimit || emailBatchSize()), emailBatchSize(), remainingToday));
+  if (limit === 0) {
+    return { sent: 0, failed: 0, skipped: 0, remaining_today: remainingToday, message: 'Đã đạt giới hạn gửi email hôm nay.' };
+  }
+
+  const rows = (await db.execute({
+    sql: `SELECT id, recipient_email, subject, body
+          FROM notifications
+          WHERE status = 'queued'
+          ORDER BY created_at ASC, id ASC
+          LIMIT ?`,
+    args: [limit],
+  })).rows as any[];
+
+  let sent = 0;
+  let failed = 0;
+  for (const row of rows) {
+    const result = await sendNotificationEmail(Number(row.id), {
+      recipient_email: row.recipient_email,
+      subject: row.subject,
+      body: row.body,
+    });
+    if (result === 'sent') sent++;
+    else if (result === 'failed') failed++;
+    else break;
+  }
+  return {
+    sent,
+    failed,
+    skipped: Math.max(0, rows.length - sent - failed),
+    remaining_today: Math.max(0, remainingToday - sent),
+  };
 }
 
 let cachedItCompanyNames: { mtimeMs: number; names: Set<string> } | null = null;
@@ -644,7 +765,11 @@ async function initDb() {
       status TEXT NOT NULL DEFAULT 'queued',
       error TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      sent_at DATETIME
+      sent_at DATETIME,
+      provider TEXT,
+      provider_message_id TEXT,
+      attempt_count INTEGER DEFAULT 0,
+      last_attempt_at DATETIME
     );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -743,6 +868,10 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN sent_to_company_at DATETIME'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN sent_to_company_note TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN provider TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN provider_message_id TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN attempt_count INTEGER DEFAULT 0'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN last_attempt_at DATETIME'); } catch (e) { }
   // Legacy denormalized profile columns; reports now read these fields from users.
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN student_id'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN dob'); } catch (e) { }
@@ -2223,11 +2352,12 @@ async function startServer() {
         type: 'company_applicants_sent',
         subject: `Danh sách sinh viên đăng ký thực tập - ${companyName}`,
         body,
+        send_now: true,
       });
       if (notificationStatus !== 'sent') {
         return res.status(400).json({
           error: notificationStatus === 'queued'
-            ? 'Chưa cấu hình RESEND_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
+            ? 'Chưa cấu hình EMAIL_PROVIDER/BREVO_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
             : 'Gửi email thất bại. Vui lòng xem trang Thông báo để biết lỗi chi tiết.',
         });
       }
@@ -2622,6 +2752,33 @@ async function startServer() {
       LIMIT 500
     `)).rows;
     res.json(rows);
+  });
+
+  app.get('/api/admin/notifications/stats', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const statusRows = (await db.execute(`
+      SELECT status, COUNT(*) as count
+      FROM notifications
+      GROUP BY status
+    `)).rows as any[];
+    const sentToday = await emailSentTodayCount();
+    res.json({
+      provider: process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : process.env.RESEND_API_KEY ? 'resend' : 'none'),
+      daily_cap: emailDailySendCap(),
+      sent_today: sentToday,
+      remaining_today: Math.max(0, emailDailySendCap() - sentToday),
+      batch_size: emailBatchSize(),
+      statuses: Object.fromEntries(statusRows.map(row => [row.status, Number(row.count || 0)])),
+    });
+  });
+
+  app.post('/api/admin/notifications/send-queued', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const provider = process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : process.env.RESEND_API_KEY ? 'resend' : '');
+    if (!provider || provider === 'none') return res.status(400).json({ error: 'Chưa cấu hình EMAIL_PROVIDER/BREVO_API_KEY hoặc RESEND_API_KEY.' });
+    if (provider === 'brevo' && !process.env.BREVO_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình BREVO_API_KEY.' });
+    if (provider === 'resend' && !process.env.RESEND_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình RESEND_API_KEY.' });
+    if (!process.env.EMAIL_FROM && !process.env.NOTIFICATION_EMAIL_FROM) return res.status(400).json({ error: 'Chưa cấu hình EMAIL_FROM.' });
+    const result = await sendQueuedNotificationBatch(Number(req.body?.limit || 0) || undefined);
+    res.json({ success: true, ...result });
   });
 
   app.put('/api/admin/notifications/:id/status', requireAuth, requireAdmin, async (req: any, res: any) => {
