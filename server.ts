@@ -1624,6 +1624,11 @@ async function startServer() {
       const user = (await db.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [req.params.id] })).rows[0] as any;
       if (user) {
         await executeBatch([
+          { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [user.id] },
+          { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [user.id] },
+          { sql: 'DELETE FROM final_reports WHERE user_id = ?', args: [user.id] },
+          { sql: 'DELETE FROM grades WHERE user_id = ?', args: [user.id] },
+          { sql: 'DELETE FROM notifications WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM final_internships WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM users WHERE id = ?', args: [user.id] },

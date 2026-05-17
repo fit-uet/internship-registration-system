@@ -424,12 +424,13 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const fetchData = async () => {
     setLoading(true);
     try {
+      const isStudent = user?.role === 'student';
       const [compRes, regRes, finalRes, advisorRes, reportRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
+        isStudent ? fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+        isStudent ? fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+        isStudent ? fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+        isStudent ? fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
@@ -438,16 +439,16 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
       const compData = await compRes.json();
       setCompanies(Array.isArray(compData) ? compData : []);
 
-      const regData = await regRes.json();
+      const regData = regRes ? await regRes.json() : [];
       setMyRegs(Array.isArray(regData) ? regData : []);
 
-      const finalData = await finalRes.json();
+      const finalData = finalRes ? await finalRes.json() : null;
       setFinalInternship(finalData && !finalData.error ? finalData : null);
 
-      const advisorData = await advisorRes.json();
+      const advisorData = advisorRes ? await advisorRes.json() : [];
       setMyAdvisors(Array.isArray(advisorData) ? advisorData : []);
 
-      const reportData = await reportRes.json();
+      const reportData = reportRes ? await reportRes.json() : null;
       setFinalReport(reportData && !reportData.error ? reportData : null);
 
       const campData = await campRes.json();
@@ -4815,10 +4816,12 @@ function StudentRegistry({ token }: { token: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xoá sinh viên này khỏi CSDL?')) return;
     try {
-      await fetch(`${API_BASE}/api/admin/students/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/students/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Xóa sinh viên thất bại.');
       fetchStudents();
     } catch (e) {
       alert('Lỗi xoá');

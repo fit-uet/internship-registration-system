@@ -1436,8 +1436,13 @@ async function route(request: Request, env: Env) {
 
   const studentDelete = path.match(/^\/api\/admin\/students\/([^/]+)$/);
   if (method === 'DELETE' && studentDelete) {
-    const student = (await database.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [studentDelete[1]] })).rows[0] as any;
+    const student = (await database.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [decodeURIComponent(studentDelete[1])] })).rows[0] as any;
     if (student) await executeBatch(database, [
+      { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [student.id] },
+      { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [student.id] },
+      { sql: 'DELETE FROM final_reports WHERE user_id = ?', args: [student.id] },
+      { sql: 'DELETE FROM grades WHERE user_id = ?', args: [student.id] },
+      { sql: 'DELETE FROM notifications WHERE user_id = ?', args: [student.id] },
       { sql: 'DELETE FROM final_internships WHERE user_id = ?', args: [student.id] },
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [student.id] },
       { sql: 'DELETE FROM users WHERE id = ?', args: [student.id] },
