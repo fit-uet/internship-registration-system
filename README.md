@@ -121,7 +121,7 @@ Lưu ý chuyển từ Turso sang D1:
   3. Deploy lại Worker nếu Dashboard yêu cầu tạo version mới.
   4. Đăng nhập admin > Cài đặt hệ thống > Migration Turso sang D1 > Kiểm tra và migration.
   5. Sau khi kiểm tra D1 đã có dữ liệu, xóa hai secret Turso tạm thời khỏi Dashboard.
-  Endpoint tương ứng là `POST /api/admin/migrations/turso-to-d1`; endpoint này chạy dry-run trước rồi mới xóa dữ liệu D1 hiện có và copy dữ liệu Turso sang.
+  Endpoint tương ứng là `POST /api/admin/migrations/turso-to-d1`; UI chạy dry-run trước, xóa dữ liệu D1 hiện có, rồi copy từng bảng theo chunk nhỏ để tránh giới hạn subrequests của Cloudflare Worker.
 
 Nếu dùng tính năng xuất dữ liệu vào Google Sheets:
 

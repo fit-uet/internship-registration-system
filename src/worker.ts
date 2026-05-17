@@ -231,7 +231,7 @@ async function tableExists(database: { execute(input: string | SqlStatement): Pr
   }
 }
 
-async function migrateTursoToD1(env: Env, database: DatabaseClient, options: { dryRun?: boolean; truncate?: boolean } = {}) {
+async function migrateTursoToD1(env: Env, database: DatabaseClient, options: { dryRun?: boolean; truncate?: boolean; truncateOnly?: boolean; table?: string; offset?: number; limit?: number } = {}) {
   if (!env.TURSO_DATABASE_URL || !env.TURSO_AUTH_TOKEN) {
     throw new Error('Missing TURSO_DATABASE_URL/TURSO_AUTH_TOKEN. Add the old Turso secrets in Cloudflare Dashboard before migration.');
   }
@@ -241,6 +241,12 @@ async function migrateTursoToD1(env: Env, database: DatabaseClient, options: { d
   });
   const summary: { table: string; count: number; inserted: number; skipped?: string }[] = [];
   const tables = MIGRATION_TABLES;
+
+  if (options.truncateOnly) {
+    await executeBatch(database, [...tables].reverse().map(table => ({ sql: `DELETE FROM ${quoteIdentifier(table)}` })));
+    await ensureSpecialCompanies(database);
+    return { success: true, truncated: true };
+  }
 
   for (const table of tables) {
     if (!(await tableExists(turso as any, table))) {
@@ -253,8 +259,33 @@ async function migrateTursoToD1(env: Env, database: DatabaseClient, options: { d
 
   if (options.dryRun) return { success: true, dryRun: true, tables: summary };
 
-  if (options.truncate !== false) {
-    await executeBatch(database, [...tables].reverse().map(table => ({ sql: `DELETE FROM ${quoteIdentifier(table)}` })));
+  if (options.table) {
+    if (!tables.includes(options.table)) throw new Error('Invalid migration table.');
+    const item = summary.find(row => row.table === options.table);
+    if (!item || item.skipped) return { success: true, table: options.table, inserted: 0, nextOffset: options.offset || 0, done: true, skipped: item?.skipped || 'missing' };
+    const d1Columns = await getTableColumns(database, options.table);
+    const tursoColumns = await getTableColumns(turso as any, options.table);
+    const columns = d1Columns.filter(column => tursoColumns.includes(column));
+    if (columns.length === 0) return { success: true, table: options.table, inserted: 0, nextOffset: options.offset || 0, done: true, skipped: 'no_common_columns' };
+    const offset = Math.max(0, Number(options.offset || 0));
+    const limit = Math.min(100, Math.max(1, Number(options.limit || DB_BATCH_SIZE)));
+    const selectSql = `SELECT ${columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(options.table)} LIMIT ? OFFSET ?`;
+    const rows = ((await (turso as any).execute({ sql: selectSql, args: [limit, offset] })).rows || []) as Record<string, unknown>[];
+    const placeholders = columns.map(() => '?').join(', ');
+    const insertSql = `INSERT OR REPLACE INTO ${quoteIdentifier(options.table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${placeholders})`;
+    await executeBatch(database, rows.map(row => ({
+      sql: insertSql,
+      args: columns.map(column => row[column] ?? null),
+    })));
+    return {
+      success: true,
+      table: options.table,
+      inserted: rows.length,
+      offset,
+      nextOffset: offset + rows.length,
+      total: item.count,
+      done: rows.length < limit || offset + rows.length >= item.count,
+    };
   }
 
   for (const item of summary) {
@@ -1305,6 +1336,10 @@ async function route(request: Request, env: Env) {
     try {
       return json(await migrateTursoToD1(env, database, {
         dryRun: Boolean(body.dry_run),
+        truncateOnly: Boolean(body.truncate_only),
+        table: body.table ? String(body.table) : undefined,
+        offset: Number(body.offset || 0),
+        limit: Number(body.limit || DB_BATCH_SIZE),
         truncate: body.truncate !== false,
       }));
     } catch (e: any) {

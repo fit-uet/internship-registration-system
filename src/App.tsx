@@ -3816,15 +3816,33 @@ function AdminSettings({ token }: { token: string }) {
       if (!dryRunRes.ok) return alert(dryRunData.error || 'Không kiểm tra được dữ liệu Turso.');
       const summary = (dryRunData.tables || []).map((row: any) => `${row.table}: ${row.count}${row.skipped ? ` (${row.skipped})` : ''}`).join('\n');
       if (!confirm(`Dữ liệu Turso tìm thấy:\n\n${summary}\n\nBước tiếp theo sẽ xoá dữ liệu hiện có trong D1 và copy từ Turso sang. Tiếp tục?`)) return;
-      const res = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
+      const truncateRes = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ truncate: true }),
+        body: JSON.stringify({ truncate_only: true }),
       });
-      const data = await res.json();
-      if (!res.ok) return alert(data.error || 'Migration thất bại.');
-      const migrated = (data.tables || []).map((row: any) => `${row.table}: ${row.inserted}/${row.count}${row.skipped ? ` (${row.skipped})` : ''}`).join('\n');
-      alert(`Đã migration Turso sang D1:\n\n${migrated}`);
+      const truncateData = await truncateRes.json();
+      if (!truncateRes.ok) return alert(truncateData.error || 'Không xoá được dữ liệu D1 trước migration.');
+      const results: string[] = [];
+      const tables = (dryRunData.tables || []).filter((row: any) => !row.skipped && Number(row.count || 0) > 0);
+      for (const table of tables) {
+        let offset = 0;
+        let inserted = 0;
+        while (offset < Number(table.count || 0)) {
+          const res = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ table: table.table, offset, limit: 100, truncate: false }),
+          });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || `Migration thất bại tại bảng ${table.table}.`);
+          inserted += Number(data.inserted || 0);
+          offset = Number(data.nextOffset || offset + Number(data.inserted || 0));
+          if (data.done || Number(data.inserted || 0) === 0) break;
+        }
+        results.push(`${table.table}: ${inserted}/${table.count}`);
+      }
+      alert(`Đã migration Turso sang D1 theo từng chunk:\n\n${results.join('\n')}`);
     } catch (e) {
       alert('Lỗi kết nối khi migration.');
     } finally {
