@@ -115,7 +115,13 @@ Lưu ý chuyển từ Turso sang D1:
 - Nếu deploy từ repo/Git hoặc deploy lại bằng config, binding thủ công trên Dashboard có thể không nằm trong version mới. Vì vậy `wrangler.toml` cần khai báo `[[d1_databases]]` với đúng `database_id` lấy từ Dashboard.
 - `server.ts` vẫn còn đường local legacy dùng libSQL/Turso để tiện tham chiếu, nhưng không còn là runtime chính khi triển khai Cloudflare.
 - Schema hiện vẫn được bootstrap trong `src/worker.ts` khi Worker khởi động. Sau khi ổn định, nên tách thành migration D1 có version.
-- Nếu đã có dữ liệu Turso cần giữ lại, có thể ưu tiên import từng bảng qua các màn quản trị XLSX đã có. Với dữ liệu đầy đủ nhiều bảng, có thể dùng Dashboard D1 SQL console để chạy script SQL đã export.
+- Nếu đã có dữ liệu Turso cần giữ lại:
+  1. Vào Cloudflare Dashboard > Worker > Settings > Variables and Secrets.
+  2. Thêm tạm secret `TURSO_DATABASE_URL` và `TURSO_AUTH_TOKEN` của database Turso cũ.
+  3. Deploy lại Worker nếu Dashboard yêu cầu tạo version mới.
+  4. Đăng nhập admin > Cài đặt hệ thống > Migration Turso sang D1 > Kiểm tra và migration.
+  5. Sau khi kiểm tra D1 đã có dữ liệu, xóa hai secret Turso tạm thời khỏi Dashboard.
+  Endpoint tương ứng là `POST /api/admin/migrations/turso-to-d1`; endpoint này chạy dry-run trước rồi mới xóa dữ liệu D1 hiện có và copy dữ liệu Turso sang.
 
 Nếu dùng tính năng xuất dữ liệu vào Google Sheets:
 

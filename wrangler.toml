@@ -27,3 +27,6 @@ database_id = "866e23b7-3b49-43e4-ab90-59dceb4c4f76"
 # wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
 # wrangler secret put GOOGLE_PRIVATE_KEY
 # wrangler secret put RESEND_API_KEY
+# Optional one-time Turso -> D1 migration secrets:
+# wrangler secret put TURSO_DATABASE_URL
+# wrangler secret put TURSO_AUTH_TOKEN

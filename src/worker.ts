@@ -1,5 +1,9 @@
+import { createClient as createTursoClient } from '@libsql/client/web';
+
 type Env = {
   DB: D1Database;
+  TURSO_DATABASE_URL?: string;
+  TURSO_AUTH_TOKEN?: string;
   JWT_SECRET: string;
   VITE_GOOGLE_CLIENT_ID: string;
   ADMIN_EMAIL?: string;
@@ -192,6 +196,90 @@ function normalizeCompanyName(name: string) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
+}
+
+const MIGRATION_TABLES = [
+  'settings',
+  'users',
+  'companies',
+  'lecturers',
+  'approved_company_names',
+  'registrations',
+  'final_internships',
+  'lecturer_quotas',
+  'advisor_assignments',
+  'advisor_assignment_history',
+  'final_reports',
+  'grades',
+  'notifications',
+];
+
+function quoteIdentifier(value: string) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+async function getTableColumns(database: { execute(input: string | SqlStatement): Promise<DatabaseResult> }, table: string) {
+  const rows = (await database.execute(`PRAGMA table_info(${quoteIdentifier(table)})`)).rows as any[];
+  return rows.map(row => String(row.name)).filter(Boolean);
+}
+
+async function tableExists(database: { execute(input: string | SqlStatement): Promise<DatabaseResult> }, table: string) {
+  try {
+    return (await getTableColumns(database, table)).length > 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function migrateTursoToD1(env: Env, database: DatabaseClient, options: { dryRun?: boolean; truncate?: boolean } = {}) {
+  if (!env.TURSO_DATABASE_URL || !env.TURSO_AUTH_TOKEN) {
+    throw new Error('Missing TURSO_DATABASE_URL/TURSO_AUTH_TOKEN. Add the old Turso secrets in Cloudflare Dashboard before migration.');
+  }
+  const turso = createTursoClient({
+    url: env.TURSO_DATABASE_URL,
+    authToken: env.TURSO_AUTH_TOKEN,
+  });
+  const summary: { table: string; count: number; inserted: number; skipped?: string }[] = [];
+  const tables = MIGRATION_TABLES;
+
+  for (const table of tables) {
+    if (!(await tableExists(turso as any, table))) {
+      summary.push({ table, count: 0, inserted: 0, skipped: 'missing_in_turso' });
+      continue;
+    }
+    const countRow = (await (turso as any).execute(`SELECT COUNT(*) as count FROM ${quoteIdentifier(table)}`)).rows[0] as any;
+    summary.push({ table, count: Number(countRow?.count || 0), inserted: 0 });
+  }
+
+  if (options.dryRun) return { success: true, dryRun: true, tables: summary };
+
+  if (options.truncate !== false) {
+    await executeBatch(database, [...tables].reverse().map(table => ({ sql: `DELETE FROM ${quoteIdentifier(table)}` })));
+  }
+
+  for (const item of summary) {
+    if (item.skipped) continue;
+    const d1Columns = await getTableColumns(database, item.table);
+    const tursoColumns = await getTableColumns(turso as any, item.table);
+    const columns = d1Columns.filter(column => tursoColumns.includes(column));
+    if (columns.length === 0) {
+      item.skipped = 'no_common_columns';
+      continue;
+    }
+    const selectSql = `SELECT ${columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(item.table)}`;
+    const rows = ((await (turso as any).execute(selectSql)).rows || []) as Record<string, unknown>[];
+    const placeholders = columns.map(() => '?').join(', ');
+    const insertSql = `INSERT OR REPLACE INTO ${quoteIdentifier(item.table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${placeholders})`;
+    for (let i = 0; i < rows.length; i += DB_BATCH_SIZE) {
+      await executeBatch(database, rows.slice(i, i + DB_BATCH_SIZE).map(row => ({
+        sql: insertSql,
+        args: columns.map(column => row[column] ?? null),
+      })));
+    }
+    item.inserted = rows.length;
+  }
+  await ensureSpecialCompanies(database);
+  return { success: true, dryRun: false, tables: summary };
 }
 
 function lecturerDefaultQuota(name: string) {
@@ -1208,6 +1296,18 @@ async function route(request: Request, env: Env) {
   }
 
   if (path.startsWith('/api/admin/')) requireRole(user, ['admin']);
+
+  if (method === 'POST' && path === '/api/admin/migrations/turso-to-d1') {
+    const body = await readBody(request);
+    try {
+      return json(await migrateTursoToD1(env, database, {
+        dryRun: Boolean(body.dry_run),
+        truncate: body.truncate !== false,
+      }));
+    } catch (e: any) {
+      return json({ error: e?.message || 'Migration failed' }, 500);
+    }
+  }
 
   if (method === 'GET' && path === '/api/admin/approved-companies') {
     const rows = (await database.execute('SELECT * FROM approved_company_names ORDER BY name ASC')).rows;
