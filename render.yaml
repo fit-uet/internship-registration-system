@@ -20,3 +20,11 @@ services:
         sync: false
       - key: CORS_ORIGIN
         value: https://fit-uet.github.io
+      - key: GOOGLE_SERVICE_ACCOUNT_EMAIL
+        sync: false
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

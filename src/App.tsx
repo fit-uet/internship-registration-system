@@ -3633,7 +3633,6 @@ function AdminSettings({ token }: { token: string }) {
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [migratingTurso, setMigratingTurso] = useState(false);
   const [importingDocx, setImportingDocx] = useState(false);
   const navigate = useNavigate();
 
@@ -3803,76 +3802,12 @@ function AdminSettings({ token }: { token: string }) {
     }
   };
 
-  const handleMigrateTursoToD1 = async () => {
-    if (!confirm('Bước 1 sẽ kiểm tra số lượng dữ liệu trong Turso cũ, chưa ghi vào D1. Tiếp tục?')) return;
-    setMigratingTurso(true);
-    try {
-      const dryRunRes = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ dry_run: true }),
-      });
-      const dryRunData = await dryRunRes.json();
-      if (!dryRunRes.ok) return alert(dryRunData.error || 'Không kiểm tra được dữ liệu Turso.');
-      const summary = (dryRunData.tables || []).map((row: any) => `${row.table}: ${row.count}${row.skipped ? ` (${row.skipped})` : ''}`).join('\n');
-      if (!confirm(`Dữ liệu Turso tìm thấy:\n\n${summary}\n\nBước tiếp theo sẽ xoá dữ liệu hiện có trong D1 và copy từ Turso sang. Tiếp tục?`)) return;
-      const truncateRes = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ truncate_only: true }),
-      });
-      const truncateData = await truncateRes.json();
-      if (!truncateRes.ok) return alert(truncateData.error || 'Không xoá được dữ liệu D1 trước migration.');
-      const results: string[] = [];
-      const tables = (dryRunData.tables || []).filter((row: any) => !row.skipped && Number(row.count || 0) > 0);
-      for (const table of tables) {
-        let offset = 0;
-        let inserted = 0;
-        while (offset < Number(table.count || 0)) {
-          const res = await fetch(`${API_BASE}/api/admin/migrations/turso-to-d1`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ table: table.table, offset, limit: 100, truncate: false }),
-          });
-          const data = await res.json();
-          if (!res.ok) return alert(data.error || `Migration thất bại tại bảng ${table.table}.`);
-          inserted += Number(data.inserted || 0);
-          offset = Number(data.nextOffset || offset + Number(data.inserted || 0));
-          if (data.done || Number(data.inserted || 0) === 0) break;
-        }
-        results.push(`${table.table}: ${inserted}/${table.count}`);
-      }
-      alert(`Đã migration Turso sang D1 theo từng chunk:\n\n${results.join('\n')}`);
-    } catch (e) {
-      alert('Lỗi kết nối khi migration.');
-    } finally {
-      setMigratingTurso(false);
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl border border-amber-200 shadow-sm flex flex-col gap-4">
-        <div>
-          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><RefreshCw size={18} className="text-amber-600" /> Migration Turso sang D1</h3>
-          <p className="text-sm text-slate-500 mt-1">Chỉ dùng một lần sau khi chuyển database. Cần thêm tạm `TURSO_DATABASE_URL` và `TURSO_AUTH_TOKEN` trong Cloudflare Dashboard.</p>
-        </div>
-        <div className="flex justify-end">
-          <button
-            onClick={handleMigrateTursoToD1}
-            disabled={migratingTurso}
-            className="flex items-center justify-center gap-2 bg-amber-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-70 shadow-sm transition-colors"
-          >
-            {migratingTurso ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {migratingTurso ? 'Đang migration...' : 'Kiểm tra và migration'}
-          </button>
         </div>
       </div>
 

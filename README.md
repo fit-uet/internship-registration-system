@@ -53,82 +53,67 @@ Frontend:
 
 Backend:
 
-- Cloudflare Worker entrypoint: `src/worker.ts`.
-- Express server legacy cho môi trường local/build: `server.ts`.
-- Cơ sở dữ liệu chính trên Cloudflare: D1 Free qua binding `DB`.
+- Runtime chính khuyến nghị: Express server trên Render (`server.ts`).
+- Cloudflare Worker entrypoint (`src/worker.ts`) được giữ như phương án phụ/thử nghiệm, không khuyến nghị cho migration dữ liệu lớn vì giới hạn subrequests theo mỗi invocation.
+- Cơ sở dữ liệu chính khi deploy Render: Turso/libSQL.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
-- Cloudflare R2 lưu báo cáo final PDF qua binding `REPORTS_BUCKET`.
+- Báo cáo final PDF hiện được lưu trên filesystem của server (`scratch/final-reports`). Với Render Free, filesystem không bền vững sau redeploy/restart; nếu dùng thật cần gắn storage bền vững hoặc nối object storage riêng.
 - Notification history ghi vào bảng `notifications`; nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, hệ thống gửi email thật qua Resend và cập nhật trạng thái `sent/failed`.
 
 Các biến/secrets chính:
 
-- D1 binding `DB` trong `wrangler.toml`.
+- `TURSO_DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
 - `JWT_SECRET`
 - `VITE_GOOGLE_CLIENT_ID`
 - `ADMIN_EMAIL`
+- `CORS_ORIGIN`, đặt bằng domain frontend/Render cần cho phép.
 - `RESEND_API_KEY` nếu muốn gửi email thật qua Resend.
 - `EMAIL_FROM`, ví dụ `FIT UET Internship <no-reply@domain.edu.vn>`, cần là sender/domain đã xác minh ở provider.
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
 
 Gửi email thật:
 
 - Mặc định hệ thống luôn ghi bản ghi vào `notifications`.
-- Nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, backend/Worker gọi Resend API để gửi email ngay khi tạo notification.
+- Nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, backend gọi Resend API để gửi email ngay khi tạo notification.
 - Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`.
 - Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công.
-- `CORS_ORIGIN`
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
-- `GOOGLE_PRIVATE_KEY`
-- R2 binding cho bucket lưu báo cáo final, ví dụ `REPORTS_BUCKET`
-
-Chạy local nếu cần:
+Chạy local:
 
 ```bash
 npm install
-npm run dev:worker
+npm run dev
 ```
 
-Thiết lập trên Cloudflare Dashboard:
+Deploy Render:
 
-1. Vào Cloudflare Dashboard > Workers & Pages > D1 SQL Database > Create database.
-2. Tạo database tên `internship-registration-system-db`.
-3. Mở database vừa tạo và copy `Database ID`.
-4. Dán `Database ID` đó vào `wrangler.toml`, thay giá trị `PASTE_D1_DATABASE_ID_FROM_DASHBOARD`.
-5. Mở Worker `internship-registration-system` > Settings > Bindings để kiểm tra bản production có binding.
-6. Add binding > D1 database nếu chưa có:
-   - Variable name: `DB`
-   - D1 database: `internship-registration-system-db`
-7. Add binding > R2 bucket nếu dùng nộp báo cáo:
-   - Variable name: `REPORTS_BUCKET`
-   - Bucket: `internship-final-reports`
-8. Vào Settings > Variables and Secrets, thêm các secret/variable:
+1. Tạo Web Service từ repo này trên Render.
+2. Render đọc `render.yaml` để chạy:
+   - Build: `npm install && npm run build`
+   - Start: `npm start`
+3. Thêm các environment variables/secrets trong Render:
+   - `NODE_ENV=production`
+   - `TURSO_DATABASE_URL`
+   - `TURSO_AUTH_TOKEN`
    - `JWT_SECRET`
    - `VITE_GOOGLE_CLIENT_ID`
    - `ADMIN_EMAIL`
    - `CORS_ORIGIN`
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
    - `RESEND_API_KEY`, `EMAIL_FROM` nếu gửi email thật.
+4. Nếu frontend và backend phục vụ cùng Render service thì `VITE_API_BASE_URL` có thể để trống khi build. Nếu frontend vẫn ở GitHub Pages, đặt `VITE_API_BASE_URL` về URL Render backend và `CORS_ORIGIN` về URL GitHub Pages.
 
-Lưu ý chuyển từ Turso sang D1:
+Lưu ý khi quay lại Render:
 
-- Runtime chính trên Cloudflare đọc/ghi qua binding `env.DB`.
-- Nếu deploy từ repo/Git hoặc deploy lại bằng config, binding thủ công trên Dashboard có thể không nằm trong version mới. Vì vậy `wrangler.toml` cần khai báo `[[d1_databases]]` với đúng `database_id` lấy từ Dashboard.
-- `server.ts` vẫn còn đường local legacy dùng libSQL/Turso để tiện tham chiếu, nhưng không còn là runtime chính khi triển khai Cloudflare.
-- Schema hiện vẫn được bootstrap trong `src/worker.ts` khi Worker khởi động. Sau khi ổn định, nên tách thành migration D1 có version.
-- Nếu đã có dữ liệu Turso cần giữ lại:
-  1. Vào Cloudflare Dashboard > Worker > Settings > Variables and Secrets.
-  2. Thêm tạm secret `TURSO_DATABASE_URL` và `TURSO_AUTH_TOKEN` của database Turso cũ.
-  3. Deploy lại Worker nếu Dashboard yêu cầu tạo version mới.
-  4. Đăng nhập admin > Cài đặt hệ thống > Migration Turso sang D1 > Kiểm tra và migration.
-  5. Sau khi kiểm tra D1 đã có dữ liệu, xóa hai secret Turso tạm thời khỏi Dashboard.
-  Endpoint tương ứng là `POST /api/admin/migrations/turso-to-d1`; UI chạy dry-run trước, xóa dữ liệu D1 hiện có, rồi copy từng bảng theo chunk nhỏ để tránh giới hạn subrequests của Cloudflare Worker.
+- Không cần migration Turso sang D1 nữa vì Render server đọc trực tiếp Turso hiện tại.
+- Các endpoint Worker/D1 vẫn còn trong `src/worker.ts` để tham khảo hoặc thử nghiệm, nhưng không dùng cho deploy Render.
+- Render Free có thể sleep; request đầu tiên sau thời gian idle sẽ chậm.
+- Upload báo cáo final hiện lưu vào filesystem local của Render. Cần nối storage bền vững trước khi dùng upload PDF trong đợt thật.
 
 Nếu dùng tính năng xuất dữ liệu vào Google Sheets:
 
-```bash
-npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
-npx wrangler secret put GOOGLE_PRIVATE_KEY
-```
+Thêm `GOOGLE_SERVICE_ACCOUNT_EMAIL` và `GOOGLE_PRIVATE_KEY` trong Render Environment.
 
 ## 3. Vai trò người dùng
 
@@ -774,9 +759,9 @@ Quy tắc upload:
 - Object key gợi ý: `reports/{campaign_year}/{student_id}/final.pdf`.
 - Khi nộp lại, ghi đè object hoặc tạo version tùy quyết định triển khai; ưu tiên đơn giản là ghi đè và cập nhật `updated_at`.
 
-Cloudflare Worker binding:
+Lưu trữ khi deploy Render:
 
-Trên Dashboard cần có D1 binding tên `DB` và R2 binding tên `REPORTS_BUCKET`. Code Worker đang đọc đúng hai binding này.
+Server hiện lưu file vào `scratch/final-reports` trên filesystem của Render. Đây là cách đơn giản để chạy thử, nhưng không phù hợp cho dữ liệu quan trọng vì filesystem của Render Free có thể mất sau redeploy/restart. Trước khi mở nộp báo cáo thật, cần nối object storage bền vững hoặc dịch vụ lưu file khác.
 
 Thiết kế API:
 
