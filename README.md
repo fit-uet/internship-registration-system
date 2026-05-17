@@ -58,7 +58,8 @@ Backend:
 - Cơ sở dữ liệu Turso/libSQL.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
-- Cần bổ sung Cloudflare R2 để lưu báo cáo final PDF nếu triển khai chức năng nộp báo cáo.
+- Cloudflare R2 lưu báo cáo final PDF qua binding `REPORTS_BUCKET`.
+- Notification history ghi vào bảng `notifications`; gửi email thật qua provider chưa được nối.
 
 Các biến/secrets chính:
 
@@ -147,8 +148,9 @@ Hiện tại giảng viên có thể:
 - Xem trang hồ sơ giảng viên.
 - Cập nhật tên hiển thị.
 - Xem kế hoạch triển khai.
-
-Giảng viên chưa có màn hình quản lý sinh viên được phân công, chưa có chức năng nhận báo cáo, đánh giá, chấm điểm hoặc nộp điểm.
+- Xem danh sách sinh viên được phân công.
+- Tải và cập nhật trạng thái báo cáo final của sinh viên phụ trách.
+- Nhập/lưu nháp/nộp điểm thực tập cho sinh viên mình là GVHD chính.
 
 ## 4. Mô hình dữ liệu hiện tại
 
@@ -320,7 +322,7 @@ Admin có thể:
 - Ghi toàn bộ dữ liệu đăng ký lên Google Sheets.
 - Trong màn “Quản lý Công ty”, xuất danh sách đăng ký riêng cho từng công ty và đánh dấu danh sách đã gửi doanh nghiệp theo từng công ty.
 
-Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống có thể tạo email bằng `mailto:` và xuất CSV theo từng công ty, nhưng chưa gửi email tự động từ backend và chưa có cổng doanh nghiệp.
+Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống có thể tạo email bằng `mailto:`, xuất CSV theo từng công ty và ghi notification history; gửi email thật từ backend và cổng doanh nghiệp chưa nằm trong phần đã nối.
 
 ## 6. Đối chiếu với quy trình trong kế hoạch thực tập
 
@@ -334,14 +336,14 @@ Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký 
 | Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp | Có export CSV/ZIP/Google Sheets | Đáp ứng một phần |
 | Doanh nghiệp phỏng vấn và phản hồi kết quả | Kết quả phỏng vấn được công ty xác nhận trực tiếp với sinh viên, hệ thống không cần ghi nhận `PASS/FAIL` từ công ty | Ngoài phạm vi hệ thống |
 | Sinh viên kiểm tra kết quả phỏng vấn | Sinh viên tự nhận kết quả từ công ty ngoài hệ thống | Ngoài phạm vi hệ thống |
-| Sinh viên chọn 1 nơi thực tập chính thức để lấy điểm | Chưa có bước sinh viên xác nhận nơi thực tập chính thức và cam kết đã trúng tuyển | Chưa đáp ứng |
-| Khoa phân công giảng viên hướng dẫn | Có danh sách GV và sinh viên chọn GV khi thực tập tại trường; chưa có phân công của Khoa cho sinh viên thực tập tại công ty | Đáp ứng một phần |
-| Sinh viên thực tập tại trường nếu chưa có công ty | Có lựa chọn `Trường Đại học Công nghệ`, nhưng chưa có luồng Khoa chủ động chuyển trạng thái/phân công sau hạn | Đáp ứng cơ bản |
+| Sinh viên chọn 1 nơi thực tập chính thức để lấy điểm | Có luồng xác nhận nơi thực tập chính thức, chỉ cho chọn công ty đã duyệt hoặc thực tập tại trường | Đáp ứng tốt |
+| Khoa phân công giảng viên hướng dẫn | Có phân công thủ công/import/tự phân công theo quota, có lịch sử tạo/xóa phân công | Đáp ứng phần chính |
+| Sinh viên thực tập tại trường nếu chưa có công ty | Có lựa chọn thực tập tại trường, cho chọn GV đã đồng ý hoặc nhờ Khoa phân công | Đáp ứng tốt |
 | Sinh viên báo cáo định kỳ với giảng viên | Nghiệp vụ thực hiện qua email, không cần quản lý chi tiết trên hệ thống | Ngoài phạm vi hệ thống |
-| Sinh viên nộp báo cáo thực tập | Chưa có upload báo cáo final PDF theo khoảng thời gian mở/đóng nộp | Chưa đáp ứng |
-| Giảng viên đánh giá và chấm điểm | Chưa có rubric/chấm điểm | Chưa đáp ứng |
-| Giảng viên nộp điểm cho Khoa | Chưa có luồng nộp điểm/tổng hợp điểm | Chưa đáp ứng |
-| Khoa tổng hợp và nhập hệ thống đào tạo | Có thể export danh sách đăng ký, chưa export bảng điểm cuối kỳ | Chưa đáp ứng |
+| Sinh viên nộp báo cáo thực tập | Có upload báo cáo final PDF theo khoảng thời gian mở/đóng nộp, giới hạn 10 MB | Đáp ứng phần chính |
+| Giảng viên đánh giá và chấm điểm | Có nhập 3 đầu điểm và tự tính điểm tổng kết theo công thức 20/20/60 | Đáp ứng phần chính |
+| Giảng viên nộp điểm cho Khoa | Có lưu nháp/nộp điểm, admin xem trạng thái | Đáp ứng phần chính |
+| Khoa tổng hợp và nhập hệ thống đào tạo | Có trang bảng điểm và export CSV cuối kỳ | Đáp ứng phần chính |
 | Sinh viên đăng ký học phần trên daotao.vnu.edu.vn | Hệ thống chỉ lưu học phần sinh viên chọn, chưa đối soát với hệ thống đào tạo | Đáp ứng nhắc nhở, chưa kiểm chứng |
 
 ## 7. Chức năng còn thiếu nên bổ sung
@@ -762,6 +764,7 @@ Thiết kế UI:
 - Sinh viên:
   - Widget nộp báo cáo final.
   - Hiển thị thời gian mở/đóng nộp, trạng thái, tên file, dung lượng, thời điểm nộp.
+  - Tải lại PDF đã nộp.
   - Nếu file > 10 MB, báo rõ “Vui lòng nén PDF xuống tối đa 10 MB”.
 - Giảng viên:
   - Cột trạng thái báo cáo trong danh sách sinh viên phụ trách.
@@ -781,7 +784,7 @@ Tiêu chí nghiệm thu:
 
 ### 9.6. P4 - Chấm điểm và xuất bảng điểm
 
-Mục tiêu: giảng viên nhập điểm, nộp điểm về Khoa, admin tổng hợp CSV/Excel.
+Mục tiêu: giảng viên nhập điểm, nộp điểm về Khoa, admin tổng hợp CSV/Excel. Phần lõi đã được triển khai ở backend và UI giảng viên/admin; hiện hỗ trợ xuất CSV.
 
 Thiết kế dữ liệu:
 
@@ -821,19 +824,24 @@ Thiết kế API:
 - `GET /api/admin/grades`: admin xem toàn bộ điểm.
 - `PUT /api/admin/grades/:userId/lock`: khóa điểm.
 - `GET /api/admin/grades/export.csv`: xuất CSV.
-- `GET /api/admin/grades/export.xlsx`: xuất Excel nếu bổ sung thư viện tạo XLSX; nếu chưa, CSV là đủ.
+- `GET /api/admin/grades/export.xlsx`: chưa triển khai; CSV là luồng chính hiện tại.
 
 Thiết kế UI:
 
 - Giảng viên:
-  - Bảng nhập điểm inline.
+  - Bảng “Chấm điểm thực tập” trong trang giảng viên.
+  - Chỉ GVHD chính nhập/sửa/nộp điểm.
+  - Hiển thị trạng thái báo cáo final để hỗ trợ chấm điểm báo cáo.
+  - Chặn sửa khi điểm đã bị admin khóa.
   - Tự tính điểm tổng kết khi nhập.
   - Cảnh báo thiếu báo cáo final hoặc chưa xác nhận nơi thực tập.
   - Nút “Nộp điểm cho Khoa”.
 - Admin:
+  - Site “Bảng điểm”.
+  - Lọc theo chưa có/nháp/đã nộp.
   - Dashboard tổng hợp: chưa có điểm, nháp, đã nộp, đã khóa.
-  - Xuất CSV/Excel.
-  - Khóa/mở khóa điểm.
+  - Khóa/mở khóa điểm từng sinh viên.
+  - Xuất CSV để tổng hợp và nhập hệ thống.
 
 Tiêu chí nghiệm thu:
 
@@ -844,7 +852,7 @@ Tiêu chí nghiệm thu:
 
 ### 9.7. P5 - Email tự động và lịch sử thông báo
 
-Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn.
+Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn. Phần lõi đã được triển khai ở mức notification history: hệ thống ghi bản ghi thông báo khi có sự kiện quan trọng, có trang admin để xem/lọc/xuất CSV/đánh dấu trạng thái. Việc gửi email thật qua provider sẽ nối sau.
 
 Thiết kế dữ liệu:
 
@@ -875,10 +883,21 @@ Các loại email ưu tiên:
 
 Thiết kế API/worker:
 
-- Khi sự kiện xảy ra, ghi bản ghi `notifications`.
-- Gửi email ngay nếu có provider.
-- Nếu chưa chọn provider, vẫn lưu lịch sử thông báo để sau này gửi lại.
+- Khi sự kiện xảy ra, ghi bản ghi `notifications` với trạng thái `queued`.
+- Nếu chưa chọn provider, vẫn lưu lịch sử thông báo để sau này gửi lại hoặc đánh dấu thủ công.
+- `GET /api/admin/notifications`: admin xem lịch sử thông báo.
+- `PUT /api/admin/notifications/:id/status`: admin cập nhật `queued/sent/failed`.
+- `POST /api/admin/notifications/final-confirmation-open`: tạo thông báo mở xác nhận nơi thực tập cho sinh viên chưa xác nhận.
+- `POST /api/admin/notifications/final-report-reminders`: tạo thông báo nhắc nộp báo cáo final cho sinh viên chưa nộp hoặc cần nộp lại.
 - Có thể thêm cron job Cloudflare Worker để gửi nhắc hạn theo ngày.
+
+Sự kiện đã ghi notification:
+
+- Admin đổi trạng thái đăng ký hoặc duyệt tất cả.
+- Sinh viên xác nhận nơi thực tập chính thức.
+- Khoa phân công GVHD thủ công/import/tự phân công.
+- Giảng viên/admin đổi trạng thái báo cáo final.
+- GVHD chính nộp điểm.
 
 Tiêu chí nghiệm thu:
 

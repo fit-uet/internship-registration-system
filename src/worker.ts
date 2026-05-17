@@ -144,6 +144,37 @@ function reportObjectKey(year: string, studentId: string | null | undefined) {
   return `reports/${cleanYear}/${cleanStudent}/final.pdf`;
 }
 
+function normalizeScore(value: any) {
+  if (value === '' || value === null || value === undefined) return null;
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 0 || score > 10) return undefined;
+  return Math.round(score * 100) / 100;
+}
+
+function calculateFinalScore(progressScore: number | null, reportScore: number | null, companyScore: number | null) {
+  if (progressScore === null || reportScore === null || companyScore === null) return null;
+  return Math.round((progressScore * 0.2 + reportScore * 0.2 + companyScore * 0.6) * 100) / 100;
+}
+
+async function createNotification(database: Client, data: {
+  user_id?: number | null;
+  recipient_email: string;
+  type: string;
+  subject: string;
+  body: string;
+}) {
+  try {
+    if (!data.recipient_email) return;
+    await database.execute({
+      sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
+      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
+    });
+  } catch (e) {
+    // Notification failures must not block the main business flow.
+  }
+}
+
 async function ensureSpecialCompanies(database: Client) {
   await executeBatch(database, [
     {
@@ -289,6 +320,32 @@ async function initDb(env: Env) {
         updated_at DATETIME,
         lecturer_comment TEXT
       );
+      CREATE TABLE IF NOT EXISTS grades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE,
+        lecturer_id INTEGER NOT NULL,
+        progress_score REAL,
+        report_score REAL,
+        company_score REAL,
+        final_score REAL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        comment TEXT,
+        submitted_at DATETIME,
+        locked_at DATETIME,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        recipient_email TEXT NOT NULL,
+        type TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued',
+        error TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sent_at DATETIME
+      );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
     `);
@@ -316,6 +373,7 @@ async function initDb(env: Env) {
       'ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER',
       'ALTER TABLE final_reports ADD COLUMN lecturer_comment TEXT',
+      'ALTER TABLE grades ADD COLUMN locked_at DATETIME',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -649,6 +707,13 @@ async function route(request: Request, env: Env) {
           });
         } catch (e) { }
       }
+      await createNotification(database, {
+        user_id: user.id,
+        recipient_email: user.personal_email || user.email,
+        type: 'final_internship_confirmed',
+        subject: 'Bạn đã xác nhận nơi thực tập chính thức',
+        body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: Thực tập tại trường.${requestAssignment ? '\nBạn đã chọn nhờ Khoa phân công GVHD.' : `\nGVHD đăng ký: ${lecturerName}.`}`,
+      });
       return json({ success: true });
     }
 
@@ -671,6 +736,13 @@ async function route(request: Request, env: Env) {
               status = 'confirmed', student_attested = 1, attestation_text = excluded.attestation_text, school_lecturer = NULL,
               school_assignment_request = 0, confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
       args: [user.id, registrationId, reg.company_id, 'Tôi xác nhận đã được đơn vị này tiếp nhận thực tập và chịu trách nhiệm về thông tin khai báo.', user.id, body.note || null],
+    });
+    await createNotification(database, {
+      user_id: user.id,
+      recipient_email: user.personal_email || user.email,
+      type: 'final_internship_confirmed',
+      subject: 'Bạn đã xác nhận nơi thực tập chính thức',
+      body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: ${reg.company_name === 'Công ty khác' ? reg.other_company_name || 'Công ty khác' : reg.company_name}.`,
     });
     return json({ success: true });
   }
@@ -838,6 +910,13 @@ async function route(request: Request, env: Env) {
       args: [user.id, key, filename, file.byteLength],
     });
     const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [user.id] })).rows[0];
+    await createNotification(database, {
+      user_id: user.id,
+      recipient_email: user.personal_email || user.email,
+      type: 'final_report_status_changed',
+      subject: 'Hệ thống đã ghi nhận báo cáo thực tập final',
+      body: `Hệ thống đã ghi nhận file báo cáo final: ${filename}. Dung lượng: ${Math.round(file.byteLength / 1024)} KB.`,
+    });
     return json(report);
   }
 
@@ -870,7 +949,124 @@ async function route(request: Request, env: Env) {
       sql: `UPDATE final_reports SET status = ?, lecturer_comment = ?, updated_at = datetime('now', '+7 hours') WHERE user_id = ?`,
       args: [status, body.lecturer_comment || null, userId],
     });
+    const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
+    await createNotification(database, {
+      user_id: userId,
+      recipient_email: student?.personal_email || student?.email,
+      type: 'final_report_status_changed',
+      subject: 'Cập nhật trạng thái báo cáo thực tập final',
+      body: `Báo cáo thực tập final của bạn đã được cập nhật trạng thái: ${status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : 'Đã nộp'}.${body.lecturer_comment ? `\nGhi chú: ${body.lecturer_comment}` : ''}`,
+    });
     return json({ success: true });
+  }
+
+  async function getPrimaryLecturerForUser(actor: any, userId: number) {
+    const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [actor.email, actor.name] })).rows[0] as any;
+    if (!lecturer) return null;
+    const assignment = (await database.execute({
+      sql: "SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = 'primary' LIMIT 1",
+      args: [userId, Number(lecturer.id)],
+    })).rows[0];
+    return assignment ? Number(lecturer.id) : null;
+  }
+
+  async function saveGradeForStudent(userId: number, lecturerId: number, body: any, submit = false) {
+    const existing = (await database.execute({ sql: 'SELECT * FROM grades WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    if (existing?.locked_at) return { error: 'Điểm đã bị khóa. Vui lòng liên hệ Khoa nếu cần sửa.', status: 400 };
+    const progressScore = normalizeScore(body.progress_score);
+    const reportScore = normalizeScore(body.report_score);
+    const companyScore = normalizeScore(body.company_score);
+    if (progressScore === undefined || reportScore === undefined || companyScore === undefined) {
+      return { error: 'Điểm phải nằm trong khoảng 0 đến 10.', status: 400 };
+    }
+    if (submit && (progressScore === null || reportScore === null || companyScore === null)) {
+      return { error: 'Cần nhập đủ 3 đầu điểm trước khi nộp.', status: 400 };
+    }
+    const finalScore = calculateFinalScore(progressScore, reportScore, companyScore);
+    const status = submit ? 'submitted' : 'draft';
+    await database.execute({
+      sql: `INSERT INTO grades (user_id, lecturer_id, progress_score, report_score, company_score, final_score, status, comment, submitted_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${submit ? "datetime('now', '+7 hours')" : 'NULL'}, datetime('now', '+7 hours'))
+            ON CONFLICT(user_id) DO UPDATE SET
+              lecturer_id = excluded.lecturer_id,
+              progress_score = excluded.progress_score,
+              report_score = excluded.report_score,
+              company_score = excluded.company_score,
+              final_score = excluded.final_score,
+              status = excluded.status,
+              comment = excluded.comment,
+              submitted_at = ${submit ? "datetime('now', '+7 hours')" : 'grades.submitted_at'},
+              updated_at = datetime('now', '+7 hours')`,
+      args: [userId, lecturerId, progressScore, reportScore, companyScore, finalScore, status, body.comment || null],
+    });
+    return { row: (await database.execute({ sql: 'SELECT * FROM grades WHERE user_id = ?', args: [userId] })).rows[0] };
+  }
+
+  if (method === 'GET' && path === '/api/lecturer/grades') {
+    requireRole(user, ['lecturer', 'admin']);
+    const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [user.email, user.name] })).rows[0] as any;
+    if (!lecturer) return json([]);
+    const rows = (await database.execute({
+      sql: `SELECT aa.user_id, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+                   CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+                   fr.status as report_status, fr.submitted_at as report_submitted_at,
+                   g.progress_score, g.report_score, g.company_score, g.final_score, g.status as grade_status,
+                   g.comment, g.submitted_at as grade_submitted_at, g.locked_at
+            FROM advisor_assignments aa
+            JOIN users u ON u.id = aa.user_id
+            LEFT JOIN final_internships f ON f.user_id = aa.user_id
+            LEFT JOIN companies c ON c.id = f.company_id
+            LEFT JOIN registrations r ON r.id = f.registration_id
+            LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
+            LEFT JOIN grades g ON g.user_id = aa.user_id
+            WHERE aa.lecturer_id = ? AND aa.role = 'primary'
+            ORDER BY u.student_id ASC`,
+      args: [Number(lecturer.id)],
+    })).rows;
+    return json(rows);
+  }
+
+  const lecturerGrade = path.match(/^\/api\/lecturer\/grades\/(\d+)$/);
+  if (lecturerGrade && method === 'PUT') {
+    requireRole(user, ['lecturer', 'admin']);
+    const body = await readBody(request);
+    const userId = Number(lecturerGrade[1]);
+    let lecturerId = await getPrimaryLecturerForUser(user, userId);
+    if (user.role === 'admin' && body.lecturer_id) lecturerId = Number(body.lecturer_id);
+    if (!lecturerId) return json({ error: 'Chỉ GVHD chính được nhập điểm cho sinh viên này.' }, 403);
+    const result = await saveGradeForStudent(userId, lecturerId, body, false);
+    if (result.error) return json({ error: result.error }, result.status || 400);
+    return json(result.row);
+  }
+
+  const lecturerGradeSubmit = path.match(/^\/api\/lecturer\/grades\/(\d+)\/submit$/);
+  if (lecturerGradeSubmit && method === 'POST') {
+    requireRole(user, ['lecturer', 'admin']);
+    const body = await readBody(request);
+    const userId = Number(lecturerGradeSubmit[1]);
+    let lecturerId = await getPrimaryLecturerForUser(user, userId);
+    if (user.role === 'admin' && body.lecturer_id) lecturerId = Number(body.lecturer_id);
+    if (!lecturerId) return json({ error: 'Chỉ GVHD chính được nộp điểm cho sinh viên này.' }, 403);
+    const result = await saveGradeForStudent(userId, lecturerId, body, true);
+    if (result.error) return json({ error: result.error }, result.status || 400);
+    const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
+    await createNotification(database, {
+      user_id: userId,
+      recipient_email: student?.personal_email || student?.email,
+      type: 'grade_submitted',
+      subject: 'GVHD đã nộp điểm thực tập',
+      body: `GVHD đã nộp điểm thực tập của bạn về Khoa. Điểm tổng kết tạm tính: ${result.row?.final_score ?? '-'}.`,
+    });
+    if (env.ADMIN_EMAIL) {
+      await createNotification(database, {
+        user_id: userId,
+        recipient_email: env.ADMIN_EMAIL,
+        type: 'grade_submitted',
+        subject: `GVHD đã nộp điểm thực tập: ${student?.name || userId}`,
+        body: `Sinh viên ${student?.name || userId} đã có điểm thực tập được nộp. Điểm tổng kết: ${result.row?.final_score ?? '-'}.`,
+      });
+    }
+    return json(result.row);
   }
 
   if (path.startsWith('/api/admin/')) requireRole(user, ['admin']);
@@ -1248,6 +1444,23 @@ async function route(request: Request, env: Env) {
               VALUES (?, ?, ?, ?, 'created', ?, ?, datetime('now', '+7 hours'))`,
         args: [Number(result.lastInsertRowid), userId, lecturerId, role, user.id, body.note || null],
       });
+      const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
+      await createNotification(database, {
+        user_id: userId,
+        recipient_email: student?.personal_email || student?.email,
+        type: 'advisor_assigned',
+        subject: 'Bạn đã được phân công giảng viên hướng dẫn',
+        body: `Bạn đã được phân công ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}: ${lecturer.name}.`,
+      });
+      if (lecturer.email) {
+        await createNotification(database, {
+          user_id: userId,
+          recipient_email: lecturer.email,
+          type: 'advisor_assigned',
+          subject: `Bạn được phân công hướng dẫn sinh viên ${student?.name || ''}`,
+          body: `Bạn đã được phân công ${role === 'primary' ? 'hướng dẫn chính' : 'đồng hướng dẫn'} sinh viên ${student?.name || userId}.`,
+        });
+      }
       return { row: (await database.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
     } catch (e) {
       return { error: role === 'primary' ? 'Sinh viên đã có giảng viên hướng dẫn chính.' : 'Phân công này đã tồn tại.', status: 400 };
@@ -1256,7 +1469,7 @@ async function route(request: Request, env: Env) {
 
   async function autoAssignPrimaryAdvisors() {
     const candidates = (await database.execute(`
-      SELECT l.id, l.name,
+      SELECT l.id, l.name, l.email,
              COALESCE(q.max_total_students, CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END) as max_total_students,
              COALESCE(ac.assignment_count, 0) as assignment_count
       FROM lecturers l
@@ -1267,7 +1480,7 @@ async function route(request: Request, env: Env) {
       .map((row: any) => ({ ...row, id: Number(row.id), max_total_students: Number(row.max_total_students || lecturerDefaultQuota(row.name)), assignment_count: Number(row.assignment_count || 0) }))
       .filter((row: any) => !isBachelorLecturer(row.name) && row.assignment_count < row.max_total_students);
     const students = (await database.execute(`
-      SELECT f.user_id, u.student_id
+      SELECT f.user_id, u.student_id, u.email, u.personal_email, u.name
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       WHERE NOT EXISTS (
@@ -1300,6 +1513,22 @@ async function route(request: Request, env: Env) {
               VALUES (?, ?, ?, 'primary', 'auto_created', ?, 'Tự phân công theo quota', datetime('now', '+7 hours'))`,
         args: [Number(assignment?.id || 0), Number(student.user_id), lecturer.id, user.id],
       });
+      await createNotification(database, {
+        user_id: Number(student.user_id),
+        recipient_email: student.personal_email || student.email,
+        type: 'advisor_assigned',
+        subject: 'Bạn đã được phân công giảng viên hướng dẫn',
+        body: `Bạn đã được phân công GVHD chính: ${lecturer.name}.`,
+      });
+      if (lecturer.email) {
+        await createNotification(database, {
+          user_id: Number(student.user_id),
+          recipient_email: lecturer.email,
+          type: 'advisor_assigned',
+          subject: `Bạn được phân công hướng dẫn sinh viên ${student.name || ''}`,
+          body: `Bạn đã được phân công hướng dẫn chính sinh viên ${student.name || student.user_id}.`,
+        });
+      }
       lecturer.assignment_count += 1;
       count++;
     }
@@ -1413,15 +1642,198 @@ async function route(request: Request, env: Env) {
     return json(rows);
   }
 
+  if (method === 'GET' && path === '/api/admin/grades') {
+    const rows = (await database.execute(`
+      SELECT f.user_id, f.internship_type, f.confirmed_at,
+             u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+             fr.status as report_status,
+             g.progress_score, g.report_score, g.company_score, g.final_score,
+             COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
+             gl.name as grading_lecturer_name,
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      LEFT JOIN companies c ON c.id = f.company_id
+      LEFT JOIN registrations r ON r.id = f.registration_id
+      LEFT JOIN final_reports fr ON fr.user_id = f.user_id
+      LEFT JOIN grades g ON g.user_id = f.user_id
+      LEFT JOIN lecturers gl ON gl.id = g.lecturer_id
+      LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+      LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+      GROUP BY f.user_id
+      ORDER BY u.student_id ASC
+    `)).rows;
+    return json(rows);
+  }
+
+  const adminGradeLock = path.match(/^\/api\/admin\/grades\/(\d+)\/lock$/);
+  if (adminGradeLock && method === 'PUT') {
+    const body = await readBody(request);
+    await database.execute({
+      sql: `UPDATE grades SET locked_at = ${body.locked === false ? 'NULL' : "datetime('now', '+7 hours')"}, updated_at = datetime('now', '+7 hours') WHERE user_id = ?`,
+      args: [Number(adminGradeLock[1])],
+    });
+    if (body.locked !== false) {
+      const row = (await database.execute({
+        sql: `SELECT u.email, u.personal_email, g.final_score
+              FROM users u LEFT JOIN grades g ON g.user_id = u.id
+              WHERE u.id = ?`,
+        args: [Number(adminGradeLock[1])],
+      })).rows[0] as any;
+      await createNotification(database, {
+        user_id: Number(adminGradeLock[1]),
+        recipient_email: row?.personal_email || row?.email,
+        type: 'grade_submitted',
+        subject: 'Khoa đã khóa điểm thực tập',
+        body: `Khoa đã khóa điểm thực tập của bạn. Điểm tổng kết: ${row?.final_score ?? '-'}.`,
+      });
+    }
+    return json({ success: true });
+  }
+
+  if (method === 'GET' && path === '/api/admin/grades/export.csv') {
+    const rows = (await database.execute(`
+      SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp", u.course_code as "Mã học phần",
+             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as "Nơi thực tập",
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as "GVHD chính",
+             g.progress_score as "Điểm báo cáo định kỳ",
+             g.report_score as "Điểm báo cáo final",
+             g.company_score as "Điểm đánh giá công ty/GVHD",
+             g.final_score as "Điểm tổng kết",
+             COALESCE(g.status, 'missing') as "Trạng thái điểm",
+             g.submitted_at as "Thời gian nộp điểm",
+             g.comment as "Ghi chú"
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      LEFT JOIN companies c ON c.id = f.company_id
+      LEFT JOIN registrations r ON r.id = f.registration_id
+      LEFT JOIN grades g ON g.user_id = f.user_id
+      LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+      LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+      GROUP BY f.user_id
+      ORDER BY u.student_id ASC
+    `)).rows as any[];
+    const headers = rows.length ? Object.keys(rows[0]) : ['Mã SV', 'Họ và tên', 'Điểm tổng kết'];
+    const csv = [headers, ...rows.map(row => headers.map(header => row[header] ?? ''))]
+      .map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    return new Response('\uFEFF' + csv, {
+      headers: {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="bang_diem_thuc_tap.csv"',
+      },
+    });
+  }
+
+  if (method === 'GET' && path === '/api/admin/notifications') {
+    const rows = (await database.execute(`
+      SELECT n.*, u.name as user_name, u.student_id
+      FROM notifications n
+      LEFT JOIN users u ON u.id = n.user_id
+      ORDER BY n.created_at DESC
+      LIMIT 500
+    `)).rows;
+    return json(rows);
+  }
+
+  const notificationStatus = path.match(/^\/api\/admin\/notifications\/(\d+)\/status$/);
+  if (notificationStatus && method === 'PUT') {
+    const body = await readBody(request);
+    const status = String(body.status || 'queued');
+    if (!['queued', 'sent', 'failed'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
+    await database.execute({
+      sql: `UPDATE notifications SET status = ?, error = ?, sent_at = ${status === 'sent' ? "datetime('now', '+7 hours')" : 'NULL'} WHERE id = ?`,
+      args: [status, body.error || null, Number(notificationStatus[1])],
+    });
+    return json({ success: true });
+  }
+
+  if (method === 'POST' && path === '/api/admin/notifications/final-report-reminders') {
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('final_report_close_at')")).rows);
+    const rows = (await database.execute(`
+      SELECT u.id, u.email, u.personal_email, u.name, u.student_id
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      LEFT JOIN final_reports fr ON fr.user_id = f.user_id
+      WHERE fr.id IS NULL OR fr.status = 'needs_revision'
+      ORDER BY u.student_id ASC
+    `)).rows as any[];
+    for (const row of rows) {
+      await createNotification(database, {
+        user_id: Number(row.id),
+        recipient_email: row.personal_email || row.email,
+        type: 'final_report_due_reminder',
+        subject: 'Nhắc nộp báo cáo thực tập final',
+        body: `Bạn cần nộp báo cáo thực tập final${settings.final_report_close_at ? ` trước ${settings.final_report_close_at} (GMT+7)` : ''}. File PDF tối đa 10 MB.`,
+      });
+    }
+    return json({ success: true, count: rows.length });
+  }
+
+  if (method === 'POST' && path === '/api/admin/notifications/final-confirmation-open') {
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('confirmation_open_at', 'confirmation_close_at')")).rows);
+    const rows = (await database.execute(`
+      SELECT DISTINCT u.id, u.email, u.personal_email, u.name, u.student_id
+      FROM registrations r
+      JOIN users u ON u.id = r.user_id
+      WHERE NOT EXISTS (SELECT 1 FROM final_internships f WHERE f.user_id = u.id)
+      ORDER BY u.student_id ASC
+    `)).rows as any[];
+    for (const row of rows) {
+      await createNotification(database, {
+        user_id: Number(row.id),
+        recipient_email: row.personal_email || row.email,
+        type: 'final_confirmation_open',
+        subject: 'Mở xác nhận nơi thực tập chính thức',
+        body: `Khoa đã mở giai đoạn xác nhận nơi thực tập chính thức${settings.confirmation_close_at ? ` đến ${settings.confirmation_close_at} (GMT+7)` : ''}. Vui lòng đăng nhập hệ thống để xác nhận một nơi thực tập đã trúng tuyển hoặc đăng ký thực tập tại trường nếu không trúng tuyển doanh nghiệp nào.`,
+      });
+    }
+    return json({ success: true, count: rows.length });
+  }
+
   if (method === 'PUT' && path === '/api/admin/registrations/approve-all') {
+    const pending = (await database.execute(`
+      SELECT r.id, u.id as user_id, u.email, u.personal_email, c.name as company_name, r.other_company_name
+      FROM registrations r
+      JOIN users u ON u.id = r.user_id
+      JOIN companies c ON c.id = r.company_id
+      WHERE r.status = 'pending'
+    `)).rows as any[];
     await database.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
+    for (const row of pending) {
+      await createNotification(database, {
+        user_id: Number(row.user_id),
+        recipient_email: row.personal_email || row.email,
+        type: 'registration_status_changed',
+        subject: 'Đăng ký thực tập đã được duyệt',
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.`,
+      });
+    }
     return json({ success: true });
   }
   const statusMatch = path.match(/^\/api\/admin\/registrations\/(\d+)\/status$/);
   if (method === 'PUT' && statusMatch) {
     const body = await readBody(request);
     if (!['pending', 'approved', 'rejected'].includes(body.status)) return json({ error: 'Invalid status' }, 400);
+    const row = (await database.execute({
+      sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.id = ?`,
+      args: [statusMatch[1]],
+    })).rows[0] as any;
     await database.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [body.status, statusMatch[1]] });
+    if (row && row.status !== body.status) {
+      await createNotification(database, {
+        user_id: Number(row.user_id),
+        recipient_email: row.personal_email || row.email,
+        type: 'registration_status_changed',
+        subject: `Đăng ký thực tập ${body.status === 'approved' ? 'đã được duyệt' : body.status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${body.status}.`,
+      });
+    }
     return json({ success: true });
   }
 
