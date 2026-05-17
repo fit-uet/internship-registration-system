@@ -92,14 +92,16 @@ Thiết lập trên Cloudflare Dashboard:
 
 1. Vào Cloudflare Dashboard > Workers & Pages > D1 SQL Database > Create database.
 2. Tạo database tên `internship-registration-system-db`.
-3. Mở Worker `internship-registration-system` > Settings > Bindings.
-4. Add binding > D1 database:
+3. Mở database vừa tạo và copy `Database ID`.
+4. Dán `Database ID` đó vào `wrangler.toml`, thay giá trị `PASTE_D1_DATABASE_ID_FROM_DASHBOARD`.
+5. Mở Worker `internship-registration-system` > Settings > Bindings để kiểm tra bản production có binding.
+6. Add binding > D1 database nếu chưa có:
    - Variable name: `DB`
    - D1 database: `internship-registration-system-db`
-5. Add binding > R2 bucket nếu dùng nộp báo cáo:
+7. Add binding > R2 bucket nếu dùng nộp báo cáo:
    - Variable name: `REPORTS_BUCKET`
    - Bucket: `internship-final-reports`
-6. Vào Settings > Variables and Secrets, thêm các secret/variable:
+8. Vào Settings > Variables and Secrets, thêm các secret/variable:
    - `JWT_SECRET`
    - `VITE_GOOGLE_CLIENT_ID`
    - `ADMIN_EMAIL`
@@ -110,6 +112,7 @@ Thiết lập trên Cloudflare Dashboard:
 Lưu ý chuyển từ Turso sang D1:
 
 - Runtime chính trên Cloudflare đọc/ghi qua binding `env.DB`.
+- Nếu deploy từ repo/Git hoặc deploy lại bằng config, binding thủ công trên Dashboard có thể không nằm trong version mới. Vì vậy `wrangler.toml` cần khai báo `[[d1_databases]]` với đúng `database_id` lấy từ Dashboard.
 - `server.ts` vẫn còn đường local legacy dùng libSQL/Turso để tiện tham chiếu, nhưng không còn là runtime chính khi triển khai Cloudflare.
 - Schema hiện vẫn được bootstrap trong `src/worker.ts` khi Worker khởi động. Sau khi ổn định, nên tách thành migration D1 có version.
 - Nếu đã có dữ liệu Turso cần giữ lại, có thể ưu tiên import từng bảng qua các màn quản trị XLSX đã có. Với dữ liệu đầy đủ nhiều bảng, có thể dùng Dashboard D1 SQL console để chạy script SQL đã export.
