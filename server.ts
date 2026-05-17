@@ -161,6 +161,35 @@ async function getSqliteObjectType(name: string) {
   return row?.type || null;
 }
 
+async function deleteLegacyStudentRow(studentId: string, email?: string | null) {
+  const studentsType = await getSqliteObjectType('students');
+  if (studentsType !== 'table') return false;
+
+  const columns = new Set(
+    ((await db.execute('PRAGMA table_info(students)')).rows as any[])
+      .map(row => String(row.name || ''))
+      .filter(Boolean)
+  );
+  const clauses: string[] = [];
+  const args: string[] = [];
+
+  if (columns.has('student_id') && studentId) {
+    clauses.push('student_id = ?');
+    args.push(studentId);
+  }
+  if (columns.has('email') && email) {
+    clauses.push('email = ?');
+    args.push(email);
+  }
+  if (clauses.length === 0) return false;
+
+  await db.execute({
+    sql: `DELETE FROM students WHERE ${clauses.join(' OR ')}`,
+    args,
+  });
+  return true;
+}
+
 async function consolidateLegacyPeopleTables() {
   const studentsType = await getSqliteObjectType('students');
   if (studentsType === 'table') {
@@ -1621,7 +1650,21 @@ async function startServer() {
   // 15. Admin: Delete Single Student
   app.delete('/api/admin/students/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = (await db.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [req.params.id] })).rows[0] as any;
+      const selector = decodeURIComponent(req.params.id || '').trim();
+      if (!selector) return res.status(400).json({ error: 'Thiếu mã sinh viên cần xoá.' });
+
+      const isUserIdSelector = selector.startsWith('user:');
+      const userId = isUserIdSelector ? Number(selector.slice(5)) : null;
+      if (isUserIdSelector && (!Number.isInteger(userId) || userId <= 0)) {
+        return res.status(400).json({ error: 'Mã định danh sinh viên không hợp lệ.' });
+      }
+
+      const user = (await db.execute({
+        sql: isUserIdSelector
+          ? "SELECT id, email, student_id FROM users WHERE id = ? AND role = 'student'"
+          : "SELECT id, email, student_id FROM users WHERE student_id = ? AND role = 'student'",
+        args: [isUserIdSelector ? userId : selector]
+      })).rows[0] as any;
       if (user) {
         await executeBatch([
           { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [user.id] },
@@ -1634,7 +1677,11 @@ async function startServer() {
           { sql: 'DELETE FROM users WHERE id = ?', args: [user.id] },
         ]);
       }
-      res.json({ success: true });
+      const studentId = user?.student_id || (!isUserIdSelector ? selector : '');
+      const deletedLegacyStudent = studentId
+        ? await deleteLegacyStudentRow(studentId, user?.email || `${studentId}@vnu.edu.vn`)
+        : false;
+      res.json({ success: true, deleted_user: Boolean(user), deleted_legacy_student: deletedLegacyStudent });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }

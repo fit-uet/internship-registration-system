@@ -4904,7 +4904,7 @@ function StudentRegistry({ token }: { token: string }) {
                   <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
                 </td>
                 <td className="p-4 text-sm text-right">
-                  <button onClick={() => handleDelete(s.student_id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
+                  <button onClick={() => handleDelete(s.student_id || `user:${s.id}`)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
                     <Trash2 size={18} />
                   </button>
                 </td>

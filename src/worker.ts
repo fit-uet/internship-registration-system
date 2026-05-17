@@ -182,6 +182,43 @@ async function executeBatch(database: DatabaseClient, statements: SqlStatement[]
   }
 }
 
+async function getSqliteObjectType(database: DatabaseClient, name: string) {
+  const row = (await database.execute({
+    sql: "SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table', 'view')",
+    args: [name],
+  })).rows[0] as { type?: string } | undefined;
+  return row?.type || null;
+}
+
+async function deleteLegacyStudentRow(database: DatabaseClient, studentId: string, email?: string | null) {
+  const studentsType = await getSqliteObjectType(database, 'students');
+  if (studentsType !== 'table') return false;
+
+  const columns = new Set(
+    ((await database.execute('PRAGMA table_info(students)')).rows as any[])
+      .map(row => String(row.name || ''))
+      .filter(Boolean)
+  );
+  const clauses: string[] = [];
+  const args: string[] = [];
+
+  if (columns.has('student_id') && studentId) {
+    clauses.push('student_id = ?');
+    args.push(studentId);
+  }
+  if (columns.has('email') && email) {
+    clauses.push('email = ?');
+    args.push(email);
+  }
+  if (clauses.length === 0) return false;
+
+  await database.execute({
+    sql: `DELETE FROM students WHERE ${clauses.join(' OR ')}`,
+    args,
+  });
+  return true;
+}
+
 function rowsToSettings(rows: any[]) {
   return Object.fromEntries(rows.map(row => [row.key, row.value])) as Record<string, string>;
 }
@@ -1436,7 +1473,21 @@ async function route(request: Request, env: Env) {
 
   const studentDelete = path.match(/^\/api\/admin\/students\/([^/]+)$/);
   if (method === 'DELETE' && studentDelete) {
-    const student = (await database.execute({ sql: "SELECT id FROM users WHERE student_id = ? AND role = 'student'", args: [decodeURIComponent(studentDelete[1])] })).rows[0] as any;
+    const selector = decodeURIComponent(studentDelete[1] || '').trim();
+    if (!selector) return json({ error: 'Thiếu mã sinh viên cần xoá.' }, 400);
+
+    const isUserIdSelector = selector.startsWith('user:');
+    const userId = isUserIdSelector ? Number(selector.slice(5)) : null;
+    if (isUserIdSelector && (!Number.isInteger(userId) || userId <= 0)) {
+      return json({ error: 'Mã định danh sinh viên không hợp lệ.' }, 400);
+    }
+
+    const student = (await database.execute({
+      sql: isUserIdSelector
+        ? "SELECT id, email, student_id FROM users WHERE id = ? AND role = 'student'"
+        : "SELECT id, email, student_id FROM users WHERE student_id = ? AND role = 'student'",
+      args: [isUserIdSelector ? userId : selector],
+    })).rows[0] as any;
     if (student) await executeBatch(database, [
       { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [student.id] },
       { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [student.id] },
@@ -1447,7 +1498,11 @@ async function route(request: Request, env: Env) {
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [student.id] },
       { sql: 'DELETE FROM users WHERE id = ?', args: [student.id] },
     ]);
-    return json({ success: true });
+    const studentId = student?.student_id || (!isUserIdSelector ? selector : '');
+    const deletedLegacyStudent = studentId
+      ? await deleteLegacyStudentRow(database, studentId, student?.email || `${studentId}@vnu.edu.vn`)
+      : false;
+    return json({ success: true, deleted_user: Boolean(student), deleted_legacy_student: deletedLegacyStudent });
   }
 
   if (method === 'GET' && path === '/api/admin/lecturers') return json((await database.execute('SELECT * FROM lecturers ORDER BY name ASC')).rows);
