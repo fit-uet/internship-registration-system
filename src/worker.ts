@@ -232,6 +232,22 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
   return Math.round((progressScore * 0.2 + reportScore * 0.2 + companyScore * 0.6) * 100) / 100;
 }
 
+async function getCampaignSettings(database: DatabaseClient) {
+  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')")).rows);
+  return {
+    year: settings.campaign_year || '2026',
+    start: settings.campaign_start || '22/05/2026',
+    end: settings.campaign_end || '15/06/2026',
+    classes_list: settings.classes_list || DEFAULT_CLASSES,
+    registration_open_at: settings.registration_open_at || '',
+    registration_close_at: settings.registration_close_at || '',
+    confirmation_open_at: settings.confirmation_open_at || '',
+    confirmation_close_at: settings.confirmation_close_at || '',
+    final_report_open_at: settings.final_report_open_at || '',
+    final_report_close_at: settings.final_report_close_at || '',
+  };
+}
+
 async function createNotification(database: DatabaseClient, data: {
   user_id?: number | null;
   recipient_email: string;
@@ -673,6 +689,9 @@ async function route(request: Request, env: Env) {
   if (method === 'GET' && path === '/api/plan') {
     const row = (await database.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as any;
     return json({ plan: row?.value || '' });
+  }
+  if (method === 'GET' && path === '/api/settings/campaign') {
+    return json(await getCampaignSettings(database));
   }
 
   const user = await requireUser(request, env);
@@ -2030,22 +2049,6 @@ async function route(request: Request, env: Env) {
     await database.execute({ sql: 'UPDATE users SET is_lecturer = ? WHERE id = ? AND role = ? ', args: [body.is_lecturer ? 1 : 0, adminLecturer[1], 'admin'] });
     await syncLecturerUsers(database);
     return json({ success: true });
-  }
-
-  if (method === 'GET' && path === '/api/settings/campaign') {
-    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')")).rows);
-    return json({
-      year: settings.campaign_year || '2026',
-      start: settings.campaign_start || '22/05/2026',
-      end: settings.campaign_end || '15/06/2026',
-      classes_list: settings.classes_list || DEFAULT_CLASSES,
-      registration_open_at: settings.registration_open_at || '',
-      registration_close_at: settings.registration_close_at || '',
-      confirmation_open_at: settings.confirmation_open_at || '',
-      confirmation_close_at: settings.confirmation_close_at || '',
-      final_report_open_at: settings.final_report_open_at || '',
-      final_report_close_at: settings.final_report_close_at || '',
-    });
   }
 
   if (method === 'PUT' && path === '/api/settings/campaign') {
