@@ -640,6 +640,9 @@ async function requireUser(request: Request, env: Env) {
   const claims: any = await verifyJwt(token, env.JWT_SECRET);
   const user = (await db(env).execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [claims.id] })).rows[0] as any;
   if (!user) throw new Response(JSON.stringify({ error: 'User not found' }), { status: 401 });
+  if (env.ADMIN_EMAIL && user.email === env.ADMIN_EMAIL && user.role !== 'admin') {
+    user.role = 'admin';
+  }
   return user;
 }
 
@@ -751,7 +754,7 @@ async function handleAuthGoogle(request: Request, env: Env) {
     });
     user = { id: Number(result.lastInsertRowid), email, name: displayName, picture: payload.picture, role: defaultRole, student_id: studentId, is_lecturer: isLecturer ? 1 : 0 };
   } else {
-    const nextRole = isLecturer ? (user.role === 'admin' ? 'admin' : 'lecturer') : (user.role === 'lecturer' ? 'student' : user.role);
+    const nextRole = email === env.ADMIN_EMAIL ? 'admin' : isLecturer ? (user.role === 'admin' ? 'admin' : 'lecturer') : (user.role === 'lecturer' ? 'student' : user.role);
     await database.execute({
       sql: `UPDATE users SET picture = ?, role = ?, name = CASE WHEN ? = 1 THEN ? ELSE name END,
             is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE CASE WHEN ? = 1 THEN 0 ELSE is_lecturer END END,
