@@ -6,6 +6,7 @@ import { createClient, Client } from '@libsql/client';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { parse } from 'csv-parse/sync';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 const DEFAULT_JWT_SECRET = 'uyet-vnu-secret-key-1234';
 const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
@@ -17,6 +18,7 @@ const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 let db: Client;
 const DB_BATCH_SIZE = 100;
+let r2Client: S3Client | null = null;
 
 async function executeBatch(statements: any[], mode: 'read' | 'write' = 'write') {
   for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
@@ -64,6 +66,105 @@ function reportObjectKey(year: string, studentId: string | null | undefined) {
   const cleanYear = String(year || new Date().getFullYear()).replace(/[^0-9A-Za-z_-]/g, '_');
   const cleanStudent = String(studentId || 'unknown').replace(/[^0-9A-Za-z_-]/g, '_');
   return `reports/${cleanYear}/${cleanStudent}/final.pdf`;
+}
+
+function getR2Config() {
+  const bucket = process.env.R2_BUCKET || process.env.R2_BUCKET_NAME;
+  const endpoint = process.env.R2_ENDPOINT || (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '');
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) return null;
+  return { bucket, endpoint, accessKeyId, secretAccessKey };
+}
+
+function getR2Client() {
+  const config = getR2Config();
+  if (!config) return null;
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: config.endpoint,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+      forcePathStyle: true,
+    });
+  }
+  return { client: r2Client, bucket: config.bucket };
+}
+
+function localReportPath(key: string) {
+  return join(process.cwd(), 'scratch', 'final-reports', key);
+}
+
+async function saveReportObject(key: string, file: Buffer) {
+  const r2 = getR2Client();
+  if (r2) {
+    await r2.client.send(new PutObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+      Body: file,
+      ContentType: 'application/pdf',
+    }));
+    return 'r2';
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Chưa cấu hình Cloudflare R2 cho lưu báo cáo PDF. Cần R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY và R2_ACCOUNT_ID/R2_ENDPOINT.');
+  }
+
+  const localPath = localReportPath(key);
+  fs.mkdirSync(dirname(localPath), { recursive: true });
+  fs.writeFileSync(localPath, file);
+  return 'local';
+}
+
+async function streamReportObject(key: string, res: any) {
+  const r2 = getR2Client();
+  if (r2) {
+    const object = await r2.client.send(new GetObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+    }));
+    const body = object.Body as any;
+    if (!body) return false;
+    if (typeof body.pipe === 'function') {
+      body.pipe(res);
+      return true;
+    }
+    if (typeof body.transformToByteArray === 'function') {
+      res.end(Buffer.from(await body.transformToByteArray()));
+      return true;
+    }
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Chưa cấu hình Cloudflare R2 cho tải báo cáo PDF.');
+  }
+
+  const localPath = localReportPath(key);
+  if (!fs.existsSync(localPath)) return false;
+  fs.createReadStream(localPath).pipe(res);
+  return true;
+}
+
+async function deleteReportObject(key: string | null | undefined) {
+  if (!key) return;
+  const r2 = getR2Client();
+  if (r2) {
+    await r2.client.send(new DeleteObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+    }));
+    return;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    const localPath = localReportPath(key);
+    if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+  }
 }
 
 function normalizeScore(value: any) {
@@ -1100,9 +1201,7 @@ async function startServer() {
       if (file.length > MAX_REPORT_BYTES) return res.status(413).json({ error: 'File PDF vượt quá 10 MB. Vui lòng nén lại trước khi nộp.' });
       if (file.subarray(0, 4).toString('utf8') !== '%PDF') return res.status(400).json({ error: 'Nội dung file không phải PDF hợp lệ.' });
       const key = reportObjectKey(settings.campaign_year, req.user.student_id || req.user.email);
-      const localPath = join(process.cwd(), 'scratch', 'final-reports', key);
-      fs.mkdirSync(dirname(localPath), { recursive: true });
-      fs.writeFileSync(localPath, file);
+      await saveReportObject(key, file);
       await db.execute({
         sql: `INSERT INTO final_reports (user_id, object_key, original_filename, file_size, mime_type, status, submitted_at, updated_at)
               VALUES (?, ?, ?, ?, 'application/pdf', 'submitted', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
@@ -1136,11 +1235,15 @@ async function startServer() {
     if (!(await canAccessStudentReport(req.user, userId))) return res.status(403).json({ error: 'Forbidden' });
     const report = (await db.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [userId] })).rows[0] as any;
     if (!report) return res.status(404).json({ error: 'Chưa có báo cáo.' });
-    const localPath = join(process.cwd(), 'scratch', 'final-reports', report.object_key);
-    if (!fs.existsSync(localPath)) return res.status(404).json({ error: 'Không tìm thấy file báo cáo.' });
     res.setHeader('content-type', 'application/pdf');
     res.setHeader('content-disposition', `attachment; filename="${encodeURIComponent(report.original_filename)}"`);
-    fs.createReadStream(localPath).pipe(res);
+    try {
+      const streamed = await streamReportObject(report.object_key, res);
+      if (!streamed && !res.headersSent) return res.status(404).json({ error: 'Không tìm thấy file báo cáo.' });
+    } catch (e: any) {
+      if (!res.headersSent) return res.status(500).json({ error: 'Không tải được file báo cáo: ' + e.message });
+      res.destroy(e);
+    }
   });
 
   app.put('/api/reports/final/:userId/status', requireAuth, async (req: any, res: any) => {
@@ -1666,6 +1769,10 @@ async function startServer() {
         args: [isUserIdSelector ? userId : selector]
       })).rows[0] as any;
       if (user) {
+        const reports = (await db.execute({
+          sql: 'SELECT object_key FROM final_reports WHERE user_id = ?',
+          args: [user.id],
+        })).rows as any[];
         await executeBatch([
           { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [user.id] },
@@ -1676,6 +1783,7 @@ async function startServer() {
           { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM users WHERE id = ?', args: [user.id] },
         ]);
+        await Promise.all(reports.map(report => deleteReportObject(report.object_key).catch(() => undefined)));
       }
       const studentId = user?.student_id || (!isUserIdSelector ? selector : '');
       const deletedLegacyStudent = studentId

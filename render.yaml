@@ -18,6 +18,14 @@ services:
         sync: false
       - key: TURSO_AUTH_TOKEN
         sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
       - key: CORS_ORIGIN
         value: https://fit-uet.github.io
       - key: GOOGLE_SERVICE_ACCOUNT_EMAIL

@@ -58,7 +58,7 @@ Backend:
 - Cơ sở dữ liệu chính khi deploy Render: Turso/libSQL.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
-- Báo cáo final PDF hiện được lưu trên filesystem của server (`scratch/final-reports`). Với Render Free, filesystem không bền vững sau redeploy/restart; nếu dùng thật cần gắn storage bền vững hoặc nối object storage riêng.
+- Báo cáo final PDF được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong bảng `final_reports`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports`; khi chạy production bắt buộc cấu hình R2.
 - Notification history ghi vào bảng `notifications`; nếu cấu hình `RESEND_API_KEY` và `EMAIL_FROM`, hệ thống gửi email thật qua Resend và cập nhật trạng thái `sent/failed`.
 
 Các biến/secrets chính:
@@ -69,6 +69,8 @@ Các biến/secrets chính:
 - `VITE_GOOGLE_CLIENT_ID`
 - `ADMIN_EMAIL`
 - `CORS_ORIGIN`, đặt bằng domain frontend/Render cần cho phép.
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` để lưu báo cáo final PDF trên Cloudflare R2.
+- `R2_ENDPOINT` nếu muốn khai báo endpoint thủ công; nếu bỏ trống hệ thống dùng `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`.
 - `RESEND_API_KEY` nếu muốn gửi email thật qua Resend.
 - `EMAIL_FROM`, ví dụ `FIT UET Internship <no-reply@domain.edu.vn>`, cần là sender/domain đã xác minh ở provider.
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
@@ -100,6 +102,8 @@ Deploy Render:
    - `VITE_GOOGLE_CLIENT_ID`
    - `ADMIN_EMAIL`
    - `CORS_ORIGIN`
+   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+   - `R2_ENDPOINT` nếu không muốn dùng endpoint mặc định theo account id.
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
    - `RESEND_API_KEY`, `EMAIL_FROM` nếu gửi email thật.
 4. Nếu frontend và backend phục vụ cùng Render service thì `VITE_API_BASE_URL` có thể để trống khi build. Nếu frontend vẫn ở GitHub Pages, đặt `VITE_API_BASE_URL` về URL Render backend và `CORS_ORIGIN` về URL GitHub Pages.
@@ -109,7 +113,7 @@ Lưu ý khi quay lại Render:
 - Không cần migration Turso sang D1 nữa vì Render server đọc trực tiếp Turso hiện tại.
 - Các endpoint Worker/D1 vẫn còn trong `src/worker.ts` để tham khảo hoặc thử nghiệm, nhưng không dùng cho deploy Render.
 - Render Free có thể sleep; request đầu tiên sau thời gian idle sẽ chậm.
-- Upload báo cáo final hiện lưu vào filesystem local của Render. Cần nối storage bền vững trước khi dùng upload PDF trong đợt thật.
+- Upload báo cáo final trên production cần Cloudflare R2. Nếu thiếu biến R2, endpoint upload/download PDF sẽ báo lỗi cấu hình thay vì lưu vào filesystem tạm của Render.
 
 Nếu dùng tính năng xuất dữ liệu vào Google Sheets:
 
@@ -761,7 +765,7 @@ Quy tắc upload:
 
 Lưu trữ khi deploy Render:
 
-Server hiện lưu file vào `scratch/final-reports` trên filesystem của Render. Đây là cách đơn giản để chạy thử, nhưng không phù hợp cho dữ liệu quan trọng vì filesystem của Render Free có thể mất sau redeploy/restart. Trước khi mở nộp báo cáo thật, cần nối object storage bền vững hoặc dịch vụ lưu file khác.
+Server production lưu file lên Cloudflare R2 bằng S3-compatible API. Turso chỉ lưu `object_key` và metadata trong `final_reports`. Khi chạy local mà chưa cấu hình R2, server fallback về `scratch/final-reports` để tiện thử nghiệm; fallback này không dùng cho Render production.
 
 Thiết kế API:
 
