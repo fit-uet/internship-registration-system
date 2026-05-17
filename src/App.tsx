@@ -98,6 +98,9 @@ function App() {
                             <Link to="/admin/advisors" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <Users size={16} className="text-emerald-500" /> Phân công GVHD
                             </Link>
+                            <Link to="/admin/reports" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <FileText size={16} className="text-indigo-500" /> Báo cáo final
+                            </Link>
                             <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                               <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
                             </Link>
@@ -149,6 +152,7 @@ function App() {
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/advisors" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/reports" element={user.role === 'admin' ? <FinalReportAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/companies" element={user.role === 'admin' ? <CompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/approved-companies" element={user.role === 'admin' ? <ApprovedCompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
@@ -201,6 +205,8 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const [myRegs, setMyRegs] = useState<any[]>([]);
   const [finalInternship, setFinalInternship] = useState<any>(null);
   const [myAdvisors, setMyAdvisors] = useState<any[]>([]);
+  const [finalReport, setFinalReport] = useState<any>(null);
+  const [uploadingReport, setUploadingReport] = useState(false);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -274,11 +280,37 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     return 'open';
   }, [campaign]);
 
+  const finalReportWindowStatus = useMemo(() => {
+    const openStr = campaign?.final_report_open_at;
+    const closeStr = campaign?.final_report_close_at;
+    if (!openStr && !closeStr) return 'open';
+    const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const openUTC = openStr ? toUTC(openStr) : null;
+    const closeUTC = closeStr ? toUTC(closeStr) : null;
+    if (openUTC && now < openUTC) return 'not_open_yet';
+    if (closeUTC && now > closeUTC) return 'closed';
+    return 'open';
+  }, [campaign]);
+
   const formatGMT7 = (isoLocal: string) => {
     if (!isoLocal) return '';
     const [date, time] = isoLocal.split('T');
     const [y, m, d] = date.split('-');
     return `${d}/${m}/${y} ${time}`;
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '0 B';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const reportStatusLabel = (status?: string) => {
+    if (status === 'accepted') return 'Đã chấp nhận';
+    if (status === 'needs_revision') return 'Cần nộp lại';
+    if (status === 'submitted') return 'Đã nộp';
+    return 'Chưa nộp';
   };
 
   const khacCompany = companies.find(c => c.name === 'Công ty khác');
@@ -335,11 +367,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes, finalRes, advisorRes, campRes, itListRes, lecRes] = await Promise.all([
+      const [compRes, regRes, finalRes, advisorRes, reportRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
@@ -356,6 +389,9 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
       const advisorData = await advisorRes.json();
       setMyAdvisors(Array.isArray(advisorData) ? advisorData : []);
+
+      const reportData = await reportRes.json();
+      setFinalReport(reportData && !reportData.error ? reportData : null);
 
       const campData = await campRes.json();
       if (campData && !campData.error) {
@@ -455,6 +491,42 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
       alert("Đăng ký lỗi!");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const uploadFinalReport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+      alert('Vui lòng chọn file PDF.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File PDF vượt quá 10 MB. Vui lòng nén PDF xuống tối đa 10 MB rồi nộp lại.');
+      e.target.value = '';
+      return;
+    }
+    setUploadingReport(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/final`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/pdf',
+          'X-Filename': encodeURIComponent(file.name)
+        },
+        body: file
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Nộp báo cáo thất bại.');
+      setFinalReport(data);
+      alert('Đã nộp báo cáo final.');
+    } catch (err) {
+      alert('Lỗi kết nối khi nộp báo cáo.');
+    } finally {
+      setUploadingReport(false);
+      e.target.value = '';
     }
   };
 
@@ -682,6 +754,51 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {finalInternship && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="text-indigo-600" size={20} />
+                  <h3 className="text-base font-bold text-slate-900">Báo cáo thực tập final</h3>
+                </div>
+                <div className="text-sm text-slate-600 space-y-1">
+                  <p>
+                    Thời gian nộp:{' '}
+                    <strong>{campaign.final_report_open_at ? formatGMT7(campaign.final_report_open_at) : '—'}</strong>
+                    {' '}đến{' '}
+                    <strong>{campaign.final_report_close_at ? formatGMT7(campaign.final_report_close_at) : '—'}</strong>
+                    {' '}(GMT+7)
+                  </p>
+                  {finalReport ? (
+                    <>
+                      <p>Trạng thái: <strong>{reportStatusLabel(finalReport.status)}</strong></p>
+                      <p>File: <strong>{finalReport.original_filename}</strong> ({formatBytes(Number(finalReport.file_size || 0))})</p>
+                      <p className="text-xs">Nộp lúc: {finalReport.submitted_at ? new Date(finalReport.submitted_at).toLocaleString('vi-VN') : '-'}</p>
+                      {finalReport.lecturer_comment && <p className="text-xs text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</p>}
+                    </>
+                  ) : (
+                    <p>Chưa nộp báo cáo final.</p>
+                  )}
+                  {finalReportWindowStatus !== 'open' && (
+                    <p className={`text-xs font-semibold ${finalReportWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
+                      {finalReportWindowStatus === 'not_open_yet'
+                        ? `Chưa mở nộp báo cáo${campaign.final_report_open_at ? `: ${formatGMT7(campaign.final_report_open_at)} (GMT+7)` : ''}.`
+                        : `Đã hết hạn nộp báo cáo${campaign.final_report_close_at ? `: ${formatGMT7(campaign.final_report_close_at)} (GMT+7)` : ''}.`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <label className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 whitespace-nowrap ${finalReportWindowStatus === 'open' && !uploadingReport ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                {uploadingReport ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+                {finalReport ? 'Nộp lại PDF' : 'Nộp PDF'}
+                <input type="file" accept="application/pdf,.pdf" disabled={finalReportWindowStatus !== 'open' || uploadingReport} className="hidden" onChange={uploadFinalReport} />
+              </label>
+            </div>
+            <p className="text-xs text-slate-500 mt-3">Chỉ nhận PDF tối đa 10 MB. Nếu lớn hơn, vui lòng nén file trước khi nộp.</p>
           </div>
         )}
 
@@ -1416,6 +1533,12 @@ function AdminPanel({ token }: { token: string }) {
           >
             <Users size={18} /> Phân công GVHD
           </button>
+          <button
+            onClick={() => navigate('/admin/reports')}
+            className="flex items-center gap-2 bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-800 shadow-sm transition-colors whitespace-nowrap"
+          >
+            <FileText size={18} /> Báo cáo final
+          </button>
           <div className="relative">
             <button
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1920,6 +2043,153 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinalReportAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '-';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
+
+  const fetchRows = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/reports/final`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      alert('Không tải được danh sách báo cáo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRows(); }, [token]);
+
+  const downloadReport = async (userId: number, filename: string) => {
+    const res = await fetch(`${API_BASE}/api/reports/final/${userId}/download`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return alert('Không tải được báo cáo.');
+    saveAs(await res.blob(), filename || 'final-report.pdf');
+  };
+
+  const updateStatus = async (userId: number, status: string) => {
+    const lecturer_comment = status === 'needs_revision' ? prompt('Ghi chú yêu cầu sinh viên nộp lại:', '') || '' : '';
+    const res = await fetch(`${API_BASE}/api/reports/final/${userId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status, lecturer_comment })
+    });
+    if (res.ok) fetchRows();
+    else alert('Cập nhật trạng thái thất bại.');
+  };
+
+  const filtered = rows.filter(row => {
+    const term = searchTerm.trim().toLowerCase();
+    const status = row.report_status || 'missing';
+    const matchStatus = statusFilter ? status === statusFilter : true;
+    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
+    return matchStatus && matchTerm;
+  });
+
+  const exportCSV = () => {
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Trạng thái', 'Tên file', 'Dung lượng', 'Nộp lúc', 'Ghi chú'];
+    const data = filtered.map((row, idx) => [
+      idx + 1,
+      row.student_id || '',
+      row.student_name || '',
+      row.class_name || '',
+      row.course_code || '',
+      row.internship_place || '',
+      row.primary_advisors || '',
+      statusLabel(row.report_status),
+      row.original_filename || '',
+      row.file_size || '',
+      row.report_submitted_at || '',
+      row.lecturer_comment || ''
+    ]);
+    const csv = [headers, ...data].map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'bao_cao_final.csv');
+  };
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải báo cáo...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final</h2>
+          <p className="text-sm text-slate-500 mt-1">Theo dõi báo cáo PDF final của sinh viên đã xác nhận nơi thực tập.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="">Tất cả trạng thái</option>
+            <option value="missing">Chưa nộp</option>
+            <option value="submitted">Đã nộp</option>
+            <option value="needs_revision">Cần nộp lại</option>
+            <option value="accepted">Đã chấp nhận</option>
+          </select>
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất CSV
+          </button>
+        </div>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Sinh viên</th>
+                <th className="px-4 py-3">Nơi thực tập</th>
+                <th className="px-4 py-3">GVHD chính</th>
+                <th className="px-4 py-3">Báo cáo</th>
+                <th className="px-4 py-3">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">Không có dữ liệu phù hợp.</td></tr>
+              ) : filtered.map(row => (
+                <tr key={row.user_id} className="hover:bg-slate-50 align-top">
+                  <td className="px-4 py-4">
+                    <div className="font-semibold text-slate-900">{row.student_name}</div>
+                    <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
+                    <div className="text-xs text-slate-500">{row.class_name || '-'} · {row.course_code || '-'}</div>
+                  </td>
+                  <td className="px-4 py-4">{row.internship_place || '-'}</td>
+                  <td className="px-4 py-4">{row.primary_advisors || '-'}</td>
+                  <td className="px-4 py-4">
+                    <div className={`font-semibold ${row.report_status === 'accepted' ? 'text-emerald-700' : row.report_status === 'needs_revision' ? 'text-orange-700' : row.report_status ? 'text-blue-700' : 'text-slate-400'}`}>{statusLabel(row.report_status)}</div>
+                    {row.original_filename && <div className="text-xs text-slate-500 mt-1">{row.original_filename} · {formatBytes(Number(row.file_size || 0))}</div>}
+                    {row.report_submitted_at && <div className="text-xs text-slate-500">{new Date(row.report_submitted_at).toLocaleString('vi-VN')}</div>}
+                    {row.lecturer_comment && <div className="text-xs text-orange-700 mt-1">{row.lecturer_comment}</div>}
+                  </td>
+                  <td className="px-4 py-4">
+                    {row.report_id ? (
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => downloadReport(row.user_id, row.original_filename)} className="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-semibold">Tải PDF</button>
+                        <button onClick={() => updateStatus(row.user_id, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-semibold">Chấp nhận</button>
+                        <button onClick={() => updateStatus(row.user_id, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-2 py-1 rounded text-xs font-semibold">Nộp lại</button>
+                      </div>
+                    ) : <span className="text-xs text-slate-400">Chưa có file</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -3511,13 +3781,42 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
   const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
 
-  useEffect(() => {
+  const fetchStudents = () => {
+    setLoadingStudents(true);
     fetch(`${API_BASE}/api/lecturer/students`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => setStudents(Array.isArray(data) ? data : []))
       .catch(() => setStudents([]))
       .finally(() => setLoadingStudents(false));
+  };
+
+  useEffect(() => {
+    fetchStudents();
   }, [token]);
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '-';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
+
+  const downloadReport = async (student: any) => {
+    const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return alert('Không tải được báo cáo.');
+    saveAs(await res.blob(), student.report_filename || 'final-report.pdf');
+  };
+
+  const updateReportStatus = async (student: any, status: string) => {
+    const lecturer_comment = status === 'needs_revision' ? prompt('Ghi chú yêu cầu sinh viên nộp lại:', '') || '' : '';
+    const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status, lecturer_comment })
+    });
+    if (res.ok) fetchStudents();
+    else alert('Cập nhật trạng thái báo cáo thất bại.');
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -3564,15 +3863,16 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                 <th className="px-4 py-3">Họ tên</th>
                 <th className="px-4 py-3">Vai trò</th>
                 <th className="px-4 py-3">Nơi thực tập</th>
+                <th className="px-4 py-3">Báo cáo final</th>
                 <th className="px-4 py-3">Liên hệ</th>
                 <th className="px-4 py-3">Môn học</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingStudents ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
               ) : students.map((student: any) => (
                 <tr key={student.assignment_id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono">{student.student_id || '-'}</td>
@@ -3583,6 +3883,21 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">{student.internship_place || '-'}</td>
+                  <td className="px-4 py-3">
+                    <div className={`text-xs font-bold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
+                      {statusLabel(student.report_status)}
+                    </div>
+                    {student.report_filename && (
+                      <div className="mt-1 space-y-1">
+                        <div className="text-xs text-slate-500">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
+                        <div className="flex flex-wrap gap-1">
+                          <button onClick={() => downloadReport(student)} className="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-xs font-semibold">Tải</button>
+                          <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-semibold">OK</button>
+                          <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-xs font-semibold">Nộp lại</button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-xs leading-relaxed">
                     <div>{student.phone || '-'}</div>
                     <div>{student.personal_email || student.email || '-'}</div>

@@ -9,10 +9,12 @@ type Env = {
   CORS_ORIGIN?: string;
   GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
   GOOGLE_PRIVATE_KEY?: string;
+  REPORTS_BUCKET?: R2Bucket;
 };
 
 const encoder = new TextEncoder();
 const DB_BATCH_SIZE = 100;
+const MAX_REPORT_BYTES = 10 * 1024 * 1024;
 const DEFAULT_CLASSES = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
 const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
@@ -125,6 +127,21 @@ function lecturerDefaultQuota(name: string) {
 function isBachelorLecturer(name: string) {
   const upper = String(name || '').toUpperCase();
   return /\bCN\b/.test(upper) || upper.includes('CN.');
+}
+
+function isWithinLocalWindow(settings: Record<string, string>, openKey: string, closeKey: string) {
+  const now = new Date();
+  const openAt = settings[openKey];
+  const closeAt = settings[closeKey];
+  if (openAt && now < new Date(openAt + ':00+07:00')) return { ok: false, error: 'Chưa đến thời gian cho phép.' };
+  if (closeAt && now > new Date(closeAt + ':00+07:00')) return { ok: false, error: 'Đã hết thời gian cho phép.' };
+  return { ok: true };
+}
+
+function reportObjectKey(year: string, studentId: string | null | undefined) {
+  const cleanYear = String(year || new Date().getFullYear()).replace(/[^0-9A-Za-z_-]/g, '_');
+  const cleanStudent = String(studentId || 'unknown').replace(/[^0-9A-Za-z_-]/g, '_');
+  return `reports/${cleanYear}/${cleanStudent}/final.pdf`;
 }
 
 async function ensureSpecialCompanies(database: Client) {
@@ -249,6 +266,29 @@ async function initDb(env: Env) {
         max_total_students INTEGER,
         note TEXT
       );
+      CREATE TABLE IF NOT EXISTS advisor_assignment_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assignment_id INTEGER,
+        user_id INTEGER NOT NULL,
+        lecturer_id INTEGER,
+        role TEXT,
+        action TEXT NOT NULL,
+        actor_id INTEGER,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS final_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE,
+        object_key TEXT NOT NULL,
+        original_filename TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        mime_type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'submitted',
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME,
+        lecturer_comment TEXT
+      );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
     `);
@@ -275,6 +315,7 @@ async function initDb(env: Env) {
       'ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER',
+      'ALTER TABLE final_reports ADD COLUMN lecturer_comment TEXT',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -596,10 +637,15 @@ async function route(request: Request, env: Env) {
       });
       if (!requestAssignment && validLecturer) {
         try {
-          await database.execute({
+          const result = await database.execute({
             sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
                   VALUES (?, ?, 'primary', ?, 'Sinh viên xác nhận GVHD thực tập tại trường', datetime('now', '+7 hours'))`,
             args: [user.id, Number(validLecturer.id), user.id],
+          });
+          await database.execute({
+            sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+                  VALUES (?, ?, ?, 'primary', 'student_created', ?, 'Sinh viên xác nhận GVHD thực tập tại trường', datetime('now', '+7 hours'))`,
+            args: [Number(result.lastInsertRowid), user.id, Number(validLecturer.id), user.id],
           });
         } catch (e) { }
       }
@@ -716,21 +762,115 @@ async function route(request: Request, env: Env) {
     const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [user.email, user.name] })).rows[0] as any;
     if (!lecturer) return json([]);
     const rows = (await database.execute({
-      sql: `SELECT aa.id as assignment_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
+      sql: `SELECT aa.id as assignment_id, aa.user_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
                    u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
                    f.internship_type, f.confirmed_at,
                    CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
-                   r.other_company_role, r.other_company_contact
+                   r.other_company_role, r.other_company_contact,
+                   fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at
             FROM advisor_assignments aa
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
             LEFT JOIN companies c ON c.id = f.company_id
             LEFT JOIN registrations r ON r.id = f.registration_id
+            LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
             WHERE aa.lecturer_id = ?
             ORDER BY u.student_id ASC`,
       args: [Number(lecturer.id)],
     })).rows;
     return json(rows);
+  }
+
+  async function canAccessStudentReport(actor: any, userId: number) {
+    if (actor.role === 'admin') return true;
+    if (actor.role === 'student' && Number(actor.id) === Number(userId)) return true;
+    if (actor.role !== 'lecturer') return false;
+    const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [actor.email, actor.name] })).rows[0] as any;
+    if (!lecturer) return false;
+    const assignment = (await database.execute({
+      sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? LIMIT 1',
+      args: [userId, Number(lecturer.id)],
+    })).rows[0];
+    return !!assignment;
+  }
+
+  if (method === 'GET' && path === '/api/reports/final/my') {
+    requireRole(user, ['student']);
+    const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [user.id] })).rows[0] || null;
+    return json(report);
+  }
+
+  if (method === 'POST' && path === '/api/reports/final') {
+    requireRole(user, ['student']);
+    if (!env.REPORTS_BUCKET) return json({ error: 'Chưa cấu hình R2 REPORTS_BUCKET.' }, 500);
+    const final = (await database.execute({ sql: 'SELECT id FROM final_internships WHERE user_id = ?', args: [user.id] })).rows[0];
+    if (!final) return json({ error: 'Bạn cần xác nhận nơi thực tập chính thức trước khi nộp báo cáo.' }, 400);
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'final_report_open_at', 'final_report_close_at')")).rows);
+    const windowStatus = isWithinLocalWindow(settings, 'final_report_open_at', 'final_report_close_at');
+    if (!windowStatus.ok) return json({ error: windowStatus.error }, 403);
+    const contentType = request.headers.get('content-type') || '';
+    const filename = decodeURIComponent(String(request.headers.get('x-filename') || 'final.pdf')).trim();
+    if (!contentType.includes('application/pdf') || !filename.toLowerCase().endsWith('.pdf')) return json({ error: 'Chỉ chấp nhận file PDF.' }, 400);
+    const sizeHeader = Number(request.headers.get('content-length') || 0);
+    if (sizeHeader > MAX_REPORT_BYTES) return json({ error: 'File PDF vượt quá 10 MB. Vui lòng nén lại trước khi nộp.' }, 413);
+    const file = await request.arrayBuffer();
+    if (file.byteLength === 0) return json({ error: 'File rỗng.' }, 400);
+    if (file.byteLength > MAX_REPORT_BYTES) return json({ error: 'File PDF vượt quá 10 MB. Vui lòng nén lại trước khi nộp.' }, 413);
+    const header = new TextDecoder().decode(file.slice(0, 4));
+    if (header !== '%PDF') return json({ error: 'Nội dung file không phải PDF hợp lệ.' }, 400);
+    const key = reportObjectKey(settings.campaign_year, user.student_id || user.email);
+    await env.REPORTS_BUCKET.put(key, file, {
+      httpMetadata: { contentType: 'application/pdf' },
+      customMetadata: { original_filename: filename, user_id: String(user.id) },
+    });
+    await database.execute({
+      sql: `INSERT INTO final_reports (user_id, object_key, original_filename, file_size, mime_type, status, submitted_at, updated_at)
+            VALUES (?, ?, ?, ?, 'application/pdf', 'submitted', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
+            ON CONFLICT(user_id) DO UPDATE SET
+              object_key = excluded.object_key,
+              original_filename = excluded.original_filename,
+              file_size = excluded.file_size,
+              mime_type = excluded.mime_type,
+              status = 'submitted',
+              submitted_at = datetime('now', '+7 hours'),
+              updated_at = datetime('now', '+7 hours'),
+              lecturer_comment = NULL`,
+      args: [user.id, key, filename, file.byteLength],
+    });
+    const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [user.id] })).rows[0];
+    return json(report);
+  }
+
+  const reportDownload = path.match(/^\/api\/reports\/final\/(\d+)\/download$/);
+  if (reportDownload && method === 'GET') {
+    const userId = Number(reportDownload[1]);
+    if (!(await canAccessStudentReport(user, userId))) return json({ error: 'Forbidden' }, 403);
+    const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    if (!report) return json({ error: 'Chưa có báo cáo.' }, 404);
+    if (!env.REPORTS_BUCKET) return json({ error: 'Chưa cấu hình R2 REPORTS_BUCKET.' }, 500);
+    const object = await env.REPORTS_BUCKET.get(report.object_key);
+    if (!object) return json({ error: 'Không tìm thấy file báo cáo.' }, 404);
+    return new Response(object.body, {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${encodeURIComponent(report.original_filename)}"`,
+      },
+    });
+  }
+
+  const reportStatus = path.match(/^\/api\/reports\/final\/(\d+)\/status$/);
+  if (reportStatus && method === 'PUT') {
+    requireRole(user, ['lecturer', 'admin']);
+    const userId = Number(reportStatus[1]);
+    if (!(await canAccessStudentReport(user, userId))) return json({ error: 'Forbidden' }, 403);
+    const body = await readBody(request);
+    const status = String(body.status || '');
+    if (!['submitted', 'accepted', 'needs_revision'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
+    await database.execute({
+      sql: `UPDATE final_reports SET status = ?, lecturer_comment = ?, updated_at = datetime('now', '+7 hours') WHERE user_id = ?`,
+      args: [status, body.lecturer_comment || null, userId],
+    });
+    return json({ success: true });
   }
 
   if (path.startsWith('/api/admin/')) requireRole(user, ['admin']);
@@ -1103,6 +1243,11 @@ async function route(request: Request, env: Env) {
               VALUES (?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
         args: [userId, lecturerId, role, user.id, body.note || null],
       });
+      await database.execute({
+        sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+              VALUES (?, ?, ?, ?, 'created', ?, ?, datetime('now', '+7 hours'))`,
+        args: [Number(result.lastInsertRowid), userId, lecturerId, role, user.id, body.note || null],
+      });
       return { row: (await database.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
     } catch (e) {
       return { error: role === 'primary' ? 'Sinh viên đã có giảng viên hướng dẫn chính.' : 'Phân công này đã tồn tại.', status: 400 };
@@ -1145,6 +1290,15 @@ async function route(request: Request, env: Env) {
         sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
               VALUES (?, ?, 'primary', ?, 'Tự phân công theo quota', datetime('now', '+7 hours'))`,
         args: [Number(student.user_id), lecturer.id, user.id],
+      });
+      const assignment = (await database.execute({
+        sql: "SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = 'primary'",
+        args: [Number(student.user_id), lecturer.id],
+      })).rows[0] as any;
+      await database.execute({
+        sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+              VALUES (?, ?, ?, 'primary', 'auto_created', ?, 'Tự phân công theo quota', datetime('now', '+7 hours'))`,
+        args: [Number(assignment?.id || 0), Number(student.user_id), lecturer.id, user.id],
       });
       lecturer.assignment_count += 1;
       count++;
@@ -1212,6 +1366,14 @@ async function route(request: Request, env: Env) {
 
   const advisorDelete = path.match(/^\/api\/admin\/advisor-assignments\/(\d+)$/);
   if (advisorDelete && method === 'DELETE') {
+    const existing = (await database.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(advisorDelete[1])] })).rows[0] as any;
+    if (existing) {
+      await database.execute({
+        sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+              VALUES (?, ?, ?, ?, 'deleted', ?, ?, datetime('now', '+7 hours'))`,
+        args: [Number(existing.id), Number(existing.user_id), Number(existing.lecturer_id), existing.role, user.id, existing.note || null],
+      });
+    }
     await database.execute({ sql: 'DELETE FROM advisor_assignments WHERE id = ?', args: [Number(advisorDelete[1])] });
     return json({ success: true });
   }
@@ -1228,6 +1390,27 @@ async function route(request: Request, env: Env) {
       args: [Number(quotaMatch[1]), maxTotal, body.note || null],
     });
     return json({ success: true });
+  }
+
+  if (method === 'GET' && path === '/api/admin/reports/final') {
+    const rows = (await database.execute(`
+      SELECT f.user_id, f.internship_type, f.confirmed_at,
+             u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+             fr.id as report_id, fr.original_filename, fr.file_size, fr.status as report_status,
+             fr.submitted_at as report_submitted_at, fr.updated_at as report_updated_at, fr.lecturer_comment,
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors
+      FROM final_internships f
+      JOIN users u ON u.id = f.user_id
+      LEFT JOIN companies c ON c.id = f.company_id
+      LEFT JOIN registrations r ON r.id = f.registration_id
+      LEFT JOIN final_reports fr ON fr.user_id = f.user_id
+      LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+      LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+      GROUP BY f.user_id
+      ORDER BY u.student_id ASC
+    `)).rows;
+    return json(rows);
   }
 
   if (method === 'PUT' && path === '/api/admin/registrations/approve-all') {

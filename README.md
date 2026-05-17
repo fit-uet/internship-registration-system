@@ -403,7 +403,7 @@ Cần bổ sung:
 - Admin cấu hình thời điểm mở và đóng nộp báo cáo final.
 - Sinh viên upload báo cáo final định dạng PDF.
 - File PDF được lưu trên Cloudflare R2, giới hạn mặc định 10 MB/file để khoảng 900 sinh viên vẫn nằm trong mức miễn phí 10 GB-month. Hệ thống cần kiểm tra MIME type, phần mở rộng `.pdf`, kích thước file và đặt tên object theo đợt/sinh viên để tránh trùng. File lớn hơn 10 MB bị từ chối, sinh viên phải nén lại và nộp lại.
-- Trạng thái báo cáo: chưa nộp, đã nộp, nộp muộn, cần nộp lại, đã chấp nhận.
+- Trạng thái báo cáo: chưa nộp, đã nộp, cần nộp lại, đã chấp nhận. Hệ thống chặn nộp ngoài khoảng thời gian mở/đóng của đợt.
 - Giảng viên xem/tải báo cáo PDF của sinh viên phụ trách.
 - Giảng viên nhập điểm thành phần:
   - 20% báo cáo định kỳ, do giảng viên tự tổng hợp từ email/trao đổi.
@@ -416,7 +416,7 @@ Cần bổ sung:
 
 Gợi ý model:
 
-- `final_reports(id, user_id, file_url, original_filename, submitted_at, status, lecturer_comment)`
+- `final_reports(id, user_id, object_key, original_filename, file_size, mime_type, status, submitted_at, lecturer_comment)`
 - `grades(id, user_id, lecturer_id, progress_score, report_score, company_score, final_score, comment, submitted_at, locked_at)`
 
 ### Ưu tiên 4: Đối soát học phần với hệ thống đào tạo
@@ -650,6 +650,18 @@ CREATE TABLE IF NOT EXISTS lecturer_quotas (
   max_total_students INTEGER,
   note TEXT
 );
+
+CREATE TABLE IF NOT EXISTS advisor_assignment_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  assignment_id INTEGER,
+  user_id INTEGER NOT NULL,
+  lecturer_id INTEGER,
+  role TEXT,
+  action TEXT NOT NULL,
+  actor_id INTEGER,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 Giá trị `role`:
@@ -685,6 +697,7 @@ Thiết kế UI:
   - Import CSV: `student_id, lecturer_email_or_name, role, note`.
   - Tự phân công GVHD chính cho sinh viên chưa có GVHD theo quota còn trống.
   - Cập nhật chỉ tiêu giảng viên ngay trên màn phân công.
+  - Ghi lịch sử tạo/xóa phân công ở backend để truy vết.
 - Giảng viên:
   - Trang “Sinh viên phụ trách”.
   - Hiển thị nơi thực tập, email, số điện thoại, học phần.
@@ -700,7 +713,7 @@ Tiêu chí nghiệm thu:
 
 ### 9.5. P3 - Nộp báo cáo final PDF bằng R2
 
-Mục tiêu: sinh viên nộp báo cáo final PDF, giảng viên/admin xem được và hệ thống giữ chi phí trong free tier.
+Mục tiêu: sinh viên nộp báo cáo final PDF, giảng viên/admin xem được và hệ thống giữ chi phí trong free tier. Phần lõi đã được triển khai ở backend và UI sinh viên/giảng viên/admin.
 
 Thiết kế dữ liệu:
 
@@ -740,8 +753,9 @@ Thiết kế API:
 
 - `POST /api/reports/final`: sinh viên upload PDF.
 - `GET /api/reports/final/my`: sinh viên xem trạng thái file đã nộp.
-- `GET /api/reports/final/:userId/download`: giảng viên/admin tải file nếu có quyền.
+- `GET /api/reports/final/:userId/download`: sinh viên sở hữu báo cáo, giảng viên được phân công hoặc admin tải file nếu có quyền.
 - `PUT /api/reports/final/:userId/status`: giảng viên/admin cập nhật `accepted` hoặc `needs_revision`.
+- `GET /api/admin/reports/final`: admin xem bảng tổng hợp trạng thái nộp.
 
 Thiết kế UI:
 
@@ -755,7 +769,8 @@ Thiết kế UI:
   - Ghi chú “cần nộp lại” nếu cần.
 - Admin:
   - Bảng tổng hợp trạng thái nộp báo cáo.
-  - Bộ lọc chưa nộp/nộp muộn/cần nộp lại/đã chấp nhận.
+  - Bộ lọc chưa nộp/đã nộp/cần nộp lại/đã chấp nhận.
+  - Xuất CSV và tải PDF từng sinh viên.
 
 Tiêu chí nghiệm thu:
 

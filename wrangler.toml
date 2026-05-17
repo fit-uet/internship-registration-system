@@ -7,6 +7,10 @@ preview_urls = true
 [vars]
 CORS_ORIGIN = "https://fit-uet.github.io"
 
+[[r2_buckets]]
+binding = "REPORTS_BUCKET"
+bucket_name = "internship-final-reports"
+
 # Set these as Cloudflare Worker secrets, not plain vars:
 # wrangler secret put TURSO_DATABASE_URL
 # wrangler secret put TURSO_AUTH_TOKEN
