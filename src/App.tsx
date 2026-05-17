@@ -6,11 +6,60 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
+
+const saveXlsx = (filename: string, headers: string[], rows: any[][], sheetName = 'Sheet1') => {
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31) || 'Sheet1');
+  XLSX.writeFile(workbook, filename);
+};
+
+const xlsxArrayBuffer = (headers: string[], rows: any[][], sheetName = 'Sheet1') => {
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31) || 'Sheet1');
+  return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+};
+
+const csvCells = (line: string) => {
+  const cells: string[] = [];
+  let value = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    const next = line[i + 1];
+    if (ch === '"' && quoted && next === '"') {
+      value += '"';
+      i++;
+    } else if (ch === '"') {
+      quoted = !quoted;
+    } else if (ch === ',' && !quoted) {
+      cells.push(value.trim());
+      value = '';
+    } else {
+      value += ch;
+    }
+  }
+  cells.push(value.trim());
+  return cells;
+};
+
+const readSpreadsheetRows = async (file: File) => {
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    return XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' }).map(row => row.map(cell => String(cell ?? '').trim()));
+  }
+  const text = await file.text();
+  return text.replace(/^\uFEFF/, '').split(/\r?\n/).map(csvCells).filter(row => row.some(Boolean));
+};
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -1332,7 +1381,7 @@ function AdminPanel({ token }: { token: string }) {
     setLoading(false);
   };
 
-  const generateCSVContent = (dataList: any[]) => {
+  const registrationExportData = (dataList: any[]) => {
     const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
@@ -1365,14 +1414,12 @@ function AdminPanel({ token }: { token: string }) {
         new Date(r.created_at).toLocaleString('vi-VN')
       ];
     });
-    const csvContent = [headers, ...rows].map(e => e.map(item => `"${(item || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
-    return '\uFEFF' + csvContent;
+    return { headers, rows };
   };
 
   const handleExportCurrent = () => {
-    const csv = generateCSVContent(filteredRegistrations);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'danh_sach_hien_tai.csv');
+    const { headers, rows } = registrationExportData(filteredRegistrations);
+    saveXlsx('danh_sach_hien_tai.xlsx', headers, rows, 'Danh sách');
     setIsExportMenuOpen(false);
   };
 
@@ -1381,7 +1428,8 @@ function AdminPanel({ token }: { token: string }) {
     uniqueCourses.forEach(course => {
       const data = registrations.filter(r => r.course_code === course);
       if (data.length > 0) {
-        zip.file(`Lop_${course || 'KhongXacDinh'}.csv`, generateCSVContent(data));
+        const { headers, rows } = registrationExportData(data);
+        zip.file(`Lop_${course || 'KhongXacDinh'}.xlsx`, xlsxArrayBuffer(headers, rows, 'Danh sách'));
       }
     });
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -1395,7 +1443,8 @@ function AdminPanel({ token }: { token: string }) {
       const data = registrations.filter(r => r.company_name === company);
       if (data.length > 0) {
         const safeName = (company as string).replace(/[^a-z0-9]/gi, '_');
-        zip.file(`CongTy_${safeName}.csv`, generateCSVContent(data));
+        const { headers, rows } = registrationExportData(data);
+        zip.file(`CongTy_${safeName}.xlsx`, xlsxArrayBuffer(headers, rows, 'Danh sách'));
       }
     });
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -1585,7 +1634,7 @@ function AdminPanel({ token }: { token: string }) {
                 <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
                   <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
-                    <FileText size={16} className="text-green-600" /> Xuất danh sách đang lọc (CSV)
+                    <FileText size={16} className="text-green-600" /> Xuất danh sách đang lọc (XLSX)
                   </button>
                   <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
                     <Download size={16} className="text-blue-600" /> Xuất theo môn học (ZIP)
@@ -1898,13 +1947,11 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
     if (!file) return;
     setImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-      const dataLines = lines[0]?.toLowerCase().includes('student_id') || lines[0]?.toLowerCase().includes('mã sv')
-        ? lines.slice(1)
-        : lines;
-      const items = dataLines.map(line => {
-        const parts = line.split(',').map(part => part.trim().replace(/^"|"$/g, ''));
+      const rows = await readSpreadsheetRows(file);
+      const dataRows = rows[0]?.join(' ').toLowerCase().includes('student_id') || rows[0]?.join(' ').toLowerCase().includes('mã sv')
+        ? rows.slice(1)
+        : rows;
+      const items = dataRows.map(parts => {
         return {
           student_id: parts[0],
           lecturer_email_or_name: parts[1],
@@ -1912,7 +1959,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
           note: parts[3] || ''
         };
       }).filter(item => item.student_id && item.lecturer_email_or_name);
-      if (items.length === 0) return alert('CSV cần cột: student_id, lecturer_email_or_name, role, note');
+      if (items.length === 0) return alert('File cần cột: student_id, lecturer_email_or_name, role, note');
       const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1923,7 +1970,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
       alert(`Đã import ${data.count || 0} phân công.${data.errors?.length ? `\nLỗi:\n${data.errors.slice(0, 10).join('\n')}` : ''}`);
       fetchData();
     } catch (err) {
-      alert('Không đọc được file CSV.');
+      alert('Không đọc được file XLSX/CSV.');
     } finally {
       setImporting(false);
       e.target.value = '';
@@ -1949,7 +1996,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
     }
   };
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
     const data = filteredRows.map((row, idx) => [
       idx + 1,
@@ -1961,8 +2008,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
       parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
       parseAssignments(row.co_assignments).map(a => a.name).join('; ')
     ]);
-    const csv = [headers, ...data].map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'phan_cong_gvhd.csv');
+    saveXlsx('phan_cong_gvhd.xlsx', headers, data, 'Phân công GVHD');
   };
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải phân công...</div>;
@@ -1981,14 +2027,14 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full sm:w-80 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
           </div>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import CSV
-            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
           </label>
           <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
           </button>
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -2143,7 +2189,7 @@ function FinalReportAdmin({ token }: { token: string }) {
     locked: rows.filter(row => row.locked_at).length,
   };
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Trạng thái', 'Tên file', 'Dung lượng', 'Nộp lúc', 'Ghi chú'];
     const data = filtered.map((row, idx) => [
       idx + 1,
@@ -2159,8 +2205,7 @@ function FinalReportAdmin({ token }: { token: string }) {
       row.report_submitted_at || '',
       row.lecturer_comment || ''
     ]);
-    const csv = [headers, ...data].map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'bao_cao_final.csv');
+    saveXlsx('bao_cao_final.xlsx', headers, data, 'Báo cáo final');
   };
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải báo cáo...</div>;
@@ -2182,8 +2227,8 @@ function FinalReportAdmin({ token }: { token: string }) {
             <option value="accepted">Đã chấp nhận</option>
           </select>
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -2284,12 +2329,6 @@ function GradeAdmin({ token }: { token: string }) {
     else alert('Cập nhật khóa điểm thất bại.');
   };
 
-  const exportCSV = async () => {
-    const res = await fetch(`${API_BASE}/api/admin/grades/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return alert('Xuất bảng điểm thất bại.');
-    saveAs(await res.blob(), 'bang_diem_thuc_tap.csv');
-  };
-
   const filtered = rows.filter(row => {
     const term = searchTerm.trim().toLowerCase();
     const status = row.grade_status || 'missing';
@@ -2297,6 +2336,28 @@ function GradeAdmin({ token }: { token: string }) {
     const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
+
+  const exportXlsx = () => {
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Điểm định kỳ', 'Điểm final', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
+    const data = filtered.map((row, idx) => [
+      idx + 1,
+      row.student_id || '',
+      row.student_name || '',
+      row.class_name || '',
+      row.course_code || '',
+      row.internship_place || '',
+      row.primary_advisors || '',
+      row.progress_score ?? '',
+      row.report_score ?? '',
+      row.company_score ?? '',
+      row.final_score ?? '',
+      statusLabel(row.grade_status),
+      row.grading_lecturer_name || '',
+      row.grade_submitted_at || '',
+      row.comment || ''
+    ]);
+    saveXlsx('bang_diem_thuc_tap.xlsx', headers, data, 'Bảng điểm');
+  };
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải bảng điểm...</div>;
 
@@ -2316,8 +2377,8 @@ function GradeAdmin({ token }: { token: string }) {
             <option value="submitted">Đã nộp</option>
           </select>
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500" />
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -2455,11 +2516,10 @@ function NotificationAdmin({ token }: { token: string }) {
     return matchStatus && matchType && matchTerm;
   });
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Người nhận', 'Loại', 'Tiêu đề', 'Nội dung', 'Trạng thái', 'Lỗi', 'Tạo lúc', 'Gửi lúc'];
     const data = filtered.map((row, idx) => [idx + 1, row.recipient_email, row.type, row.subject, row.body, row.status, row.error || '', row.created_at || '', row.sent_at || '']);
-    const csv = [headers, ...data].map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'lich_su_thong_bao.csv');
+    saveXlsx('lich_su_thong_bao.xlsx', headers, data, 'Thông báo');
   };
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải lịch sử thông báo...</div>;
@@ -2479,8 +2539,8 @@ function NotificationAdmin({ token }: { token: string }) {
           <button onClick={createFinalReportReminders} disabled={creatingReminders} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             {creatingReminders ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />} Nhắc nộp báo cáo
           </button>
-          <button onClick={exportCSV} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -2601,12 +2661,10 @@ function LecturerRegistry({ token }: { token: string }) {
     return result;
   }, [lecturers, searchTerm, sortConfig]);
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Họ và tên', 'Email'];
     const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '']);
-    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'danh_sach_giang_vien.csv');
+    saveXlsx('danh_sach_giang_vien.xlsx', headers, rows, 'Giảng viên');
   };
 
   const handleFileUpload = async (e: any) => {
@@ -2616,16 +2674,12 @@ function LecturerRegistry({ token }: { token: string }) {
     setImportMessage(`Đang đọc file "${file.name}"...`);
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/);
+      const rows = await readSpreadsheetRows(file);
       const imported: { name: string; email?: string }[] = [];
 
-      for (let i = 0; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        // Strip BOM if present
-        const line = lines[i].replace(/^\uFEFF/, '');
-        const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-
+      for (let i = 0; i < rows.length; i++) {
+        const parts = rows[i];
+        if (!parts.some(Boolean)) continue;
         // Detect format:
         // Format A: STT, Tên, Email  (3+ cols, col0 is a number)
         // Format B: Tên, Email        (2 cols)
@@ -2766,10 +2820,10 @@ function LecturerRegistry({ token }: { token: string }) {
           </label>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
-            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -2878,7 +2932,7 @@ function LecturerRegistry({ token }: { token: string }) {
               <UserIcon size={24} className="text-slate-400" />
             </div>
             <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu giảng viên.</p>
-            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file CSV hoặc thêm thủ công.</p>
+            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file XLSX hoặc thêm thủ công.</p>
           </div>
         )}
       </div>
@@ -2966,7 +3020,7 @@ function CompanyRegistry({ token }: { token: string }) {
 
   const extractEmails = (value: string) => Array.from(new Set((value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []));
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Loại', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Đã duyệt', 'Đã gửi DN', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
     const rows = filteredAndSorted.map((c, idx) => [
       idx + 1,
@@ -2981,9 +3035,7 @@ function CompanyRegistry({ token }: { token: string }) {
       c.phone || '',
       c.address || ''
     ]);
-    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x ?? ''}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'danh_sach_cong_ty.csv');
+    saveXlsx('danh_sach_cong_ty.xlsx', headers, rows, 'Công ty');
   };
 
   const exportApplicantsForCompany = (company: any) => {
@@ -3007,9 +3059,8 @@ function CompanyRegistry({ token }: { token: string }) {
       r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
       r.created_at ? new Date(r.created_at).toLocaleString('vi-VN') : ''
     ]);
-    const csvContent = [headers, ...rows].map(row => row.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const safeName = (company.name || 'cong_ty').replace(/[^a-z0-9]+/gi, '_');
-    saveAs(new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }), `dang_ky_${safeName}.csv`);
+    saveXlsx(`dang_ky_${safeName}.xlsx`, headers, rows, 'Đăng ký');
   };
 
   const markCompanySent = async (company: any) => {
@@ -3036,12 +3087,31 @@ function CompanyRegistry({ token }: { token: string }) {
     }
   };
 
-  const openCompanyEmail = (company: any) => {
+  const sendCompanyEmail = async (company: any) => {
     const emails = company.record_type === 'other' ? extractEmails(company.contacts || '') : extractEmails(company.contact_email || '');
     if (emails.length === 0) return alert('Chưa có email liên hệ cho công ty này. Vui lòng xuất danh sách và gửi thủ công.');
-    const subject = encodeURIComponent(`Danh sách sinh viên đăng ký thực tập - ${company.name}`);
-    const body = encodeURIComponent('Kính gửi Quý Công ty,\n\nKhoa CNTT gửi danh sách sinh viên đăng ký thực tập tại Quý Công ty trong file đính kèm.\n\nTrân trọng.');
-    window.location.href = `mailto:${emails.join(',')}?subject=${subject}&body=${body}`;
+    const approvedCount = Number(company.approved_applicant_count || 0);
+    if (approvedCount === 0) return alert('Công ty này chưa có đăng ký đã duyệt để gửi.');
+    if (!confirm(`Gửi email thật kèm danh sách ${approvedCount} sinh viên đã duyệt đến ${emails[0]}?`)) return;
+    setMarkingSentKey(company.company_key || String(company.id || company.name));
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies/send-applicants-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          recipient_email: emails[0],
+          ...(company.record_type === 'other' ? { other_company_name: company.name } : { company_name: company.name }),
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi email thất bại.');
+      alert(`Đã gửi email và đánh dấu ${data.count || approvedCount} đăng ký là đã gửi DN.`);
+      fetchCompanies();
+    } catch (e) {
+      alert('Lỗi kết nối khi gửi email.');
+    } finally {
+      setMarkingSentKey(null);
+    }
   };
 
   const handleFileUpload = async (e: any) => {
@@ -3051,14 +3121,12 @@ function CompanyRegistry({ token }: { token: string }) {
     setImportMessage(`Đang đọc file "${file.name}"...`);
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/);
+      const rows = await readSpreadsheetRows(file);
       const imported: { name: string; slots?: number; contact_email?: string; address?: string; phone?: string; contact_name?: string }[] = [];
 
-      for (let i = 0; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const line = lines[i].replace(/^\uFEFF/, '');
-        const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      for (let i = 0; i < rows.length; i++) {
+        const parts = rows[i];
+        if (!parts.some(Boolean)) continue;
 
         // Skip header
         if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'tên doanh nghiệp' || parts[0].toLowerCase() === 'tên')) continue;
@@ -3196,10 +3264,10 @@ function CompanyRegistry({ token }: { token: string }) {
           </label>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
-            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -3306,7 +3374,7 @@ function CompanyRegistry({ token }: { token: string }) {
                     <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-right flex items-center justify-end gap-1">
                       <button onClick={() => exportApplicantsForCompany(c)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Xuất danh sách đăng ký"><Download size={16} /></button>
-                      <button onClick={() => openCompanyEmail(c)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors" title="Soạn email gửi DN"><FileText size={16} /></button>
+                      <button onClick={() => sendCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Gửi email thật cho DN"><FileText size={16} /></button>
                       <button onClick={() => markCompanySent(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Đánh dấu đã gửi DN">
                         {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                       </button>
@@ -3363,29 +3431,6 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
   };
 
   useEffect(() => { fetchCompanies(); }, [token]);
-
-  const csvCells = (line: string) => {
-    const cells: string[] = [];
-    let value = '';
-    let quoted = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      const next = line[i + 1];
-      if (ch === '"' && quoted && next === '"') {
-        value += '"';
-        i++;
-      } else if (ch === '"') {
-        quoted = !quoted;
-      } else if (ch === ',' && !quoted) {
-        cells.push(value.trim());
-        value = '';
-      } else {
-        value += ch;
-      }
-    }
-    cells.push(value.trim());
-    return cells;
-  };
 
   const filteredAndSorted = useMemo(() => {
     const lower = searchTerm.trim().toLowerCase();
@@ -3454,19 +3499,17 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
     if (!file) return;
     setImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-      const headerCells = csvCells(lines[0] || '').map(cell => cell.toLowerCase());
+      const rows = await readSpreadsheetRows(file);
+      const headerCells = (rows[0] || []).map(cell => cell.toLowerCase());
       const hasHeader = headerCells.some(cell => cell.includes('tên') || cell.includes('ten') || cell === 'stt');
       const nameIndex = Math.max(0, headerCells.findIndex(cell => cell.includes('tên công ty') || cell.includes('ten cong ty') || cell === 'name'));
-      const bodyLines = hasHeader ? lines.slice(1) : lines;
-      const companiesToImport = bodyLines.map(line => {
-        const cells = csvCells(line);
+      const bodyRows = hasHeader ? rows.slice(1) : rows;
+      const companiesToImport = bodyRows.map(cells => {
         if (nameIndex > 0) return cells[nameIndex] || '';
         if (/^\d+$/.test(cells[0] || '') && cells[1]) return cells[1];
         return cells[0] || '';
       }).map(name => name.trim()).filter(Boolean);
-      if (companiesToImport.length === 0) return alert('Không tìm thấy tên công ty hợp lệ trong CSV.');
+      if (companiesToImport.length === 0) return alert('Không tìm thấy tên công ty hợp lệ trong file.');
       const res = await fetch(`${API_BASE}/api/admin/approved-companies/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -3477,18 +3520,17 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
       alert(`Đã import ${data.count || companiesToImport.length} công ty thẩm định.`);
       fetchCompanies();
     } catch (err) {
-      alert('Không thể đọc/import file CSV.');
+      alert('Không thể đọc/import file XLSX/CSV.');
     } finally {
       setImporting(false);
       e.target.value = '';
     }
   };
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Tên công ty', 'Nguồn', 'Ngày tạo'];
     const rows = filteredAndSorted.map((c, idx) => [idx + 1, c.name || '', c.source || '', c.created_at || '']);
-    const csv = [headers, ...rows].map(row => row.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    saveAs(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), 'danh_sach_cong_ty_tham_dinh_noi_bo.csv');
+    saveXlsx('danh_sach_cong_ty_tham_dinh_noi_bo.xlsx', headers, rows, 'Thẩm định nội bộ');
   };
 
   return (
@@ -3509,11 +3551,11 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
             Ghi đè
           </label>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait pointer-events-none' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import CSV'}
-            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import XLSX'}
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
           </label>
-          <button onClick={exportCSV} disabled={loading || importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} disabled={loading || importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -3973,9 +4015,9 @@ function AdminSettings({ token }: { token: string }) {
       <div className="bg-blue-50 text-blue-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">
         <strong className="block mb-2 text-base">💡 Mẹo nhập dữ liệu vào Google Sheets:</strong>
         <ol className="list-decimal pl-5 space-y-1">
-          <li>Từ danh sách Quản trị &gt; Bấm <strong>Lưu vào Google Sheets</strong> để tải file dữ liệu CSV về máy.</li>
+          <li>Từ danh sách Quản trị &gt; Bấm <strong>Lưu vào Google Sheets</strong> để đồng bộ dữ liệu lên bảng tính.</li>
           <li>Trên trang web Google Sheets, tạo một Bảng tính trống mới.</li>
-          <li>Chọn <strong>Tệp (File) &gt; Nhập (Import) &gt; Tải lên (Upload)</strong> và tải lên file CSV ở bước 1. Dữ liệu sẽ chia cột tự động.</li>
+          <li>Nếu cần nhập thủ công, có thể tải file XLSX từ hệ thống rồi import vào Google Sheets.</li>
           <li>Tùy chỉnh thông tin công ty rồi dùng tính năng Share (Bất kỳ ai có link) để lấy liên kết bỏ vào cấu hình trên.</li>
         </ol>
       </div>
@@ -4692,7 +4734,7 @@ function StudentRegistry({ token }: { token: string }) {
     return result;
   }, [students, searchTerm, sortConfig]);
 
-  const exportCSV = () => {
+  const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp khoá học'];
     const rows = filteredAndSortedStudents.map((s, idx) => [
       idx + 1,
@@ -4703,9 +4745,7 @@ function StudentRegistry({ token }: { token: string }) {
       s.personal_email || '',
       s.class_name
     ]);
-    const csvContent = [headers, ...rows].map(e => e.map(x => `"${x || ''}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'danh_sach_sinh_vien.csv');
+    saveXlsx('danh_sach_sinh_vien.xlsx', headers, rows, 'Sinh viên');
   };
 
   const handleFileUpload = async (e: any) => {
@@ -4715,24 +4755,28 @@ function StudentRegistry({ token }: { token: string }) {
     setImportMessage(`Đang đọc file "${file.name}"...`);
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
-      const text = await file.text();
-      const lines = text.split('\n');
+      const rows = await readSpreadsheetRows(file);
       const imported = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        // Handle simple CSV splitting. Does not support commas inside quotes.
-        const parts = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      const header = (rows[0] || []).map(cell => cell.toLowerCase());
+      const startIndex = header.some(cell => cell.includes('mã') || cell.includes('student')) ? 1 : 0;
+      const studentIdIndex = Math.max(1, header.findIndex(cell => cell.includes('mã') || cell.includes('student')));
+      const nameIndex = Math.max(2, header.findIndex(cell => cell.includes('họ') || cell.includes('tên') || cell === 'name'));
+      const dobIndex = Math.max(3, header.findIndex(cell => cell.includes('sinh') || cell.includes('dob')));
+      const classIndex = Math.max(4, header.findIndex(cell => cell.includes('lớp') || cell.includes('class')));
+      for (let i = startIndex; i < rows.length; i++) {
+        const parts = rows[i];
+        if (!parts.some(Boolean)) continue;
         if (parts.length >= 5) {
-          let dob = parts[3];
+          let dob = parts[dobIndex];
           if (dob.includes('/')) {
             const d = dob.split('/');
             if (d.length === 3) dob = `${d[2]}-${d[1]}-${d[0]}`;
           }
           imported.push({
-            student_id: parts[1],
-            name: parts[2],
+            student_id: parts[studentIdIndex],
+            name: parts[nameIndex],
             dob,
-            class_name: parts[4]
+            class_name: parts[classIndex]
           });
         }
       }
@@ -4800,10 +4844,10 @@ function StudentRegistry({ token }: { token: string }) {
           </label>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
-            <input type="file" accept=".csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={exportCSV} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất CSV
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -4866,7 +4910,7 @@ function StudentRegistry({ token }: { token: string }) {
               <Users size={24} className="text-slate-400" />
             </div>
             <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu sinh viên.</p>
-            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file CSV có định dạng: STT, Mã SV, Họ Tên, Ngày Sinh, Lớp</p>
+            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file XLSX có định dạng: STT, Mã SV, Họ Tên, Ngày Sinh, Lớp</p>
           </div>
         )}
       </div>

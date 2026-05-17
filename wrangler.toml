@@ -6,6 +6,8 @@ preview_urls = true
 
 [vars]
 CORS_ORIGIN = "https://fit-uet.github.io"
+# Optional: set this after verifying a sender/domain in Resend.
+# EMAIL_FROM = "FIT UET Internship <no-reply@example.edu.vn>"
 
 [[r2_buckets]]
 binding = "REPORTS_BUCKET"
@@ -19,3 +21,4 @@ bucket_name = "internship-final-reports"
 # wrangler secret put ADMIN_EMAIL
 # wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
 # wrangler secret put GOOGLE_PRIVATE_KEY
+# wrangler secret put RESEND_API_KEY

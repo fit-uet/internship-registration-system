@@ -87,13 +87,51 @@ async function createNotification(data: {
 }) {
   try {
     if (!data.recipient_email) return;
-    await db.execute({
+    const result = await db.execute({
       sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
             VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
       args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
     });
+    return await sendNotificationEmail(Number(result.lastInsertRowid), data);
   } catch (e) {
     // Notification failures must not block the main business flow.
+  }
+}
+
+async function sendNotificationEmail(notificationId: number, data: {
+  recipient_email: string;
+  subject: string;
+  body: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || process.env.NOTIFICATION_EMAIL_FROM;
+  if (!apiKey || !from || !notificationId) return 'queued';
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [data.recipient_email],
+        subject: data.subject,
+        text: data.body,
+      }),
+    });
+    if (!response.ok) throw new Error((await response.text()).slice(0, 1000));
+    await db.execute({
+      sql: `UPDATE notifications SET status = 'sent', sent_at = datetime('now', '+7 hours'), error = NULL WHERE id = ?`,
+      args: [notificationId],
+    });
+    return 'sent';
+  } catch (e: any) {
+    await db.execute({
+      sql: `UPDATE notifications SET status = 'failed', error = ? WHERE id = ?`,
+      args: [String(e?.message || e).slice(0, 1000), notificationId],
+    });
+    return 'failed';
   }
 }
 
@@ -1988,6 +2026,58 @@ async function startServer() {
         return res.json({ success: true });
       }
       res.status(400).json({ error: 'Vui lòng chọn đăng ký hoặc công ty cần đánh dấu đã gửi.' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/companies/send-applicants-email', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const companyName = String(req.body.company_name || req.body.other_company_name || '').trim();
+      const recipientEmail = String(req.body.recipient_email || '').trim();
+      if (!companyName) return res.status(400).json({ error: 'Thiếu tên công ty.' });
+      if (!recipientEmail) return res.status(400).json({ error: 'Thiếu email doanh nghiệp.' });
+      const isOther = Boolean(req.body.other_company_name);
+      const rows = (await db.execute({
+        sql: `SELECT r.id, u.student_id, u.name, u.phone, u.personal_email, u.class_name, u.course_code, r.note
+              FROM registrations r
+              JOIN users u ON u.id = r.user_id
+              JOIN companies c ON c.id = r.company_id
+              WHERE r.status = 'approved'
+                AND ${isOther ? 'lower(trim(r.other_company_name)) = lower(trim(?))' : '(c.name = ? OR lower(trim(r.other_company_name)) = lower(trim(?)))'}
+              ORDER BY u.student_id ASC`,
+        args: isOther ? [companyName] : [companyName, companyName],
+      })).rows as any[];
+      if (rows.length === 0) return res.status(400).json({ error: 'Công ty này chưa có đăng ký đã duyệt để gửi.' });
+      const body = [
+        'Kính gửi Quý Công ty,',
+        '',
+        `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${companyName}.`,
+        '',
+        ...rows.map((row, idx) => `${idx + 1}. ${row.student_id || ''} - ${row.name || ''} - ${row.class_name || ''} - ${row.course_code || ''} - ${row.phone || ''} - ${row.personal_email || ''}${row.note ? ` - Ghi chú: ${row.note}` : ''}`),
+        '',
+        'Trân trọng.',
+      ].join('\n');
+      const notificationStatus = await createNotification({
+        recipient_email: recipientEmail,
+        type: 'company_applicants_sent',
+        subject: `Danh sách sinh viên đăng ký thực tập - ${companyName}`,
+        body,
+      });
+      if (notificationStatus !== 'sent') {
+        return res.status(400).json({
+          error: notificationStatus === 'queued'
+            ? 'Chưa cấu hình RESEND_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
+            : 'Gửi email thất bại. Vui lòng xem trang Thông báo để biết lỗi chi tiết.',
+        });
+      }
+      await db.execute({
+        sql: `UPDATE registrations SET sent_to_company_at = datetime('now', '+7 hours'), sent_to_company_note = 'Gửi email thật qua hệ thống'
+              WHERE status = 'approved'
+                AND ${isOther ? 'lower(trim(other_company_name)) = lower(trim(?))' : '(company_id IN (SELECT id FROM companies WHERE name = ?) OR lower(trim(other_company_name)) = lower(trim(?)))'}`,
+        args: isOther ? [companyName] : [companyName, companyName],
+      });
+      res.json({ success: true, count: rows.length });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

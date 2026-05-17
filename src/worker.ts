@@ -9,6 +9,8 @@ type Env = {
   CORS_ORIGIN?: string;
   GOOGLE_SERVICE_ACCOUNT_EMAIL?: string;
   GOOGLE_PRIVATE_KEY?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   REPORTS_BUCKET?: R2Bucket;
 };
 
@@ -162,16 +164,55 @@ async function createNotification(database: Client, data: {
   type: string;
   subject: string;
   body: string;
-}) {
+}, env?: Env) {
   try {
     if (!data.recipient_email) return;
-    await database.execute({
+    const result = await database.execute({
       sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
             VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
       args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
     });
+    if (env) return await sendNotificationEmail(database, env, Number(result.lastInsertRowid), data);
+    return 'queued';
   } catch (e) {
     // Notification failures must not block the main business flow.
+  }
+}
+
+async function sendNotificationEmail(database: Client, env: Env, notificationId: number, data: {
+  recipient_email: string;
+  subject: string;
+  body: string;
+}) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.EMAIL_FROM;
+  if (!apiKey || !from || !notificationId) return 'queued';
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [data.recipient_email],
+        subject: data.subject,
+        text: data.body,
+      }),
+    });
+    if (!response.ok) throw new Error((await response.text()).slice(0, 1000));
+    await database.execute({
+      sql: `UPDATE notifications SET status = 'sent', sent_at = datetime('now', '+7 hours'), error = NULL WHERE id = ?`,
+      args: [notificationId],
+    });
+    return 'sent';
+  } catch (e: any) {
+    await database.execute({
+      sql: `UPDATE notifications SET status = 'failed', error = ? WHERE id = ?`,
+      args: [String(e?.message || e).slice(0, 1000), notificationId],
+    });
+    return 'failed';
   }
 }
 
@@ -546,6 +587,7 @@ async function handleAuthGoogle(request: Request, env: Env) {
 async function route(request: Request, env: Env) {
   await initDb(env);
   const database = db(env);
+  const notify = (data: Parameters<typeof createNotification>[1]) => createNotification(database, data, env);
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -707,7 +749,7 @@ async function route(request: Request, env: Env) {
           });
         } catch (e) { }
       }
-      await createNotification(database, {
+      await notify({
         user_id: user.id,
         recipient_email: user.personal_email || user.email,
         type: 'final_internship_confirmed',
@@ -737,7 +779,7 @@ async function route(request: Request, env: Env) {
               school_assignment_request = 0, confirmed_by = excluded.confirmed_by, note = excluded.note, confirmed_at = excluded.confirmed_at`,
       args: [user.id, registrationId, reg.company_id, 'Tôi xác nhận đã được đơn vị này tiếp nhận thực tập và chịu trách nhiệm về thông tin khai báo.', user.id, body.note || null],
     });
-    await createNotification(database, {
+    await notify({
       user_id: user.id,
       recipient_email: user.personal_email || user.email,
       type: 'final_internship_confirmed',
@@ -910,7 +952,7 @@ async function route(request: Request, env: Env) {
       args: [user.id, key, filename, file.byteLength],
     });
     const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [user.id] })).rows[0];
-    await createNotification(database, {
+    await notify({
       user_id: user.id,
       recipient_email: user.personal_email || user.email,
       type: 'final_report_status_changed',
@@ -950,7 +992,7 @@ async function route(request: Request, env: Env) {
       args: [status, body.lecturer_comment || null, userId],
     });
     const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
-    await createNotification(database, {
+    await notify({
       user_id: userId,
       recipient_email: student?.personal_email || student?.email,
       type: 'final_report_status_changed',
@@ -1050,7 +1092,7 @@ async function route(request: Request, env: Env) {
     const result = await saveGradeForStudent(userId, lecturerId, body, true);
     if (result.error) return json({ error: result.error }, result.status || 400);
     const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
-    await createNotification(database, {
+    await notify({
       user_id: userId,
       recipient_email: student?.personal_email || student?.email,
       type: 'grade_submitted',
@@ -1058,7 +1100,7 @@ async function route(request: Request, env: Env) {
       body: `GVHD đã nộp điểm thực tập của bạn về Khoa. Điểm tổng kết tạm tính: ${result.row?.final_score ?? '-'}.`,
     });
     if (env.ADMIN_EMAIL) {
-      await createNotification(database, {
+      await notify({
         user_id: userId,
         recipient_email: env.ADMIN_EMAIL,
         type: 'grade_submitted',
@@ -1350,6 +1392,55 @@ async function route(request: Request, env: Env) {
     return json({ error: 'Vui lòng chọn đăng ký hoặc công ty cần đánh dấu đã gửi.' }, 400);
   }
 
+  if (method === 'POST' && path === '/api/admin/companies/send-applicants-email') {
+    const body = await readBody(request);
+    const companyName = String(body.company_name || body.other_company_name || '').trim();
+    const recipientEmail = String(body.recipient_email || '').trim();
+    if (!companyName) return json({ error: 'Thiếu tên công ty.' }, 400);
+    if (!recipientEmail) return json({ error: 'Thiếu email doanh nghiệp.' }, 400);
+    const isOther = Boolean(body.other_company_name);
+    const rows = (await database.execute({
+      sql: `SELECT r.id, u.student_id, u.name, u.phone, u.personal_email, u.class_name, u.course_code, r.note
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.status = 'approved'
+              AND ${isOther ? 'lower(trim(r.other_company_name)) = lower(trim(?))' : '(c.name = ? OR lower(trim(r.other_company_name)) = lower(trim(?)))'}
+            ORDER BY u.student_id ASC`,
+      args: isOther ? [companyName] : [companyName, companyName],
+    })).rows as any[];
+    if (rows.length === 0) return json({ error: 'Công ty này chưa có đăng ký đã duyệt để gửi.' }, 400);
+    const emailBody = [
+      'Kính gửi Quý Công ty,',
+      '',
+      `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${companyName}.`,
+      '',
+      ...rows.map((row, idx) => `${idx + 1}. ${row.student_id || ''} - ${row.name || ''} - ${row.class_name || ''} - ${row.course_code || ''} - ${row.phone || ''} - ${row.personal_email || ''}${row.note ? ` - Ghi chú: ${row.note}` : ''}`),
+      '',
+      'Trân trọng.',
+    ].join('\n');
+    const notificationStatus = await notify({
+      recipient_email: recipientEmail,
+      type: 'company_applicants_sent',
+      subject: `Danh sách sinh viên đăng ký thực tập - ${companyName}`,
+      body: emailBody,
+    });
+    if (notificationStatus !== 'sent') {
+      return json({
+        error: notificationStatus === 'queued'
+          ? 'Chưa cấu hình RESEND_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
+          : 'Gửi email thất bại. Vui lòng xem trang Thông báo để biết lỗi chi tiết.',
+      }, 400);
+    }
+    await database.execute({
+      sql: `UPDATE registrations SET sent_to_company_at = datetime('now', '+7 hours'), sent_to_company_note = 'Gửi email thật qua hệ thống'
+            WHERE status = 'approved'
+              AND ${isOther ? 'lower(trim(other_company_name)) = lower(trim(?))' : '(company_id IN (SELECT id FROM companies WHERE name = ?) OR lower(trim(other_company_name)) = lower(trim(?)))'}`,
+      args: isOther ? [companyName] : [companyName, companyName],
+    });
+    return json({ success: true, count: rows.length });
+  }
+
   if (method === 'GET' && path === '/api/admin/final-internships') {
     const rows = (await database.execute(`
       SELECT f.*, u.email, u.name as student_name, u.student_id, u.class_name, u.course_code, u.phone, u.personal_email,
@@ -1445,7 +1536,7 @@ async function route(request: Request, env: Env) {
         args: [Number(result.lastInsertRowid), userId, lecturerId, role, user.id, body.note || null],
       });
       const student = (await database.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
-      await createNotification(database, {
+      await notify({
         user_id: userId,
         recipient_email: student?.personal_email || student?.email,
         type: 'advisor_assigned',
@@ -1453,7 +1544,7 @@ async function route(request: Request, env: Env) {
         body: `Bạn đã được phân công ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}: ${lecturer.name}.`,
       });
       if (lecturer.email) {
-        await createNotification(database, {
+        await notify({
           user_id: userId,
           recipient_email: lecturer.email,
           type: 'advisor_assigned',
@@ -1513,7 +1604,7 @@ async function route(request: Request, env: Env) {
               VALUES (?, ?, ?, 'primary', 'auto_created', ?, 'Tự phân công theo quota', datetime('now', '+7 hours'))`,
         args: [Number(assignment?.id || 0), Number(student.user_id), lecturer.id, user.id],
       });
-      await createNotification(database, {
+      await notify({
         user_id: Number(student.user_id),
         recipient_email: student.personal_email || student.email,
         type: 'advisor_assigned',
@@ -1521,7 +1612,7 @@ async function route(request: Request, env: Env) {
         body: `Bạn đã được phân công GVHD chính: ${lecturer.name}.`,
       });
       if (lecturer.email) {
-        await createNotification(database, {
+        await notify({
           user_id: Number(student.user_id),
           recipient_email: lecturer.email,
           type: 'advisor_assigned',
@@ -1681,7 +1772,7 @@ async function route(request: Request, env: Env) {
               WHERE u.id = ?`,
         args: [Number(adminGradeLock[1])],
       })).rows[0] as any;
-      await createNotification(database, {
+      await notify({
         user_id: Number(adminGradeLock[1]),
         recipient_email: row?.personal_email || row?.email,
         type: 'grade_submitted',
@@ -1760,7 +1851,7 @@ async function route(request: Request, env: Env) {
       ORDER BY u.student_id ASC
     `)).rows as any[];
     for (const row of rows) {
-      await createNotification(database, {
+      await notify({
         user_id: Number(row.id),
         recipient_email: row.personal_email || row.email,
         type: 'final_report_due_reminder',
@@ -1781,7 +1872,7 @@ async function route(request: Request, env: Env) {
       ORDER BY u.student_id ASC
     `)).rows as any[];
     for (const row of rows) {
-      await createNotification(database, {
+      await notify({
         user_id: Number(row.id),
         recipient_email: row.personal_email || row.email,
         type: 'final_confirmation_open',
@@ -1802,7 +1893,7 @@ async function route(request: Request, env: Env) {
     `)).rows as any[];
     await database.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
     for (const row of pending) {
-      await createNotification(database, {
+      await notify({
         user_id: Number(row.user_id),
         recipient_email: row.personal_email || row.email,
         type: 'registration_status_changed',
@@ -1826,7 +1917,7 @@ async function route(request: Request, env: Env) {
     })).rows[0] as any;
     await database.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [body.status, statusMatch[1]] });
     if (row && row.status !== body.status) {
-      await createNotification(database, {
+      await notify({
         user_id: Number(row.user_id),
         recipient_email: row.personal_email || row.email,
         type: 'registration_status_changed',
