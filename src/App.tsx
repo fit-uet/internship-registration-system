@@ -540,6 +540,7 @@ function App() {
               <Routes>
                 <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : <Dashboard user={user} setUser={setUser} token={token} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/final-internships" element={user.role === 'admin' ? <FinalInternshipListAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/advisors" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} /> : <Navigate to="/" />} />
@@ -1058,12 +1059,20 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               KẾ HOẠCH TRIỂN KHAI
             </button>
             {user.role === 'admin' && (
-              <button
-                onClick={() => navigate('/admin')}
-                className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors"
-              >
-                <LayoutDashboard size={14} /> DANH SÁCH ĐĂNG KÝ
-              </button>
+              <>
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors"
+                >
+                  <LayoutDashboard size={14} /> DANH SÁCH ĐĂNG KÝ
+                </button>
+                <button
+                  onClick={() => navigate('/admin/final-internships')}
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors"
+                >
+                  <CheckCircle2 size={14} /> DANH SÁCH XÁC NHẬN THỰC TẬP
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1728,18 +1737,14 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
 function AdminPanel({ token }: { token: string }) {
   const [registrations, setRegistrations] = useState<any[]>([]);
-  const [finalInternships, setFinalInternships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
-  const [filterCompany, setFilterCompany] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
   const [registrationPage, setRegistrationPage] = useState(1);
-  const [finalInternshipPage, setFinalInternshipPage] = useState(1);
   const registrationPageSize = 25;
-  const finalInternshipPageSize = 20;
 
   const navigate = useNavigate();
 
@@ -1749,14 +1754,9 @@ function AdminPanel({ token }: { token: string }) {
 
   const fetchRegistrations = async () => {
     try {
-      const [res, finalRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/registrations`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/admin/final-internships`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
+      const res = await fetch(`${API_BASE}/api/admin/registrations`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
-      const finalData = await finalRes.json();
-      setFinalInternships(Array.isArray(finalData) ? finalData : []);
     } catch (e) { }
     setLoading(false);
   };
@@ -1977,15 +1977,6 @@ function AdminPanel({ token }: { token: string }) {
     registrationPagination.safePage * registrationPageSize
   );
 
-  useEffect(() => {
-    setFinalInternshipPage(1);
-  }, [finalInternships.length]);
-  const finalInternshipPagination = paginationBounds(finalInternships.length, finalInternshipPage, finalInternshipPageSize);
-  const paginatedFinalInternships = finalInternships.slice(
-    (finalInternshipPagination.safePage - 1) * finalInternshipPageSize,
-    finalInternshipPagination.safePage * finalInternshipPageSize
-  );
-
   const totalRegistrations = registrations.length;
   const totalStudents = new Set(registrations.map(r => r.user_id || r.student_id || r.email).filter(Boolean)).size;
   const totalCompanies = new Set(registrations.map(r => (
@@ -1996,8 +1987,6 @@ function AdminPanel({ token }: { token: string }) {
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
   const rejectedRegistrations = registrations.filter(r => r.status === 'rejected').length;
-  const confirmedFinalCount = finalInternships.length;
-  const schoolInternshipCount = finalInternships.filter(item => item.internship_type === 'school').length;
 
   if (loading) return <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>;
 
@@ -2070,7 +2059,7 @@ function AdminPanel({ token }: { token: string }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
           <span className="text-slate-500 text-sm font-medium mb-1">Tổng nguyện vọng</span>
           <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
@@ -2094,14 +2083,6 @@ function AdminPanel({ token }: { token: string }) {
         <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col">
           <span className="text-red-600 text-sm font-medium mb-1">Từ chối</span>
           <span className="text-3xl font-bold text-red-700">{rejectedRegistrations}</span>
-        </div>
-        <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col">
-          <span className="text-emerald-600 text-sm font-medium mb-1">Đã xác nhận nơi TT</span>
-          <span className="text-3xl font-bold text-emerald-700">{confirmedFinalCount}</span>
-        </div>
-        <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
-          <span className="text-indigo-600 text-sm font-medium mb-1">TT ở trường</span>
-          <span className="text-3xl font-bold text-indigo-700">{schoolInternshipCount}</span>
         </div>
       </div>
 
@@ -2229,43 +2210,227 @@ function AdminPanel({ token }: { token: string }) {
         />
       </div>
 
-      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
-          <h3 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập chính thức</h3>
-          <p className="text-xs text-slate-500 mt-1">Sinh viên tự xác nhận nơi đã trúng tuyển hoặc phương án thực tập tại trường.</p>
+    </div>
+  );
+}
+
+function FinalInternshipListAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'confirmed_at', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
+
+  const fetchRows = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/final-internships`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      alert('Không tải được danh sách xác nhận thực tập.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRows(); }, [token]);
+
+  const internshipPlace = (item: any) =>
+    item.company_name === 'Công ty khác'
+      ? `Công ty khác: ${item.other_company_name || ''}`
+      : (item.company_name || '-');
+
+  const typeLabel = (type?: string) =>
+    type === 'school' ? 'Tại trường' : type === 'partner' ? 'Đối tác' : 'Công ty';
+
+  const requestSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev?.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const SortIcon = ({ col }: { col: string }) => (
+    <span className="inline-block ml-1 text-slate-400">
+      {sortConfig?.key === col ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <ArrowUpDown size={12} />}
+    </span>
+  );
+
+  const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const includesTerm = (value: any) => String(value || '').toLowerCase().includes(term);
+    let result = rows.filter(item => {
+      const matchType = typeFilter ? item.internship_type === typeFilter : true;
+      const matchTerm = !term ||
+        includesTerm(item.student_id) ||
+        includesTerm(item.student_name) ||
+        includesTerm(item.email) ||
+        includesTerm(item.class_name) ||
+        includesTerm(item.course_code) ||
+        includesTerm(internshipPlace(item)) ||
+        includesTerm(item.school_lecturer) ||
+        includesTerm(item.note);
+      return matchType && matchTerm;
+    });
+    if (sortConfig) {
+      result = [...result].sort((a, b) => {
+        const aVal = sortConfig.key === 'internship_place' ? internshipPlace(a) : (a[sortConfig.key] || '');
+        const bVal = sortConfig.key === 'internship_place' ? internshipPlace(b) : (b[sortConfig.key] || '');
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return sortConfig.direction === 'asc' ? aVal.localeCompare(bVal, 'vi') : bVal.localeCompare(aVal, 'vi');
+        }
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [rows, searchTerm, typeFilter, sortConfig]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, typeFilter, sortConfig, rows.length]);
+
+  const pagination = paginationBounds(filteredRows.length, currentPage, pageSize);
+  const paginatedRows = filteredRows.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
+  const uniqueStudents = new Set(rows.map(item => item.user_id || item.student_id || item.email).filter(Boolean)).size;
+  const uniquePlaces = new Set(rows.map(internshipPlace).filter(Boolean)).size;
+  const companyCount = rows.filter(item => item.internship_type === 'company').length;
+  const schoolCount = rows.filter(item => item.internship_type === 'school').length;
+  const partnerCount = rows.filter(item => item.internship_type === 'partner').length;
+  const lockedCount = rows.filter(item => item.locked_at).length;
+
+  const exportXlsx = () => {
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email VNU', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Loại', 'Nơi thực tập', 'GVHD tại trường', 'Yêu cầu phân công', 'Thời gian xác nhận', 'Khóa', 'Ghi chú'];
+    const data = filteredRows.map((item, idx) => [
+      idx + 1,
+      item.student_id || '',
+      item.student_name || '',
+      item.email || '',
+      item.phone || '',
+      item.personal_email || '',
+      item.class_name || '',
+      item.course_code || '',
+      typeLabel(item.internship_type),
+      internshipPlace(item),
+      item.school_lecturer || '',
+      item.school_assignment_request ? 'Nhờ Khoa phân công' : '',
+      item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '',
+      item.locked_at ? 'Đã khóa' : 'Chưa khóa',
+      item.note || '',
+    ]);
+    saveXlsx('danh_sach_xac_nhan_thuc_tap.xlsx', headers, data, 'Xác nhận TT');
+  };
+
+  if (loading) return <div className="text-center py-20 text-gray-500">Đang tải danh sách xác nhận thực tập...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Trang chủ</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-emerald-600" /> Danh sách xác nhận thực tập</h2>
+          <p className="text-sm text-slate-500 mt-1">Sinh viên đã xác nhận nơi thực tập chính thức để lấy điểm học phần.</p>
         </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={fetchRows} className="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-200 text-sm font-medium shadow-sm flex items-center gap-2">
+            <RefreshCw size={16} /> Tải lại
+          </button>
+          <button onClick={exportXlsx} disabled={filteredRows.length === 0} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-50">
+            <Download size={16} /> Xuất XLSX
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-slate-500 text-sm font-medium mb-1">Tổng xác nhận</span>
+          <span className="text-3xl font-bold text-slate-800">{rows.length}</span>
+        </div>
+        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
+          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên</span>
+          <span className="text-3xl font-bold text-blue-700">{uniqueStudents}</span>
+        </div>
+        <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
+          <span className="text-cyan-700 text-sm font-medium mb-1">Số nơi thực tập</span>
+          <span className="text-3xl font-bold text-cyan-800">{uniquePlaces}</span>
+        </div>
+        <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col">
+          <span className="text-emerald-600 text-sm font-medium mb-1">Thực tập công ty</span>
+          <span className="text-3xl font-bold text-emerald-700">{companyCount}</span>
+        </div>
+        <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
+          <span className="text-indigo-600 text-sm font-medium mb-1">TT ở trường</span>
+          <span className="text-3xl font-bold text-indigo-700">{schoolCount}</span>
+        </div>
+        <div className="bg-purple-50 p-5 rounded-xl border border-purple-100 shadow-sm flex flex-col">
+          <span className="text-purple-600 text-sm font-medium mb-1">Đối tác</span>
+          <span className="text-3xl font-bold text-purple-700">{partnerCount}</span>
+        </div>
+        <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-slate-600 text-sm font-medium mb-1">Đã khóa</span>
+          <span className="text-3xl font-bold text-slate-800">{lockedCount}</span>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Tìm mã SV, tên, nơi thực tập, GVHD..."
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          />
+        </div>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <option value="">Tất cả loại</option>
+          <option value="company">Công ty</option>
+          <option value="school">Tại trường</option>
+          <option value="partner">Đối tác</option>
+        </select>
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 text-gray-700 uppercase font-medium border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4">Mã SV</th>
-                <th className="px-6 py-4">Họ và tên</th>
-                <th className="px-6 py-4">Loại</th>
-                <th className="px-6 py-4">Nơi thực tập</th>
-                <th className="px-6 py-4">GVHD tại trường</th>
-                <th className="px-6 py-4">Thời gian xác nhận</th>
-                <th className="px-6 py-4">Khóa</th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_id')}>Mã SV<SortIcon col="student_id" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_name')}>Họ và tên<SortIcon col="student_name" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('internship_type')}>Loại<SortIcon col="internship_type" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('internship_place')}>Nơi thực tập<SortIcon col="internship_place" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('school_lecturer')}>GVHD tại trường<SortIcon col="school_lecturer" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('course_code')}>Môn học<SortIcon col="course_code" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('confirmed_at')}>Thời gian xác nhận<SortIcon col="confirmed_at" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('locked_at')}>Khóa<SortIcon col="locked_at" /></th>
               </tr>
             </thead>
             <tbody>
-              {finalInternships.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
                 </tr>
               ) : (
-                paginatedFinalInternships.map(item => (
+                paginatedRows.map(item => (
                   <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
                     <td className="px-6 py-4 font-mono">{item.student_id || '-'}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{item.student_name}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{item.student_name}</div>
+                      <div className="text-xs text-slate-500">{item.class_name || '-'}</div>
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`text-xs font-bold px-2 py-1 rounded ${item.internship_type === 'school' ? 'bg-blue-100 text-blue-700' : item.internship_type === 'partner' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {item.internship_type === 'school' ? 'Tại trường' : item.internship_type === 'partner' ? 'Đối tác' : 'Công ty'}
+                        {typeLabel(item.internship_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      {item.company_name === 'Công ty khác' ? `Công ty khác: ${item.other_company_name || ''}` : (item.company_name || '-')}
-                    </td>
+                    <td className="px-6 py-4 min-w-[220px]">{internshipPlace(item)}</td>
                     <td className="px-6 py-4">{item.school_assignment_request ? 'Nhờ Khoa phân công' : (item.school_lecturer || '-')}</td>
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-700">{item.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
                     <td className="px-6 py-4">{item.locked_at ? <span className="text-emerald-700 font-semibold">Đã khóa</span> : <span className="text-slate-400">Chưa khóa</span>}</td>
                   </tr>
@@ -2275,11 +2440,11 @@ function AdminPanel({ token }: { token: string }) {
           </table>
         </div>
         <PaginationControls
-          total={finalInternships.length}
-          currentPage={finalInternshipPage}
-          pageSize={finalInternshipPageSize}
-          onPageChange={setFinalInternshipPage}
-          label="nơi thực tập"
+          total={filteredRows.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="xác nhận"
         />
       </div>
     </div>
