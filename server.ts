@@ -355,13 +355,19 @@ async function sendNotificationEmail(notificationId: number, data: {
     });
     return 'sent';
   } catch (e: any) {
+    const rawError = String(e?.message || e);
+    let message = rawError;
+    if (/unrecognised IP address|authorised_ips|authorized_ips/i.test(rawError)) {
+      const ipMatch = rawError.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+      message = `Brevo đang chặn IP máy chủ${ipMatch ? ` ${ipMatch[0]}` : ''}. Vào Brevo > Security > Authorised IPs để thêm IP này, hoặc tắt giới hạn Authorized IPs nếu không cần. Lỗi gốc: ${rawError}`;
+    }
     await db.execute({
       sql: `UPDATE notifications
             SET status = 'failed', error = ?, provider = ?,
                 attempt_count = COALESCE(attempt_count, 0) + 1,
                 last_attempt_at = datetime('now', '+7 hours')
             WHERE id = ?`,
-      args: [String(e?.message || e).slice(0, 1000), process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : 'resend'), notificationId],
+      args: [message.slice(0, 1000), process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? 'brevo' : 'resend'), notificationId],
     });
     return 'failed';
   }

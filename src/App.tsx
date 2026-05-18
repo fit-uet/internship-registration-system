@@ -11,6 +11,7 @@ import mammoth from 'mammoth';
 import TurndownService from 'turndown';
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
+const GOOGLE_API_KEY = (import.meta as any).env.VITE_GOOGLE_API_KEY || '';
 const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
 const cohortOptionsForYear = (yearValue: string | number) => {
   const year = Number(String(yearValue || '').match(/\d{4}/)?.[0] || 2026);
@@ -45,6 +46,106 @@ const xlsxArrayBuffer = (headers: string[], rows: any[][], sheetName = 'Sheet1')
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31) || 'Sheet1');
   return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+};
+
+const xlsxBlob = (headers: string[], rows: any[][], sheetName = 'Sheet1') =>
+  new Blob([xlsxArrayBuffer(headers, rows, sheetName)], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+const loadScriptOnce = (src: string) => new Promise<void>((resolve, reject) => {
+  if (document.querySelector(`script[src="${src}"]`)) return resolve();
+  const script = document.createElement('script');
+  script.src = src;
+  script.async = true;
+  script.onload = () => resolve();
+  script.onerror = () => reject(new Error(`Không tải được script ${src}`));
+  document.head.appendChild(script);
+});
+
+const getDriveAccessToken = async () => {
+  await loadScriptOnce('https://accounts.google.com/gsi/client');
+  const google = (window as any).google;
+  if (!google?.accounts?.oauth2) throw new Error('Không tải được Google Identity Services.');
+  return await new Promise<string>((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (response: any) => {
+        if (response?.access_token) resolve(response.access_token);
+        else reject(new Error(response?.error || 'Không lấy được quyền Google Drive.'));
+      },
+      error_callback: (error: any) => reject(new Error(error?.message || 'Không lấy được quyền Google Drive.')),
+    });
+    client.requestAccessToken({ prompt: 'consent' });
+  });
+};
+
+const pickDriveFolder = async (accessToken: string) => {
+  if (!GOOGLE_API_KEY) throw new Error('Chưa cấu hình VITE_GOOGLE_API_KEY để dùng Google Drive Picker.');
+  await loadScriptOnce('https://apis.google.com/js/api.js');
+  const gapi = (window as any).gapi;
+  const google = (window as any).google;
+  await new Promise<void>((resolve) => gapi.load('picker', { callback: resolve }));
+  return await new Promise<{ id: string; name: string }>((resolve, reject) => {
+    const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+      .setMimeTypes('application/vnd.google-apps.folder')
+      .setSelectFolderEnabled(true);
+    const picker = new google.picker.PickerBuilder()
+      .setDeveloperKey(GOOGLE_API_KEY)
+      .setOAuthToken(accessToken)
+      .setOrigin(window.location.origin)
+      .setTitle('Chọn thư mục Google Drive để lưu danh sách')
+      .addView(view)
+      .setCallback((data: any) => {
+        if (data.action === google.picker.Action.PICKED) {
+          const doc = data.docs?.[0];
+          resolve({ id: doc.id, name: doc.name || 'Google Drive' });
+        } else if (data.action === google.picker.Action.CANCEL) {
+          reject(new Error('Bạn đã huỷ chọn thư mục Google Drive.'));
+        }
+      })
+      .build();
+    picker.setVisible(true);
+  });
+};
+
+const uploadXlsxToDrive = async (accessToken: string, folderId: string, filename: string, blob: Blob) => {
+  const boundary = `fit_uet_${Date.now()}`;
+  const metadata = {
+    name: filename,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    parents: [folderId],
+  };
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+    `--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`,
+    blob,
+    `\r\n--${boundary}--`,
+  ], { type: `multipart/related; boundary=${boundary}` });
+  const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  });
+  const uploaded = await uploadRes.json();
+  if (!uploadRes.ok) throw new Error(uploaded?.error?.message || 'Không upload được file lên Google Drive.');
+  const permRes = await fetch(`https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+  });
+  if (!permRes.ok) {
+    const error = await permRes.json().catch(() => ({}));
+    throw new Error(error?.error?.message || 'Không bật được quyền xem bằng link cho file Google Drive.');
+  }
+  return uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view?usp=sharing`;
 };
 
 const csvCells = (line: string) => {
@@ -3332,6 +3433,25 @@ function CompanyRegistry({ token }: { token: string }) {
     saveXlsx(`dang_ky_${safeName}.xlsx`, headers, rows, 'Đăng ký');
   };
 
+  const companyApplicantsXlsxData = (company: any, data: any[]) => {
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú'];
+    const rows = data.map((r, idx) => [
+      idx + 1,
+      r.student_id || '',
+      r.student_name || '',
+      r.dob || '',
+      r.phone || '',
+      r.personal_email || '',
+      r.class_name || '',
+      r.course_code || '',
+      r.company_name === 'Công ty khác' ? (r.other_company_name || '') : (r.company_name || company.name || ''),
+      r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh',
+      r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || ''),
+      r.note || '',
+    ]);
+    return { headers, rows };
+  };
+
   const markCompanySent = async (company: any) => {
     const approvedCount = Number(company.approved_applicant_count || 0);
     if (approvedCount === 0) return alert('Công ty này chưa có đăng ký đã duyệt để đánh dấu gửi.');
@@ -3356,31 +3476,57 @@ function CompanyRegistry({ token }: { token: string }) {
     }
   };
 
-  const sendCompanyEmail = async (company: any) => {
+  const composeCompanyEmail = async (company: any) => {
     const emails = company.record_type === 'other' ? extractEmails(company.contacts || '') : extractEmails(company.contact_email || '');
     if (emails.length === 0) return alert('Chưa có email liên hệ cho công ty này. Vui lòng xuất danh sách và gửi thủ công.');
+    const data = getCompanyRegistrations(company).filter((r: any) => r.status === 'approved');
     const approvedCount = Number(company.approved_applicant_count || 0);
-    if (approvedCount === 0) return alert('Công ty này chưa có đăng ký đã duyệt để gửi.');
-    if (!confirm(`Gửi email thật kèm danh sách ${approvedCount} sinh viên đã duyệt đến ${emails[0]}?`)) return;
-    setMarkingSentKey(company.company_key || String(company.id || company.name));
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/companies/send-applicants-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          recipient_email: emails[0],
-          ...(company.record_type === 'other' ? { other_company_name: company.name } : { company_name: company.name }),
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) return alert(data.error || 'Gửi email thất bại.');
-      alert(`Đã gửi email và đánh dấu ${data.count || approvedCount} đăng ký là đã gửi DN.`);
-      fetchCompanies();
-    } catch (e) {
-      alert('Lỗi kết nối khi gửi email.');
-    } finally {
-      setMarkingSentKey(null);
+    if (approvedCount === 0 || data.length === 0) return alert('Công ty này chưa có đăng ký đã duyệt để gửi.');
+    const safeName = (company.name || 'cong_ty').replace(/[^a-z0-9]+/gi, '_');
+    let driveLink = '';
+    if (GOOGLE_API_KEY) {
+      const uploadToDrive = confirm('Tạo file XLSX trên Google Drive và chèn link vào email?\n\nChọn OK để chọn thư mục Drive.\nChọn Cancel để chỉ soạn email, bạn có thể tự đính kèm file XLSX.');
+      if (uploadToDrive) {
+        setMarkingSentKey(company.company_key || String(company.id || company.name));
+        try {
+          const accessToken = await getDriveAccessToken();
+          const folder = await pickDriveFolder(accessToken);
+          const { headers, rows } = companyApplicantsXlsxData(company, data);
+          const file = xlsxBlob(headers, rows, 'Đăng ký');
+          driveLink = await uploadXlsxToDrive(accessToken, folder.id, `dang_ky_${safeName}.xlsx`, file);
+          alert(`Đã tạo file trong thư mục "${folder.name}" và bật quyền xem bằng link.`);
+        } catch (e: any) {
+          alert(e?.message || 'Không tạo được file Google Drive. Email sẽ được soạn không kèm link.');
+        } finally {
+          setMarkingSentKey(null);
+        }
+      }
+    } else {
+      alert('Chưa cấu hình VITE_GOOGLE_API_KEY nên hệ thống chưa mở được Google Drive Picker. Email sẽ được soạn sẵn; vui lòng tự đính kèm file XLSX hoặc link Drive.');
     }
+    const subject = `Danh sách sinh viên đăng ký thực tập - ${company.name}`;
+    const fullList = data.map((row: any, idx: number) =>
+      `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''} - ${row.phone || ''} - ${row.personal_email || ''}${row.note ? ` - Ghi chú: ${row.note}` : ''}`
+    ).join('\n');
+    const listForUrl = fullList.length > 4500
+      ? `${data.slice(0, 25).map((row: any, idx: number) => `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''}`).join('\n')}\n\n(Danh sách đầy đủ có ${data.length} sinh viên. Vui lòng đính kèm file XLSX đã xuất từ hệ thống hoặc link Google Drive.)`
+      : fullList;
+    const body = [
+      'Kính gửi Quý Công ty,',
+      '',
+      `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${company.name}.`,
+      '',
+      driveLink ? `Danh sách XLSX: ${driveLink}` : '',
+      driveLink ? '' : '',
+      listForUrl,
+      '',
+      'Trân trọng.',
+    ].filter((line, idx, arr) => line !== '' || arr[idx - 1] !== '').join('\n');
+    const useGmail = confirm('Mở Gmail để soạn thư?\n\nChọn OK: mở Gmail trên trình duyệt.\nChọn Cancel: mở ứng dụng Mail mặc định.');
+    const url = useGmail
+      ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails[0])}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      : `mailto:${encodeURIComponent(emails[0])}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleFileUpload = async (e: any) => {
@@ -3643,7 +3789,9 @@ function CompanyRegistry({ token }: { token: string }) {
                     <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-right flex items-center justify-end gap-1">
                       <button onClick={() => exportApplicantsForCompany(c)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Xuất danh sách đăng ký"><Download size={16} /></button>
-                      <button onClick={() => sendCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Gửi email thật cho DN"><FileText size={16} /></button>
+                      <button onClick={() => composeCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Tạo link Drive và soạn email gửi DN">
+                        {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
+                      </button>
                       <button onClick={() => markCompanySent(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Đánh dấu đã gửi DN">
                         {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                       </button>

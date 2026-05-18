@@ -59,7 +59,7 @@ Backend:
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
 - Báo cáo final PDF được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong bảng `final_reports`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports`; khi chạy production bắt buộc cấu hình R2.
-- Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công.
+- Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi thông báo cho sinh viên qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công. Email gửi doanh nghiệp tạm thời được soạn sẵn qua Gmail/app Mail để Khoa gửi thủ công vì chưa xác thực được domain trường trên Brevo.
 
 Các biến/secrets chính:
 
@@ -67,6 +67,7 @@ Các biến/secrets chính:
 - `TURSO_AUTH_TOKEN`
 - `JWT_SECRET`
 - `VITE_GOOGLE_CLIENT_ID`
+- `VITE_GOOGLE_API_KEY`, dùng cho Google Drive Picker khi soạn email gửi doanh nghiệp kèm link Drive.
 - `ADMIN_EMAIL`
 - `CORS_ORIGIN`, đặt bằng domain frontend/Render cần cho phép.
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` để lưu báo cáo final PDF trên Cloudflare R2.
@@ -84,6 +85,7 @@ Gửi email thật:
 - Admin vào site Thông báo và bấm `Gửi hàng đợi` để gửi từng batch theo `EMAIL_BATCH_SIZE` và `EMAIL_DAILY_SEND_CAP`.
 - Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`.
 - Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công.
+- Nếu Brevo báo lỗi `unrecognised IP address`, vào Brevo > Security > Authorised IPs và thêm IP máy chủ trong thông báo lỗi. Với Render Free, outbound IP có thể thay đổi nên cần kiểm tra lại nếu lỗi xuất hiện lại; phương án ổn định hơn là dùng dịch vụ có static outbound IP hoặc tắt giới hạn Authorized IPs trên Brevo nếu chính sách cho phép.
 Chạy local:
 
 ```bash
@@ -103,6 +105,7 @@ Deploy Render:
    - `TURSO_AUTH_TOKEN`
    - `JWT_SECRET`
    - `VITE_GOOGLE_CLIENT_ID`
+   - `VITE_GOOGLE_API_KEY` nếu muốn dùng Google Drive Picker để tạo link danh sách gửi doanh nghiệp.
    - `ADMIN_EMAIL`
    - `CORS_ORIGIN`
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
@@ -346,7 +349,7 @@ Admin có thể:
 - Ghi toàn bộ dữ liệu đăng ký lên Google Sheets.
 - Trong màn “Quản lý Công ty”, xuất danh sách đăng ký riêng cho từng công ty và đánh dấu danh sách đã gửi doanh nghiệp theo từng công ty.
 
-Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống xuất XLSX theo từng công ty, ghi notification history, và nếu đã cấu hình Brevo thì có thể gửi email thật cho doanh nghiệp với danh sách sinh viên đã duyệt trong nội dung email rồi tự đánh dấu “Đã gửi DN”.
+Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống xuất XLSX theo từng công ty và soạn sẵn email gửi doanh nghiệp qua Gmail/app Mail với email nhận, chủ đề và nội dung. Nếu cấu hình `VITE_GOOGLE_API_KEY`, admin có thể chọn thư mục Google Drive bằng Picker; hệ thống tạo file XLSX theo công ty, bật quyền `anyone with the link can view`, rồi chèn link vào nội dung Gmail. Sau khi gửi thủ công, admin bấm “Đã gửi DN” để ghi nhận trạng thái đã gửi.
 
 ## 6. Đối chiếu với quy trình trong kế hoạch thực tập
 
