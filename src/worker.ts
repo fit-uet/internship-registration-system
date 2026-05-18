@@ -551,6 +551,7 @@ async function initDb(env: Env) {
         user_id INTEGER NOT NULL,
         company_id INTEGER NOT NULL,
         note TEXT,
+        review_comment TEXT,
         status TEXT NOT NULL DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         other_company_name TEXT,
@@ -645,7 +646,8 @@ async function initDb(env: Env) {
         status TEXT NOT NULL DEFAULT 'queued',
         error TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        sent_at DATETIME
+        sent_at DATETIME,
+        read_at DATETIME
       );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
@@ -670,11 +672,13 @@ async function initDb(env: Env) {
     const migrations = [
       'ALTER TABLE registrations ADD COLUMN sent_to_company_at DATETIME',
       'ALTER TABLE registrations ADD COLUMN sent_to_company_note TEXT',
+      'ALTER TABLE registrations ADD COLUMN review_comment TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER',
       'ALTER TABLE final_reports ADD COLUMN lecturer_comment TEXT',
       'ALTER TABLE grades ADD COLUMN locked_at DATETIME',
+      'ALTER TABLE notifications ADD COLUMN read_at DATETIME',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -931,6 +935,51 @@ async function route(request: Request, env: Env) {
     }
     const updated = (await database.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows[0];
     return json(updated);
+  }
+
+  if (method === 'GET' && path === '/api/notifications/my') {
+    const rows = (await database.execute({
+      sql: `
+        SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+        FROM notifications
+        WHERE lower(trim(recipient_email)) = lower(trim(?))
+           OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+        ORDER BY created_at DESC
+        LIMIT 100
+      `,
+      args: [user.email || '', user.personal_email || ''],
+    })).rows as any[];
+    return json({ rows, unread: rows.filter(row => !row.read_at).length });
+  }
+
+  const myNotificationRead = path.match(/^\/api\/notifications\/my\/(\d+)\/read$/);
+  if (method === 'PUT' && myNotificationRead) {
+    await database.execute({
+      sql: `
+        UPDATE notifications
+        SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
+        WHERE id = ?
+          AND (
+            lower(trim(recipient_email)) = lower(trim(?))
+            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+          )
+      `,
+      args: [Number(myNotificationRead[1]), user.email || '', user.personal_email || ''],
+    });
+    return json({ success: true });
+  }
+
+  if (method === 'PUT' && path === '/api/notifications/my/read-all') {
+    await database.execute({
+      sql: `
+        UPDATE notifications
+        SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
+        WHERE lower(trim(recipient_email)) = lower(trim(?))
+           OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+      `,
+      args: [user.email || '', user.personal_email || ''],
+    });
+    return json({ success: true });
   }
 
   if (method === 'GET' && path === '/api/registrations/my') {
@@ -1676,7 +1725,7 @@ async function route(request: Request, env: Env) {
 
   if (method === 'GET' && path === '/api/admin/registrations') {
     return json((await database.execute(`
-      SELECT r.id as registration_id, r.company_id, u.email, u.name as student_name, u.student_id, u.dob, u.class_name, r.note,
+      SELECT r.id as registration_id, r.company_id, u.email, u.name as student_name, u.student_id, u.dob, u.class_name, r.note, r.review_comment,
              c.name as company_name, r.status, r.created_at, r.other_company_name, r.other_company_role,
              r.other_company_contact, r.sent_to_company_at, r.sent_to_company_note,
              u.course_code, c.contact_email, u.phone, u.personal_email
@@ -2216,7 +2265,68 @@ async function route(request: Request, env: Env) {
     return json({ success: true, count: rows.length });
   }
 
+  if (method === 'POST' && path === '/api/admin/notifications/manual') {
+    const body = await readBody(request);
+    const target = String(body.target || '').trim();
+    const subject = String(body.subject || '').trim();
+    const content = String(body.body || '').trim();
+    if (!subject) return json({ error: 'Tiêu đề không được để trống.' }, 400);
+    if (!content) return json({ error: 'Nội dung không được để trống.' }, 400);
+    let rows: any[] = [];
+    if (target === 'lecturers') {
+      rows = (await database.execute(`
+        SELECT NULL as user_id, email, name, NULL as student_id
+        FROM lecturers
+        WHERE email IS NOT NULL AND trim(email) != ''
+        ORDER BY name ASC
+      `)).rows as any[];
+    } else if (target === 'students_approved' || target === 'students_rejected' || target === 'students_pending') {
+      rows = (await database.execute({
+        sql: `
+          SELECT DISTINCT u.id as user_id, u.email, u.personal_email, u.name, u.student_id
+          FROM registrations r
+          JOIN users u ON u.id = r.user_id
+          WHERE r.status = ?
+          ORDER BY u.student_id ASC
+        `,
+        args: [target.replace('students_', '')],
+      })).rows as any[];
+    } else if (target === 'students_with_registration') {
+      rows = (await database.execute(`
+        SELECT DISTINCT u.id as user_id, u.email, u.personal_email, u.name, u.student_id
+        FROM registrations r
+        JOIN users u ON u.id = r.user_id
+        ORDER BY u.student_id ASC
+      `)).rows as any[];
+    } else if (target === 'all_students') {
+      rows = (await database.execute(`
+        SELECT id as user_id, email, personal_email, name, student_id
+        FROM users
+        WHERE role = 'student'
+        ORDER BY student_id ASC
+      `)).rows as any[];
+    } else {
+      return json({ error: 'Nhóm nhận thông báo không hợp lệ.' }, 400);
+    }
+    let count = 0;
+    for (const row of rows) {
+      const recipient = row.personal_email || row.email;
+      if (!recipient) continue;
+      await notify({
+        user_id: row.user_id ? Number(row.user_id) : null,
+        recipient_email: recipient,
+        type: target === 'lecturers' ? 'manual_lecturer_notice' : 'manual_student_notice',
+        subject,
+        body: content,
+      });
+      count++;
+    }
+    return json({ success: true, count });
+  }
+
   if (method === 'PUT' && path === '/api/admin/registrations/approve-all') {
+    const body = await readBody(request);
+    const reviewComment = String(body.review_comment || '').trim();
     const pending = (await database.execute(`
       SELECT r.id, u.id as user_id, u.email, u.personal_email, c.name as company_name, r.other_company_name
       FROM registrations r
@@ -2224,7 +2334,7 @@ async function route(request: Request, env: Env) {
       JOIN companies c ON c.id = r.company_id
       WHERE r.status = 'pending'
     `)).rows as any[];
-    await database.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
+    await database.execute({ sql: "UPDATE registrations SET status = 'approved', review_comment = ? WHERE status = 'pending'", args: [reviewComment || null] });
     for (const row of pending) {
       await addApprovedCompanyFromRegistration(database, row);
       await notify({
@@ -2232,7 +2342,7 @@ async function route(request: Request, env: Env) {
         recipient_email: row.personal_email || row.email,
         type: 'registration_status_changed',
         subject: 'Đăng ký thực tập đã được duyệt',
-        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.`,
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
       });
     }
     return json({ success: true });
@@ -2241,6 +2351,7 @@ async function route(request: Request, env: Env) {
   if (method === 'PUT' && statusMatch) {
     const body = await readBody(request);
     if (!['pending', 'approved', 'rejected'].includes(body.status)) return json({ error: 'Invalid status' }, 400);
+    const reviewComment = String(body.review_comment || '').trim();
     const row = (await database.execute({
       sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
             FROM registrations r
@@ -2249,7 +2360,7 @@ async function route(request: Request, env: Env) {
             WHERE r.id = ?`,
       args: [statusMatch[1]],
     })).rows[0] as any;
-    await database.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [body.status, statusMatch[1]] });
+    await database.execute({ sql: 'UPDATE registrations SET status = ?, review_comment = ? WHERE id = ?', args: [body.status, reviewComment || null, statusMatch[1]] });
     if (row && row.status !== body.status) {
       if (body.status === 'approved') {
         await addApprovedCompanyFromRegistration(database, row);
@@ -2259,7 +2370,7 @@ async function route(request: Request, env: Env) {
         recipient_email: row.personal_email || row.email,
         type: 'registration_status_changed',
         subject: `Đăng ký thực tập ${body.status === 'approved' ? 'đã được duyệt' : body.status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
-        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${body.status}.`,
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${body.status === 'approved' ? 'Đã duyệt' : body.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
       });
     }
     return json({ success: true });

@@ -725,6 +725,7 @@ async function initDb() {
       user_id INTEGER NOT NULL,
       company_id INTEGER NOT NULL,
       note TEXT,
+      review_comment TEXT,
       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
       sent_to_company_at DATETIME,
       sent_to_company_note TEXT,
@@ -822,7 +823,8 @@ async function initDb() {
       provider TEXT,
       provider_message_id TEXT,
       attempt_count INTEGER DEFAULT 0,
-      last_attempt_at DATETIME
+      last_attempt_at DATETIME,
+      read_at DATETIME
     );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -918,6 +920,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN course_code TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN note TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN review_comment TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
@@ -927,6 +930,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN provider_message_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN attempt_count INTEGER DEFAULT 0'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN last_attempt_at DATETIME'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN read_at DATETIME'); } catch (e) { }
   // Legacy denormalized profile columns; reports now read these fields from users.
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN student_id'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN dob'); } catch (e) { }
@@ -1294,6 +1298,63 @@ async function startServer() {
       }
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
       res.json(updatedUser);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.get('/api/notifications/my', requireAuth, async (req: any, res: any) => {
+    try {
+      const rows = (await db.execute({
+        sql: `
+          SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+          FROM notifications
+          WHERE lower(trim(recipient_email)) = lower(trim(?))
+             OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+          ORDER BY created_at DESC
+          LIMIT 100
+        `,
+        args: [req.user.email || '', req.user.personal_email || ''],
+      })).rows as any[];
+      const unread = rows.filter(row => !row.read_at).length;
+      res.json({ rows, unread });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.put('/api/notifications/my/:id/read', requireAuth, async (req: any, res: any) => {
+    try {
+      await db.execute({
+        sql: `
+          UPDATE notifications
+          SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
+          WHERE id = ?
+            AND (
+              lower(trim(recipient_email)) = lower(trim(?))
+              OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+            )
+        `,
+        args: [Number(req.params.id), req.user.email || '', req.user.personal_email || ''],
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.put('/api/notifications/my/read-all', requireAuth, async (req: any, res: any) => {
+    try {
+      await db.execute({
+        sql: `
+          UPDATE notifications
+          SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
+          WHERE lower(trim(recipient_email)) = lower(trim(?))
+             OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+        `,
+        args: [req.user.email || '', req.user.personal_email || ''],
+      });
+      res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -2274,6 +2335,7 @@ async function startServer() {
         u.dob,
         u.class_name,
         r.note,
+        r.review_comment,
         c.name as company_name,
         r.status,
         r.created_at,
@@ -2914,6 +2976,71 @@ async function startServer() {
     res.json({ success: true, count: rows.length });
   });
 
+  app.post('/api/admin/notifications/manual', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const target = String(req.body.target || '').trim();
+      const subject = String(req.body.subject || '').trim();
+      const body = String(req.body.body || '').trim();
+      if (!subject) return res.status(400).json({ error: 'Tiêu đề không được để trống.' });
+      if (!body) return res.status(400).json({ error: 'Nội dung không được để trống.' });
+
+      let rows: any[] = [];
+      if (target === 'lecturers') {
+        rows = (await db.execute(`
+          SELECT NULL as user_id, email, name, NULL as student_id
+          FROM lecturers
+          WHERE email IS NOT NULL AND trim(email) != ''
+          ORDER BY name ASC
+        `)).rows as any[];
+      } else if (target === 'students_approved' || target === 'students_rejected' || target === 'students_pending') {
+        const status = target.replace('students_', '');
+        rows = (await db.execute({
+          sql: `
+            SELECT DISTINCT u.id as user_id, u.email, u.personal_email, u.name, u.student_id
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            WHERE r.status = ?
+            ORDER BY u.student_id ASC
+          `,
+          args: [status],
+        })).rows as any[];
+      } else if (target === 'students_with_registration') {
+        rows = (await db.execute(`
+          SELECT DISTINCT u.id as user_id, u.email, u.personal_email, u.name, u.student_id
+          FROM registrations r
+          JOIN users u ON u.id = r.user_id
+          ORDER BY u.student_id ASC
+        `)).rows as any[];
+      } else if (target === 'all_students') {
+        rows = (await db.execute(`
+          SELECT id as user_id, email, personal_email, name, student_id
+          FROM users
+          WHERE role = 'student'
+          ORDER BY student_id ASC
+        `)).rows as any[];
+      } else {
+        return res.status(400).json({ error: 'Nhóm nhận thông báo không hợp lệ.' });
+      }
+
+      let count = 0;
+      for (const row of rows) {
+        const recipient = row.personal_email || row.email;
+        if (!recipient) continue;
+        await createNotification({
+          user_id: row.user_id ? Number(row.user_id) : null,
+          recipient_email: recipient,
+          type: target === 'lecturers' ? 'manual_lecturer_notice' : 'manual_student_notice',
+          subject,
+          body,
+        });
+        count++;
+      }
+      res.json({ success: true, count });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 7. Admin: Export CSV
   app.get('/api/admin/export.csv', requireAuth, requireAdmin, async (req, res) => {
     const data = (await db.execute(`
@@ -2927,6 +3054,7 @@ async function startServer() {
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
         CASE WHEN c.name = 'Trường Đại học Công nghệ' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
+        r.review_comment as "Nhận xét duyệt",
         r.status as "Trạng thái",
         r.created_at as "Thời gian đăng ký"
       FROM registrations r
@@ -2938,7 +3066,7 @@ async function startServer() {
     if (data.length === 0) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="thuctap_cntt_uet.csv"');
-      return res.send('\uFEFF"STT","Mã SV","Họ và tên","Ngày sinh","Lớp KH","Mã môn học","Nơi thực tập","Vị trí","Liên hệ","Ghi chú","Trạng thái","Thời gian đăng ký"\n');
+      return res.send('\uFEFF"STT","Mã SV","Họ và tên","Ngày sinh","Lớp KH","Mã môn học","Nơi thực tập","Vị trí","Liên hệ","Ghi chú","Nhận xét duyệt","Trạng thái","Thời gian đăng ký"\n');
     }
 
     const headers = Object.keys(data[0]);
@@ -2989,6 +3117,7 @@ async function startServer() {
           CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
           CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
           CASE WHEN c.name = 'Trường Đại học Công nghệ' THEN 'GVHD: ' || coalesce(r.other_company_contact, '') || CASE WHEN coalesce(r.note, '') != '' THEN ' - ' || r.note ELSE '' END ELSE r.note END as "Ghi chú",
+          r.review_comment as "Nhận xét duyệt",
           r.status as "Trạng thái",
           r.created_at as "Thời gian đăng ký"
         FROM registrations r
@@ -3026,6 +3155,7 @@ async function startServer() {
   // 7b. Admin: Approve all pending registrations
   app.put('/api/admin/registrations/approve-all', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
+      const reviewComment = String(req.body?.review_comment || '').trim();
       const pending = (await db.execute(`
         SELECT r.id, u.id as user_id, u.email, u.personal_email, c.name as company_name, r.other_company_name
         FROM registrations r
@@ -3033,7 +3163,10 @@ async function startServer() {
         JOIN companies c ON c.id = r.company_id
         WHERE r.status = 'pending'
       `)).rows as any[];
-      await db.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
+      await db.execute({
+        sql: "UPDATE registrations SET status = 'approved', review_comment = ? WHERE status = 'pending'",
+        args: [reviewComment || null],
+      });
       for (const row of pending) {
         await addApprovedCompanyFromRegistration(row);
         await createNotification({
@@ -3041,7 +3174,7 @@ async function startServer() {
           recipient_email: row.personal_email || row.email,
           type: 'registration_status_changed',
           subject: 'Đăng ký thực tập đã được duyệt',
-          body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.`,
+          body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
         });
       }
       res.json({ success: true });
@@ -3054,6 +3187,7 @@ async function startServer() {
   app.put('/api/admin/registrations/:id/status', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { id } = req.params;
     const { status } = req.body;
+    const reviewComment = String(req.body?.review_comment || '').trim();
 
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -3068,7 +3202,7 @@ async function startServer() {
               WHERE r.id = ?`,
         args: [id],
       })).rows[0] as any;
-      await db.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [status, id] });
+      await db.execute({ sql: 'UPDATE registrations SET status = ?, review_comment = ? WHERE id = ?', args: [status, reviewComment || null, id] });
       if (row && row.status !== status) {
         if (status === 'approved') {
           await addApprovedCompanyFromRegistration(row);
@@ -3078,7 +3212,7 @@ async function startServer() {
           recipient_email: row.personal_email || row.email,
           type: 'registration_status_changed',
           subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
-          body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${status}.`,
+          body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
         });
       }
       res.json({ success: true });

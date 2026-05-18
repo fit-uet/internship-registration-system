@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -242,11 +242,117 @@ function PaginationControls({
   );
 }
 
+function MyNotifications({ token, compact = false, onChanged }: { token: string; compact?: boolean; onChanged?: (unread: number) => void }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRows = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/my`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (!res.ok) return;
+      const nextRows = Array.isArray(data.rows) ? data.rows : [];
+      const nextUnread = Number(data.unread || 0);
+      setRows(nextRows);
+      setUnread(nextUnread);
+      onChanged?.(nextUnread);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRows(); }, [token]);
+
+  const markRead = async (id: number) => {
+    await fetch(`${API_BASE}/api/notifications/my/${id}/read`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    fetchRows();
+  };
+
+  const markAllRead = async () => {
+    await fetch(`${API_BASE}/api/notifications/my/read-all`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    fetchRows();
+  };
+
+  const visibleRows = compact ? rows.slice(0, 5) : rows;
+  const typeLabel = (type: string) => {
+    if (type === 'registration_status_changed') return 'Đăng ký';
+    if (type === 'advisor_assigned') return 'GVHD';
+    if (type === 'final_report_status_changed') return 'Báo cáo';
+    if (type === 'grade_locked') return 'Bảng điểm';
+    if (type === 'manual_student_notice' || type === 'manual_lecturer_notice') return 'Thông báo';
+    return type || 'Thông báo';
+  };
+
+  if (loading) return <div className="p-4 text-sm text-slate-500">Đang tải thông báo...</div>;
+
+  return (
+    <div className={compact ? '' : 'max-w-4xl mx-auto space-y-6'}>
+      {!compact && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Bell className="text-amber-600" /> Thông báo của tôi</h2>
+            <p className="text-sm text-slate-500 mt-1">{unread} thông báo chưa đọc.</p>
+          </div>
+          <button onClick={markAllRead} disabled={!unread} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium disabled:opacity-50">
+            Đánh dấu đã đọc tất cả
+          </button>
+        </div>
+      )}
+      {compact && rows.length > 0 && (
+        <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-500">{unread} chưa đọc</span>
+          <button onClick={markAllRead} disabled={!unread} className="text-xs font-semibold text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline">
+            Đã đọc tất cả
+          </button>
+        </div>
+      )}
+      <div className={compact ? 'divide-y divide-slate-100' : 'bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100 overflow-hidden'}>
+        {visibleRows.length === 0 ? (
+          <div className="p-6 text-center text-sm text-slate-500">Chưa có thông báo.</div>
+        ) : visibleRows.map(row => (
+          <div key={row.id} className={`p-4 ${row.read_at ? 'bg-white' : 'bg-amber-50/70'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-2 py-0.5 rounded">{typeLabel(row.type)}</span>
+                  {!row.read_at && <span className="w-2 h-2 rounded-full bg-blue-600" title="Chưa đọc"></span>}
+                </div>
+                <div className="font-semibold text-slate-900">{row.subject}</div>
+                <div className="text-sm text-slate-600 whitespace-pre-wrap mt-1">{row.body}</div>
+                <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
+              </div>
+              {!row.read_at && (
+                <button onClick={() => markRead(row.id)} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
+                  Đã đọc
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {compact && rows.length > visibleRows.length && (
+        <Link to="/notifications" className="block px-4 py-3 text-sm text-center font-semibold text-blue-600 hover:bg-blue-50">
+          Xem tất cả thông báo
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const handleLoginSuccess = async (credentialResponse: any) => {
     setLoginError(null);
@@ -277,7 +383,26 @@ function App() {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    setUnreadNotifications(0);
+    setIsNotificationOpen(false);
+    setIsMenuOpen(false);
   };
+
+  const refreshUnreadNotifications = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/my`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok) setUnreadNotifications(Number(data.unread || 0));
+    } catch (e) { }
+  };
+
+  useEffect(() => {
+    if (!token || !user) return;
+    refreshUnreadNotifications();
+    const timer = window.setInterval(refreshUnreadNotifications, 60000);
+    return () => window.clearInterval(timer);
+  }, [token, user?.id]);
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -297,8 +422,37 @@ function App() {
               </Link>
 
               {user ? (
-                <div className="relative">
-                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center gap-3 hover:bg-white/10 p-1.5 pr-3 rounded-full transition-colors cursor-pointer group focus:outline-none">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <button
+                      onClick={() => { setIsNotificationOpen(!isNotificationOpen); setIsMenuOpen(false); }}
+                      className="relative w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors focus:outline-none"
+                      title="Thông báo"
+                    >
+                      <Bell size={20} />
+                      {unreadNotifications > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border border-[#004a99]">
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                        </span>
+                      )}
+                    </button>
+                    {isNotificationOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsNotificationOpen(false)}></div>
+                        <div className="absolute right-0 mt-2 w-[min(92vw,420px)] bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden text-slate-800 origin-top-right">
+                          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                            <div className="font-bold text-slate-900 flex items-center gap-2"><Bell size={16} className="text-amber-600" /> Thông báo</div>
+                            <Link to="/notifications" onClick={() => setIsNotificationOpen(false)} className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</Link>
+                          </div>
+                          <div className="max-h-[70vh] overflow-y-auto">
+                            <MyNotifications token={token} compact onChanged={setUnreadNotifications} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsNotificationOpen(false); }} className="flex items-center gap-3 hover:bg-white/10 p-1.5 pr-3 rounded-full transition-colors cursor-pointer group focus:outline-none">
                     <div className="text-right hidden sm:block">
                       <p className="text-sm font-medium group-hover:text-blue-100 transition-colors">{user.name}</p>
                       <p className="text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">{user.email}</p>
@@ -354,6 +508,7 @@ function App() {
                       </div>
                     </>
                   )}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -398,6 +553,7 @@ function App() {
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
+                <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             )}
@@ -922,7 +1078,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 </div>
                 <ul className="text-sm text-green-800 mb-4 space-y-1">
                   {myRegs.map((reg: any, idx: number) => (
-                    <li key={reg.id}>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></li>
+                    <li key={reg.id}>
+                      <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
+                      {reg.review_comment && <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">Nhận xét của Khoa: {reg.review_comment}</div>}
+                    </li>
                   ))}
                 </ul>
                 <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
@@ -1603,7 +1762,7 @@ function AdminPanel({ token }: { token: string }) {
   };
 
   const registrationExportData = (dataList: any[]) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Nhận xét duyệt', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
     const rows = dataList.map((r, i) => {
       let noi_tt = r.company_name;
       if (r.company_name === 'Công ty khác') noi_tt = 'Công ty khác: ' + (r.other_company_name || '');
@@ -1630,6 +1789,7 @@ function AdminPanel({ token }: { token: string }) {
         vi_tri,
         lien_he,
         ghi_chu,
+        r.review_comment || '',
         r.status === 'approved' ? 'Đã duyệt' : (r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'),
         r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
         new Date(r.created_at).toLocaleString('vi-VN')
@@ -1729,13 +1889,19 @@ function AdminPanel({ token }: { token: string }) {
 
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
+      const current = registrations.find(r => Number(r.registration_id) === Number(id));
+      const commentPrompt = status === 'pending'
+        ? ''
+        : prompt(status === 'approved' ? 'Nhận xét gửi cho sinh viên khi duyệt (có thể để trống):' : 'Lý do/nhận xét gửi cho sinh viên khi từ chối:', current?.review_comment || '');
+      if (commentPrompt === null) return;
+      const review_comment = status === 'pending' ? '' : commentPrompt;
       const res = await fetch(`${API_BASE}/api/admin/registrations/${id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, review_comment })
       });
       if (res.ok) {
         fetchRegistrations();
@@ -1750,10 +1916,14 @@ function AdminPanel({ token }: { token: string }) {
 
   const handleApproveAll = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn duyệt tất cả các đăng ký đang chờ?")) return;
+    const commentPrompt = prompt('Nhận xét chung gửi cho các sinh viên được duyệt (có thể để trống):', '');
+    if (commentPrompt === null) return;
+    const review_comment = commentPrompt;
     try {
       const res = await fetch(`${API_BASE}/api/admin/registrations/approve-all`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ review_comment })
       });
       if (res.ok) {
         fetchRegistrations();
@@ -1792,7 +1962,8 @@ function AdminPanel({ token }: { token: string }) {
       (reg.email || '').toLowerCase().includes(term) ||
       (reg.company_name || '').toLowerCase().includes(term) ||
       (reg.student_id || '').toLowerCase().includes(term) ||
-      (reg.class_name || '').toLowerCase().includes(term)
+      (reg.class_name || '').toLowerCase().includes(term) ||
+      (reg.review_comment || '').toLowerCase().includes(term)
     );
     const matchCourse = filterCourse ? reg.course_code === filterCourse : true;
     return matchTerm && matchCourse;
@@ -1975,12 +2146,15 @@ function AdminPanel({ token }: { token: string }) {
                 <th className="px-6 py-4 text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('status')}>
                   <div className="flex items-center justify-center gap-1">Trạng thái {getSortIcon('status')}</div>
                 </th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('review_comment')}>
+                  <div className="flex items-center gap-1">Nhận xét {getSortIcon('review_comment')}</div>
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
+                  <td colSpan={13} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
                 paginatedRegistrations.map(reg => (
@@ -2036,6 +2210,9 @@ function AdminPanel({ token }: { token: string }) {
                         <option value="approved" className="bg-white text-gray-900">Đã Duyệt</option>
                         <option value="rejected" className="bg-white text-gray-900">Từ Chối</option>
                       </select>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-600 min-w-[220px] whitespace-pre-wrap">
+                      {reg.review_comment || '-'}
                     </td>
                   </tr>
                 ))
@@ -2755,6 +2932,12 @@ function NotificationAdmin({ token }: { token: string }) {
   const [typeFilter, setTypeFilter] = useState('');
   const [creatingReminders, setCreatingReminders] = useState(false);
   const [sendingQueue, setSendingQueue] = useState(false);
+  const [creatingManual, setCreatingManual] = useState(false);
+  const [manualNotice, setManualNotice] = useState({
+    target: 'students_with_registration',
+    subject: '',
+    body: '',
+  });
   const [stats, setStats] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
@@ -2847,6 +3030,28 @@ function NotificationAdmin({ token }: { token: string }) {
     }
   };
 
+  const createManualNotice = async () => {
+    if (!manualNotice.subject.trim() || !manualNotice.body.trim()) return alert('Vui lòng nhập tiêu đề và nội dung thông báo.');
+    if (!confirm('Tạo thông báo vào hàng đợi cho nhóm người nhận đã chọn?')) return;
+    setCreatingManual(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/notifications/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(manualNotice)
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Tạo thông báo thất bại.');
+      alert(`Đã tạo ${data.count || 0} thông báo vào hàng đợi.`);
+      setManualNotice(prev => ({ ...prev, subject: '', body: '' }));
+      fetchRows();
+    } catch (e) {
+      alert('Lỗi kết nối khi tạo thông báo.');
+    } finally {
+      setCreatingManual(false);
+    }
+  };
+
   const types = Array.from(new Set(rows.map(row => row.type).filter(Boolean))).sort();
   const filtered = rows.filter(row => {
     const term = searchTerm.trim().toLowerCase();
@@ -2909,6 +3114,44 @@ function NotificationAdmin({ token }: { token: string }) {
           <option value="sent">Sent</option>
           <option value="failed">Failed</option>
         </select>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Soạn thông báo thủ công</h3>
+            <p className="text-xs text-slate-500 mt-1">Thông báo được tạo vào hàng đợi; dùng nút “Gửi hàng đợi” để gửi email thật theo quota.</p>
+          </div>
+          <select
+            value={manualNotice.target}
+            onChange={e => setManualNotice(prev => ({ ...prev, target: e.target.value }))}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="students_with_registration">Sinh viên đã đăng ký</option>
+            <option value="students_approved">Sinh viên có đăng ký đã duyệt</option>
+            <option value="students_rejected">Sinh viên có đăng ký bị từ chối</option>
+            <option value="students_pending">Sinh viên có đăng ký chờ duyệt</option>
+            <option value="all_students">Tất cả sinh viên trong hệ thống</option>
+            <option value="lecturers">Giảng viên có email</option>
+          </select>
+        </div>
+        <input
+          value={manualNotice.subject}
+          onChange={e => setManualNotice(prev => ({ ...prev, subject: e.target.value }))}
+          placeholder="Tiêu đề email/thông báo"
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+        />
+        <textarea
+          value={manualNotice.body}
+          onChange={e => setManualNotice(prev => ({ ...prev, body: e.target.value }))}
+          placeholder="Nội dung thông báo..."
+          rows={5}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 resize-y"
+        />
+        <div className="flex justify-end">
+          <button onClick={createManualNotice} disabled={creatingManual} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+            {creatingManual ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Tạo thông báo
+          </button>
+        </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -4823,6 +5066,12 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           >
             <FileText size={18} /> Kế hoạch triển khai
           </button>
+          <button
+            onClick={() => navigate('/notifications')}
+            className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-200 shadow-sm transition-colors"
+          >
+            <Bell size={18} /> Thông báo
+          </button>
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -5185,13 +5434,20 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 {myRegs.length > 0 ? (
                   <ul className="space-y-3">
                     {myRegs.map((reg: any, idx: number) => (
-                      <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <span className="text-blue-900">
-                          <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
-                        </span>
-                        <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
-                        </span>
+                      <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <span className="text-blue-900">
+                            <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
+                          </span>
+                          <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                          </span>
+                        </div>
+                        {reg.review_comment && (
+                          <div className={`text-xs rounded-lg px-3 py-2 whitespace-pre-wrap ${reg.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-white/80 text-slate-600 border border-blue-100'}`}>
+                            <strong>Nhận xét của Khoa:</strong> {reg.review_comment}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
