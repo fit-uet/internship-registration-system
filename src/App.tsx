@@ -1133,7 +1133,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                       </p>
                     )}
                     <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
-                    {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Hồ sơ đã được Khoa khóa.</p>}
+                    {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Khoa đã khóa chỉnh sửa nơi thực tập chính thức.</p>}
                   </div>
                 ) : (
                   <div className="text-sm text-slate-600 space-y-2">
@@ -2301,11 +2301,9 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
   const uniquePlaces = new Set(rows.map(internshipPlace).filter(Boolean)).size;
   const companyCount = rows.filter(item => item.internship_type === 'company').length;
   const schoolCount = rows.filter(item => item.internship_type === 'school').length;
-  const partnerCount = rows.filter(item => item.internship_type === 'partner').length;
-  const lockedCount = rows.filter(item => item.locked_at).length;
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email VNU', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Loại', 'Nơi thực tập', 'GVHD tại trường', 'Yêu cầu phân công', 'Thời gian xác nhận', 'Khóa', 'Ghi chú'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email VNU', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Loại', 'Nơi thực tập', 'GVHD tại trường', 'Yêu cầu phân công', 'Thời gian xác nhận', 'Ghi chú'];
     const data = filteredRows.map((item, idx) => [
       idx + 1,
       item.student_id || '',
@@ -2320,7 +2318,6 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
       item.school_lecturer || '',
       item.school_assignment_request ? 'Nhờ Khoa phân công' : '',
       item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '',
-      item.locked_at ? 'Đã khóa' : 'Chưa khóa',
       item.note || '',
     ]);
     saveXlsx('danh_sach_xac_nhan_thuc_tap.xlsx', headers, data, 'Xác nhận TT');
@@ -2346,7 +2343,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
           <span className="text-slate-500 text-sm font-medium mb-1">Tổng xác nhận</span>
           <span className="text-3xl font-bold text-slate-800">{rows.length}</span>
@@ -2366,14 +2363,6 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
         <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
           <span className="text-indigo-600 text-sm font-medium mb-1">TT ở trường</span>
           <span className="text-3xl font-bold text-indigo-700">{schoolCount}</span>
-        </div>
-        <div className="bg-purple-50 p-5 rounded-xl border border-purple-100 shadow-sm flex flex-col">
-          <span className="text-purple-600 text-sm font-medium mb-1">Đối tác</span>
-          <span className="text-3xl font-bold text-purple-700">{partnerCount}</span>
-        </div>
-        <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-600 text-sm font-medium mb-1">Đã khóa</span>
-          <span className="text-3xl font-bold text-slate-800">{lockedCount}</span>
         </div>
       </div>
 
@@ -2407,13 +2396,12 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('school_lecturer')}>GVHD tại trường<SortIcon col="school_lecturer" /></th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('course_code')}>Môn học<SortIcon col="course_code" /></th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('confirmed_at')}>Thời gian xác nhận<SortIcon col="confirmed_at" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('locked_at')}>Khóa<SortIcon col="locked_at" /></th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
                 </tr>
               ) : (
                 paginatedRows.map(item => (
@@ -2432,7 +2420,6 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
                     <td className="px-6 py-4">{item.school_assignment_request ? 'Nhờ Khoa phân công' : (item.school_lecturer || '-')}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{item.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
-                    <td className="px-6 py-4">{item.locked_at ? <span className="text-emerald-700 font-semibold">Đã khóa</span> : <span className="text-slate-400">Chưa khóa</span>}</td>
                   </tr>
                 ))
               )}
