@@ -81,6 +81,55 @@ const readSpreadsheetRows = async (file: File) => {
   return text.replace(/^\uFEFF/, '').split(/\r?\n/).map(csvCells).filter(row => row.some(Boolean));
 };
 
+const paginationBounds = (total: number, currentPage: number, pageSize: number) => {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = Math.min(safePage * pageSize, total);
+  return { totalPages, safePage, start, end };
+};
+
+function PaginationControls({
+  total,
+  currentPage,
+  pageSize,
+  onPageChange,
+  label = 'bản ghi',
+}: {
+  total: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  label?: string;
+}) {
+  if (total === 0) return null;
+  const { totalPages, safePage, start, end } = paginationBounds(total, currentPage, pageSize);
+  return (
+    <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-slate-600">
+      <div>
+        Hiển thị <strong>{start}</strong>-<strong>{end}</strong> / <strong>{total}</strong> {label}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(Math.max(1, safePage - 1))}
+          disabled={safePage <= 1}
+          className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Trước
+        </button>
+        <span className="min-w-20 text-center">Trang {safePage}/{totalPages}</span>
+        <button
+          onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+          disabled={safePage >= totalPages}
+          className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Sau
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [user, setUser] = useState<any>(localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
@@ -1402,6 +1451,10 @@ function AdminPanel({ token }: { token: string }) {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
+  const [registrationPage, setRegistrationPage] = useState(1);
+  const [finalInternshipPage, setFinalInternshipPage] = useState(1);
+  const registrationPageSize = 25;
+  const finalInternshipPageSize = 20;
 
   const navigate = useNavigate();
 
@@ -1467,10 +1520,24 @@ function AdminPanel({ token }: { token: string }) {
 
   const handleExportByCourse = async () => {
     const zip = new JSZip();
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'Lớp khóa học'];
     uniqueCourses.forEach(course => {
       const data = registrations.filter(r => r.course_code === course);
       if (data.length > 0) {
-        const { headers, rows } = registrationExportData(data);
+        const uniqueStudents = Array.from(
+          data.reduce((map, row) => {
+            const key = String(row.student_id || row.email || row.user_id || '').trim();
+            if (key && !map.has(key)) map.set(key, row);
+            return map;
+          }, new Map<string, any>()).values()
+        );
+        const rows = uniqueStudents.map((row: any, idx: number) => [
+          idx + 1,
+          row.student_id || '',
+          row.student_name || '',
+          row.dob || '',
+          row.class_name || '',
+        ]);
         zip.file(`Lop_${course || 'KhongXacDinh'}.xlsx`, xlsxArrayBuffer(headers, rows, 'Danh sách'));
       }
     });
@@ -1604,6 +1671,23 @@ function AdminPanel({ token }: { token: string }) {
     const matchCourse = filterCourse ? reg.course_code === filterCourse : true;
     return matchTerm && matchCourse;
   });
+  useEffect(() => {
+    setRegistrationPage(1);
+  }, [searchTerm, filterCourse, sortConfig, registrations.length]);
+  const registrationPagination = paginationBounds(filteredRegistrations.length, registrationPage, registrationPageSize);
+  const paginatedRegistrations = filteredRegistrations.slice(
+    (registrationPagination.safePage - 1) * registrationPageSize,
+    registrationPagination.safePage * registrationPageSize
+  );
+
+  useEffect(() => {
+    setFinalInternshipPage(1);
+  }, [finalInternships.length]);
+  const finalInternshipPagination = paginationBounds(finalInternships.length, finalInternshipPage, finalInternshipPageSize);
+  const paginatedFinalInternships = finalInternships.slice(
+    (finalInternshipPagination.safePage - 1) * finalInternshipPageSize,
+    finalInternshipPagination.safePage * finalInternshipPageSize
+  );
 
   const totalRegistrations = registrations.length;
   const totalStudents = new Set(registrations.map(r => r.user_id || r.student_id || r.email).filter(Boolean)).size;
@@ -1773,7 +1857,7 @@ function AdminPanel({ token }: { token: string }) {
                   <td colSpan={12} className="px-6 py-8 text-center text-gray-500">Không có dữ liệu.</td>
                 </tr>
               ) : (
-                filteredRegistrations.map(reg => (
+                paginatedRegistrations.map(reg => (
                   <tr key={reg.registration_id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
                     <td className="px-6 py-4">{reg.student_id || '-'}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{reg.student_name}</td>
@@ -1832,6 +1916,13 @@ function AdminPanel({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={filteredRegistrations.length}
+          currentPage={registrationPage}
+          pageSize={registrationPageSize}
+          onPageChange={setRegistrationPage}
+          label="đăng ký"
+        />
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
@@ -1858,7 +1949,7 @@ function AdminPanel({ token }: { token: string }) {
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
                 </tr>
               ) : (
-                finalInternships.map(item => (
+                paginatedFinalInternships.map(item => (
                   <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
                     <td className="px-6 py-4 font-mono">{item.student_id || '-'}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{item.student_name}</td>
@@ -1879,6 +1970,13 @@ function AdminPanel({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={finalInternships.length}
+          currentPage={finalInternshipPage}
+          pageSize={finalInternshipPageSize}
+          onPageChange={setFinalInternshipPage}
+          label="nơi thực tập"
+        />
       </div>
     </div>
   );
@@ -1896,6 +1994,8 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
   const [quotaEdits, setQuotaEdits] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const fetchData = async () => {
     setLoading(true);
@@ -1934,6 +2034,11 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
       row.internship_place?.toLowerCase().includes(term)
     );
   });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, rows.length]);
+  const pagination = paginationBounds(filteredRows.length, currentPage, pageSize);
+  const paginatedRows = filteredRows.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const assign = async (row: any) => {
     const key = String(row.user_id);
@@ -2090,7 +2195,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             <tbody className="divide-y divide-slate-100">
               {filteredRows.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên cần phân công.</td></tr>
-              ) : filteredRows.map(row => {
+              ) : paginatedRows.map(row => {
                 const key = String(row.user_id);
                 const primary = parseAssignments(row.primary_assignments);
                 const co = parseAssignments(row.co_assignments);
@@ -2143,6 +2248,13 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={filteredRows.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="sinh viên"
+        />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
@@ -2172,6 +2284,8 @@ function FinalReportAdmin({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const formatBytes = (bytes: number) => {
     if (!bytes) return '-';
@@ -2219,6 +2333,11 @@ function FinalReportAdmin({ token }: { token: string }) {
     const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, rows.length]);
+  const pagination = paginationBounds(filtered.length, currentPage, pageSize);
+  const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
   const gradeStats = {
     missing: rows.filter(row => (row.grade_status || 'missing') === 'missing').length,
     draft: rows.filter(row => row.grade_status === 'draft').length,
@@ -2297,7 +2416,7 @@ function FinalReportAdmin({ token }: { token: string }) {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">Không có dữ liệu phù hợp.</td></tr>
-              ) : filtered.map(row => (
+              ) : paginatedRows.map(row => (
                 <tr key={row.user_id} className="hover:bg-slate-50 align-top">
                   <td className="px-4 py-4">
                     <div className="font-semibold text-slate-900">{row.student_name}</div>
@@ -2326,6 +2445,13 @@ function FinalReportAdmin({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={filtered.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="báo cáo"
+        />
       </div>
     </div>
   );
@@ -2337,6 +2463,8 @@ function GradeAdmin({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const statusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có';
 
@@ -2373,6 +2501,11 @@ function GradeAdmin({ token }: { token: string }) {
     const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, rows.length]);
+  const pagination = paginationBounds(filtered.length, currentPage, pageSize);
+  const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Điểm định kỳ', 'Điểm final', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
@@ -2435,7 +2568,7 @@ function GradeAdmin({ token }: { token: string }) {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Không có dữ liệu phù hợp.</td></tr>
-              ) : filtered.map(row => (
+              ) : paginatedRows.map(row => (
                 <tr key={row.user_id} className="hover:bg-slate-50 align-top">
                   <td className="px-4 py-4">
                     <div className="font-semibold text-slate-900">{row.student_name}</div>
@@ -2466,6 +2599,13 @@ function GradeAdmin({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={filtered.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="dòng điểm"
+        />
       </div>
     </div>
   );
@@ -2481,6 +2621,8 @@ function NotificationAdmin({ token }: { token: string }) {
   const [creatingReminders, setCreatingReminders] = useState(false);
   const [sendingQueue, setSendingQueue] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const fetchRows = async () => {
     setLoading(true);
@@ -2578,6 +2720,11 @@ function NotificationAdmin({ token }: { token: string }) {
     const matchTerm = !term || row.recipient_email?.toLowerCase().includes(term) || row.subject?.toLowerCase().includes(term) || row.body?.toLowerCase().includes(term) || row.user_name?.toLowerCase().includes(term) || row.student_id?.toLowerCase().includes(term);
     return matchStatus && matchType && matchTerm;
   });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter, rows.length]);
+  const pagination = paginationBounds(filtered.length, currentPage, pageSize);
+  const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
     const headers = ['STT', 'Người nhận', 'Loại', 'Tiêu đề', 'Nội dung', 'Trạng thái', 'Lỗi', 'Tạo lúc', 'Gửi lúc'];
@@ -2643,7 +2790,7 @@ function NotificationAdmin({ token }: { token: string }) {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">Không có thông báo phù hợp.</td></tr>
-              ) : filtered.map(row => (
+              ) : paginatedRows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 align-top">
                   <td className="px-4 py-4">
                     <div className="font-semibold text-slate-900">{row.recipient_email}</div>
@@ -2672,6 +2819,13 @@ function NotificationAdmin({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          total={filtered.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="thông báo"
+        />
       </div>
     </div>
   );
@@ -2685,6 +2839,8 @@ function LecturerRegistry({ token }: { token: string }) {
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -2731,6 +2887,11 @@ function LecturerRegistry({ token }: { token: string }) {
     }
     return result;
   }, [lecturers, searchTerm, sortConfig]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig, lecturers.length]);
+  const pagination = paginationBounds(filteredAndSorted.length, currentPage, pageSize);
+  const paginatedLecturers = filteredAndSorted.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
     const headers = ['STT', 'Họ và tên', 'Email'];
@@ -2943,9 +3104,15 @@ function LecturerRegistry({ token }: { token: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredAndSorted.map((l, idx) => (
+            {filteredAndSorted.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="p-10 text-center text-slate-500">
+                  {lecturers.length === 0 ? 'Chưa có dữ liệu giảng viên.' : 'Không có giảng viên phù hợp.'}
+                </td>
+              </tr>
+            ) : paginatedLecturers.map((l, idx) => (
               <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
+                <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
                 <td className="p-4 text-sm text-slate-800 font-medium">
                   {editingId === l.id ? (
                     <input
@@ -2997,16 +3164,14 @@ function LecturerRegistry({ token }: { token: string }) {
             ))}
           </tbody>
         </table>
-        {lecturers.length === 0 && !loading && (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-              <UserIcon size={24} className="text-slate-400" />
-            </div>
-            <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu giảng viên.</p>
-            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file XLSX hoặc thêm thủ công.</p>
-          </div>
-        )}
       </div>
+      <PaginationControls
+        total={filteredAndSorted.length}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        label="giảng viên"
+      />
     </div>
   );
 }
@@ -4878,6 +5043,8 @@ function StudentRegistry({ token }: { token: string }) {
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 25;
 
   const fetchStudents = async () => {
     try {
@@ -4927,6 +5094,11 @@ function StudentRegistry({ token }: { token: string }) {
     }
     return result;
   }, [students, searchTerm, sortConfig]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig, students.length]);
+  const pagination = paginationBounds(filteredAndSortedStudents.length, currentPage, pageSize);
+  const paginatedStudents = filteredAndSortedStudents.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp khoá học'];
@@ -5080,9 +5252,15 @@ function StudentRegistry({ token }: { token: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredAndSortedStudents.map((s, idx) => (
+            {filteredAndSortedStudents.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-10 text-center text-slate-500">
+                  {students.length === 0 ? 'Chưa có dữ liệu sinh viên.' : 'Không có sinh viên phù hợp.'}
+                </td>
+              </tr>
+            ) : paginatedStudents.map((s, idx) => (
               <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 text-sm text-slate-600">{idx + 1}</td>
+                <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
                 <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
                 <td className="p-4 text-sm text-slate-800">{s.name}</td>
                 <td className="p-4 text-sm text-slate-600">{s.dob}</td>
@@ -5100,16 +5278,14 @@ function StudentRegistry({ token }: { token: string }) {
             ))}
           </tbody>
         </table>
-        {students.length === 0 && !loading && (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-              <Users size={24} className="text-slate-400" />
-            </div>
-            <p className="text-slate-500 text-base font-medium">Chưa có dữ liệu sinh viên.</p>
-            <p className="text-slate-400 text-sm mt-1">Vui lòng import danh sách từ file XLSX có định dạng: STT, Mã SV, Họ Tên, Ngày Sinh, Lớp</p>
-          </div>
-        )}
       </div>
+      <PaginationControls
+        total={filteredAndSortedStudents.length}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        label="sinh viên"
+      />
     </div>
   );
 }
