@@ -288,6 +288,8 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [companyPage, setCompanyPage] = useState(1);
+  const companyPageSize = 10;
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(() => {
     try {
@@ -520,6 +522,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;
   });
+  useEffect(() => {
+    setCompanyPage(1);
+  }, [searchTerm, sortConfig, companies.length]);
+  const companyTotalPages = Math.max(1, Math.ceil(sortedCompanies.length / companyPageSize));
+  const safeCompanyPage = Math.min(companyPage, companyTotalPages);
+  const paginatedCompanies = sortedCompanies.slice((safeCompanyPage - 1) * companyPageSize, safeCompanyPage * companyPageSize);
 
   const submitRegister = async (e: any) => {
     e.preventDefault();
@@ -976,7 +984,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">
-                {sortedCompanies.map((company) => {
+                {paginatedCompanies.map((company) => {
                   const isSelected = selectedCompanies.has(company.id);
                   const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
                   return (
@@ -1012,7 +1020,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                     </tr>
                   );
                 })}
-                {filteredCompanies.length === 0 && !loading && (
+                {sortedCompanies.length === 0 && !loading && (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                       Không tìm thấy doanh nghiệp phù hợp.
@@ -1029,6 +1037,30 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               </tbody>
             </table>
           </div>
+          {sortedCompanies.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
+              <span>
+                Hiển thị <strong>{(safeCompanyPage - 1) * companyPageSize + 1}</strong>-<strong>{Math.min(safeCompanyPage * companyPageSize, sortedCompanies.length)}</strong> / <strong>{sortedCompanies.length}</strong> nơi thực tập
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCompanyPage(page => Math.max(1, page - 1))}
+                  disabled={safeCompanyPage <= 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Trước
+                </button>
+                <span className="min-w-20 text-center">Trang {safeCompanyPage}/{companyTotalPages}</span>
+                <button
+                  onClick={() => setCompanyPage(page => Math.min(companyTotalPages, page + 1))}
+                  disabled={safeCompanyPage >= companyTotalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          )}
 
 
         </div>
@@ -3491,6 +3523,8 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
@@ -3527,6 +3561,12 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
     });
     return result;
   }, [companies, searchTerm, sortConfig]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig, companies.length]);
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedApprovedCompanies = filteredAndSorted.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
@@ -3663,9 +3703,9 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredAndSorted.map((c, idx) => (
+            {paginatedApprovedCompanies.map((c, idx) => (
               <tr key={c.id} className="hover:bg-slate-50 text-sm">
-                <td className="p-3 text-slate-500">{idx + 1}</td>
+                <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                 <td className="p-3">
                   {editingId === c.id ? (
                     <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-teal-400 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500" />
@@ -3697,6 +3737,30 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
         )}
         {loading && (
           <div className="text-center py-12 text-slate-500 text-sm">Đang tải danh sách...</div>
+        )}
+        {filteredAndSorted.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
+            <span>
+              Hiển thị <strong>{(safeCurrentPage - 1) * pageSize + 1}</strong>-<strong>{Math.min(safeCurrentPage * pageSize, filteredAndSorted.length)}</strong> / <strong>{filteredAndSorted.length}</strong> công ty
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <span className="min-w-20 text-center">Trang {safeCurrentPage}/{totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
