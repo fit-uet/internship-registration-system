@@ -115,6 +115,12 @@ Deploy Render:
    - `EMAIL_DAILY_SEND_CAP=250`, `EMAIL_BATCH_SIZE=25`, `EMAIL_SEND_IMMEDIATE=false`.
 4. Nếu frontend và backend phục vụ cùng Render service thì `VITE_API_BASE_URL` có thể để trống khi build. Nếu frontend vẫn ở GitHub Pages, đặt `VITE_API_BASE_URL` về URL Render backend và `CORS_ORIGIN` về URL GitHub Pages.
 
+Deploy GitHub Pages:
+
+- Frontend được build trong GitHub Actions, nên các biến `VITE_*` phải tồn tại ở GitHub repo `Settings` -> `Secrets and variables` -> `Actions`.
+- Workflow `Deploy Frontend to GitHub Pages` đọc được cả `Secrets` và `Variables` cho `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`.
+- Sau khi thêm/sửa `VITE_GOOGLE_API_KEY`, cần chạy lại workflow hoặc push commit mới để Vite đóng gói lại biến vào bundle frontend.
+
 Lưu ý khi quay lại Render:
 
 - Không cần migration Turso sang D1 nữa vì Render server đọc trực tiếp Turso hiện tại.
