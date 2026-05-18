@@ -453,61 +453,61 @@ function App() {
                   </div>
                   <div className="relative">
                     <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsNotificationOpen(false); }} className="flex items-center gap-3 hover:bg-white/10 p-1.5 pr-3 rounded-full transition-colors cursor-pointer group focus:outline-none">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-sm font-medium group-hover:text-blue-100 transition-colors">{user.name}</p>
-                      <p className="text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">{user.email}</p>
-                    </div>
-                    {user.picture ? (
-                      <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner group-hover:border-green-300 transition-colors" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-green-300 transition-colors"><UserIcon size={18} /></div>
-                    )}
-                  </button>
-
-                  {isMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                        <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                          <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
-                        </Link>
-                        {user.role === 'admin' && (
-                          <>
-                            <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
-                            </Link>
-                            <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
-                            </Link>
-                            <Link to="/admin/advisors" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <Users size={16} className="text-emerald-500" /> Phân công GVHD
-                            </Link>
-                            <Link to="/admin/reports" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <FileText size={16} className="text-indigo-500" /> Báo cáo final
-                            </Link>
-                            <Link to="/admin/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <CheckCircle2 size={16} className="text-green-500" /> Bảng điểm
-                            </Link>
-                            <Link to="/admin/notifications" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <Clock size={16} className="text-amber-500" /> Thông báo
-                            </Link>
-                            <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
-                            </Link>
-                            <Link to="/admin/admins" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <Shield size={16} className="text-purple-500" /> Quản lý Quản trị viên
-                            </Link>
-                            <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
-                            </Link>
-                          </>
-                        )}
-                        <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
-                          <LogOut size={16} /> Đăng xuất
-                        </button>
+                      <div className="text-right hidden sm:block">
+                        <p className="text-sm font-medium group-hover:text-blue-100 transition-colors">{user.name}</p>
+                        <p className="text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">{user.email}</p>
                       </div>
-                    </>
-                  )}
+                      {user.picture ? (
+                        <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner group-hover:border-green-300 transition-colors" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-green-300 transition-colors"><UserIcon size={18} /></div>
+                      )}
+                    </button>
+
+                    {isMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
+                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                            <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
+                          </Link>
+                          {user.role === 'admin' && (
+                            <>
+                              <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
+                              </Link>
+                              <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
+                              </Link>
+                              <Link to="/admin/advisors" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <Users size={16} className="text-emerald-500" /> Phân công GVHD
+                              </Link>
+                              <Link to="/admin/reports" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <FileText size={16} className="text-indigo-500" /> Báo cáo final
+                              </Link>
+                              <Link to="/admin/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <CheckCircle2 size={16} className="text-green-500" /> Bảng điểm
+                              </Link>
+                              <Link to="/admin/notifications" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <Clock size={16} className="text-amber-500" /> Thông báo
+                              </Link>
+                              <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
+                              </Link>
+                              <Link to="/admin/admins" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <Shield size={16} className="text-purple-500" /> Quản lý Quản trị viên
+                              </Link>
+                              <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
+                              </Link>
+                            </>
+                          )}
+                          <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
+                            <LogOut size={16} /> Đăng xuất
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -1399,7 +1399,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
               Bạn có chắc chắn muốn hủy kết quả đăng ký thực tập hiện tại?
               <br /><br />
-              <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Việc hủy để chọn lại công ty có thể khiến bạn mất lượt ở những danh sách đã đầy. Hủy bỏ là hành động không thể hoàn tác.
+              <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Hủy bỏ là hành động không thể hoàn tác.
             </p>
             <div className="flex justify-end gap-3 mt-6">
               <button
