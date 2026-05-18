@@ -368,6 +368,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
     phone: user?.phone || '',
     personal_email: user?.personal_email || '',
     school_lecturer: '',
+    school_co_lecturer: '',
     note: ''
   });
   const [otherCompanies, setOtherCompanies] = useState([{
@@ -600,6 +601,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           phone: registerForm.phone,
           personal_email: registerForm.personal_email,
           school_lecturer: registerForm.school_lecturer,
+          school_co_lecturer: registerForm.school_co_lecturer,
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
@@ -616,7 +618,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         }
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
-        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', note: '' });
+        setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', school_co_lecturer: '', note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -1356,6 +1358,18 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                     </datalist>
                     <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">* Lưu ý: Sinh viên bắt buộc phải liên hệ với thầy/cô từ trước.</p>
                   </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên đồng hướng dẫn <span className="text-slate-400 font-normal">(không bắt buộc)</span></label>
+                    <input
+                      type="text"
+                      list="lecturers-list"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={registerForm.school_co_lecturer}
+                      onChange={e => setRegisterForm({ ...registerForm, school_co_lecturer: e.target.value })}
+                      placeholder="Gõ để tìm kiếm giảng viên đồng hướng dẫn..."
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">Chỉ chọn nếu đã được thầy/cô đồng ý đồng hướng dẫn.</p>
+                  </div>
                 </div>
               )}
 
@@ -1488,7 +1502,7 @@ function AdminPanel({ token }: { token: string }) {
 
       if (r.company_name === 'Trường Đại học Công nghệ') {
         lien_he = '';
-        ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.note ? ` - ${r.note}` : '');
+        ghi_chu = 'GVHD: ' + (r.other_company_contact || '') + (r.other_company_role ? ` - Đồng HD: ${r.other_company_role}` : '') + (r.note ? ` - ${r.note}` : '');
       }
 
       return [
@@ -1882,6 +1896,7 @@ function AdminPanel({ token }: { token: string }) {
                       ) : reg.company_name === 'Trường Đại học Công nghệ' ? (
                         <div className="text-xs text-gray-600 font-normal leading-relaxed">
                           <span className="font-semibold text-gray-700">GVHD:</span> {reg.other_company_contact}
+                          {reg.other_company_role && <><br /><span className="font-semibold text-gray-700">Đồng HD:</span> {reg.other_company_role}</>}
                           {reg.note && <><br /><span className="font-semibold text-gray-700">Ghi chú:</span> {reg.note}</>}
                         </div>
                       ) : (

@@ -1675,7 +1675,9 @@ async function startServer() {
     processingUsers.add(userId);
     try {
       await assertStudentCohortAllowed(req.user.email);
-      const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, phone, personal_email } = req.body;
+      const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, school_co_lecturer, phone, personal_email } = req.body;
+      const schoolLecturerName = String(school_lecturer || '').trim();
+      const schoolCoLecturerName = String(school_co_lecturer || '').trim();
       const profile = {
         student_id: student_id || req.user.student_id || null,
         dob: dob || req.user.dob || null,
@@ -1741,12 +1743,21 @@ async function startServer() {
         return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
       }
       if (normal_company_ids.includes(schoolCompany?.id)) {
-        if (!school_lecturer) {
+        if (!schoolLecturerName) {
           return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
         }
-        const validLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [school_lecturer] })).rows[0];
+        const validLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolLecturerName] })).rows[0];
         if (!validLecturer) {
           return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        }
+        if (schoolCoLecturerName) {
+          if (schoolCoLecturerName === schoolLecturerName) {
+            return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.' });
+          }
+          const validCoLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolCoLecturerName] })).rows[0];
+          if (!validCoLecturer) {
+            return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+          }
         }
       }
       if (totalWishes > 5) {
@@ -1791,8 +1802,9 @@ async function startServer() {
       ];
 
       for (const companyId of normal_company_ids) {
-        const contactInfo = companyId === schoolCompany?.id ? school_lecturer : null;
-        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, null, contactInfo || null] });
+        const contactInfo = companyId === schoolCompany?.id ? schoolLecturerName : null;
+        const roleInfo = companyId === schoolCompany?.id ? schoolCoLecturerName || null : null;
+        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, roleInfo, contactInfo || null] });
       }
 
       if (other_companies && Array.isArray(other_companies)) {

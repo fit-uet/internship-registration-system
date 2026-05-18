@@ -1103,7 +1103,18 @@ async function route(request: Request, env: Env) {
     const total = companyIds.length + otherCompanies.length;
     if (total === 0) return json({ error: 'Vui lòng chọn ít nhất 1 nơi thực tập.' }, 400);
     if (total > 5) return json({ error: 'Bạn chỉ được chọn tối đa 5 nơi thực tập.' }, 400);
-    if (school && companyIds.includes(school.id) && !body.school_lecturer) return json({ error: 'Vui lòng chọn giảng viên hướng dẫn.' }, 400);
+    const schoolLecturerName = String(body.school_lecturer || '').trim();
+    const schoolCoLecturerName = String(body.school_co_lecturer || '').trim();
+    if (school && companyIds.includes(school.id)) {
+      if (!schoolLecturerName) return json({ error: 'Vui lòng chọn giảng viên hướng dẫn.' }, 400);
+      const validLecturer = (await database.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolLecturerName] })).rows[0];
+      if (!validLecturer) return json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' }, 400);
+      if (schoolCoLecturerName) {
+        if (schoolCoLecturerName === schoolLecturerName) return json({ error: 'Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.' }, 400);
+        const validCoLecturer = (await database.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolCoLecturerName] })).rows[0];
+        if (!validCoLecturer) return json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' }, 400);
+      }
+    }
 
     const insertSql = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
     const statements: any[] = [
@@ -1111,7 +1122,18 @@ async function route(request: Request, env: Env) {
       { sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?', args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, user.id] },
     ];
     for (const companyId of companyIds) {
-      statements.push({ sql: insertSql, args: [user.id, companyId, body.note || null, 'approved', null, null, companyId === school?.id ? body.school_lecturer : null] });
+      statements.push({
+        sql: insertSql,
+        args: [
+          user.id,
+          companyId,
+          body.note || null,
+          'approved',
+          null,
+          companyId === school?.id ? schoolCoLecturerName || null : null,
+          companyId === school?.id ? schoolLecturerName : null,
+        ],
+      });
     }
     const approvedNameRows = otherCompanies.length > 0
       ? (await database.execute('SELECT normalized_name FROM approved_company_names')).rows
