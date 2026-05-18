@@ -63,6 +63,17 @@ const loadScriptOnce = (src: string) => new Promise<void>((resolve, reject) => {
   document.head.appendChild(script);
 });
 
+const googleOAuthMessage = (error: any) => {
+  const raw = typeof error === 'string' ? error : (error?.message || error?.error || '');
+  if (String(raw).includes('access_denied')) {
+    return 'Google từ chối cấp quyền Drive. Nếu OAuth app đang ở trạng thái Testing, hãy thêm tài khoản Google đang đăng nhập vào danh sách Test users trong Google Cloud Console, hoặc chuyển app sang Production sau khi cấu hình/xác minh phù hợp.';
+  }
+  if (String(raw).includes('popup')) {
+    return 'Không mở được cửa sổ xác thực Google. Vui lòng cho phép popup với trang này rồi thử lại.';
+  }
+  return raw || 'Không lấy được quyền Google Drive.';
+};
+
 const getDriveAccessToken = async () => {
   await loadScriptOnce('https://accounts.google.com/gsi/client');
   const google = (window as any).google;
@@ -73,9 +84,9 @@ const getDriveAccessToken = async () => {
       scope: 'https://www.googleapis.com/auth/drive.file',
       callback: (response: any) => {
         if (response?.access_token) resolve(response.access_token);
-        else reject(new Error(response?.error || 'Không lấy được quyền Google Drive.'));
+        else reject(new Error(googleOAuthMessage(response)));
       },
-      error_callback: (error: any) => reject(new Error(error?.message || 'Không lấy được quyền Google Drive.')),
+      error_callback: (error: any) => reject(new Error(googleOAuthMessage(error))),
     });
     client.requestAccessToken({ prompt: 'consent' });
   });

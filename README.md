@@ -357,6 +357,13 @@ Admin có thể:
 
 Tính năng này hỗ trợ bước Khoa gửi danh sách sinh viên đăng ký đến doanh nghiệp để phỏng vấn. Hệ thống xuất XLSX theo từng công ty và soạn sẵn email gửi doanh nghiệp qua Gmail/app Mail với email nhận, chủ đề và nội dung. Nếu cấu hình `VITE_GOOGLE_API_KEY`, admin có thể chọn thư mục Google Drive bằng Picker; hệ thống tạo file XLSX theo công ty, bật quyền `anyone with the link can view`, rồi chèn link vào nội dung Gmail. Sau khi gửi thủ công, admin bấm “Đã gửi DN” để ghi nhận trạng thái đã gửi.
 
+Lưu ý cấu hình Google OAuth/Drive:
+
+- `VITE_GOOGLE_CLIENT_ID` là OAuth Client ID dùng để xin quyền Drive; `VITE_GOOGLE_API_KEY` là Browser API key dùng cho Google Picker.
+- Nếu Google báo `403: access_denied` và thông báo app đang trong giai đoạn kiểm thử, vào Google Cloud Console -> Google Auth Platform/OAuth consent screen -> Audience/Test users và thêm đúng tài khoản Google đang dùng để chọn Drive.
+- Với trạng thái Testing, chỉ các test users được phép cấp quyền OAuth. Nếu muốn dùng rộng hơn, cần chuyển app sang Production và hoàn tất các yêu cầu xác minh tương ứng của Google.
+- Cảnh báo console `Cross-Origin-Opener-Policy policy would block the window.closed call` thường liên quan popup Google Identity Services. Trên GitHub Pages không cấu hình được response header này; nếu popup vẫn mở và Google chỉ báo `access_denied`, nguyên nhân chính vẫn là OAuth test user/verification.
+
 ## 6. Đối chiếu với quy trình trong kế hoạch thực tập
 
 | Bước nghiệp vụ | Hiện trạng hệ thống | Mức đáp ứng |
