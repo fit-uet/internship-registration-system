@@ -12,6 +12,19 @@ import TurndownService from 'turndown';
 
 const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
+const cohortOptionsForYear = (yearValue: string | number) => {
+  const year = Number(String(yearValue || '').match(/\d{4}/)?.[0] || 2026);
+  const first = Math.max(1, year - 1960);
+  return Array.from({ length: 5 }, (_, idx) => {
+    const cohortNumber = first + idx;
+    return {
+      key: `K${cohortNumber}`,
+      prefix: `${cohortNumber - 45}02`,
+    };
+  });
+};
+const defaultAllowedCohortsForYear = (yearValue: string | number) =>
+  cohortOptionsForYear(yearValue).slice(0, 3).map(item => item.key).join(',');
 
 const saveXlsx = (filename: string, headers: string[], rows: any[][], sheetName = 'Sheet1') => {
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -224,7 +237,7 @@ function App() {
 
           <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 flex items-center justify-between text-xs text-slate-500 font-medium mt-auto">
             <p>© 2026 Khoa CNTT UET</p>
-            <p>Hỗ trợ: fit@vnu.edu.vn</p>
+            <p>Hỗ trợ: baoptm@vnu.edu.vn</p>
           </div>
 
           {/* Login Error Modal */}
@@ -920,13 +933,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
           {/* Registration time window banner */}
           {!hasRegistered && (campaign?.registration_open_at || campaign?.registration_close_at) && (
-            <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${
-              registrationWindowStatus === 'open'
+            <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${registrationWindowStatus === 'open'
                 ? 'bg-green-50 border-green-100 text-green-800'
                 : registrationWindowStatus === 'not_open_yet'
                   ? 'bg-orange-50 border-orange-100 text-orange-800'
                   : 'bg-red-50 border-red-100 text-red-800'
-            }`}>
+              }`}>
               <Clock size={16} className="shrink-0" />
               {registrationWindowStatus === 'open' && (
                 <span>Đăng ký đang <strong>mở</strong>{campaign.registration_close_at && <> — đóng lúc <strong>{formatGMT7(campaign.registration_close_at)}</strong> (GMT+7)</>}.</span>
@@ -2981,6 +2993,8 @@ function CompanyRegistry({ token }: { token: string }) {
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: '', slots: '', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
@@ -3039,6 +3053,14 @@ function CompanyRegistry({ token }: { token: string }) {
     }
     return result;
   }, [companies, searchTerm, sortConfig]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortConfig, companies.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedCompanies = filteredAndSorted.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
 
   const getCompanyRegistrations = (company: any) => registrations.filter((r: any) => {
     if (company.record_type === 'other') {
@@ -3356,9 +3378,9 @@ function CompanyRegistry({ token }: { token: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredAndSorted.map((c, idx) => (
+            {paginatedCompanies.map((c, idx) => (
               <tr key={c.company_key || c.id || `${c.record_type}-${c.name}`} className="hover:bg-slate-50/50 transition-colors text-xs">
-                <td className="p-3 text-slate-500">{idx + 1}</td>
+                <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                 {editingId === c.id && c.record_type !== 'other' ? (
                   <>
                     <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
@@ -3421,6 +3443,35 @@ function CompanyRegistry({ token }: { token: string }) {
             ))}
           </tbody>
         </table>
+        {filteredAndSorted.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
+            <span>
+              Hiển thị <strong>{(safeCurrentPage - 1) * pageSize + 1}</strong>-<strong>{Math.min(safeCurrentPage * pageSize, filteredAndSorted.length)}</strong> / <strong>{filteredAndSorted.length}</strong> công ty
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <span className="min-w-20 text-center">Trang {safeCurrentPage}/{totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+        {companies.length > 0 && filteredAndSorted.length === 0 && !loading && (
+          <div className="text-center py-12 px-4 text-slate-500 text-sm">
+            Không tìm thấy công ty phù hợp với bộ lọc hiện tại.
+          </div>
+        )}
         {companies.length === 0 && !loading && (
           <div className="text-center py-16 px-4">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
@@ -3796,6 +3847,20 @@ function AdminSettings({ token }: { token: string }) {
     setSavingCampaign(false);
   };
 
+  const cohortOptions = cohortOptionsForYear(campaign.year);
+  const defaultAllowedCohorts = defaultAllowedCohortsForYear(campaign.year);
+  const selectedCohorts = String((campaign as any).allowed_registration_cohorts || defaultAllowedCohorts)
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+  const toggleAllowedCohort = (cohort: string) => {
+    const next = selectedCohorts.includes(cohort)
+      ? selectedCohorts.filter(item => item !== cohort)
+      : [...selectedCohorts, cohort];
+    const ordered = cohortOptions.map(item => item.key).filter(item => next.includes(item));
+    setCampaign({ ...campaign, allowed_registration_cohorts: ordered.join(',') } as any);
+  };
+
   const handleSyncCompanies = async () => {
     // Show a choice dialog
     const choice = prompt(
@@ -3846,7 +3911,33 @@ function AdminSettings({ token }: { token: string }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Năm học / Khóa</label>
-            <input type="text" value={campaign.year} onChange={e => setCampaign({ ...campaign, year: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            <input
+              type="text"
+              value={campaign.year}
+              onChange={e => {
+                const nextYear = e.target.value;
+                setCampaign({ ...campaign, year: nextYear, allowed_registration_cohorts: defaultAllowedCohortsForYear(nextYear) });
+              }}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Khóa được phép đăng nhập/đăng ký học phần</label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {cohortOptions.map(item => (
+                <label key={item.key} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${selectedCohorts.includes(item.key) ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                  <span className="font-semibold">{item.key}</span>
+                  <span className="text-xs text-slate-500">{item.prefix}</span>
+                  <input
+                    type="checkbox"
+                    checked={selectedCohorts.includes(item.key)}
+                    onChange={() => toggleAllowedCohort(item.key)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Danh sách khóa tự trượt theo năm học: 2026 hiển thị K66-K70, 2027 hiển thị K67-K71. Hệ thống nhận diện khóa bằng 4 chữ số đầu email VNU, ví dụ K67 = 2202, K68 = 2302, K69 = 2402.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc <span className="text-slate-400 font-normal">(GMT+7)</span></label>
@@ -3908,8 +3999,7 @@ function AdminSettings({ token }: { token: string }) {
           </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
-            <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${
-              (() => {
+            <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
                 const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
                 const now = new Date();
                 const open = toUTC((campaign as any).registration_open_at);
@@ -3918,7 +4008,7 @@ function AdminSettings({ token }: { token: string }) {
                 if (close && now > close) return 'bg-red-50 border border-red-200 text-red-800';
                 return 'bg-green-50 border border-green-200 text-green-800';
               })()
-            }`}>
+              }`}>
               <Clock size={16} className="shrink-0" />
               <span>Trạng thái hiện tại: {(() => {
                 const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
@@ -4006,8 +4096,8 @@ function AdminSettings({ token }: { token: string }) {
             <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung Kế hoạch triển khai (Markdown)</label>
             <div className="mb-2 flex items-center gap-2">
               <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border ${importingDocx
-                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
                 }`}>
                 <Upload size={16} />
                 {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
