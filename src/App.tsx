@@ -4619,7 +4619,7 @@ function CompanyDetail({ token }: { token: string }) {
                 </li>
                 <li className="flex flex-col">
                   <span className="text-xs text-slate-500 mb-1">Chỉ tiêu tiếp nhận:</span>
-                  <span className="font-medium text-slate-800">{company.slots} sinh viên (Còn lại: {company.remaining_slots !== undefined ? Math.max(0, company.remaining_slots) : company.slots})</span>
+                  <span className="font-medium text-slate-800">{company.slots} sinh viên</span>
                 </li>
               </ul>
             </div>
