@@ -42,6 +42,20 @@ function normalizeCompanyName(name: string) {
     .replace(/\s+/g, ' ');
 }
 
+async function addApprovedCompanyFromRegistration(row: any) {
+  if (!row || row.company_name !== 'Công ty khác') return false;
+  const name = String(row.other_company_name || '').trim();
+  const normalized = normalizeCompanyName(name);
+  if (!name || !normalized) return false;
+
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO approved_company_names (name, normalized_name, source)
+          VALUES (?, ?, 'registration_approval')`,
+    args: [name, normalized],
+  });
+  return true;
+}
+
 function lecturerDefaultQuota(name: string) {
   const upper = String(name || '').toUpperCase();
   if (/\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')) return 10;
@@ -3000,6 +3014,7 @@ async function startServer() {
       `)).rows as any[];
       await db.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
       for (const row of pending) {
+        await addApprovedCompanyFromRegistration(row);
         await createNotification({
           user_id: Number(row.user_id),
           recipient_email: row.personal_email || row.email,
@@ -3034,6 +3049,9 @@ async function startServer() {
       })).rows[0] as any;
       await db.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [status, id] });
       if (row && row.status !== status) {
+        if (status === 'approved') {
+          await addApprovedCompanyFromRegistration(row);
+        }
         await createNotification({
           user_id: Number(row.user_id),
           recipient_email: row.personal_email || row.email,

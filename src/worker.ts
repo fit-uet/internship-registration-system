@@ -235,6 +235,20 @@ function normalizeCompanyName(name: string) {
     .replace(/\s+/g, ' ');
 }
 
+async function addApprovedCompanyFromRegistration(database: LibsqlLike, row: any) {
+  if (!row || row.company_name !== 'Công ty khác') return false;
+  const name = String(row.other_company_name || '').trim();
+  const normalized = normalizeCompanyName(name);
+  if (!name || !normalized) return false;
+
+  await database.execute({
+    sql: `INSERT OR IGNORE INTO approved_company_names (name, normalized_name, source)
+          VALUES (?, ?, 'registration_approval')`,
+    args: [name, normalized],
+  });
+  return true;
+}
+
 const MIGRATION_TABLES = [
   'settings',
   'users',
@@ -2187,6 +2201,7 @@ async function route(request: Request, env: Env) {
     `)).rows as any[];
     await database.execute("UPDATE registrations SET status = 'approved' WHERE status = 'pending'");
     for (const row of pending) {
+      await addApprovedCompanyFromRegistration(database, row);
       await notify({
         user_id: Number(row.user_id),
         recipient_email: row.personal_email || row.email,
@@ -2211,6 +2226,9 @@ async function route(request: Request, env: Env) {
     })).rows[0] as any;
     await database.execute({ sql: 'UPDATE registrations SET status = ? WHERE id = ?', args: [body.status, statusMatch[1]] });
     if (row && row.status !== body.status) {
+      if (body.status === 'approved') {
+        await addApprovedCompanyFromRegistration(database, row);
+      }
       await notify({
         user_id: Number(row.user_id),
         recipient_email: row.personal_email || row.email,
