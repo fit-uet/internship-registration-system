@@ -1789,7 +1789,7 @@ function AdminPanel({ token }: { token: string }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-sm font-medium mb-1">Tổng đăng ký</span>
+          <span className="text-slate-500 text-sm font-medium mb-1">Tổng nguyện vọng</span>
           <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
         </div>
         <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
