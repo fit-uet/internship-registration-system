@@ -2721,7 +2721,8 @@ async function startServer() {
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
              fr.id as report_id, fr.original_filename, fr.file_size, fr.status as report_status,
              fr.submitted_at as report_submitted_at, fr.updated_at as report_updated_at, fr.lecturer_comment,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -2744,7 +2745,8 @@ async function startServer() {
              g.progress_score, g.report_score, g.company_score, g.final_score,
              COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
              gl.name as grading_lecturer_name,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -2788,6 +2790,7 @@ async function startServer() {
       SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp", u.course_code as "Mã học phần",
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as "Nơi thực tập",
              GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as "GVHD chính",
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as "Đồng hướng dẫn",
              g.progress_score as "Điểm báo cáo định kỳ",
              g.report_score as "Điểm báo cáo final",
              g.company_score as "Điểm đánh giá công ty/GVHD",

@@ -2345,7 +2345,7 @@ function FinalReportAdmin({ token }: { token: string }) {
     const term = searchTerm.trim().toLowerCase();
     const status = row.report_status || 'missing';
     const matchStatus = statusFilter ? status === statusFilter : true;
-    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
+    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term) || row.co_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
   useEffect(() => {
@@ -2361,7 +2361,7 @@ function FinalReportAdmin({ token }: { token: string }) {
   };
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Trạng thái', 'Tên file', 'Dung lượng', 'Nộp lúc', 'Ghi chú'];
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn', 'Trạng thái', 'Tên file', 'Dung lượng', 'Nộp lúc', 'Ghi chú'];
     const data = filtered.map((row, idx) => [
       idx + 1,
       row.student_id || '',
@@ -2370,6 +2370,7 @@ function FinalReportAdmin({ token }: { token: string }) {
       row.course_code || '',
       row.internship_place || '',
       row.primary_advisors || '',
+      row.co_advisors || '',
       statusLabel(row.report_status),
       row.original_filename || '',
       row.file_size || '',
@@ -2423,7 +2424,7 @@ function FinalReportAdmin({ token }: { token: string }) {
               <tr>
                 <th className="px-4 py-3">Sinh viên</th>
                 <th className="px-4 py-3">Nơi thực tập</th>
-                <th className="px-4 py-3">GVHD chính</th>
+                <th className="px-4 py-3">GVHD</th>
                 <th className="px-4 py-3">Báo cáo</th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
@@ -2439,7 +2440,10 @@ function FinalReportAdmin({ token }: { token: string }) {
                     <div className="text-xs text-slate-500">{row.class_name || '-'} · {row.course_code || '-'}</div>
                   </td>
                   <td className="px-4 py-4">{row.internship_place || '-'}</td>
-                  <td className="px-4 py-4">{row.primary_advisors || '-'}</td>
+                  <td className="px-4 py-4">
+                    <div>{row.primary_advisors || '-'}</div>
+                    {row.co_advisors && <div className="text-xs text-slate-500 mt-1">Đồng HD: {row.co_advisors}</div>}
+                  </td>
                   <td className="px-4 py-4">
                     <div className={`font-semibold ${row.report_status === 'accepted' ? 'text-emerald-700' : row.report_status === 'needs_revision' ? 'text-orange-700' : row.report_status ? 'text-blue-700' : 'text-slate-400'}`}>{statusLabel(row.report_status)}</div>
                     {row.original_filename && <div className="text-xs text-slate-500 mt-1">{row.original_filename} · {formatBytes(Number(row.file_size || 0))}</div>}
@@ -2513,7 +2517,7 @@ function GradeAdmin({ token }: { token: string }) {
     const term = searchTerm.trim().toLowerCase();
     const status = row.grade_status || 'missing';
     const matchStatus = statusFilter ? status === statusFilter : true;
-    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term);
+    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term) || row.co_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
   useEffect(() => {
@@ -2523,7 +2527,7 @@ function GradeAdmin({ token }: { token: string }) {
   const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Điểm định kỳ', 'Điểm final', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn', 'Điểm định kỳ', 'Điểm final', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
     const data = filtered.map((row, idx) => [
       idx + 1,
       row.student_id || '',
@@ -2532,6 +2536,7 @@ function GradeAdmin({ token }: { token: string }) {
       row.course_code || '',
       row.internship_place || '',
       row.primary_advisors || '',
+      row.co_advisors || '',
       row.progress_score ?? '',
       row.report_score ?? '',
       row.company_score ?? '',
@@ -2574,7 +2579,7 @@ function GradeAdmin({ token }: { token: string }) {
               <tr>
                 <th className="px-4 py-3">Sinh viên</th>
                 <th className="px-4 py-3">Nơi thực tập</th>
-                <th className="px-4 py-3">GVHD chính</th>
+                <th className="px-4 py-3">GVHD</th>
                 <th className="px-4 py-3">Điểm</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Khóa</th>
@@ -2591,7 +2596,10 @@ function GradeAdmin({ token }: { token: string }) {
                     <div className="text-xs text-slate-500">{row.class_name || '-'} · {row.course_code || '-'}</div>
                   </td>
                   <td className="px-4 py-4">{row.internship_place || '-'}</td>
-                  <td className="px-4 py-4">{row.primary_advisors || '-'}</td>
+                  <td className="px-4 py-4">
+                    <div>{row.primary_advisors || '-'}</div>
+                    {row.co_advisors && <div className="text-xs text-slate-500 mt-1">Đồng HD: {row.co_advisors}</div>}
+                  </td>
                   <td className="px-4 py-4 text-xs leading-relaxed">
                     <div>Định kỳ: <strong>{row.progress_score ?? '-'}</strong></div>
                     <div>Final: <strong>{row.report_score ?? '-'}</strong></div>
