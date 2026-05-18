@@ -180,6 +180,13 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
 }
 
 const DEFAULT_ALLOWED_REGISTRATION_COHORTS = 'K66,K67,K68';
+const DEFAULT_REGISTRATION_RULES = [
+  'Chỉ dành cho sinh viên nhận được thông báo.',
+  'Mỗi sinh viên chọn tối đa 05 nơi thực tập.',
+  'Sinh viên có thể lựa chọn các công ty không có trong Danh sách (các công ty đăng ký tiếp nhận thực tập sinh chính thức với Khoa). Nếu công ty đó có trong danh sách các công ty đã được Khoa thẩm định chất lượng thì sẽ được phê duyệt tự động. Ngược lại, công ty đó sẽ được Khoa xem xét và phê duyệt sau.',
+  'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
+  'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
+].join('\n');
 
 function cohortFromVnuEmail(email: string) {
   const localPart = String(email || '').toLowerCase().split('@')[0] || '';
@@ -821,6 +828,7 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_open_at', '')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_close_at', '')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('allowed_registration_cohorts', '${DEFAULT_ALLOWED_REGISTRATION_COHORTS}')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_rules_md', '${DEFAULT_REGISTRATION_RULES.replace(/'/g, "''")}')`);
   const defaultClasses = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${defaultClasses}')`);
 
@@ -3043,7 +3051,7 @@ async function startServer() {
   app.get('/api/settings/campaign', async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`
       SELECT key, value FROM settings
-      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')
+      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')
     `)).rows);
 
     res.json({
@@ -3052,6 +3060,7 @@ async function startServer() {
       end: settings.campaign_end || '15/06/2026',
       classes_list: settings.classes_list || 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN',
       allowed_registration_cohorts: settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS,
+      registration_rules_md: settings.registration_rules_md || DEFAULT_REGISTRATION_RULES,
       registration_open_at: settings.registration_open_at || '',
       registration_close_at: settings.registration_close_at || '',
       confirmation_open_at: settings.confirmation_open_at || '',
@@ -3062,7 +3071,7 @@ async function startServer() {
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, allowed_registration_cohorts, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
+    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
     const statements: any[] = [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
@@ -3073,7 +3082,8 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_close_at', ?)", args: [confirmation_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] }
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] }
     ];
     if (classes_list) {
       statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });

@@ -25,6 +25,13 @@ const cohortOptionsForYear = (yearValue: string | number) => {
 };
 const defaultAllowedCohortsForYear = (yearValue: string | number) =>
   cohortOptionsForYear(yearValue).slice(0, 3).map(item => item.key).join(',');
+const DEFAULT_REGISTRATION_RULES = [
+  'Chỉ dành cho sinh viên nhận được thông báo.',
+  'Mỗi sinh viên chọn tối đa 05 nơi thực tập.',
+  'Sinh viên có thể lựa chọn các công ty không có trong Danh sách (các công ty đăng ký tiếp nhận thực tập sinh chính thức với Khoa). Nếu công ty đó có trong danh sách các công ty đã được Khoa thẩm định chất lượng thì sẽ được phê duyệt tự động. Ngược lại, công ty đó sẽ được Khoa xem xét và phê duyệt sau.',
+  'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
+  'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
+].join('\n');
 
 const saveXlsx = (filename: string, headers: string[], rows: any[][], sheetName = 'Sheet1') => {
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -668,6 +675,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   };
 
   if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+  const registrationRules = String(campaign.registration_rules_md || DEFAULT_REGISTRATION_RULES)
+    .split(/\r?\n/)
+    .map((item: string) => item.replace(/^[-*•]\s*/, '').trim())
+    .filter(Boolean);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -699,26 +710,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md flex-1">
           <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
           <ul className="text-sm space-y-3">
-            <li className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>Chỉ dành cho sinh viên nhận được thông báo.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>Mỗi sinh viên chọn tối đa <strong>05</strong> công ty.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>Sinh viên có thể lựa chọn các công ty không có trong Danh sách (các công ty đăng ký tiếp nhận thực tập sinh chính thức với Khoa). Nếu công ty đó có trong danh sách các công ty đã được Khoa thẩm định chất lượng thì sẽ được phê duyệt tự động. Ngược lại, công ty đó sẽ được Khoa xem xét và phê duyệt sau.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là <strong>Trường Đại học Công nghệ</strong>, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-blue-400">•</span>
-              <span>Sinh viên có thể thay đổi đăng ký bằng cách chọn <strong>"Huỷ tất cả đăng ký"</strong> và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.</span>
-            </li>
+            {registrationRules.map((rule, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span className="text-blue-400">•</span>
+                <span>{rule}</span>
+              </li>
+            ))}
           </ul>
         </div>
       </div>
@@ -771,7 +768,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           </div>
         ) : (
           <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 text-blue-800 text-sm">
-            Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 công ty từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.
+            Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 nơi thực tập từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.
           </div>
         )}
 
@@ -3937,7 +3934,6 @@ function AdminSettings({ token }: { token: string }) {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Danh sách khóa tự trượt theo năm học: 2026 hiển thị K66-K70, 2027 hiển thị K67-K71. Hệ thống nhận diện khóa bằng 4 chữ số đầu email VNU, ví dụ K67 = 2202, K68 = 2302, K69 = 2402.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc <span className="text-slate-400 font-normal">(GMT+7)</span></label>
@@ -3996,6 +3992,15 @@ function AdminSettings({ token }: { token: string }) {
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học <span className="text-slate-400 font-normal">(mỗi lớp cách nhau bởi dấu phẩy)</span></label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Quy định đăng ký hiển thị cho sinh viên <span className="text-slate-400 font-normal">(mỗi dòng là một gạch đầu dòng)</span></label>
+            <textarea
+              value={(campaign as any).registration_rules_md || DEFAULT_REGISTRATION_RULES}
+              onChange={e => setCampaign({ ...campaign, registration_rules_md: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              rows={8}
+            />
           </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
