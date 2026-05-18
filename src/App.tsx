@@ -990,10 +990,10 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           {/* Registration time window banner */}
           {!hasRegistered && (campaign?.registration_open_at || campaign?.registration_close_at) && (
             <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${registrationWindowStatus === 'open'
-                ? 'bg-green-50 border-green-100 text-green-800'
-                : registrationWindowStatus === 'not_open_yet'
-                  ? 'bg-orange-50 border-orange-100 text-orange-800'
-                  : 'bg-red-50 border-red-100 text-red-800'
+              ? 'bg-green-50 border-green-100 text-green-800'
+              : registrationWindowStatus === 'not_open_yet'
+                ? 'bg-orange-50 border-orange-100 text-orange-800'
+                : 'bg-red-50 border-red-100 text-red-800'
               }`}>
               <Clock size={16} className="shrink-0" />
               {registrationWindowStatus === 'open' && (
@@ -1793,7 +1793,7 @@ function AdminPanel({ token }: { token: string }) {
           <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
         </div>
         <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
-          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên</span>
+          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên đăng ký</span>
           <span className="text-3xl font-bold text-blue-700">{totalStudents}</span>
         </div>
         <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
@@ -4249,14 +4249,14 @@ function AdminSettings({ token }: { token: string }) {
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
             <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
-                const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
-                const now = new Date();
-                const open = toUTC((campaign as any).registration_open_at);
-                const close = toUTC((campaign as any).registration_close_at);
-                if (open && now < open) return 'bg-orange-50 border border-orange-200 text-orange-800';
-                if (close && now > close) return 'bg-red-50 border border-red-200 text-red-800';
-                return 'bg-green-50 border border-green-200 text-green-800';
-              })()
+              const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+              const now = new Date();
+              const open = toUTC((campaign as any).registration_open_at);
+              const close = toUTC((campaign as any).registration_close_at);
+              if (open && now < open) return 'bg-orange-50 border border-orange-200 text-orange-800';
+              if (close && now > close) return 'bg-red-50 border border-red-200 text-red-800';
+              return 'bg-green-50 border border-green-200 text-green-800';
+            })()
               }`}>
               <Clock size={16} className="shrink-0" />
               <span>Trạng thái hiện tại: {(() => {
