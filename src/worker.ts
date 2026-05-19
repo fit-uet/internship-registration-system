@@ -1732,7 +1732,7 @@ async function route(request: Request, env: Env) {
   const companyAdmin = path.match(/^\/api\/admin\/companies\/(\d+)$/);
   if (companyAdmin && method === 'PUT') {
     const body = await readBody(request);
-    await database.execute({ sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`, args: [body.name?.trim(), body.description || 'Chưa rõ', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || '', companyAdmin[1]] });
+    await database.execute({ sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ?, history = ?, qualifications = ? WHERE id = ?`, args: [body.name?.trim(), body.description || 'Chưa rõ', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || '', body.history || '', body.qualifications || '', companyAdmin[1]] });
     return json({ success: true });
   }
   if (companyAdmin && method === 'DELETE') {

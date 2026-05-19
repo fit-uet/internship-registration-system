@@ -2304,11 +2304,11 @@ async function startServer() {
   // 19b. Admin: Update Single Company
   app.put('/api/admin/companies/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const { name, description, slots, contact_email, address, recruitment_link, phone, contact_name } = req.body;
+      const { name, description, slots, contact_email, address, recruitment_link, phone, contact_name, history, qualifications } = req.body;
       if (!name) return res.status(400).json({ error: 'Tên công ty không được để trống' });
       await db.execute({
-        sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`,
-        args: [name.trim(), description || 'Chưa rõ', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '', req.params.id]
+        sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ?, history = ?, qualifications = ? WHERE id = ?`,
+        args: [name.trim(), description || 'Chưa rõ', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '', history || '', qualifications || '', req.params.id]
       });
       res.json({ success: true });
     } catch (e: any) {

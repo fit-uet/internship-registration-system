@@ -631,19 +631,6 @@ function App() {
             <p>© 2026 Khoa CNTT UET</p>
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <p>Hỗ trợ: baoptm@vnu.edu.vn</p>
-              <a
-                href="https://www.dmca.com/Protection/Status.aspx?ID=55ad2d0a-8987-4268-995d-d5bb010114a9"
-                title="DMCA.com Protection Status"
-                className="dmca-badge inline-flex"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src="https://images.dmca.com/Badges/dmca_protected_sml_120m.png?ID=55ad2d0a-8987-4268-995d-d5bb010114a9"
-                  alt="DMCA.com Protection Status"
-                  className="h-6 w-auto"
-                />
-              </a>
             </div>
           </div>
 
@@ -4960,6 +4947,8 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
           phone: data?.phone || '',
           address: data?.address || '',
           recruitment_link: data?.recruitment_link || '',
+          history: data?.history || '',
+          qualifications: data?.qualifications || '',
         });
         setLoading(false);
       })
@@ -5053,6 +5042,14 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-slate-600 mb-1">Link chi tiết tuyển dụng</label>
               <input value={editForm.recruitment_link} onChange={e => setEditForm({ ...editForm, recruitment_link: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Lịch sử & Tổ chức</label>
+              <textarea value={editForm.history} onChange={e => setEditForm({ ...editForm, history: e.target.value })} rows={3} placeholder="Chưa cập nhật" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Yêu cầu & Tiêu chí</label>
+              <textarea value={editForm.qualifications} onChange={e => setEditForm({ ...editForm, qualifications: e.target.value })} rows={4} placeholder="Chưa cập nhật" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-5">
