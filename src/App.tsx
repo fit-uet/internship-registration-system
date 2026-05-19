@@ -615,6 +615,7 @@ function App() {
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/faq" element={user.role === 'admin' ? <FAQSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/plan" element={user.role === 'admin' ? <PlanSettingsAdmin token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/registration-rules" element={user.role === 'admin' ? <RegistrationRulesSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView user={user} />} />
                 <Route path="/faq" element={<FAQView user={user} token={token} />} />
@@ -4822,15 +4823,6 @@ function AdminSettings({ token }: { token: string }) {
             <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học <span className="text-slate-400 font-normal">(mỗi lớp cách nhau bởi dấu phẩy)</span></label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quy định đăng ký hiển thị cho sinh viên <span className="text-slate-400 font-normal">(mỗi dòng là một gạch đầu dòng)</span></label>
-            <textarea
-              value={(campaign as any).registration_rules_md || DEFAULT_REGISTRATION_RULES}
-              onChange={e => setCampaign({ ...campaign, registration_rules_md: e.target.value } as any)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              rows={8}
-            />
-          </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
             <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
@@ -5052,9 +5044,14 @@ function PlanView({ user }: { user: any }) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
         {user?.role === 'admin' && (
-          <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Edit2 size={16} /> Cài đặt kế hoạch
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => navigate('/admin/registration-rules')} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+              <Shield size={16} /> Cài đặt quy định
+            </button>
+            <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+              <Edit2 size={16} /> Cài đặt kế hoạch
+            </button>
+          </div>
         )}
       </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-none prose prose-blue prose-sm sm:prose-base">
@@ -5194,6 +5191,97 @@ function PlanSettingsAdmin({ token }: { token: string }) {
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {planContent || ''}
               </ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [rules, setRules] = useState(DEFAULT_REGISTRATION_RULES);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/registration-rules`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setRules(data?.registration_rules_md || DEFAULT_REGISTRATION_RULES))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const saveRules = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/registration-rules`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ registration_rules_md: rules }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu quy định đăng ký thất bại.');
+      alert('Đã lưu Quy định đăng ký.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ruleItems = String(rules || DEFAULT_REGISTRATION_RULES)
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean);
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải quy định đăng ký...</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Shield className="text-slate-700" /> Cài đặt Quy định đăng ký</h2>
+          <p className="text-sm text-slate-500 mt-1">Mỗi dòng sẽ hiển thị thành một gạch đầu dòng trong khung Quy định Đăng ký của sinh viên.</p>
+        </div>
+        <button onClick={saveRules} disabled={saving} className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu quy định
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <label className="block text-sm font-semibold text-slate-700">Nội dung Quy định đăng ký</label>
+              <button
+                onClick={() => setRules(DEFAULT_REGISTRATION_RULES)}
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 px-3 py-2 rounded-lg"
+              >
+                Khôi phục mặc định
+              </button>
+            </div>
+            <textarea
+              value={rules}
+              onChange={e => setRules(e.target.value)}
+              className="w-full min-h-[480px] px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+              placeholder="Mỗi dòng là một quy định..."
+            />
+          </div>
+          <div className="p-5">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+            <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md">
+              <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
+              <ul className="text-sm space-y-3">
+                {ruleItems.map((rule, idx) => (
+                  <li key={`${idx}-${rule}`} className="flex gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{rule}</span>
+                  </li>
+                ))}
+              </ul>
+              {ruleItems.length === 0 && <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
             </div>
           </div>
         </div>

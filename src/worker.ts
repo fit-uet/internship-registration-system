@@ -22,6 +22,13 @@ const DEFAULT_CLASSES = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-
 const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
 Khoa CNTT thông báo triển khai Thực tập học kỳ. Sinh viên đăng nhập bằng email @vnu.edu.vn, cập nhật hồ sơ và đăng ký tối đa 5 nguyện vọng thực tập trong thời gian hệ thống mở.`;
+const DEFAULT_REGISTRATION_RULES = [
+  'Chỉ dành cho sinh viên nhận được thông báo.',
+  'Mỗi sinh viên chọn tối đa 05 nơi thực tập.',
+  'Sinh viên có thể lựa chọn các công ty không có trong Danh sách (các công ty đăng ký tiếp nhận thực tập sinh chính thức với Khoa). Nếu công ty đó có trong danh sách các công ty đã được Khoa thẩm định chất lượng thì sẽ được phê duyệt tự động. Ngược lại, công ty đó sẽ được Khoa xem xét và phê duyệt sau.',
+  'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
+  'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
+].join('\n');
 const DEFAULT_STUDENT_FAQ = `## FAQ cho sinh viên
 
 ### 1. Em được đăng ký tối đa bao nhiêu nơi thực tập?
@@ -426,12 +433,13 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
 }
 
 async function getCampaignSettings(database: DatabaseClient) {
-  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
+  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
   return {
     year: settings.campaign_year || '2026',
     start: settings.campaign_start || '22/05/2026',
     end: settings.campaign_end || '15/06/2026',
     classes_list: settings.classes_list || DEFAULT_CLASSES,
+    registration_rules_md: settings.registration_rules_md || DEFAULT_REGISTRATION_RULES,
     registration_open_at: settings.registration_open_at || '',
     registration_close_at: settings.registration_close_at || '',
     confirmation_open_at: settings.confirmation_open_at || '',
@@ -692,6 +700,7 @@ async function initDb(env: Env) {
       INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_close_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${DEFAULT_CLASSES}');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${DEFAULT_PLAN.replace(/'/g, "''")}');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_rules_md', '${DEFAULT_REGISTRATION_RULES.replace(/'/g, "''")}');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_student_md', '${DEFAULT_STUDENT_FAQ.replace(/'/g, "''")}');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_lecturer_md', '${DEFAULT_LECTURER_FAQ.replace(/'/g, "''")}');
     `);
@@ -2445,6 +2454,22 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [body.final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [body.classes_list || DEFAULT_CLASSES] },
     ]);
+    return json({ success: true });
+  }
+
+  if (method === 'GET' && path === '/api/settings/registration-rules') {
+    requireRole(user, ['admin']);
+    const row = (await database.execute("SELECT value FROM settings WHERE key = 'registration_rules_md'")).rows[0] as any;
+    return json({ registration_rules_md: row?.value || DEFAULT_REGISTRATION_RULES });
+  }
+
+  if (method === 'PUT' && path === '/api/settings/registration-rules') {
+    requireRole(user, ['admin']);
+    const body = await readBody(request);
+    await database.execute({
+      sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)",
+      args: [String(body.registration_rules_md || '')],
+    });
     return json({ success: true });
   }
 

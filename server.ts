@@ -3328,7 +3328,7 @@ async function startServer() {
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
+    const { year, start, end, classes_list, allowed_registration_cohorts, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
     const statements: any[] = [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
@@ -3339,13 +3339,25 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_close_at', ?)", args: [confirmation_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] }
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] }
     ];
     if (classes_list) {
       statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
     }
     await executeBatch(statements);
+    res.json({ success: true });
+  });
+
+  app.get('/api/settings/registration-rules', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'registration_rules_md'")).rows[0] as { value: string };
+    res.json({ registration_rules_md: setting?.value || DEFAULT_REGISTRATION_RULES });
+  });
+
+  app.put('/api/settings/registration-rules', requireAuth, requireAdmin, async (req: any, res: any) => {
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)",
+      args: [String(req.body.registration_rules_md || '')],
+    });
     res.json({ success: true });
   });
 
