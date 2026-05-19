@@ -831,6 +831,7 @@ async function initDb() {
       note TEXT,
       review_comment TEXT,
       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      preference_order INTEGER,
       sent_to_company_at DATETIME,
       sent_to_company_note TEXT,
       created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
@@ -1030,6 +1031,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_name TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_role TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN other_company_contact TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN preference_order INTEGER'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN sent_to_company_at DATETIME'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations ADD COLUMN sent_to_company_note TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN provider TEXT'); } catch (e) { }
@@ -1474,7 +1476,7 @@ async function startServer() {
       FROM registrations r
       JOIN companies c ON r.company_id = c.id
       WHERE r.user_id = ?
-      ORDER BY r.created_at ASC
+      ORDER BY COALESCE(r.preference_order, r.id) ASC, r.id ASC
     `, args: [req.user.id]
     })).rows;
     res.json(regs);
@@ -1964,7 +1966,7 @@ async function startServer() {
         }
       }
 
-      const insertSql2 = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
+      const insertSql2 = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, preference_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
       const writeStatements: any[] = [
         { sql: 'DELETE FROM final_internships WHERE user_id = ? AND locked_at IS NULL', args: [req.user.id] },
         { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] },
@@ -1974,10 +1976,12 @@ async function startServer() {
         }
       ];
 
+      let preferenceOrder = 1;
       for (const companyId of normal_company_ids) {
         const contactInfo = companyId === schoolCompany?.id ? schoolLecturerName : null;
         const roleInfo = companyId === schoolCompany?.id ? schoolCoLecturerName || null : null;
-        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, roleInfo, contactInfo || null] });
+        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, roleInfo, contactInfo || null, preferenceOrder] });
+        preferenceOrder += 1;
       }
 
       if (other_companies && Array.isArray(other_companies)) {
@@ -1998,9 +2002,11 @@ async function startServer() {
               status,
               other.name || null,
               other.role || null,
-              other.contact || null
+              other.contact || null,
+              preferenceOrder
             ]
           });
+          preferenceOrder += 1;
         }
       }
       await executeBatch(writeStatements);

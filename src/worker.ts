@@ -586,6 +586,7 @@ async function initDb(env: Env) {
         note TEXT,
         review_comment TEXT,
         status TEXT NOT NULL DEFAULT 'pending',
+        preference_order INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         other_company_name TEXT,
         other_company_role TEXT,
@@ -709,6 +710,7 @@ async function initDb(env: Env) {
       'ALTER TABLE registrations ADD COLUMN sent_to_company_at DATETIME',
       'ALTER TABLE registrations ADD COLUMN sent_to_company_note TEXT',
       'ALTER TABLE registrations ADD COLUMN review_comment TEXT',
+      'ALTER TABLE registrations ADD COLUMN preference_order INTEGER',
       'ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT',
       'ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER',
@@ -1021,7 +1023,7 @@ async function route(request: Request, env: Env) {
   if (method === 'GET' && path === '/api/registrations/my') {
     requireRole(user, ['student']);
     const regs = (await database.execute({
-      sql: `SELECT r.*, c.name as company_name FROM registrations r JOIN companies c ON r.company_id = c.id WHERE r.user_id = ? ORDER BY r.created_at ASC`,
+      sql: `SELECT r.*, c.name as company_name FROM registrations r JOIN companies c ON r.company_id = c.id WHERE r.user_id = ? ORDER BY COALESCE(r.preference_order, r.id) ASC, r.id ASC`,
       args: [user.id],
     })).rows;
     return json(regs);
@@ -1201,11 +1203,12 @@ async function route(request: Request, env: Env) {
       }
     }
 
-    const insertSql = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
+    const insertSql = "INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, preference_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))";
     const statements: any[] = [
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] },
       { sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?', args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, user.id] },
     ];
+    let preferenceOrder = 1;
     for (const companyId of companyIds) {
       statements.push({
         sql: insertSql,
@@ -1217,8 +1220,10 @@ async function route(request: Request, env: Env) {
           null,
           companyId === school?.id ? schoolCoLecturerName || null : null,
           companyId === school?.id ? schoolLecturerName : null,
+          preferenceOrder,
         ],
       });
+      preferenceOrder += 1;
     }
     const approvedNameRows = otherCompanies.length > 0
       ? (await database.execute('SELECT normalized_name FROM approved_company_names')).rows
@@ -1227,7 +1232,8 @@ async function route(request: Request, env: Env) {
     for (const other of otherCompanies) {
       if (!other.name || !other.role || !other.contact) return json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' }, 400);
       const status = approvedNames.has(normalizeCompanyName(other.name)) ? 'approved' : 'pending';
-      statements.push({ sql: insertSql, args: [user.id, khac.id, body.note || null, status, other.name, other.role, other.contact] });
+      statements.push({ sql: insertSql, args: [user.id, khac.id, body.note || null, status, other.name, other.role, other.contact, preferenceOrder] });
+      preferenceOrder += 1;
     }
     await executeBatch(database, statements);
     const updatedUser = (await database.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows[0];
