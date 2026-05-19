@@ -97,6 +97,21 @@ const companyDescriptionText = (value: any) => {
   return /^Tuyển\s+\d+\s+sinh viên thực tập\.?$/i.test(text) ? '' : text;
 };
 
+const convertDocxFileToMarkdown = async (file: File) => {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  const td = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    bulletListMarker: '-',
+  });
+  td.addRule('strikethrough', {
+    filter: ['del', 's'],
+    replacement: (content: string) => `~~${content}~~`,
+  });
+  return td.turndown(result.value);
+};
+
 const loadScriptOnce = (src: string) => new Promise<void>((resolve, reject) => {
   if (document.querySelector(`script[src="${src}"]`)) return resolve();
   const script = document.createElement('script');
@@ -599,8 +614,9 @@ function App() {
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/faq" element={user.role === 'admin' ? <FAQSettingsAdmin token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/plan" element={user.role === 'admin' ? <PlanSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
-                <Route path="/plan" element={<PlanView />} />
+                <Route path="/plan" element={<PlanView user={user} />} />
                 <Route path="/faq" element={<FAQView user={user} token={token} />} />
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
@@ -4561,12 +4577,10 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
 function AdminSettings({ token }: { token: string }) {
   const [sheetUrl, setSheetUrl] = useState('');
   const [exportSheetUrl, setExportSheetUrl] = useState('');
-  const [planContent, setPlanContent] = useState('');
   const [campaign, setCampaign] = useState({ year: '', registration_open_at: '', registration_close_at: '', classes_list: '' } as any);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [importingDocx, setImportingDocx] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -4584,7 +4598,6 @@ function AdminSettings({ token }: { token: string }) {
       const data = await sheetRes.json();
       setSheetUrl(data.url || '');
       setExportSheetUrl(data.export_url || '');
-      setPlanContent(data.plan || '');
       setCampaign(await campRes.json());
     } catch (e) { }
   };
@@ -4626,60 +4639,6 @@ function AdminSettings({ token }: { token: string }) {
       alert('Lỗi khi lưu.');
     } finally {
       setSavingUrl(false);
-    }
-  };
-
-  const handleSavePlan = async () => {
-    setSavingUrl(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/settings/google-sheet`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ plan: planContent })
-      });
-      if (!res.ok) throw new Error('Failed to save');
-      alert('Đã lưu Kế hoạch triển khai thành công!');
-    } catch (e) {
-      alert('Lỗi khi lưu.');
-    } finally {
-      setSavingUrl(false);
-    }
-  };
-
-  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.docx')) {
-      alert('Vui lòng chọn file .docx');
-      return;
-    }
-    setImportingDocx(true);
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      const html = result.value;
-
-      // Convert HTML -> Markdown via TurndownService
-      const td = new TurndownService({
-        headingStyle: 'atx',
-        codeBlockStyle: 'fenced',
-        bulletListMarker: '-',
-      });
-      // Preserve tables
-      td.addRule('strikethrough', {
-        filter: ['del', 's'],
-        replacement: (content: string) => `~~${content}~~`,
-      });
-      const markdown = td.turndown(html);
-      setPlanContent(markdown);
-    } catch (err: any) {
-      alert('Không đọc được file Word: ' + err.message);
-    } finally {
-      setImportingDocx(false);
-      e.target.value = '';
     }
   };
 
@@ -4952,42 +4911,6 @@ function AdminSettings({ token }: { token: string }) {
             </button>
           </div>
 
-          <div className="pt-4 border-t border-slate-200">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung Kế hoạch triển khai (Markdown)</label>
-            <div className="mb-2 flex items-center gap-2">
-              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border ${importingDocx
-                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-                }`}>
-                <Upload size={16} />
-                {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
-                <input
-                  type="file"
-                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  className="hidden"
-                  disabled={importingDocx}
-                  onChange={handleImportDocx}
-                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-                />
-              </label>
-              <span className="text-xs text-slate-400">Nội dung file Word sẽ được tự động chuyển thành Markdown</span>
-            </div>
-            <textarea
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono h-96"
-              value={planContent}
-              onChange={(e) => setPlanContent(e.target.value)}
-              placeholder="Nhập nội dung kế hoạch triển khai bằng Markdown..."
-            />
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={handleSavePlan}
-                disabled={savingUrl}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 shadow-sm transition-colors"
-              >
-                <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu Kế hoạch'}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -5095,7 +5018,7 @@ function CompanyDetail({ token }: { token: string }) {
   );
 }
 
-function PlanView() {
+function PlanView({ user }: { user: any }) {
   const [plan, setPlan] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -5111,7 +5034,14 @@ function PlanView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+        {user?.role === 'admin' && (
+          <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <Edit2 size={16} /> Cài đặt kế hoạch
+          </button>
+        )}
+      </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-none prose prose-blue prose-sm sm:prose-base">
         {loading ? (
           <div className="animate-pulse space-y-4">
@@ -5144,6 +5074,114 @@ function PlanView() {
             {plan}
           </ReactMarkdown>
         )}
+      </div>
+    </div>
+  );
+}
+
+function PlanSettingsAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [planContent, setPlanContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [importingDocx, setImportingDocx] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/plan`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setPlanContent(data?.plan || ''))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const handleSavePlan = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/plan`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: planContent }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu kế hoạch thất bại.');
+      alert('Đã lưu Kế hoạch triển khai.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      alert('Vui lòng chọn file .docx');
+      return;
+    }
+    setImportingDocx(true);
+    try {
+      setPlanContent(await convertDocxFileToMarkdown(file));
+    } catch (err: any) {
+      alert('Không đọc được file Word: ' + (err?.message || err));
+    } finally {
+      setImportingDocx(false);
+      e.target.value = '';
+    }
+  };
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải nội dung kế hoạch...</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-blue-600" /> Cài đặt Kế hoạch triển khai</h2>
+          <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung kế hoạch hiển thị cho sinh viên bằng Markdown.</p>
+        </div>
+        <button onClick={handleSavePlan} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu kế hoạch
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border w-fit ${importingDocx
+            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+            : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+            }`}>
+            <Upload size={16} />
+            {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
+            <input
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              disabled={importingDocx}
+              onChange={handleImportDocx}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+            />
+          </label>
+          <span className="text-xs text-slate-500">Nội dung file Word sẽ được chuyển sang Markdown và thay thế nội dung đang soạn.</span>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Nội dung Kế hoạch triển khai</label>
+            <textarea
+              className="w-full min-h-[560px] border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+              value={planContent}
+              onChange={(e) => setPlanContent(e.target.value)}
+              placeholder="Nhập nội dung kế hoạch triển khai bằng Markdown..."
+            />
+          </div>
+          <div className="p-5">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+            <div className="prose prose-blue prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {planContent || ''}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -5224,6 +5262,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<'student' | 'lecturer'>('student');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importingDocx, setImportingDocx] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
@@ -5260,6 +5299,25 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   const activeKey = activeTab === 'student' ? 'faq_student_md' : 'faq_lecturer_md';
   const activeDefault = activeTab === 'student' ? DEFAULT_STUDENT_FAQ : DEFAULT_LECTURER_FAQ;
 
+  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      alert('Vui lòng chọn file .docx');
+      return;
+    }
+    setImportingDocx(true);
+    try {
+      const markdown = await convertDocxFileToMarkdown(file);
+      setFaq((prev: any) => ({ ...prev, [activeKey]: markdown }));
+    } catch (err: any) {
+      alert('Không đọc được file Word: ' + (err?.message || err));
+    } finally {
+      setImportingDocx(false);
+      e.target.value = '';
+    }
+  };
+
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải cấu hình FAQ...</div>;
 
   return (
@@ -5291,12 +5349,29 @@ function FAQSettingsAdmin({ token }: { token: string }) {
               FAQ giảng viên
             </button>
           </div>
-          <button
-            onClick={() => setFaq((prev: any) => ({ ...prev, [activeKey]: activeDefault }))}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white px-3 py-2 rounded-lg"
-          >
-            Khôi phục nội dung mặc định
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${importingDocx
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+              : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+              }`}>
+              <Upload size={14} />
+              {importingDocx ? 'Đang đọc file...' : 'Import Word'}
+              <input
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                disabled={importingDocx}
+                onChange={handleImportDocx}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+              />
+            </label>
+            <button
+              onClick={() => setFaq((prev: any) => ({ ...prev, [activeKey]: activeDefault }))}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white px-3 py-2 rounded-lg"
+            >
+              Khôi phục nội dung mặc định
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">

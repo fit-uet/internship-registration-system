@@ -3326,6 +3326,19 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.get('/api/settings/plan', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
+    res.json({ plan: planSetting ? planSetting.value : '' });
+  });
+
+  app.put('/api/settings/plan', requireAuth, requireAdmin, async (req: any, res: any) => {
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('implementation_plan_md', ?)",
+      args: [String(req.body.plan || '')],
+    });
+    res.json({ success: true });
+  });
+
   // 9. Admin: Settings
   app.get('/api/settings/google-sheet', requireAuth, requireAdmin, async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`

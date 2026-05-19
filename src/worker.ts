@@ -2466,6 +2466,22 @@ async function route(request: Request, env: Env) {
     return json({ success: true });
   }
 
+  if (method === 'GET' && path === '/api/settings/plan') {
+    requireRole(user, ['admin']);
+    const row = (await database.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as any;
+    return json({ plan: row?.value || '' });
+  }
+
+  if (method === 'PUT' && path === '/api/settings/plan') {
+    requireRole(user, ['admin']);
+    const body = await readBody(request);
+    await database.execute({
+      sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('implementation_plan_md', ?)",
+      args: [String(body.plan || '')],
+    });
+    return json({ success: true });
+  }
+
   if (method === 'GET' && path === '/api/settings/google-sheet') {
     requireRole(user, ['admin']);
     const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('google_sheet_url', 'export_google_sheet_url', 'implementation_plan_md')")).rows);
