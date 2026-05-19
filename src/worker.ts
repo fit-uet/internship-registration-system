@@ -1725,14 +1725,14 @@ async function route(request: Request, env: Env) {
   if (method === 'POST' && path === '/api/admin/companies') {
     const body = await readBody(request);
     if (!body.name) return json({ error: 'Tên công ty không được để trống' }, 400);
-    const result = await database.execute({ sql: `INSERT INTO companies (name, description, slots, contact_email, address, recruitment_link, phone, contact_name, history, qualifications) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '')`, args: [body.name.trim(), body.description || '', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || ''] });
+    const result = await database.execute({ sql: `INSERT INTO companies (name, description, slots, contact_email, address, recruitment_link, phone, contact_name, history, qualifications) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '')`, args: [body.name.trim(), body.description || 'Chưa rõ', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || ''] });
     return json((await database.execute({ sql: 'SELECT * FROM companies WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0]);
   }
 
   const companyAdmin = path.match(/^\/api\/admin\/companies\/(\d+)$/);
   if (companyAdmin && method === 'PUT') {
     const body = await readBody(request);
-    await database.execute({ sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`, args: [body.name?.trim(), body.description || '', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || '', companyAdmin[1]] });
+    await database.execute({ sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`, args: [body.name?.trim(), body.description || 'Chưa rõ', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || '', companyAdmin[1]] });
     return json({ success: true });
   }
   if (companyAdmin && method === 'DELETE') {
@@ -1752,7 +1752,7 @@ async function route(request: Request, env: Env) {
       const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
       if (!name) return null;
       const slots = parseInt(item?.slots) || 5;
-      return { sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`, args: [name, '', slots, item?.contact_email || '', item?.address || '', item?.phone || '', item?.contact_name || ''] };
+      return { sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`, args: [name, 'Chưa rõ', slots, item?.contact_email || '', item?.address || '', item?.phone || '', item?.contact_name || ''] };
     }).filter(Boolean);
     await executeBatch(database, statements);
     await ensureSpecialCompanies(database);
@@ -2544,7 +2544,7 @@ async function route(request: Request, env: Env) {
       const phone = record['Điện thoại liên hệ']?.trim() || '';
       const address = record['Địa chỉ nơi thực tập']?.trim() || '';
       const infoLink = record['Thông tin vị trí tuyển thực tập']?.trim() || '';
-      return { sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET description=excluded.description, slots=excluded.slots, contact_email=excluded.contact_email, history=excluded.history, address=excluded.address, recruitment_link=excluded.recruitment_link, phone=excluded.phone, contact_name=excluded.contact_name`, args: [name, '', slots, contactEmail, `Công ty ${name} tuyển dụng thực tập sinh.`, address, infoLink, phone, contactName] };
+      return { sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET description=excluded.description, slots=excluded.slots, contact_email=excluded.contact_email, history=excluded.history, address=excluded.address, recruitment_link=excluded.recruitment_link, phone=excluded.phone, contact_name=excluded.contact_name`, args: [name, 'Chưa rõ', slots, contactEmail, `Công ty ${name} tuyển dụng thực tập sinh.`, address, infoLink, phone, contactName] };
     }).filter(Boolean);
     await executeBatch(database, statements);
     await ensureSpecialCompanies(database);

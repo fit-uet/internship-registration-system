@@ -1134,7 +1134,7 @@ async function seedCompaniesIfEmpty() {
           if (phones.length > 0) phone = phones.join(', ');
         }
 
-        const description = '';
+        const description = 'Chưa rõ';
         const qualifications = '';
         const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
@@ -2292,7 +2292,7 @@ async function startServer() {
       const result = await db.execute({
         sql: `INSERT INTO companies (name, description, slots, contact_email, address, recruitment_link, phone, contact_name, history, qualifications)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '')`,
-        args: [name.trim(), description || '', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '']
+        args: [name.trim(), description || 'Chưa rõ', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '']
       });
       const newComp = (await db.execute({ sql: 'SELECT * FROM companies WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0];
       res.json(newComp);
@@ -2308,7 +2308,7 @@ async function startServer() {
       if (!name) return res.status(400).json({ error: 'Tên công ty không được để trống' });
       await db.execute({
         sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ? WHERE id = ?`,
-        args: [name.trim(), description || '', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '', req.params.id]
+        args: [name.trim(), description || 'Chưa rõ', parseInt(slots) || 5, contact_email || '', address || '', recruitment_link || '', phone || '', contact_name || '', req.params.id]
       });
       res.json({ success: true });
     } catch (e: any) {
@@ -2415,7 +2415,7 @@ async function startServer() {
           const contact_name = item?.contact_name || '';
           return {
             sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
-            args: [name, '', slots, contact_email, address, phone, contact_name]
+            args: [name, 'Chưa rõ', slots, contact_email, address, phone, contact_name]
           };
         })
         .filter(Boolean);
@@ -3550,7 +3550,7 @@ async function startServer() {
           }
 
           const qualifications = '';
-          const description = '';
+          const description = 'Chưa rõ';
           const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
           return {
