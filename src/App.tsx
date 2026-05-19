@@ -1101,12 +1101,6 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
             >
               KẾ HOẠCH TRIỂN KHAI
             </button>
-            <button
-              onClick={() => navigate('/faq')}
-              className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-amber-200 shadow-sm transition-colors"
-            >
-              <CircleHelp size={14} /> FAQ
-            </button>
             {user.role === 'admin' && (
               <>
                 <button
@@ -5170,7 +5164,6 @@ function FAQView({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(user?.role === 'lecturer' ? 'lecturer' : 'student');
 
   useEffect(() => {
     fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
@@ -5179,9 +5172,11 @@ function FAQView({ user, token }: { user: any, token: string }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const markdown = activeTab === 'lecturer'
+  const faqRole = user?.role === 'lecturer' ? 'lecturer' : 'student';
+  const markdown = faqRole === 'lecturer'
     ? (campaign?.faq_lecturer_md || DEFAULT_LECTURER_FAQ)
     : (campaign?.faq_student_md || DEFAULT_STUDENT_FAQ);
+  const roleLabel = faqRole === 'lecturer' ? 'Giảng viên' : 'Sinh viên';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -5189,23 +5184,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
-          <p className="text-sm text-slate-500 mt-1">Các câu hỏi thường gặp theo từng nhóm người dùng trong hệ thống.</p>
-        </div>
-        <div className="px-6 pt-5">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
-            <button
-              onClick={() => setActiveTab('student')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Sinh viên
-            </button>
-            <button
-              onClick={() => setActiveTab('lecturer')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'lecturer' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Giảng viên
-            </button>
-          </div>
+          <p className="text-sm text-slate-500 mt-1">Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</p>
         </div>
         <div className="p-6 max-w-none prose prose-blue prose-sm sm:prose-base">
           {loading ? (
@@ -5359,12 +5338,6 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             className="flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-200 shadow-sm transition-colors"
           >
             <FileText size={18} /> Kế hoạch triển khai
-          </button>
-          <button
-            onClick={() => navigate('/faq')}
-            className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-200 shadow-sm transition-colors"
-          >
-            <CircleHelp size={18} /> FAQ
           </button>
           <button
             onClick={() => navigate('/notifications')}
