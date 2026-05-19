@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -33,6 +33,45 @@ const DEFAULT_REGISTRATION_RULES = [
   'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
   'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
 ].join('\n');
+const DEFAULT_STUDENT_FAQ = `## FAQ cho sinh viên
+
+### 1. Em được đăng ký tối đa bao nhiêu nơi thực tập?
+Mỗi sinh viên được đăng ký tối đa 05 nơi thực tập trong thời gian Khoa mở đăng ký.
+
+### 2. Em có thể đăng ký công ty tự liên hệ không?
+Có. Nếu công ty đã nằm trong danh sách thẩm định nội bộ của Khoa, đăng ký sẽ được duyệt tự động. Nếu chưa có, Khoa sẽ xem xét và duyệt thủ công.
+
+### 3. Sau khi có kết quả phỏng vấn, em cần làm gì?
+Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực tập chính thức đã trúng tuyển trong thời hạn Khoa cho phép.
+
+### 4. Nếu không trúng tuyển công ty nào thì sao?
+Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa, chọn phương án nhờ Khoa phân công.
+
+### 5. Báo cáo final nộp ở đâu và định dạng gì?
+Em nộp báo cáo final trên hệ thống trong thời gian mở nộp. File phải là PDF và không vượt quá 10 MB. Báo cáo định kỳ vẫn trao đổi trực tiếp với giảng viên qua email.
+
+### 6. Em thấy đăng ký bị từ chối thì xem lý do ở đâu?
+Lý do hoặc nhận xét của Khoa được hiển thị trong hồ sơ đăng ký và trong mục Thông báo.`;
+
+const DEFAULT_LECTURER_FAQ = `## FAQ cho giảng viên
+
+### 1. Giảng viên xem danh sách sinh viên được phân công ở đâu?
+Giảng viên đăng nhập hệ thống bằng email VNU, trang chủ giảng viên sẽ hiển thị danh sách sinh viên được Khoa phân công hướng dẫn hoặc đồng hướng dẫn.
+
+### 2. Giảng viên cần đánh giá những gì trên hệ thống?
+Giảng viên nhập điểm quá trình, điểm báo cáo, điểm doanh nghiệp và nhận xét nếu có. Hệ thống tự tính điểm tổng kết theo cấu hình hiện tại.
+
+### 3. Báo cáo final của sinh viên được xử lý thế nào?
+Sinh viên nộp file PDF final trên hệ thống. Giảng viên có thể tải báo cáo, đánh dấu đã chấp nhận hoặc yêu cầu nộp lại kèm ghi chú.
+
+### 4. Giảng viên có nhận thông báo trên website không?
+Có. Các thông báo liên quan đến phân công hướng dẫn, báo cáo và thông báo chung từ Khoa được hiển thị ở biểu tượng chuông và trang Thông báo.
+
+### 5. Giảng viên CN có được hướng dẫn chính không?
+Theo nghiệp vụ hiện tại, giảng viên có tên chứa “CN” không được làm hướng dẫn chính, chỉ có thể là đồng hướng dẫn.
+
+### 6. Khi cần điều chỉnh phân công hoặc điểm đã khóa thì làm gì?
+Giảng viên liên hệ Khoa để được hỗ trợ mở khóa hoặc điều chỉnh theo quy trình quản lý của Khoa.`;
 
 const saveXlsx = (filename: string, headers: string[], rows: any[][], sheetName = 'Sheet1') => {
   const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -468,10 +507,13 @@ function App() {
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                            <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
-                          </Link>
-                          {user.role === 'admin' && (
+                        <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                          <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
+                        </Link>
+                        <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                          <CircleHelp size={16} className="text-amber-600" /> FAQ
+                        </Link>
+                        {user.role === 'admin' && (
                             <>
                               <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
@@ -553,6 +595,7 @@ function App() {
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
+                <Route path="/faq" element={<FAQView user={user} token={token} />} />
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
@@ -1057,6 +1100,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-blue-200 shadow-sm transition-colors"
             >
               KẾ HOẠCH TRIỂN KHAI
+            </button>
+            <button
+              onClick={() => navigate('/faq')}
+              className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-amber-200 shadow-sm transition-colors"
+            >
+              <CircleHelp size={14} /> FAQ
             </button>
             {user.role === 'admin' && (
               <>
@@ -4808,6 +4857,24 @@ function AdminSettings({ token }: { token: string }) {
               rows={8}
             />
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">FAQ cho sinh viên <span className="text-slate-400 font-normal">(Markdown)</span></label>
+            <textarea
+              value={(campaign as any).faq_student_md || DEFAULT_STUDENT_FAQ}
+              onChange={e => setCampaign({ ...campaign, faq_student_md: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
+              rows={12}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">FAQ cho giảng viên <span className="text-slate-400 font-normal">(Markdown)</span></label>
+            <textarea
+              value={(campaign as any).faq_lecturer_md || DEFAULT_LECTURER_FAQ}
+              onChange={e => setCampaign({ ...campaign, faq_lecturer_md: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
+              rows={12}
+            />
+          </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
             <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
@@ -5099,6 +5166,81 @@ function PlanView() {
   );
 }
 
+function FAQView({ user, token }: { user: any, token: string }) {
+  const navigate = useNavigate();
+  const [campaign, setCampaign] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(user?.role === 'lecturer' ? 'lecturer' : 'student');
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setCampaign(data && !data.error ? data : {}))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const markdown = activeTab === 'lecturer'
+    ? (campaign?.faq_lecturer_md || DEFAULT_LECTURER_FAQ)
+    : (campaign?.faq_student_md || DEFAULT_STUDENT_FAQ);
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
+          <p className="text-sm text-slate-500 mt-1">Các câu hỏi thường gặp theo từng nhóm người dùng trong hệ thống.</p>
+        </div>
+        <div className="px-6 pt-5">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <button
+              onClick={() => setActiveTab('student')}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Sinh viên
+            </button>
+            <button
+              onClick={() => setActiveTab('lecturer')}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'lecturer' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Giảng viên
+            </button>
+          </div>
+        </div>
+        <div className="p-6 max-w-none prose prose-blue prose-sm sm:prose-base">
+          {loading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-6 bg-slate-200 rounded w-1/2"></div>
+              <div className="h-4 bg-slate-200 rounded w-full"></div>
+              <div className="h-4 bg-slate-200 rounded w-5/6"></div>
+              <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+            </div>
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-slate-800 mb-4" {...props} />,
+                h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
+                h3: ({ node, ...props }) => <h3 className="text-lg font-bold text-slate-800 mt-5 mb-2" {...props} />,
+                p: ({ node, ...props }) => <p className="mb-4 text-slate-600 leading-relaxed" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900" {...props} />,
+                a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
+                table: ({ node, ...props }) => <div className="overflow-x-auto mb-6"><table className="min-w-full divide-y divide-slate-200 border border-slate-200" {...props} /></div>,
+                th: ({ node, ...props }) => <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-x border-slate-200" {...props} />,
+                td: ({ node, ...props }) => <td className="px-4 py-3 text-sm text-slate-600 border-x border-slate-200" {...props} />,
+              }}
+            >
+              {markdown}
+            </ReactMarkdown>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
@@ -5217,6 +5359,12 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             className="flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-200 shadow-sm transition-colors"
           >
             <FileText size={18} /> Kế hoạch triển khai
+          </button>
+          <button
+            onClick={() => navigate('/faq')}
+            className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-200 shadow-sm transition-colors"
+          >
+            <CircleHelp size={18} /> FAQ
           </button>
           <button
             onClick={() => navigate('/notifications')}

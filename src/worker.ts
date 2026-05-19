@@ -22,6 +22,29 @@ const DEFAULT_CLASSES = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-
 const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
 Khoa CNTT thông báo triển khai Thực tập học kỳ. Sinh viên đăng nhập bằng email @vnu.edu.vn, cập nhật hồ sơ và đăng ký tối đa 5 nguyện vọng thực tập trong thời gian hệ thống mở.`;
+const DEFAULT_STUDENT_FAQ = `## FAQ cho sinh viên
+
+### 1. Em được đăng ký tối đa bao nhiêu nơi thực tập?
+Mỗi sinh viên được đăng ký tối đa 05 nơi thực tập trong thời gian Khoa mở đăng ký.
+
+### 2. Sau khi có kết quả phỏng vấn, em cần làm gì?
+Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực tập chính thức đã trúng tuyển trong thời hạn Khoa cho phép.
+
+### 3. Nếu không trúng tuyển công ty nào thì sao?
+Em có thể đăng ký thực tập tại trường hoặc nhờ Khoa phân công giảng viên hướng dẫn.
+
+### 4. Báo cáo final nộp ở đâu?
+Em nộp PDF final trên hệ thống, tối đa 10 MB.`;
+const DEFAULT_LECTURER_FAQ = `## FAQ cho giảng viên
+
+### 1. Giảng viên xem danh sách sinh viên ở đâu?
+Trang chủ giảng viên hiển thị danh sách sinh viên được Khoa phân công.
+
+### 2. Giảng viên cần đánh giá gì?
+Giảng viên nhập điểm, nhận xét và xử lý báo cáo final của sinh viên.
+
+### 3. Giảng viên có nhận thông báo trên website không?
+Có. Thông báo hiển thị ở biểu tượng chuông và trang Thông báo.`;
 
 let initPromise: Promise<void> | null = null;
 
@@ -403,7 +426,7 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
 }
 
 async function getCampaignSettings(database: DatabaseClient) {
-  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')")).rows);
+  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
   return {
     year: settings.campaign_year || '2026',
     start: settings.campaign_start || '22/05/2026',
@@ -415,6 +438,8 @@ async function getCampaignSettings(database: DatabaseClient) {
     confirmation_close_at: settings.confirmation_close_at || '',
     final_report_open_at: settings.final_report_open_at || '',
     final_report_close_at: settings.final_report_close_at || '',
+    faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
+    faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
   };
 }
 
@@ -667,6 +692,8 @@ async function initDb(env: Env) {
       INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_close_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${DEFAULT_CLASSES}');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${DEFAULT_PLAN.replace(/'/g, "''")}');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_student_md', '${DEFAULT_STUDENT_FAQ.replace(/'/g, "''")}');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_lecturer_md', '${DEFAULT_LECTURER_FAQ.replace(/'/g, "''")}');
     `);
 
     const migrations = [
@@ -2417,6 +2444,8 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [body.final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [body.final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [body.classes_list || DEFAULT_CLASSES] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(body.faq_student_md || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(body.faq_lecturer_md || '')] },
     ]);
     return json({ success: true });
   }

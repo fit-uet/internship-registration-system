@@ -201,6 +201,44 @@ const DEFAULT_REGISTRATION_RULES = [
   'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
   'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
 ].join('\n');
+const DEFAULT_STUDENT_FAQ = `## FAQ cho sinh viên
+
+### 1. Em được đăng ký tối đa bao nhiêu nơi thực tập?
+Mỗi sinh viên được đăng ký tối đa 05 nơi thực tập trong thời gian Khoa mở đăng ký.
+
+### 2. Em có thể đăng ký công ty tự liên hệ không?
+Có. Nếu công ty đã nằm trong danh sách thẩm định nội bộ của Khoa, đăng ký sẽ được duyệt tự động. Nếu chưa có, Khoa sẽ xem xét và duyệt thủ công.
+
+### 3. Sau khi có kết quả phỏng vấn, em cần làm gì?
+Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực tập chính thức đã trúng tuyển trong thời hạn Khoa cho phép.
+
+### 4. Nếu không trúng tuyển công ty nào thì sao?
+Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa, chọn phương án nhờ Khoa phân công.
+
+### 5. Báo cáo final nộp ở đâu và định dạng gì?
+Em nộp báo cáo final trên hệ thống trong thời gian mở nộp. File phải là PDF và không vượt quá 10 MB. Báo cáo định kỳ vẫn trao đổi trực tiếp với giảng viên qua email.
+
+### 6. Em thấy đăng ký bị từ chối thì xem lý do ở đâu?
+Lý do hoặc nhận xét của Khoa được hiển thị trong hồ sơ đăng ký và trong mục Thông báo.`;
+const DEFAULT_LECTURER_FAQ = `## FAQ cho giảng viên
+
+### 1. Giảng viên xem danh sách sinh viên được phân công ở đâu?
+Giảng viên đăng nhập hệ thống bằng email VNU, trang chủ giảng viên sẽ hiển thị danh sách sinh viên được Khoa phân công hướng dẫn hoặc đồng hướng dẫn.
+
+### 2. Giảng viên cần đánh giá những gì trên hệ thống?
+Giảng viên nhập điểm quá trình, điểm báo cáo, điểm doanh nghiệp và nhận xét nếu có. Hệ thống tự tính điểm tổng kết theo cấu hình hiện tại.
+
+### 3. Báo cáo final của sinh viên được xử lý thế nào?
+Sinh viên nộp file PDF final trên hệ thống. Giảng viên có thể tải báo cáo, đánh dấu đã chấp nhận hoặc yêu cầu nộp lại kèm ghi chú.
+
+### 4. Giảng viên có nhận thông báo trên website không?
+Có. Các thông báo liên quan đến phân công hướng dẫn, báo cáo và thông báo chung từ Khoa được hiển thị ở biểu tượng chuông và trang Thông báo.
+
+### 5. Giảng viên CN có được hướng dẫn chính không?
+Theo nghiệp vụ hiện tại, giảng viên có tên chứa “CN” không được làm hướng dẫn chính, chỉ có thể là đồng hướng dẫn.
+
+### 6. Khi cần điều chỉnh phân công hoặc điểm đã khóa thì làm gì?
+Giảng viên liên hệ Khoa để được hỗ trợ mở khóa hoặc điều chỉnh theo quy trình quản lý của Khoa.`;
 
 function cohortFromVnuEmail(email: string) {
   const localPart = String(email || '').toLowerCase().split('@')[0] || '';
@@ -851,6 +889,8 @@ async function initDb() {
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('final_report_close_at', '')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('allowed_registration_cohorts', '${DEFAULT_ALLOWED_REGISTRATION_COHORTS}')`);
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_rules_md', '${DEFAULT_REGISTRATION_RULES.replace(/'/g, "''")}')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_student_md', '${DEFAULT_STUDENT_FAQ.replace(/'/g, "''")}')`);
+  await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('faq_lecturer_md', '${DEFAULT_LECTURER_FAQ.replace(/'/g, "''")}')`);
   const defaultClasses = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${defaultClasses}')`);
 
@@ -3224,7 +3264,7 @@ async function startServer() {
   app.get('/api/settings/campaign', async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`
       SELECT key, value FROM settings
-      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')
+      WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'registration_rules_md', 'faq_student_md', 'faq_lecturer_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at')
     `)).rows);
 
     res.json({
@@ -3234,6 +3274,8 @@ async function startServer() {
       classes_list: settings.classes_list || 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN',
       allowed_registration_cohorts: settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS,
       registration_rules_md: settings.registration_rules_md || DEFAULT_REGISTRATION_RULES,
+      faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
+      faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
       registration_open_at: settings.registration_open_at || '',
       registration_close_at: settings.registration_close_at || '',
       confirmation_open_at: settings.confirmation_open_at || '',
@@ -3244,7 +3286,7 @@ async function startServer() {
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
+    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, faq_student_md, faq_lecturer_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
     const statements: any[] = [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
@@ -3256,7 +3298,9 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] }
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(faq_student_md || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(faq_lecturer_md || '')] }
     ];
     if (classes_list) {
       statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
