@@ -1743,7 +1743,7 @@ async function route(request: Request, env: Env) {
       const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
       if (!name) return null;
       const slots = parseInt(item?.slots) || 5;
-      return { sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`, args: [name, `Tuyển ${slots} sinh viên thực tập.`, slots, item?.contact_email || '', item?.address || '', item?.phone || '', item?.contact_name || ''] };
+      return { sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`, args: [name, '', slots, item?.contact_email || '', item?.address || '', item?.phone || '', item?.contact_name || ''] };
     }).filter(Boolean);
     await executeBatch(database, statements);
     await ensureSpecialCompanies(database);
@@ -2444,6 +2444,22 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [body.final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [body.final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [body.classes_list || DEFAULT_CLASSES] },
+    ]);
+    return json({ success: true });
+  }
+
+  if (method === 'GET' && path === '/api/settings/faq') {
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('faq_student_md', 'faq_lecturer_md')")).rows);
+    return json({
+      faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
+      faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+    });
+  }
+
+  if (method === 'PUT' && path === '/api/settings/faq') {
+    requireRole(user, ['admin']);
+    const body = await readBody(request);
+    await executeBatch(database, [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(body.faq_student_md || '')] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(body.faq_lecturer_md || '')] },
     ]);
@@ -2487,7 +2503,7 @@ async function route(request: Request, env: Env) {
       const phone = record['Điện thoại liên hệ']?.trim() || '';
       const address = record['Địa chỉ nơi thực tập']?.trim() || '';
       const infoLink = record['Thông tin vị trí tuyển thực tập']?.trim() || '';
-      return { sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET description=excluded.description, slots=excluded.slots, contact_email=excluded.contact_email, history=excluded.history, address=excluded.address, recruitment_link=excluded.recruitment_link, phone=excluded.phone, contact_name=excluded.contact_name`, args: [name, `Tuyển ${slots} sinh viên thực tập.`, slots, contactEmail, `Công ty ${name} tuyển dụng thực tập sinh.`, address, infoLink, phone, contactName] };
+      return { sql: `INSERT INTO companies (name, description, slots, contact_email, history, qualifications, address, recruitment_link, phone, contact_name) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET description=excluded.description, slots=excluded.slots, contact_email=excluded.contact_email, history=excluded.history, address=excluded.address, recruitment_link=excluded.recruitment_link, phone=excluded.phone, contact_name=excluded.contact_name`, args: [name, '', slots, contactEmail, `Công ty ${name} tuyển dụng thực tập sinh.`, address, infoLink, phone, contactName] };
     }).filter(Boolean);
     await executeBatch(database, statements);
     await ensureSpecialCompanies(database);

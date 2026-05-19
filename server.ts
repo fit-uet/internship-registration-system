@@ -1068,7 +1068,7 @@ async function seedCompaniesIfEmpty() {
           if (phones.length > 0) phone = phones.join(', ');
         }
 
-        const description = `Tuyển ${slots} sinh viên thực tập.`;
+        const description = '';
         const qualifications = '';
         const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
@@ -2349,7 +2349,7 @@ async function startServer() {
           const contact_name = item?.contact_name || '';
           return {
             sql: `INSERT OR IGNORE INTO companies (name, description, slots, contact_email, address, phone, contact_name, history, qualifications, recruitment_link) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
-            args: [name, `Tuyển ${slots} sinh viên thực tập.`, slots, contact_email, address, phone, contact_name]
+            args: [name, '', slots, contact_email, address, phone, contact_name]
           };
         })
         .filter(Boolean);
@@ -3286,7 +3286,7 @@ async function startServer() {
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, faq_student_md, faq_lecturer_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
+    const { year, start, end, classes_list, allowed_registration_cohorts, registration_rules_md, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at } = req.body;
     const statements: any[] = [
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
@@ -3298,14 +3298,31 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(faq_student_md || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(faq_lecturer_md || '')] }
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_rules_md', ?)", args: [String(registration_rules_md || '')] }
     ];
     if (classes_list) {
       statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
     }
     await executeBatch(statements);
+    res.json({ success: true });
+  });
+
+  app.get('/api/settings/faq', requireAuth, async (req: any, res: any) => {
+    const settings = rowsToSettings((await db.execute(`
+      SELECT key, value FROM settings
+      WHERE key IN ('faq_student_md', 'faq_lecturer_md')
+    `)).rows);
+    res.json({
+      faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
+      faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+    });
+  });
+
+  app.put('/api/settings/faq', requireAuth, requireAdmin, async (req: any, res: any) => {
+    await executeBatch([
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(req.body.faq_student_md || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(req.body.faq_lecturer_md || '')] },
+    ]);
     res.json({ success: true });
   });
 
@@ -3466,7 +3483,7 @@ async function startServer() {
           }
 
           const qualifications = '';
-          const description = `Tuyển ${slots} sinh viên thực tập.`;
+          const description = '';
           const history = `Công ty ${name} tuyển dụng thực tập sinh.`;
 
           return {

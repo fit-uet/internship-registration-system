@@ -92,6 +92,11 @@ const xlsxBlob = (headers: string[], rows: any[][], sheetName = 'Sheet1') =>
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 
+const companyDescriptionText = (value: any) => {
+  const text = String(value || '').trim();
+  return /^Tuyển\s+\d+\s+sinh viên thực tập\.?$/i.test(text) ? '' : text;
+};
+
 const loadScriptOnce = (src: string) => new Promise<void>((resolve, reject) => {
   if (document.querySelector(`script[src="${src}"]`)) return resolve();
   const script = document.createElement('script');
@@ -510,9 +515,6 @@ function App() {
                         <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                           <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
                         </Link>
-                        <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                          <CircleHelp size={16} className="text-amber-600" /> FAQ
-                        </Link>
                         {user.role === 'admin' && (
                             <>
                               <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
@@ -544,6 +546,9 @@ function App() {
                               </Link>
                             </>
                           )}
+                          <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                            <CircleHelp size={16} className="text-amber-600" /> FAQ
+                          </Link>
                           <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
                             <LogOut size={16} /> Đăng xuất
                           </button>
@@ -593,6 +598,7 @@ function App() {
                 <Route path="/admin/approved-companies" element={user.role === 'admin' ? <ApprovedCompanyRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/faq" element={user.role === 'admin' ? <FAQSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail token={token} />} />
                 <Route path="/plan" element={<PlanView />} />
                 <Route path="/faq" element={<FAQView user={user} token={token} />} />
@@ -850,7 +856,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.description.toLowerCase().includes(searchTerm.toLowerCase())
+    companyDescriptionText(company.description).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const requestSort = (key: string) => {
@@ -4851,24 +4857,6 @@ function AdminSettings({ token }: { token: string }) {
               rows={8}
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">FAQ cho sinh viên <span className="text-slate-400 font-normal">(Markdown)</span></label>
-            <textarea
-              value={(campaign as any).faq_student_md || DEFAULT_STUDENT_FAQ}
-              onChange={e => setCampaign({ ...campaign, faq_student_md: e.target.value } as any)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
-              rows={12}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1">FAQ cho giảng viên <span className="text-slate-400 font-normal">(Markdown)</span></label>
-            <textarea
-              value={(campaign as any).faq_lecturer_md || DEFAULT_LECTURER_FAQ}
-              onChange={e => setCampaign({ ...campaign, faq_lecturer_md: e.target.value } as any)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
-              rows={12}
-            />
-          </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
             <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
@@ -5038,6 +5026,7 @@ function CompanyDetail({ token }: { token: string }) {
 
   if (loading) return <div className="text-center py-20 text-slate-500 animate-pulse">Đang tải dữ liệu...</div>;
   if (!company || company.error) return <div className="text-center py-20 text-red-500">Không tìm thấy công ty!</div>;
+  const description = companyDescriptionText(company.description);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -5050,7 +5039,7 @@ function CompanyDetail({ token }: { token: string }) {
         </div>
         <div className="relative z-10">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">{company.name}</h1>
-          <p className="text-lg text-slate-600 mb-4">{company.description}</p>
+          {description && <p className="text-lg text-slate-600 mb-4">{description}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
@@ -5166,7 +5155,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => setCampaign(data && !data.error ? data : {}))
       .finally(() => setLoading(false));
@@ -5183,8 +5172,17 @@ function FAQView({ user, token }: { user: any, token: string }) {
       <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
-          <p className="text-sm text-slate-500 mt-1">Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</p>
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
+              <p className="text-sm text-slate-500 mt-1">Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</p>
+            </div>
+            {user?.role === 'admin' && (
+              <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <Edit2 size={16} /> Cài đặt FAQ
+              </button>
+            )}
+          </div>
         </div>
         <div className="p-6 max-w-none prose prose-blue prose-sm sm:prose-base">
           {loading ? (
@@ -5214,6 +5212,109 @@ function FAQView({ user, token }: { user: any, token: string }) {
               {markdown}
             </ReactMarkdown>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FAQSettingsAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [faq, setFaq] = useState<any>({ faq_student_md: DEFAULT_STUDENT_FAQ, faq_lecturer_md: DEFAULT_LECTURER_FAQ });
+  const [activeTab, setActiveTab] = useState<'student' | 'lecturer'>('student');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          setFaq({
+            faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
+            faq_lecturer_md: data.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const saveFaq = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/faq`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(faq),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu FAQ thất bại.');
+      alert('Đã lưu FAQ.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeKey = activeTab === 'student' ? 'faq_student_md' : 'faq_lecturer_md';
+  const activeDefault = activeTab === 'student' ? DEFAULT_STUDENT_FAQ : DEFAULT_LECTURER_FAQ;
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải cấu hình FAQ...</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
+          <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng và chỉnh nội dung FAQ bằng Markdown.</p>
+        </div>
+        <button onClick={saveFaq} disabled={saving} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu FAQ
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 w-fit">
+            <button
+              onClick={() => setActiveTab('student')}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              FAQ sinh viên
+            </button>
+            <button
+              onClick={() => setActiveTab('lecturer')}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'lecturer' ? 'bg-teal-50 text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              FAQ giảng viên
+            </button>
+          </div>
+          <button
+            onClick={() => setFaq((prev: any) => ({ ...prev, [activeKey]: activeDefault }))}
+            className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white px-3 py-2 rounded-lg"
+          >
+            Khôi phục nội dung mặc định
+          </button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">{activeTab === 'student' ? 'Nội dung FAQ sinh viên' : 'Nội dung FAQ giảng viên'}</label>
+            <textarea
+              value={faq[activeKey] || ''}
+              onChange={e => setFaq((prev: any) => ({ ...prev, [activeKey]: e.target.value }))}
+              className="w-full min-h-[520px] px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
+            />
+          </div>
+          <div className="p-5">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+            <div className="prose prose-blue prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {faq[activeKey] || ''}
+              </ReactMarkdown>
+            </div>
+          </div>
         </div>
       </div>
     </div>
