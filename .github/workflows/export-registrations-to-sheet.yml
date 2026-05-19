@@ -1,0 +1,33 @@
+name: Export Registrations to Google Sheets
+
+on:
+  schedule:
+    # 23:30 Asia/Ho_Chi_Minh = 16:30 UTC
+    - cron: '30 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export registrations
+        env:
+          API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "Missing VITE_API_BASE_URL secret/variable"
+            exit 1
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET secret"
+            exit 1
+          fi
+          API_BASE_URL="${API_BASE_URL%/}"
+          curl --fail-with-body \
+            --request POST \
+            --header "X-Cron-Secret: $CRON_SECRET" \
+            "$API_BASE_URL/api/cron/export-to-sheet"

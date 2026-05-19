@@ -625,9 +625,24 @@ function App() {
             )}
           </main>
 
-          <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 flex items-center justify-between text-xs text-slate-500 font-medium mt-auto">
+          <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium mt-auto">
             <p>© 2026 Khoa CNTT UET</p>
-            <p>Hỗ trợ: baoptm@vnu.edu.vn</p>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <p>Hỗ trợ: baoptm@vnu.edu.vn</p>
+              <a
+                href="https://www.dmca.com/Protection/Status.aspx?ID=55ad2d0a-8987-4268-995d-d5bb010114a9"
+                title="DMCA.com Protection Status"
+                className="dmca-badge inline-flex"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src="https://images.dmca.com/Badges/dmca_protected_sml_120m.png?ID=55ad2d0a-8987-4268-995d-d5bb010114a9"
+                  alt="DMCA.com Protection Status"
+                  className="h-6 w-auto"
+                />
+              </a>
+            </div>
           </div>
 
           {/* Login Error Modal */}
