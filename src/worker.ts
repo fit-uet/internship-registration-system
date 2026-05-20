@@ -502,16 +502,19 @@ async function createNotification(database: DatabaseClient, data: {
   type: string;
   subject: string;
   body: string;
+  status?: 'queued' | 'website_only';
+  send_now?: boolean;
 }, env?: Env) {
   try {
     if (!data.recipient_email) return;
+    const status = data.status === 'website_only' ? 'website_only' : 'queued';
     const result = await database.execute({
       sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
-      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
     });
-    if (env) return await sendNotificationEmail(database, env, Number(result.lastInsertRowid), data);
-    return 'queued';
+    if (env && status === 'queued') return await sendNotificationEmail(database, env, Number(result.lastInsertRowid), data);
+    return status;
   } catch (e) {
     // Notification failures must not block the main business flow.
   }
@@ -2326,7 +2329,7 @@ async function route(request: Request, env: Env) {
   if (notificationStatus && method === 'PUT') {
     const body = await readBody(request);
     const status = String(body.status || 'queued');
-    if (!['queued', 'sent', 'failed'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
+    if (!['queued', 'sent', 'failed', 'website_only'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
     await database.execute({
       sql: `UPDATE notifications SET status = ?, error = ?, sent_at = ${status === 'sent' ? "datetime('now', '+7 hours')" : 'NULL'} WHERE id = ?`,
       args: [status, body.error || null, Number(notificationStatus[1])],
@@ -2380,10 +2383,13 @@ async function route(request: Request, env: Env) {
   if (method === 'POST' && path === '/api/admin/notifications/manual') {
     const body = await readBody(request);
     const target = String(body.target || '').trim();
+    const recipientInput = String(body.recipient || body.recipient_email || '').trim();
+    const deliveryMode = String(body.delivery_mode || 'website_and_email').trim();
     const subject = String(body.subject || '').trim();
     const content = String(body.body || '').trim();
     if (!subject) return json({ error: 'Tiêu đề không được để trống.' }, 400);
     if (!content) return json({ error: 'Nội dung không được để trống.' }, 400);
+    if (!['website_and_email', 'website_only'].includes(deliveryMode)) return json({ error: 'Kiểu gửi thông báo không hợp lệ.' }, 400);
     let rows: any[] = [];
     if (target === 'lecturers') {
       rows = (await database.execute(`
@@ -2417,6 +2423,39 @@ async function route(request: Request, env: Env) {
         WHERE role = 'student'
         ORDER BY student_id ASC
       `)).rows as any[];
+    } else if (target === 'single_account') {
+      if (!recipientInput) return json({ error: 'Vui lòng nhập email hoặc mã sinh viên/giảng viên.' }, 400);
+      const userRows = (await database.execute({
+        sql: `
+          SELECT id as user_id, email, personal_email, name, student_id, role
+          FROM users
+          WHERE lower(email) = lower(?)
+             OR lower(coalesce(personal_email, '')) = lower(?)
+             OR student_id = ?
+          LIMIT 1
+        `,
+        args: [recipientInput, recipientInput, recipientInput],
+      })).rows as any[];
+      if (userRows.length) {
+        rows = userRows;
+      } else {
+        const lecturerRows = (await database.execute({
+          sql: `
+            SELECT NULL as user_id, email, name, NULL as student_id, 'lecturer' as role
+            FROM lecturers
+            WHERE lower(email) = lower(?)
+            LIMIT 1
+          `,
+          args: [recipientInput],
+        })).rows as any[];
+        if (lecturerRows.length) {
+          rows = lecturerRows;
+        } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientInput)) {
+          rows = [{ user_id: null, email: recipientInput, personal_email: '', name: recipientInput, student_id: null, role: 'external' }];
+        } else {
+          return json({ error: 'Không tìm thấy tài khoản theo email hoặc mã đã nhập.' }, 404);
+        }
+      }
     } else {
       return json({ error: 'Nhóm nhận thông báo không hợp lệ.' }, 400);
     }
@@ -2427,9 +2466,10 @@ async function route(request: Request, env: Env) {
       await notify({
         user_id: row.user_id ? Number(row.user_id) : null,
         recipient_email: recipient,
-        type: target === 'lecturers' ? 'manual_lecturer_notice' : 'manual_student_notice',
+        type: target === 'lecturers' || row.role === 'lecturer' ? 'manual_lecturer_notice' : target === 'single_account' ? 'manual_direct_notice' : 'manual_student_notice',
         subject,
         body: content,
+        status: deliveryMode === 'website_only' ? 'website_only' : 'queued',
       });
       count++;
     }

@@ -413,19 +413,21 @@ async function createNotification(data: {
   type: string;
   subject: string;
   body: string;
+  status?: 'queued' | 'website_only';
   send_now?: boolean;
 }) {
   try {
     if (!data.recipient_email) return;
+    const status = data.status === 'website_only' ? 'website_only' : 'queued';
     const result = await db.execute({
       sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 'queued', datetime('now', '+7 hours'))`,
-      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body],
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
     });
-    if (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true') {
+    if (status === 'queued' && (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true')) {
       return await sendNotificationEmail(Number(result.lastInsertRowid), data);
     }
-    return 'queued';
+    return status;
   } catch (e) {
     // Notification failures must not block the main business flow.
   }
@@ -1867,6 +1869,7 @@ async function startServer() {
           type: 'final_internship_confirmed',
           subject: 'Bạn đã xác nhận nơi thực tập chính thức',
           body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: Thực tập tại trường.${requestAssignment ? '\nBạn đã chọn nhờ Khoa phân công GVHD.' : `\nGVHD đăng ký: ${lecturerName}.`}`,
+          send_now: true,
         });
         return res.json({ success: true });
       }
@@ -1897,6 +1900,7 @@ async function startServer() {
         type: 'final_internship_confirmed',
         subject: 'Bạn đã xác nhận nơi thực tập chính thức',
         body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: ${reg.company_name === 'Công ty khác' ? reg.other_company_name || 'Công ty khác' : reg.company_name}.`,
+        send_now: true,
       });
       res.json({ success: true });
     } catch (e: any) {
@@ -3129,7 +3133,7 @@ async function startServer() {
 
   app.put('/api/admin/notifications/:id/status', requireAuth, requireAdmin, async (req: any, res: any) => {
     const status = String(req.body.status || 'queued');
-    if (!['queued', 'sent', 'failed'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
+    if (!['queued', 'sent', 'failed', 'website_only'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
     await db.execute({
       sql: `UPDATE notifications SET status = ?, error = ?, sent_at = ${status === 'sent' ? "datetime('now', '+7 hours')" : 'NULL'} WHERE id = ?`,
       args: [status, req.body.error || null, Number(req.params.id)],
@@ -3183,10 +3187,13 @@ async function startServer() {
   app.post('/api/admin/notifications/manual', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const target = String(req.body.target || '').trim();
+      const recipientInput = String(req.body.recipient || req.body.recipient_email || '').trim();
+      const deliveryMode = String(req.body.delivery_mode || 'website_and_email').trim();
       const subject = String(req.body.subject || '').trim();
       const body = String(req.body.body || '').trim();
       if (!subject) return res.status(400).json({ error: 'Tiêu đề không được để trống.' });
       if (!body) return res.status(400).json({ error: 'Nội dung không được để trống.' });
+      if (!['website_and_email', 'website_only'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
 
       let rows: any[] = [];
       if (target === 'lecturers') {
@@ -3222,6 +3229,39 @@ async function startServer() {
           WHERE role = 'student'
           ORDER BY student_id ASC
         `)).rows as any[];
+      } else if (target === 'single_account') {
+        if (!recipientInput) return res.status(400).json({ error: 'Vui lòng nhập email hoặc mã sinh viên/giảng viên.' });
+        const userRows = (await db.execute({
+          sql: `
+            SELECT id as user_id, email, personal_email, name, student_id, role
+            FROM users
+            WHERE lower(email) = lower(?)
+               OR lower(coalesce(personal_email, '')) = lower(?)
+               OR student_id = ?
+            LIMIT 1
+          `,
+          args: [recipientInput, recipientInput, recipientInput],
+        })).rows as any[];
+        if (userRows.length) {
+          rows = userRows;
+        } else {
+          const lecturerRows = (await db.execute({
+            sql: `
+              SELECT NULL as user_id, email, name, NULL as student_id, 'lecturer' as role
+              FROM lecturers
+              WHERE lower(email) = lower(?)
+              LIMIT 1
+            `,
+            args: [recipientInput],
+          })).rows as any[];
+          if (lecturerRows.length) {
+            rows = lecturerRows;
+          } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientInput)) {
+            rows = [{ user_id: null, email: recipientInput, personal_email: '', name: recipientInput, student_id: null, role: 'external' }];
+          } else {
+            return res.status(404).json({ error: 'Không tìm thấy tài khoản theo email hoặc mã đã nhập.' });
+          }
+        }
       } else {
         return res.status(400).json({ error: 'Nhóm nhận thông báo không hợp lệ.' });
       }
@@ -3233,9 +3273,10 @@ async function startServer() {
         await createNotification({
           user_id: row.user_id ? Number(row.user_id) : null,
           recipient_email: recipient,
-          type: target === 'lecturers' ? 'manual_lecturer_notice' : 'manual_student_notice',
+          type: target === 'lecturers' || row.role === 'lecturer' ? 'manual_lecturer_notice' : target === 'single_account' ? 'manual_direct_notice' : 'manual_student_notice',
           subject,
           body,
+          status: deliveryMode === 'website_only' ? 'website_only' : 'queued',
         });
         count++;
       }
@@ -3355,6 +3396,7 @@ async function startServer() {
           type: 'registration_status_changed',
           subject: 'Đăng ký thực tập đã được duyệt',
           body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+          send_now: true,
         });
       }
       res.json({ success: true });
@@ -3393,6 +3435,7 @@ async function startServer() {
             type: 'registration_status_changed',
             subject: 'Đăng ký thực tập đã được duyệt',
             body: `Đăng ký thực tập tại ${item.other_company_name || 'Công ty tự liên hệ'} đã được tự động duyệt vì công ty này đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+            send_now: true,
           });
         }
       }
@@ -3403,6 +3446,7 @@ async function startServer() {
           type: 'registration_status_changed',
           subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
           body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+          send_now: true,
         });
       }
       res.json({ success: true });
@@ -3437,6 +3481,7 @@ async function startServer() {
         type: 'registration_review_comment',
         subject: 'Khoa gửi nhận xét về đăng ký thực tập',
         body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
+        send_now: true,
       });
       res.json({ success: true });
     } catch (e: any) {

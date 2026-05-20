@@ -3190,6 +3190,8 @@ function NotificationAdmin({ token }: { token: string }) {
   const [creatingManual, setCreatingManual] = useState(false);
   const [manualNotice, setManualNotice] = useState({
     target: 'students_with_registration',
+    recipient: '',
+    delivery_mode: 'website_and_email',
     subject: '',
     body: '',
   });
@@ -3294,7 +3296,10 @@ function NotificationAdmin({ token }: { token: string }) {
 
   const createManualNotice = async () => {
     if (!manualNotice.subject.trim() || !manualNotice.body.trim()) return alert('Vui lòng nhập tiêu đề và nội dung thông báo.');
-    if (!confirm('Tạo thông báo vào hàng đợi cho nhóm người nhận đã chọn?')) return;
+    if (manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
+    const targetText = manualNotice.target === 'single_account' ? `tài khoản ${manualNotice.recipient.trim()}` : 'nhóm người nhận đã chọn';
+    const deliveryText = manualNotice.delivery_mode === 'website_only' ? 'chỉ hiển thị trên website' : 'hiển thị trên website và đưa vào hàng đợi email';
+    if (!confirm(`Tạo thông báo ${deliveryText} cho ${targetText}?`)) return;
     setCreatingManual(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/notifications/manual`, {
@@ -3304,8 +3309,8 @@ function NotificationAdmin({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Tạo thông báo thất bại.');
-      alert(`Đã tạo ${data.count || 0} thông báo vào hàng đợi.`);
-      setManualNotice(prev => ({ ...prev, subject: '', body: '' }));
+      alert(`Đã tạo ${data.count || 0} thông báo.`);
+      setManualNotice(prev => ({ ...prev, recipient: '', subject: '', body: '' }));
       fetchRows();
     } catch (e) {
       alert('Lỗi kết nối khi tạo thông báo.');
@@ -3350,9 +3355,6 @@ function NotificationAdmin({ token }: { token: string }) {
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={() => sendQueued('all', 'batch')} disabled={sendingQueue || !stats?.statuses?.queued} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            {sendingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi batch
-          </button>
           <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <Send size={16} /> Gửi theo quota
           </button>
@@ -3381,13 +3383,14 @@ function NotificationAdmin({ token }: { token: string }) {
           <option value="queued">Queued</option>
           <option value="sent">Sent</option>
           <option value="failed">Failed</option>
+          <option value="website_only">Chỉ website</option>
         </select>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-slate-800 text-sm">Soạn thông báo thủ công</h3>
-            <p className="text-xs text-slate-500 mt-1">Thông báo được tạo vào hàng đợi; dùng nút “Gửi hàng đợi” để gửi email thật theo quota.</p>
+            <p className="text-xs text-slate-500 mt-1">Thông báo được tạo vào hàng đợi; dùng nút “Gửi theo quota” để gửi email thật.</p>
           </div>
           <select
             value={manualNotice.target}
@@ -3400,8 +3403,25 @@ function NotificationAdmin({ token }: { token: string }) {
             <option value="students_pending">Sinh viên có đăng ký chờ duyệt</option>
             <option value="all_students">Tất cả sinh viên trong hệ thống</option>
             <option value="lecturers">Giảng viên có email</option>
+            <option value="single_account">Một tài khoản cụ thể</option>
           </select>
         </div>
+        <select
+          value={manualNotice.delivery_mode}
+          onChange={e => setManualNotice(prev => ({ ...prev, delivery_mode: e.target.value }))}
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+        >
+          <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
+          <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
+        </select>
+        {manualNotice.target === 'single_account' && (
+          <input
+            value={manualNotice.recipient}
+            onChange={e => setManualNotice(prev => ({ ...prev, recipient: e.target.value }))}
+            placeholder="Email VNU/email cá nhân hoặc mã sinh viên"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+          />
+        )}
         <input
           value={manualNotice.subject}
           onChange={e => setManualNotice(prev => ({ ...prev, subject: e.target.value }))}
@@ -3449,7 +3469,7 @@ function NotificationAdmin({ token }: { token: string }) {
                     <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
                   </td>
                   <td className="px-4 py-4">
-                    <div className={`font-semibold ${row.status === 'sent' ? 'text-emerald-700' : row.status === 'failed' ? 'text-red-700' : 'text-orange-700'}`}>{row.status}</div>
+                    <div className={`font-semibold ${row.status === 'sent' ? 'text-emerald-700' : row.status === 'failed' ? 'text-red-700' : row.status === 'website_only' ? 'text-blue-700' : 'text-orange-700'}`}>{row.status}</div>
                     {row.error && <div className="text-xs text-red-600 mt-1">{row.error}</div>}
                     {row.sent_at && <div className="text-xs text-slate-500">{new Date(row.sent_at).toLocaleString('vi-VN')}</div>}
                   </td>
