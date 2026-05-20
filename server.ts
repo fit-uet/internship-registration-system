@@ -1291,7 +1291,6 @@ async function startServer() {
       return res.status(400).json({ error: 'Thiếu thông tin xác thực Google.' });
     }
 
-    const authContext: { email?: string; studentId?: string | null; defaultRole?: string; userId?: unknown } = {};
     try {
       let payload: any;
       try {
@@ -1314,7 +1313,6 @@ async function startServer() {
 
       const email = String(payload.email || '').trim().toLowerCase();
       const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-      authContext.email = email;
 
       if (!email.endsWith('@vnu.edu.vn') && email !== adminEmail) {
         return res.status(403).json({ error: 'Chỉ chấp nhận email @vnu.edu.vn' });
@@ -1327,10 +1325,8 @@ async function startServer() {
       const picture = payload.picture || null;
       const isLecturerInDb = !!lecturerRecord;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');
-      authContext.defaultRole = defaultRole;
 
       const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
-      authContext.studentId = studentId;
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user && studentId) {
         user = (await db.execute({
@@ -1380,7 +1376,6 @@ async function startServer() {
         user.picture = picture;
       }
 
-      authContext.userId = user.id;
       const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
       res.json({ token, user: { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, student_id: user.student_id, dob: user.dob, class_name: user.class_name, course_code: user.course_code, is_lecturer: user.is_lecturer } });
     } catch (err: any) {
@@ -1400,17 +1395,7 @@ async function startServer() {
           error: 'Không xác thực được tài khoản Google. Vui lòng thử đăng nhập lại; nếu vẫn lỗi, cần kiểm tra OAuth Client ID của frontend và API.',
         });
       }
-      console.error('Authentication failed:', {
-        ...authContext,
-        message,
-        name: err?.name,
-        code: err?.code,
-        stack: err?.stack,
-      });
-      res.status(500).json({
-        error: 'Đăng nhập thất bại do lỗi hệ thống. Vui lòng thử lại sau.',
-        ...(process.env.AUTH_DEBUG_ERRORS === 'true' ? { details: message } : {}),
-      });
+      res.status(500).json({ error: 'Đăng nhập thất bại do lỗi hệ thống. Vui lòng thử lại sau.' });
     }
   });
 

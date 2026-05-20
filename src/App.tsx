@@ -630,7 +630,8 @@ function App() {
           <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium mt-auto">
             <p>© 2026 Khoa CNTT UET</p>
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <p>Hỗ trợ: baoptm@vnu.edu.vn</p>
+              <p>Hỗ trợ thông tin: baoptm@vnu.edu.vn (cô Bảo)</p>
+              <p>Hỗ trợ kỹ thuật: 0961309175 (Tuyên)</p>
             </div>
           </div>
 
