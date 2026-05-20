@@ -3383,42 +3383,58 @@ function NotificationAdmin({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Clock className="text-amber-600" /> Lịch sử thông báo</h2>
-          <p className="text-sm text-slate-500 mt-1">Ghi nhận email quan trọng và gửi theo lô để tránh vượt quota Brevo Free.</p>
           {stats && (
             <p className="text-xs text-slate-500 mt-1">
               Provider: <strong>{stats.provider}</strong> · Đã gửi hôm nay: <strong>{stats.sent_today}/{stats.daily_cap}</strong> · Đang chờ: <strong>{stats.statuses?.queued || 0}</strong> · Batch: <strong>{stats.batch_size}</strong>
             </p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Send size={16} /> Gửi theo quota
-          </button>
-          <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Send size={16} /> Gửi lọc theo quota
-          </button>
-          <button onClick={() => deleteQueued('selected')} disabled={deletingQueue || selectedQueuedCount === 0} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            {deletingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Xoá đã chọn
-          </button>
-          <button onClick={() => deleteQueued('filtered')} disabled={deletingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Trash2 size={16} /> Xoá lọc
-          </button>
-          <button onClick={() => deleteQueued('all')} disabled={deletingQueue || !stats?.statuses?.queued} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Trash2 size={16} /> Xoá toàn bộ hàng đợi
-          </button>
-          <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <CheckCircle2 size={16} /> Mở xác nhận
-          </button>
-          <button onClick={createFinalReportReminders} disabled={creatingReminders} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            {creatingReminders ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />} Nhắc nộp báo cáo
-          </button>
-          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất XLSX
-          </button>
+        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+          <Download size={16} /> Xuất XLSX
+        </button>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-4">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-500 uppercase">Gửi email</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-green-700 text-white px-3 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <Send size={16} /> Gửi theo quota
+              </button>
+              <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <Send size={16} /> Gửi lọc
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-500 uppercase">Xoá hàng đợi</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
+              <button onClick={() => deleteQueued('selected')} disabled={deletingQueue || selectedQueuedCount === 0} className="justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                {deletingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Đã chọn
+              </button>
+              <button onClick={() => deleteQueued('filtered')} disabled={deletingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <Trash2 size={16} /> Đang lọc
+              </button>
+              <button onClick={() => deleteQueued('all')} disabled={deletingQueue || !stats?.statuses?.queued} className="justify-center bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <Trash2 size={16} /> Tất cả
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-500 uppercase">Tạo thông báo hệ thống</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+              <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="justify-center bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <CheckCircle2 size={16} /> Mở xác nhận
+              </button>
+              <button onClick={createFinalReportReminders} disabled={creatingReminders} className="justify-center bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                {creatingReminders ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />} Nhắc báo cáo
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
