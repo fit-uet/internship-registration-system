@@ -1983,6 +1983,32 @@ function AdminPanel({ token }: { token: string }) {
     }
   };
 
+  const handleSendRegistrationComment = async (reg: any) => {
+    const comment = prompt(
+      `Nhận xét gửi cho ${reg.student_name || 'sinh viên'}:`,
+      reg.review_comment || ''
+    );
+    if (comment === null) return;
+    const review_comment = comment.trim();
+    if (!review_comment) return alert('Vui lòng nhập nội dung nhận xét.');
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/registrations/${reg.registration_id}/comment`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ review_comment })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi nhận xét thất bại.');
+      fetchRegistrations();
+      alert('Đã gửi nhận xét cho sinh viên.');
+    } catch (e) {
+      alert('Lỗi kết nối.');
+    }
+  };
+
   const handleApproveAll = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn duyệt tất cả các đăng ký đang chờ?")) return;
     const commentPrompt = prompt('Nhận xét chung gửi cho các sinh viên được duyệt (có thể để trống):', '');
@@ -2262,7 +2288,15 @@ function AdminPanel({ token }: { token: string }) {
                       </select>
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-600 min-w-[220px] whitespace-pre-wrap">
-                      {reg.review_comment || '-'}
+                      <div className="space-y-2">
+                        <div>{reg.review_comment || '-'}</div>
+                        <button
+                          onClick={() => handleSendRegistrationComment(reg)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          <Send size={12} /> Gửi nhận xét
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -3231,19 +3265,26 @@ function NotificationAdmin({ token }: { token: string }) {
     }
   };
 
-  const sendQueued = async () => {
-    if (!confirm('Gửi một lô email đang chờ theo giới hạn/ngày đã cấu hình?')) return;
+  const sendQueued = async (scope: 'all' | 'filtered' = 'all', mode: 'batch' | 'quota' = 'batch') => {
+    const filteredQueuedIds = filtered.filter(row => row.status === 'queued').map(row => Number(row.id)).filter(Boolean);
+    if (scope === 'filtered' && filteredQueuedIds.length === 0) return alert('Danh sách đang lọc không có thông báo queued nào.');
+    const scopeText = scope === 'filtered' ? `danh sách đang lọc (${filteredQueuedIds.length} queued)` : 'toàn bộ hàng đợi';
+    const modeText = mode === 'quota' ? `tối đa quota còn lại hôm nay (${stats?.remaining_today ?? '-'})` : `một batch (${stats?.batch_size || 25})`;
+    if (!confirm(`Gửi ${modeText} trong ${scopeText}?`)) return;
     setSendingQueue(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/notifications/send-queued`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          mode,
+          notification_ids: scope === 'filtered' ? filteredQueuedIds : undefined,
+        })
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Gửi email đang chờ thất bại.');
-      alert(`Đã gửi ${data.sent || 0}, lỗi ${data.failed || 0}. Còn quota hôm nay: ${data.remaining_today ?? '-'} email.`);
-      fetchRows();
+      await fetchRows();
+      alert(`Đã gửi ${data.sent || 0}, lỗi ${data.failed || 0}, bỏ qua ${data.skipped || 0}. Còn quota hôm nay: ${data.remaining_today ?? '-'} email.`);
     } catch (e) {
       alert('Lỗi kết nối khi gửi hàng đợi.');
     } finally {
@@ -3309,8 +3350,14 @@ function NotificationAdmin({ token }: { token: string }) {
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={sendQueued} disabled={sendingQueue || !stats?.statuses?.queued} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            {sendingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi hàng đợi
+          <button onClick={() => sendQueued('all', 'batch')} disabled={sendingQueue || !stats?.statuses?.queued} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            {sendingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi batch
+          </button>
+          <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Send size={16} /> Gửi theo quota
+          </button>
+          <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Send size={16} /> Gửi lọc theo quota
           </button>
           <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <CheckCircle2 size={16} /> Mở xác nhận

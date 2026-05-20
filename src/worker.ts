@@ -2498,6 +2498,35 @@ async function route(request: Request, env: Env) {
     return json({ success: true });
   }
 
+  const commentMatch = path.match(/^\/api\/admin\/registrations\/(\d+)\/comment$/);
+  if (method === 'PUT' && commentMatch) {
+    const body = await readBody(request);
+    const reviewComment = String(body.review_comment || '').trim();
+    if (!reviewComment) return json({ error: 'Nội dung nhận xét không được để trống.' }, 400);
+    const row = (await database.execute({
+      sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.id = ?`,
+      args: [commentMatch[1]],
+    })).rows[0] as any;
+    if (!row) return json({ error: 'Không tìm thấy đăng ký.' }, 404);
+
+    await database.execute({
+      sql: 'UPDATE registrations SET review_comment = ? WHERE id = ?',
+      args: [reviewComment, commentMatch[1]],
+    });
+    await notify({
+      user_id: Number(row.user_id),
+      recipient_email: row.personal_email || row.email,
+      type: 'registration_review_comment',
+      subject: 'Khoa gửi nhận xét về đăng ký thực tập',
+      body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
+    });
+    return json({ success: true });
+  }
+
   if (method === 'GET' && path === '/api/admin/admins') {
     return json((await database.execute("SELECT id, email, name, picture, is_lecturer FROM users WHERE role = 'admin' ORDER BY name ASC")).rows);
   }

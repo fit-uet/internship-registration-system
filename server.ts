@@ -522,22 +522,38 @@ async function sendNotificationEmail(notificationId: number, data: {
   }
 }
 
-async function sendQueuedNotificationBatch(requestedLimit?: number) {
+async function sendQueuedNotificationBatch(options: { requestedLimit?: number; notificationIds?: number[]; ignoreBatchSize?: boolean } = {}) {
   const sentToday = await emailSentTodayCount();
   const remainingToday = Math.max(0, emailDailySendCap() - sentToday);
-  const limit = Math.max(0, Math.min(Number(requestedLimit || emailBatchSize()), emailBatchSize(), remainingToday));
+  const batchLimit = options.ignoreBatchSize ? remainingToday : emailBatchSize();
+  const requestedLimit = Number(options.requestedLimit || batchLimit);
+  const idLimit = options.notificationIds?.length ? options.notificationIds.length : requestedLimit;
+  const limit = Math.max(0, Math.min(requestedLimit, idLimit, batchLimit, remainingToday));
   if (limit === 0) {
     return { sent: 0, failed: 0, skipped: 0, remaining_today: remainingToday, message: 'Đã đạt giới hạn gửi email hôm nay.' };
   }
 
-  const rows = (await db.execute({
-    sql: `SELECT id, recipient_email, subject, body
-          FROM notifications
-          WHERE status = 'queued'
-          ORDER BY created_at ASC, id ASC
-          LIMIT ?`,
-    args: [limit],
-  })).rows as any[];
+  const normalizedIds = Array.from(new Set((options.notificationIds || [])
+    .map(id => Number(id))
+    .filter(id => Number.isInteger(id) && id > 0)));
+  const rows = normalizedIds.length > 0
+    ? (await db.execute({
+      sql: `SELECT id, recipient_email, subject, body
+            FROM notifications
+            WHERE status = 'queued'
+              AND id IN (${normalizedIds.map(() => '?').join(',')})
+            ORDER BY created_at ASC, id ASC
+            LIMIT ?`,
+      args: [...normalizedIds, limit],
+    })).rows as any[]
+    : (await db.execute({
+      sql: `SELECT id, recipient_email, subject, body
+            FROM notifications
+            WHERE status = 'queued'
+            ORDER BY created_at ASC, id ASC
+            LIMIT ?`,
+      args: [limit],
+    })).rows as any[];
 
   let sent = 0;
   let failed = 0;
@@ -556,6 +572,7 @@ async function sendQueuedNotificationBatch(requestedLimit?: number) {
     failed,
     skipped: Math.max(0, rows.length - sent - failed),
     remaining_today: Math.max(0, remainingToday - sent),
+    selected: normalizedIds.length || null,
   };
 }
 
@@ -3101,7 +3118,12 @@ async function startServer() {
     if (provider === 'brevo' && !process.env.BREVO_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình BREVO_API_KEY.' });
     if (provider === 'resend' && !process.env.RESEND_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình RESEND_API_KEY.' });
     if (!process.env.EMAIL_FROM && !process.env.NOTIFICATION_EMAIL_FROM) return res.status(400).json({ error: 'Chưa cấu hình EMAIL_FROM.' });
-    const result = await sendQueuedNotificationBatch(Number(req.body?.limit || 0) || undefined);
+    const notificationIds = Array.isArray(req.body?.notification_ids) ? req.body.notification_ids : undefined;
+    const result = await sendQueuedNotificationBatch({
+      requestedLimit: Number(req.body?.limit || 0) || undefined,
+      notificationIds,
+      ignoreBatchSize: req.body?.mode === 'quota',
+    });
     res.json({ success: true, ...result });
   });
 
@@ -3383,6 +3405,39 @@ async function startServer() {
           body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
         });
       }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put('/api/admin/registrations/:id/comment', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { id } = req.params;
+    const reviewComment = String(req.body?.review_comment || '').trim();
+    if (!reviewComment) return res.status(400).json({ error: 'Nội dung nhận xét không được để trống.' });
+
+    try {
+      const row = (await db.execute({
+        sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+              FROM registrations r
+              JOIN users u ON u.id = r.user_id
+              JOIN companies c ON c.id = r.company_id
+              WHERE r.id = ?`,
+        args: [id],
+      })).rows[0] as any;
+      if (!row) return res.status(404).json({ error: 'Không tìm thấy đăng ký.' });
+
+      await db.execute({
+        sql: 'UPDATE registrations SET review_comment = ? WHERE id = ?',
+        args: [reviewComment, id],
+      });
+      await createNotification({
+        user_id: Number(row.user_id),
+        recipient_email: row.personal_email || row.email,
+        type: 'registration_review_comment',
+        subject: 'Khoa gửi nhận xét về đăng ký thực tập',
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
+      });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
