@@ -346,6 +346,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
     if (type === 'advisor_assigned') return 'GVHD';
     if (type === 'final_report_status_changed') return 'Báo cáo';
     if (type === 'grade_locked') return 'Bảng điểm';
+    if (type === 'faq_answered') return 'FAQ';
     if (type === 'manual_student_notice' || type === 'manual_lecturer_notice') return 'Thông báo';
     return type || 'Thông báo';
   };
@@ -5580,14 +5581,47 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
 function FAQView({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<any>(null);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [newQuestion, setNewQuestion] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+
+  const fetchMyFaqQuestions = async () => {
+    const res = await fetch(`${API_BASE}/api/faq/questions/my`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    setQuestions(Array.isArray(data) ? data : []);
+  };
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => setCampaign(data && !data.error ? data : {}))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => setCampaign(data && !data.error ? data : {})),
+      fetchMyFaqQuestions().catch(() => setQuestions([])),
+    ]).finally(() => setLoading(false));
   }, [token]);
+
+  const submitQuestion = async () => {
+    const question = newQuestion.trim();
+    if (!question) return alert('Vui lòng nhập câu hỏi.');
+    setSubmittingQuestion(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/faq/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi câu hỏi thất bại.');
+      setNewQuestion('');
+      await fetchMyFaqQuestions();
+      alert('Đã gửi câu hỏi tới quản trị viên.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSubmittingQuestion(false);
+    }
+  };
 
   const faqRole = user?.role === 'lecturer' ? 'lecturer' : 'student';
   const markdown = faqRole === 'lecturer'
@@ -5642,6 +5676,56 @@ function FAQView({ user, token }: { user: any, token: string }) {
           )}
         </div>
       </div>
+      {user?.role !== 'admin' && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 bg-slate-50">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</h3>
+            <p className="text-xs text-slate-500 mt-1">Câu hỏi sẽ được quản trị viên trả lời trong mục FAQ; câu trả lời cũng hiển thị trong thông báo của bạn.</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <textarea
+              value={newQuestion}
+              onChange={e => setNewQuestion(e.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="Nhập câu hỏi của bạn..."
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-xs text-slate-500">{newQuestion.length}/2000 ký tự</span>
+              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                {submittingQuestion ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi câu hỏi
+              </button>
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-3">Câu hỏi của tôi</h4>
+              {questions.length === 0 ? (
+                <div className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4">Bạn chưa gửi câu hỏi nào.</div>
+              ) : (
+                <div className="space-y-3">
+                  {questions.map(q => (
+                    <div key={q.id} className="border border-slate-200 rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <span className={`text-xs font-bold px-2 py-1 rounded w-fit ${q.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {q.status === 'answered' ? 'Đã trả lời' : 'Chờ trả lời'}
+                        </span>
+                        <span className="text-xs text-slate-400">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900 whitespace-pre-wrap">{q.question}</div>
+                      {q.answer && (
+                        <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
+                          <div className="text-xs font-bold text-blue-700 uppercase mb-1">Trả lời</div>
+                          {q.answer}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5649,22 +5733,36 @@ function FAQView({ user, token }: { user: any, token: string }) {
 function FAQSettingsAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
   const [faq, setFaq] = useState<any>({ faq_student_md: DEFAULT_STUDENT_FAQ, faq_lecturer_md: DEFAULT_LECTURER_FAQ });
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
   const [activeTab, setActiveTab] = useState<'student' | 'lecturer'>('student');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [answeringId, setAnsweringId] = useState<number | null>(null);
   const [importingDocx, setImportingDocx] = useState(false);
 
+  const fetchFaqQuestions = async () => {
+    const res = await fetch(`${API_BASE}/api/admin/faq/questions`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    const rows = Array.isArray(data) ? data : [];
+    setQuestions(rows);
+    setAnswerDrafts(Object.fromEntries(rows.map((row: any) => [Number(row.id), row.answer || ''])));
+  };
+
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
-        if (data && !data.error) {
-          setFaq({
-            faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
-            faq_lecturer_md: data.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
-          });
-        }
-      })
+    Promise.all([
+      fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data && !data.error) {
+            setFaq({
+              faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
+              faq_lecturer_md: data.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+            });
+          }
+        }),
+      fetchFaqQuestions().catch(() => setQuestions([])),
+    ])
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -5688,6 +5786,28 @@ function FAQSettingsAdmin({ token }: { token: string }) {
 
   const activeKey = activeTab === 'student' ? 'faq_student_md' : 'faq_lecturer_md';
   const activeDefault = activeTab === 'student' ? DEFAULT_STUDENT_FAQ : DEFAULT_LECTURER_FAQ;
+  const pendingQuestions = questions.filter(q => q.status !== 'answered').length;
+
+  const answerQuestion = async (questionId: number) => {
+    const answer = String(answerDrafts[questionId] || '').trim();
+    if (!answer) return alert('Vui lòng nhập câu trả lời.');
+    setAnsweringId(questionId);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/faq/questions/${questionId}/answer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ answer }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu câu trả lời thất bại.');
+      await fetchFaqQuestions();
+      alert('Đã trả lời câu hỏi.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setAnsweringId(null);
+    }
+  };
 
   const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -5716,11 +5836,62 @@ function FAQSettingsAdmin({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
-          <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng và chỉnh nội dung FAQ bằng Markdown.</p>
+          <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng, chỉnh nội dung FAQ và trả lời câu hỏi được gửi từ người dùng.</p>
         </div>
         <button onClick={saveFaq} disabled={saving} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
           {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu FAQ
         </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Câu hỏi gửi tới FAQ</h3>
+            <p className="text-xs text-slate-500 mt-1">Còn <strong>{pendingQuestions}</strong> câu hỏi đang chờ trả lời.</p>
+          </div>
+          <button onClick={fetchFaqQuestions} className="text-sm font-semibold text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-lg flex items-center gap-2 w-fit">
+            <RefreshCw size={15} /> Tải lại
+          </button>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {questions.length === 0 ? (
+            <div className="p-6 text-sm text-slate-500">Chưa có câu hỏi nào được gửi.</div>
+          ) : questions.map(q => (
+            <div key={q.id} className="p-5 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className={`text-xs font-bold px-2 py-1 rounded ${q.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {q.status === 'answered' ? 'Đã trả lời' : 'Chờ trả lời'}
+                  </span>
+                  <span className="text-xs text-slate-500">{q.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'}</span>
+                  <span className="text-xs text-slate-400">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
+                </div>
+                <div className="text-sm font-semibold text-slate-900">{q.user_name || q.user_email || 'Người dùng'}</div>
+                <div className="text-xs text-slate-500 mb-3">{q.student_id || q.user_email || ''}</div>
+                <div className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 border border-slate-100 rounded-lg p-3">{q.question}</div>
+              </div>
+              <div className="space-y-3">
+                <textarea
+                  value={answerDrafts[Number(q.id)] || ''}
+                  onChange={e => setAnswerDrafts(prev => ({ ...prev, [Number(q.id)]: e.target.value }))}
+                  rows={5}
+                  placeholder="Nhập câu trả lời..."
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                />
+                {q.answered_at && (
+                  <div className="text-xs text-slate-500">
+                    Trả lời lúc {new Date(q.answered_at).toLocaleString('vi-VN')}{q.answered_by_name ? ` bởi ${q.answered_by_name}` : ''}
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <button onClick={() => answerQuestion(Number(q.id))} disabled={answeringId === Number(q.id)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+                    {answeringId === Number(q.id) ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} {q.status === 'answered' ? 'Cập nhật trả lời' : 'Trả lời'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

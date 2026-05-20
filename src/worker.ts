@@ -731,6 +731,17 @@ async function initDb(env: Env) {
         sent_at DATETIME,
         read_at DATETIME
       );
+      CREATE TABLE IF NOT EXISTS faq_questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        answered_at DATETIME,
+        answered_by INTEGER
+      );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
     `);
@@ -2698,6 +2709,84 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(body.faq_student_md || '')] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(body.faq_lecturer_md || '')] },
     ]);
+    return json({ success: true });
+  }
+
+  if (method === 'GET' && path === '/api/faq/questions/my') {
+    const rows = (await database.execute({
+      sql: `
+        SELECT id, role, question, answer, status, created_at, answered_at
+        FROM faq_questions
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
+      `,
+      args: [user.id],
+    })).rows;
+    return json(rows);
+  }
+
+  if (method === 'POST' && path === '/api/faq/questions') {
+    const body = await readBody(request);
+    const question = String(body.question || '').trim();
+    if (!question) return json({ error: 'Vui lòng nhập câu hỏi.' }, 400);
+    if (question.length > 2000) return json({ error: 'Câu hỏi không được vượt quá 2000 ký tự.' }, 400);
+    const role = user.role === 'lecturer' ? 'lecturer' : 'student';
+    const result = await database.execute({
+      sql: `
+        INSERT INTO faq_questions (user_id, role, question, status, created_at)
+        VALUES (?, ?, ?, 'pending', datetime('now', '+7 hours'))
+      `,
+      args: [user.id, role, question],
+    });
+    return json({ success: true, id: Number(result.lastInsertRowid) });
+  }
+
+  if (method === 'GET' && path === '/api/admin/faq/questions') {
+    requireRole(user, ['admin']);
+    const rows = (await database.execute(`
+      SELECT q.*, u.name as user_name, u.email as user_email, u.student_id, a.name as answered_by_name
+      FROM faq_questions q
+      JOIN users u ON u.id = q.user_id
+      LEFT JOIN users a ON a.id = q.answered_by
+      ORDER BY CASE q.status WHEN 'pending' THEN 0 ELSE 1 END, q.created_at DESC
+      LIMIT 500
+    `)).rows;
+    return json(rows);
+  }
+
+  const faqAnswerMatch = path.match(/^\/api\/admin\/faq\/questions\/(\d+)\/answer$/);
+  if (method === 'PUT' && faqAnswerMatch) {
+    requireRole(user, ['admin']);
+    const body = await readBody(request);
+    const answer = String(body.answer || '').trim();
+    if (!answer) return json({ error: 'Vui lòng nhập câu trả lời.' }, 400);
+    const existing = (await database.execute({
+      sql: `
+        SELECT q.*, u.email, u.personal_email
+        FROM faq_questions q
+        JOIN users u ON u.id = q.user_id
+        WHERE q.id = ?
+      `,
+      args: [Number(faqAnswerMatch[1])],
+    })).rows[0] as any;
+    if (!existing) return json({ error: 'Không tìm thấy câu hỏi.' }, 404);
+    await database.execute({
+      sql: `
+        UPDATE faq_questions
+        SET answer = ?, status = 'answered', answered_at = datetime('now', '+7 hours'), answered_by = ?
+        WHERE id = ?
+      `,
+      args: [answer, user.id, Number(faqAnswerMatch[1])],
+    });
+    await notify({
+      user_id: Number(existing.user_id),
+      recipient_email: existing.personal_email || existing.email,
+      type: 'faq_answered',
+      subject: 'Câu hỏi FAQ của bạn đã được trả lời',
+      body: `Câu hỏi:\n${existing.question}\n\nTrả lời:\n${answer}`,
+      status: 'website_only',
+    });
     return json({ success: true });
   }
 

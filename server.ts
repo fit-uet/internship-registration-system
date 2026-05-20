@@ -995,6 +995,17 @@ async function initDb() {
       last_attempt_at DATETIME,
       read_at DATETIME
     );
+    CREATE TABLE IF NOT EXISTS faq_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      question TEXT NOT NULL,
+      answer TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      answered_at DATETIME,
+      answered_by INTEGER
+    );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -3624,6 +3635,79 @@ async function startServer() {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(req.body.faq_student_md || '')] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(req.body.faq_lecturer_md || '')] },
     ]);
+    res.json({ success: true });
+  });
+
+  app.get('/api/faq/questions/my', requireAuth, async (req: any, res: any) => {
+    const rows = (await db.execute({
+      sql: `
+        SELECT id, role, question, answer, status, created_at, answered_at
+        FROM faq_questions
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
+      `,
+      args: [req.user.id],
+    })).rows;
+    res.json(rows);
+  });
+
+  app.post('/api/faq/questions', requireAuth, async (req: any, res: any) => {
+    const question = String(req.body.question || '').trim();
+    if (!question) return res.status(400).json({ error: 'Vui lòng nhập câu hỏi.' });
+    if (question.length > 2000) return res.status(400).json({ error: 'Câu hỏi không được vượt quá 2000 ký tự.' });
+    const role = req.user.role === 'lecturer' ? 'lecturer' : 'student';
+    const result = await db.execute({
+      sql: `
+        INSERT INTO faq_questions (user_id, role, question, status, created_at)
+        VALUES (?, ?, ?, 'pending', datetime('now', '+7 hours'))
+      `,
+      args: [req.user.id, role, question],
+    });
+    res.json({ success: true, id: Number(result.lastInsertRowid) });
+  });
+
+  app.get('/api/admin/faq/questions', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const rows = (await db.execute(`
+      SELECT q.*, u.name as user_name, u.email as user_email, u.student_id, a.name as answered_by_name
+      FROM faq_questions q
+      JOIN users u ON u.id = q.user_id
+      LEFT JOIN users a ON a.id = q.answered_by
+      ORDER BY CASE q.status WHEN 'pending' THEN 0 ELSE 1 END, q.created_at DESC
+      LIMIT 500
+    `)).rows;
+    res.json(rows);
+  });
+
+  app.put('/api/admin/faq/questions/:id/answer', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const answer = String(req.body.answer || '').trim();
+    if (!answer) return res.status(400).json({ error: 'Vui lòng nhập câu trả lời.' });
+    const existing = (await db.execute({
+      sql: `
+        SELECT q.*, u.email, u.personal_email
+        FROM faq_questions q
+        JOIN users u ON u.id = q.user_id
+        WHERE q.id = ?
+      `,
+      args: [Number(req.params.id)],
+    })).rows[0] as any;
+    if (!existing) return res.status(404).json({ error: 'Không tìm thấy câu hỏi.' });
+    await db.execute({
+      sql: `
+        UPDATE faq_questions
+        SET answer = ?, status = 'answered', answered_at = datetime('now', '+7 hours'), answered_by = ?
+        WHERE id = ?
+      `,
+      args: [answer, req.user.id, Number(req.params.id)],
+    });
+    await createNotification({
+      user_id: Number(existing.user_id),
+      recipient_email: existing.personal_email || existing.email,
+      type: 'faq_answered',
+      subject: 'Câu hỏi FAQ của bạn đã được trả lời',
+      body: `Câu hỏi:\n${existing.question}\n\nTrả lời:\n${answer}`,
+      status: 'website_only',
+    });
     res.json({ success: true });
   });
 
