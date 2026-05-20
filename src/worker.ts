@@ -279,6 +279,51 @@ async function addApprovedCompanyFromRegistration(database: LibsqlLike, row: any
   return true;
 }
 
+async function approveMatchingOtherCompanyRegistrations(database: LibsqlLike, row: any, reviewComment: string) {
+  if (!row || row.company_name !== 'Công ty khác') return [];
+  const normalized = normalizeCompanyName(row.other_company_name || '');
+  if (!normalized) return [];
+  const pending = (await database.execute(`
+    SELECT r.id, u.id as user_id, u.email, u.personal_email, r.other_company_name
+    FROM registrations r
+    JOIN users u ON u.id = r.user_id
+    JOIN companies c ON c.id = r.company_id
+    WHERE c.name = 'Công ty khác'
+      AND r.status = 'pending'
+      AND r.other_company_name IS NOT NULL
+  `)).rows as any[];
+  const matched = pending.filter(item => normalizeCompanyName(item.other_company_name || '') === normalized);
+  if (matched.length === 0) return [];
+  await executeBatch(database, matched.map(item => ({
+    sql: 'UPDATE registrations SET status = ?, review_comment = ? WHERE id = ?',
+    args: ['approved', reviewComment || 'Tự động duyệt do công ty tự liên hệ đã được Khoa duyệt.', item.id],
+  })));
+  return matched;
+}
+
+async function approvePendingOtherRegistrationsFromApprovedNames(database: LibsqlLike) {
+  const approvedRows = (await database.execute('SELECT normalized_name FROM approved_company_names')).rows as any[];
+  const approvedNames = new Set(approvedRows.map(row => String(row.normalized_name || '').trim()).filter(Boolean));
+  if (approvedNames.size === 0) return;
+  const pendingRows = (await database.execute(`
+    SELECT r.id, r.other_company_name
+    FROM registrations r
+    JOIN companies c ON c.id = r.company_id
+    WHERE c.name = 'Công ty khác'
+      AND r.status = 'pending'
+      AND r.other_company_name IS NOT NULL
+  `)).rows as any[];
+  const matched = pendingRows.filter(row => approvedNames.has(normalizeCompanyName(row.other_company_name || '')));
+  if (matched.length === 0) return;
+  await executeBatch(database, matched.map(row => ({
+    sql: `UPDATE registrations
+          SET status = 'approved',
+              review_comment = COALESCE(review_comment, 'Tự động duyệt do công ty tự liên hệ đã có trong danh sách thẩm định.')
+          WHERE id = ?`,
+    args: [row.id],
+  })));
+}
+
 const MIGRATION_TABLES = [
   'settings',
   'users',
@@ -751,6 +796,7 @@ async function initDb(env: Env) {
         WHERE role = 'primary';
     `);
     await ensureSpecialCompanies(database);
+    await approvePendingOtherRegistrationsFromApprovedNames(database);
   })().catch(error => {
     initPromise = null;
     throw error;
@@ -1697,34 +1743,58 @@ async function route(request: Request, env: Env) {
       WHERE c.name != 'Công ty khác'
       ORDER BY c.name ASC
     `)).rows;
-    const otherRows = (await database.execute(`
-      SELECT NULL as id,
-             'other' as record_type,
-             'other:' || lower(trim(other_company_name)) as company_key,
-             other_company_name as name,
-             other_company_name as display_name,
-             '' as description,
-             0 as slots,
-             '' as contact_email,
-             '' as contact_name,
-             '' as history,
-             '' as qualifications,
-             '' as address,
-             '' as recruitment_link,
-             '' as phone,
-             COUNT(*) as applicant_count,
-             SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_applicant_count,
-             SUM(CASE WHEN sent_to_company_at IS NOT NULL THEN 1 ELSE 0 END) as sent_count,
-             MAX(sent_to_company_at) as last_sent_at,
-             0 as remaining_slots,
-             GROUP_CONCAT(DISTINCT other_company_role) as roles,
-             GROUP_CONCAT(DISTINCT other_company_contact) as contacts
+    const officialNormalizedNames = new Set(officialRows.map((row: any) => normalizeCompanyName(row.name)).filter(Boolean));
+    const rawOtherRows = (await database.execute(`
+      SELECT other_company_name, other_company_role, other_company_contact, status, sent_to_company_at
       FROM registrations
       WHERE other_company_name IS NOT NULL AND trim(other_company_name) != ''
-        AND lower(trim(other_company_name)) NOT IN (SELECT lower(trim(name)) FROM companies WHERE name != 'Công ty khác')
-      GROUP BY lower(trim(other_company_name)), other_company_name
-      ORDER BY other_company_name ASC
-    `)).rows;
+    `)).rows as any[];
+    const otherMap = new Map<string, any>();
+    for (const row of rawOtherRows) {
+      const normalized = normalizeCompanyName(row.other_company_name || '');
+      if (!normalized || officialNormalizedNames.has(normalized)) continue;
+      const current = otherMap.get(normalized) || {
+        id: null,
+        record_type: 'other',
+        company_key: `other:${normalized}`,
+        name: String(row.other_company_name || '').trim(),
+        display_name: String(row.other_company_name || '').trim(),
+        description: '',
+        slots: 0,
+        contact_email: '',
+        contact_name: '',
+        history: '',
+        qualifications: '',
+        address: '',
+        recruitment_link: '',
+        phone: '',
+        applicant_count: 0,
+        approved_applicant_count: 0,
+        sent_count: 0,
+        last_sent_at: null,
+        remaining_slots: 0,
+        roles_set: new Set<string>(),
+        contacts_set: new Set<string>(),
+      };
+      current.applicant_count += 1;
+      if (row.status === 'approved') current.approved_applicant_count += 1;
+      if (row.sent_to_company_at) {
+        current.sent_count += 1;
+        if (!current.last_sent_at || row.sent_to_company_at > current.last_sent_at) current.last_sent_at = row.sent_to_company_at;
+      }
+      if (row.other_company_role) current.roles_set.add(row.other_company_role);
+      if (row.other_company_contact) current.contacts_set.add(row.other_company_contact);
+      otherMap.set(normalized, current);
+    }
+    const otherRows = Array.from(otherMap.values())
+      .map(row => ({
+        ...row,
+        roles: Array.from(row.roles_set).join(','),
+        contacts: Array.from(row.contacts_set).join(','),
+        roles_set: undefined,
+        contacts_set: undefined,
+      }))
+      .sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), 'vi'));
     return json([...officialRows, ...otherRows]);
   }
 
@@ -2403,10 +2473,20 @@ async function route(request: Request, env: Env) {
       args: [statusMatch[1]],
     })).rows[0] as any;
     await database.execute({ sql: 'UPDATE registrations SET status = ?, review_comment = ? WHERE id = ?', args: [body.status, reviewComment || null, statusMatch[1]] });
-    if (row && row.status !== body.status) {
-      if (body.status === 'approved') {
-        await addApprovedCompanyFromRegistration(database, row);
+    if (row && body.status === 'approved') {
+      await addApprovedCompanyFromRegistration(database, row);
+      const autoApproved = await approveMatchingOtherCompanyRegistrations(database, row, reviewComment);
+      for (const item of autoApproved) {
+        await notify({
+          user_id: Number(item.user_id),
+          recipient_email: item.personal_email || item.email,
+          type: 'registration_status_changed',
+          subject: 'Đăng ký thực tập đã được duyệt',
+          body: `Đăng ký thực tập tại ${item.other_company_name || 'Công ty tự liên hệ'} đã được tự động duyệt vì công ty này đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+        });
       }
+    }
+    if (row && row.status !== body.status) {
       await notify({
         user_id: Number(row.user_id),
         recipient_email: row.personal_email || row.email,
