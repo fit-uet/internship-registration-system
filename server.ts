@@ -1325,13 +1325,19 @@ async function startServer() {
       const isLecturerInDb = !!lecturerRecord;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');
 
+      const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
+      if (!user && studentId) {
+        user = (await db.execute({
+          sql: "SELECT * FROM users WHERE role = 'student' AND student_id = ?",
+          args: [studentId],
+        })).rows[0] as any;
+      }
       const effectiveRole = user?.role || defaultRole;
       if (effectiveRole === 'student' && !isLecturerInDb && email !== adminEmail) {
         await assertStudentCohortAllowed(email);
       }
       if (!user) {
-        const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
         const result = await db.execute({
           sql: 'INSERT INTO users (email, name, picture, role, student_id, is_lecturer) VALUES (?, ?, ?, ?, ?, ?)',
           args: [email, displayName, payload.picture, defaultRole, studentId, isLecturerInDb ? 1 : 0]
@@ -1347,14 +1353,16 @@ async function startServer() {
         }
         await db.execute({
           sql: `UPDATE users
-                SET picture = ?,
+                SET email = ?,
+                    picture = ?,
                     role = ?,
                     name = CASE WHEN ? = 1 THEN ? ELSE name END,
                     is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE CASE WHEN ? = 1 THEN 0 ELSE is_lecturer END END,
-                    student_id = CASE WHEN ? = 'student' THEN student_id ELSE NULL END
+                    student_id = CASE WHEN ? = 'student' THEN COALESCE(NULLIF(student_id, ''), ?) ELSE NULL END
                 WHERE id = ?`,
-          args: [payload.picture, nextRole, isLecturerInDb ? 1 : 0, displayName, isLecturerInDb ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, user.id]
+          args: [email, payload.picture, nextRole, isLecturerInDb ? 1 : 0, displayName, isLecturerInDb ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, studentId, user.id]
         });
+        user.email = email;
         user.role = nextRole;
         if (isLecturerInDb) {
           user.name = displayName;
@@ -1362,6 +1370,7 @@ async function startServer() {
           user.student_id = nextRole === 'student' ? user.student_id : null;
         } else if (nextRole === 'student') {
           user.is_lecturer = 0;
+          user.student_id = user.student_id || studentId;
         }
         user.picture = payload.picture;
       }
@@ -1372,6 +1381,11 @@ async function startServer() {
       const message = String(err?.message || '');
       if (message.includes('không được phép đăng nhập/đăng ký')) {
         return res.status(403).json({ error: message });
+      }
+      if (/UNIQUE constraint failed: users\.student_id|idx_users_student_id_unique/i.test(message)) {
+        return res.status(409).json({
+          error: 'Tài khoản này bị trùng mã sinh viên với một hồ sơ khác trong hệ thống. Vui lòng liên hệ quản trị viên để gộp hoặc sửa hồ sơ sinh viên.',
+        });
       }
       const isGoogleTokenError = /token|jwt|audience|recipient|issuer|signature|login ticket|No pem found/i.test(message);
       if (isGoogleTokenError) {

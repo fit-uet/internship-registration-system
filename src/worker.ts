@@ -920,9 +920,15 @@ async function handleAuthGoogle(request: Request, env: Env) {
     const displayName = lecturer?.name || payload.name || email;
     const isLecturer = !!lecturer;
     const defaultRole = email === adminEmail ? 'admin' : isLecturer ? 'lecturer' : 'student';
+    const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
     let user = (await database.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
+    if (!user && studentId) {
+      user = (await database.execute({
+        sql: "SELECT * FROM users WHERE role = 'student' AND student_id = ?",
+        args: [studentId],
+      })).rows[0] as any;
+    }
     if (!user) {
-      const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
       const result = await database.execute({
         sql: 'INSERT INTO users (email, name, picture, role, student_id, is_lecturer) VALUES (?, ?, ?, ?, ?, ?)',
         args: [email, displayName, payload.picture || null, defaultRole, studentId, isLecturer ? 1 : 0],
@@ -931,11 +937,11 @@ async function handleAuthGoogle(request: Request, env: Env) {
     } else {
       const nextRole = email === adminEmail ? 'admin' : isLecturer ? (user.role === 'admin' ? 'admin' : 'lecturer') : (user.role === 'lecturer' ? 'student' : user.role);
       await database.execute({
-        sql: `UPDATE users SET picture = ?, role = ?, name = CASE WHEN ? = 1 THEN ? ELSE name END,
+        sql: `UPDATE users SET email = ?, picture = ?, role = ?, name = CASE WHEN ? = 1 THEN ? ELSE name END,
               is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE CASE WHEN ? = 1 THEN 0 ELSE is_lecturer END END,
-              student_id = CASE WHEN ? = 'student' THEN student_id ELSE NULL END
+              student_id = CASE WHEN ? = 'student' THEN COALESCE(NULLIF(student_id, ''), ?) ELSE NULL END
               WHERE id = ?`,
-        args: [payload.picture || null, nextRole, isLecturer ? 1 : 0, displayName, isLecturer ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, user.id],
+        args: [email, payload.picture || null, nextRole, isLecturer ? 1 : 0, displayName, isLecturer ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, studentId, user.id],
       });
       user = (await database.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows[0];
     }
@@ -943,6 +949,9 @@ async function handleAuthGoogle(request: Request, env: Env) {
     return json({ token, user });
   } catch (error: any) {
     const message = String(error?.message || '');
+    if (/UNIQUE constraint failed: users\.student_id|idx_users_student_id_unique/i.test(message)) {
+      return json({ error: 'Tài khoản này bị trùng mã sinh viên với một hồ sơ khác trong hệ thống. Vui lòng liên hệ quản trị viên để gộp hoặc sửa hồ sơ sinh viên.' }, 409);
+    }
     if (/token|client|audience|recipient|issuer|signature/i.test(message)) {
       return json({ error: 'Không xác thực được tài khoản Google. Vui lòng thử đăng nhập lại; nếu vẫn lỗi, cần kiểm tra OAuth Client ID của frontend và API.' }, 401);
     }
