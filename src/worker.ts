@@ -2350,6 +2350,27 @@ async function route(request: Request, env: Env) {
     return json({ success: true, deleted: Number(result.rowsAffected || 0) });
   }
 
+  if (method === 'DELETE' && path === '/api/admin/notifications') {
+    const body = await readBody(request);
+    const rawIds = Array.isArray(body.notification_ids) ? body.notification_ids : [];
+    const notificationIds = rawIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0);
+    const status = String(body.status || '').trim();
+    if (notificationIds.length > 0) {
+      const placeholders = notificationIds.map(() => '?').join(',');
+      const result = await database.execute({
+        sql: `DELETE FROM notifications WHERE id IN (${placeholders})`,
+        args: notificationIds,
+      });
+      return json({ success: true, deleted: Number(result.rowsAffected || 0) });
+    }
+    if (status) {
+      if (!['queued', 'sent', 'failed', 'website_only'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
+      const result = await database.execute({ sql: 'DELETE FROM notifications WHERE status = ?', args: [status] });
+      return json({ success: true, deleted: Number(result.rowsAffected || 0) });
+    }
+    return json({ error: 'Cần chọn thông báo hoặc trạng thái cần xoá.' }, 400);
+  }
+
   const notificationStatus = path.match(/^\/api\/admin\/notifications\/(\d+)\/status$/);
   if (notificationStatus && method === 'PUT') {
     const body = await readBody(request);

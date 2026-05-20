@@ -3183,10 +3183,11 @@ function NotificationAdmin({ token }: { token: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
   const [creatingReminders, setCreatingReminders] = useState(false);
   const [sendingQueue, setSendingQueue] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
-  const [deletingQueue, setDeletingQueue] = useState(false);
+  const [deletingNotifications, setDeletingNotifications] = useState(false);
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<number[]>([]);
   const [manualNotice, setManualNotice] = useState({
     target: 'students_with_registration',
@@ -3295,28 +3296,31 @@ function NotificationAdmin({ token }: { token: string }) {
     }
   };
 
-  const deleteQueued = async (scope: 'selected' | 'filtered' | 'all') => {
-    const filteredQueuedIds = filtered.filter(row => row.status === 'queued').map(row => Number(row.id)).filter(Boolean);
-    const selectedQueuedIds = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id && row.status === 'queued'));
-    const notificationIds = scope === 'selected' ? selectedQueuedIds : scope === 'filtered' ? filteredQueuedIds : undefined;
-    if (scope !== 'all' && (!notificationIds || notificationIds.length === 0)) return alert('Không có thông báo queued nào để xoá.');
-    const countText = scope === 'all' ? `${stats?.statuses?.queued || 0} thông báo trong toàn bộ hàng đợi` : `${notificationIds?.length || 0} thông báo queued`;
+  const deleteNotifications = async (scope: 'selected' | 'filtered' | 'queued') => {
+    const filteredIds = filtered.map(row => Number(row.id)).filter(Boolean);
+    const selectedIds = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id));
+    const notificationIds = scope === 'selected' ? selectedIds : scope === 'filtered' ? filteredIds : undefined;
+    if (scope !== 'queued' && (!notificationIds || notificationIds.length === 0)) return alert('Không có thông báo nào để xoá.');
+    const countText = scope === 'queued' ? `${stats?.statuses?.queued || 0} thông báo queued` : `${notificationIds?.length || 0} thông báo`;
     if (!confirm(`Xoá ${countText}? Thao tác này không thể hoàn tác.`)) return;
-    setDeletingQueue(true);
+    setDeletingNotifications(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/notifications/queued`, {
+      const res = await fetch(`${API_BASE}/api/admin/notifications`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ notification_ids: notificationIds })
+        body: JSON.stringify({
+          notification_ids: notificationIds,
+          status: scope === 'queued' ? 'queued' : undefined,
+        })
       });
       const data = await res.json();
-      if (!res.ok) return alert(data.error || 'Xoá hàng đợi thất bại.');
+      if (!res.ok) return alert(data.error || 'Xoá thông báo thất bại.');
       await fetchRows();
-      alert(`Đã xoá ${data.deleted || 0} thông báo queued.`);
+      alert(`Đã xoá ${data.deleted || 0} thông báo.`);
     } catch (e) {
-      alert('Lỗi kết nối khi xoá hàng đợi.');
+      alert('Lỗi kết nối khi xoá thông báo.');
     } finally {
-      setDeletingQueue(false);
+      setDeletingNotifications(false);
     }
   };
 
@@ -3346,6 +3350,19 @@ function NotificationAdmin({ token }: { token: string }) {
   };
 
   const types = Array.from(new Set(rows.map(row => row.type).filter(Boolean))).sort();
+  const sortNotifications = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+  const sortValue = (row: any, key: string) => {
+    if (key === 'recipient') return `${row.recipient_email || ''} ${row.user_name || ''} ${row.student_id || ''}`.toLowerCase();
+    if (key === 'content') return `${row.subject || ''} ${row.body || ''}`.toLowerCase();
+    if (key === 'created_at' || key === 'sent_at') return row[key] ? new Date(row[key]).getTime() : 0;
+    return String(row[key] || '').toLowerCase();
+  };
+  const sortLabel = (key: string) => sortConfig.key === key ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : '';
   const filtered = rows.filter(row => {
     const term = searchTerm.trim().toLowerCase();
     const matchStatus = statusFilter ? row.status === statusFilter : true;
@@ -3353,27 +3370,34 @@ function NotificationAdmin({ token }: { token: string }) {
     const matchTerm = !term || row.recipient_email?.toLowerCase().includes(term) || row.subject?.toLowerCase().includes(term) || row.body?.toLowerCase().includes(term) || row.user_name?.toLowerCase().includes(term) || row.student_id?.toLowerCase().includes(term);
     return matchStatus && matchType && matchTerm;
   });
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    const left = sortValue(a, sortConfig.key);
+    const right = sortValue(b, sortConfig.key);
+    if (left < right) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (left > right) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, typeFilter, rows.length]);
-  const pagination = paginationBounds(filtered.length, currentPage, pageSize);
-  const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
-  const selectedQueuedCount = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id && row.status === 'queued')).length;
-  const paginatedQueuedIds = paginatedRows.filter(row => row.status === 'queued').map(row => Number(row.id)).filter(Boolean);
-  const pageQueuedSelected = paginatedQueuedIds.length > 0 && paginatedQueuedIds.every(id => selectedNotificationIds.includes(id));
+  }, [searchTerm, statusFilter, typeFilter, sortConfig.key, sortConfig.direction, rows.length]);
+  const pagination = paginationBounds(sortedFiltered.length, currentPage, pageSize);
+  const paginatedRows = sortedFiltered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
+  const selectedCount = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id)).length;
+  const paginatedIds = paginatedRows.map(row => Number(row.id)).filter(Boolean);
+  const pageSelected = paginatedIds.length > 0 && paginatedIds.every(id => selectedNotificationIds.includes(id));
   const toggleNotificationSelection = (id: number, checked: boolean) => {
     setSelectedNotificationIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(item => item !== id));
   };
-  const toggleCurrentPageQueued = (checked: boolean) => {
+  const toggleCurrentPageSelection = (checked: boolean) => {
     setSelectedNotificationIds(prev => {
-      if (!checked) return prev.filter(id => !paginatedQueuedIds.includes(id));
-      return Array.from(new Set([...prev, ...paginatedQueuedIds]));
+      if (!checked) return prev.filter(id => !paginatedIds.includes(id));
+      return Array.from(new Set([...prev, ...paginatedIds]));
     });
   };
 
   const exportXlsx = () => {
     const headers = ['STT', 'Người nhận', 'Loại', 'Tiêu đề', 'Nội dung', 'Trạng thái', 'Lỗi', 'Tạo lúc', 'Gửi lúc'];
-    const data = filtered.map((row, idx) => [idx + 1, row.recipient_email, row.type, row.subject, row.body, row.status, row.error || '', row.created_at || '', row.sent_at || '']);
+    const data = sortedFiltered.map((row, idx) => [idx + 1, row.recipient_email, row.type, row.subject, row.body, row.status, row.error || '', row.created_at || '', row.sent_at || '']);
     saveXlsx('lich_su_thong_bao.xlsx', headers, data, 'Thông báo');
   };
 
@@ -3409,16 +3433,16 @@ function NotificationAdmin({ token }: { token: string }) {
             </div>
           </div>
           <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-500 uppercase">Xoá hàng đợi</div>
+            <div className="text-xs font-bold text-slate-500 uppercase">Xoá thông báo</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
-              <button onClick={() => deleteQueued('selected')} disabled={deletingQueue || selectedQueuedCount === 0} className="justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                {deletingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Đã chọn
+              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                {deletingNotifications ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Đã chọn
               </button>
-              <button onClick={() => deleteQueued('filtered')} disabled={deletingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+              <button onClick={() => deleteNotifications('filtered')} disabled={deletingNotifications || sortedFiltered.length === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
                 <Trash2 size={16} /> Đang lọc
               </button>
-              <button onClick={() => deleteQueued('all')} disabled={deletingQueue || !stats?.statuses?.queued} className="justify-center bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <Trash2 size={16} /> Tất cả
+              <button onClick={() => deleteNotifications('queued')} disabled={deletingNotifications || !stats?.statuses?.queued} className="justify-center bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+                <Trash2 size={16} /> Hàng đợi
               </button>
             </div>
           </div>
@@ -3512,22 +3536,38 @@ function NotificationAdmin({ token }: { token: string }) {
                 <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
-                    checked={pageQueuedSelected}
-                    disabled={paginatedQueuedIds.length === 0}
-                    onChange={e => toggleCurrentPageQueued(e.target.checked)}
+                    checked={pageSelected}
+                    disabled={paginatedIds.length === 0}
+                    onChange={e => toggleCurrentPageSelection(e.target.checked)}
                     className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
-                    title="Chọn thông báo queued trong trang hiện tại"
+                    title="Chọn thông báo trong trang hiện tại"
                   />
                 </th>
-                <th className="px-4 py-3">Người nhận</th>
-                <th className="px-4 py-3">Loại</th>
-                <th className="px-4 py-3">Nội dung</th>
-                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">
+                  <button onClick={() => sortNotifications('recipient')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                    Người nhận{sortLabel('recipient')}
+                  </button>
+                </th>
+                <th className="px-4 py-3">
+                  <button onClick={() => sortNotifications('type')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                    Loại{sortLabel('type')}
+                  </button>
+                </th>
+                <th className="px-4 py-3">
+                  <button onClick={() => sortNotifications('created_at')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                    Nội dung / Tạo lúc{sortLabel('created_at')}
+                  </button>
+                </th>
+                <th className="px-4 py-3">
+                  <button onClick={() => sortNotifications('status')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                    Trạng thái{sortLabel('status')}
+                  </button>
+                </th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.length === 0 ? (
+              {sortedFiltered.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Không có thông báo phù hợp.</td></tr>
               ) : paginatedRows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 align-top">
@@ -3535,10 +3575,9 @@ function NotificationAdmin({ token }: { token: string }) {
                     <input
                       type="checkbox"
                       checked={selectedNotificationIds.includes(Number(row.id))}
-                      disabled={row.status !== 'queued'}
                       onChange={e => toggleNotificationSelection(Number(row.id), e.target.checked)}
-                      className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-30"
-                      title={row.status === 'queued' ? 'Chọn để xoá khỏi hàng đợi' : 'Chỉ chọn được thông báo queued'}
+                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                      title="Chọn để xoá"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -3569,7 +3608,7 @@ function NotificationAdmin({ token }: { token: string }) {
           </table>
         </div>
         <PaginationControls
-          total={filtered.length}
+          total={sortedFiltered.length}
           currentPage={currentPage}
           pageSize={pageSize}
           onPageChange={setCurrentPage}

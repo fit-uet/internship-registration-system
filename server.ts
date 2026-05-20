@@ -3158,6 +3158,26 @@ async function startServer() {
     res.json({ success: true, deleted: Number(result.rowsAffected || 0) });
   });
 
+  app.delete('/api/admin/notifications', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const rawIds = Array.isArray(req.body?.notification_ids) ? req.body.notification_ids : [];
+    const notificationIds = rawIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0);
+    const status = String(req.body?.status || '').trim();
+    if (notificationIds.length > 0) {
+      const placeholders = notificationIds.map(() => '?').join(',');
+      const result = await db.execute({
+        sql: `DELETE FROM notifications WHERE id IN (${placeholders})`,
+        args: notificationIds,
+      });
+      return res.json({ success: true, deleted: Number(result.rowsAffected || 0) });
+    }
+    if (status) {
+      if (!['queued', 'sent', 'failed', 'website_only'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
+      const result = await db.execute({ sql: 'DELETE FROM notifications WHERE status = ?', args: [status] });
+      return res.json({ success: true, deleted: Number(result.rowsAffected || 0) });
+    }
+    res.status(400).json({ error: 'Cần chọn thông báo hoặc trạng thái cần xoá.' });
+  });
+
   app.put('/api/admin/notifications/:id/status', requireAuth, requireAdmin, async (req: any, res: any) => {
     const status = String(req.body.status || 'queued');
     if (!['queued', 'sent', 'failed', 'website_only'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
