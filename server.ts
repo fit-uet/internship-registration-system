@@ -1324,6 +1324,7 @@ async function startServer() {
       const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
       // Use lecturer name from DB if available, otherwise use Google name
       const displayName = lecturerRecord?.name || payload.name || email;
+      const picture = payload.picture || null;
       const isLecturerInDb = !!lecturerRecord;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');
       authContext.defaultRole = defaultRole;
@@ -1344,9 +1345,9 @@ async function startServer() {
       if (!user) {
         const result = await db.execute({
           sql: 'INSERT INTO users (email, name, picture, role, student_id, is_lecturer) VALUES (?, ?, ?, ?, ?, ?)',
-          args: [email, displayName, payload.picture, defaultRole, studentId, isLecturerInDb ? 1 : 0]
+          args: [email, displayName, picture, defaultRole, studentId, isLecturerInDb ? 1 : 0]
         });
-        user = { id: Number(result.lastInsertRowid), email, name: displayName, picture: payload.picture, role: defaultRole, student_id: studentId, dob: null, class_name: null, is_lecturer: isLecturerInDb ? 1 : 0 };
+        user = { id: Number(result.lastInsertRowid), email, name: displayName, picture, role: defaultRole, student_id: studentId, dob: null, class_name: null, is_lecturer: isLecturerInDb ? 1 : 0 };
       } else {
         // Update picture; also sync name from lecturers table if found and user hasn't customized it
         let nextRole = user.role;
@@ -1364,7 +1365,7 @@ async function startServer() {
                     is_lecturer = CASE WHEN ? = 1 THEN 1 ELSE CASE WHEN ? = 1 THEN 0 ELSE is_lecturer END END,
                     student_id = CASE WHEN ? = 'student' THEN COALESCE(NULLIF(student_id, ''), ?) ELSE NULL END
                 WHERE id = ?`,
-          args: [email, payload.picture, nextRole, isLecturerInDb ? 1 : 0, displayName, isLecturerInDb ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, studentId, user.id]
+          args: [email, picture, nextRole, isLecturerInDb ? 1 : 0, displayName, isLecturerInDb ? 1 : 0, nextRole === 'student' ? 1 : 0, nextRole, studentId, user.id]
         });
         user.email = email;
         user.role = nextRole;
@@ -1376,7 +1377,7 @@ async function startServer() {
           user.is_lecturer = 0;
           user.student_id = user.student_id || studentId;
         }
-        user.picture = payload.picture;
+        user.picture = picture;
       }
 
       authContext.userId = user.id;
