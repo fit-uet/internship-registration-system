@@ -3188,6 +3188,8 @@ function NotificationAdmin({ token }: { token: string }) {
   const [creatingReminders, setCreatingReminders] = useState(false);
   const [sendingQueue, setSendingQueue] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
+  const [deletingQueue, setDeletingQueue] = useState(false);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<number[]>([]);
   const [manualNotice, setManualNotice] = useState({
     target: 'students_with_registration',
     recipient: '',
@@ -3208,6 +3210,7 @@ function NotificationAdmin({ token }: { token: string }) {
       ]);
       const data = await res.json();
       setRows(Array.isArray(data) ? data : []);
+      setSelectedNotificationIds([]);
       if (statsRes.ok) setStats(await statsRes.json());
     } catch (e) {
       alert('Không tải được lịch sử thông báo.');
@@ -3294,6 +3297,31 @@ function NotificationAdmin({ token }: { token: string }) {
     }
   };
 
+  const deleteQueued = async (scope: 'selected' | 'filtered' | 'all') => {
+    const filteredQueuedIds = filtered.filter(row => row.status === 'queued').map(row => Number(row.id)).filter(Boolean);
+    const selectedQueuedIds = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id && row.status === 'queued'));
+    const notificationIds = scope === 'selected' ? selectedQueuedIds : scope === 'filtered' ? filteredQueuedIds : undefined;
+    if (scope !== 'all' && (!notificationIds || notificationIds.length === 0)) return alert('Không có thông báo queued nào để xoá.');
+    const countText = scope === 'all' ? `${stats?.statuses?.queued || 0} thông báo trong toàn bộ hàng đợi` : `${notificationIds?.length || 0} thông báo queued`;
+    if (!confirm(`Xoá ${countText}? Thao tác này không thể hoàn tác.`)) return;
+    setDeletingQueue(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/notifications/queued`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notification_ids: notificationIds })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Xoá hàng đợi thất bại.');
+      await fetchRows();
+      alert(`Đã xoá ${data.deleted || 0} thông báo queued.`);
+    } catch (e) {
+      alert('Lỗi kết nối khi xoá hàng đợi.');
+    } finally {
+      setDeletingQueue(false);
+    }
+  };
+
   const createManualNotice = async () => {
     if (!manualNotice.subject.trim() || !manualNotice.body.trim()) return alert('Vui lòng nhập tiêu đề và nội dung thông báo.');
     if (manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
@@ -3332,6 +3360,18 @@ function NotificationAdmin({ token }: { token: string }) {
   }, [searchTerm, statusFilter, typeFilter, rows.length]);
   const pagination = paginationBounds(filtered.length, currentPage, pageSize);
   const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
+  const selectedQueuedCount = selectedNotificationIds.filter(id => rows.some(row => Number(row.id) === id && row.status === 'queued')).length;
+  const paginatedQueuedIds = paginatedRows.filter(row => row.status === 'queued').map(row => Number(row.id)).filter(Boolean);
+  const pageQueuedSelected = paginatedQueuedIds.length > 0 && paginatedQueuedIds.every(id => selectedNotificationIds.includes(id));
+  const toggleNotificationSelection = (id: number, checked: boolean) => {
+    setSelectedNotificationIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(item => item !== id));
+  };
+  const toggleCurrentPageQueued = (checked: boolean) => {
+    setSelectedNotificationIds(prev => {
+      if (!checked) return prev.filter(id => !paginatedQueuedIds.includes(id));
+      return Array.from(new Set([...prev, ...paginatedQueuedIds]));
+    });
+  };
 
   const exportXlsx = () => {
     const headers = ['STT', 'Người nhận', 'Loại', 'Tiêu đề', 'Nội dung', 'Trạng thái', 'Lỗi', 'Tạo lúc', 'Gửi lúc'];
@@ -3360,6 +3400,15 @@ function NotificationAdmin({ token }: { token: string }) {
           </button>
           <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <Send size={16} /> Gửi lọc theo quota
+          </button>
+          <button onClick={() => deleteQueued('selected')} disabled={deletingQueue || selectedQueuedCount === 0} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            {deletingQueue ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Xoá đã chọn
+          </button>
+          <button onClick={() => deleteQueued('filtered')} disabled={deletingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Trash2 size={16} /> Xoá lọc
+          </button>
+          <button onClick={() => deleteQueued('all')} disabled={deletingQueue || !stats?.statuses?.queued} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+            <Trash2 size={16} /> Xoá toàn bộ hàng đợi
           </button>
           <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <CheckCircle2 size={16} /> Mở xác nhận
@@ -3446,6 +3495,16 @@ function NotificationAdmin({ token }: { token: string }) {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={pageQueuedSelected}
+                    disabled={paginatedQueuedIds.length === 0}
+                    onChange={e => toggleCurrentPageQueued(e.target.checked)}
+                    className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
+                    title="Chọn thông báo queued trong trang hiện tại"
+                  />
+                </th>
                 <th className="px-4 py-3">Người nhận</th>
                 <th className="px-4 py-3">Loại</th>
                 <th className="px-4 py-3">Nội dung</th>
@@ -3455,9 +3514,19 @@ function NotificationAdmin({ token }: { token: string }) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">Không có thông báo phù hợp.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Không có thông báo phù hợp.</td></tr>
               ) : paginatedRows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 align-top">
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedNotificationIds.includes(Number(row.id))}
+                      disabled={row.status !== 'queued'}
+                      onChange={e => toggleNotificationSelection(Number(row.id), e.target.checked)}
+                      className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-30"
+                      title={row.status === 'queued' ? 'Chọn để xoá khỏi hàng đợi' : 'Chỉ chọn được thông báo queued'}
+                    />
+                  </td>
                   <td className="px-4 py-4">
                     <div className="font-semibold text-slate-900">{row.recipient_email}</div>
                     <div className="text-xs text-slate-500">{row.user_name || '-'} {row.student_id ? `· ${row.student_id}` : ''}</div>
