@@ -422,10 +422,10 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: credentialResponse.credential }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setLoginError(data.error || 'Unknown error');
+        setLoginError(data.error || 'Đăng nhập thất bại. Vui lòng thử lại sau.');
         return;
       }
 
@@ -644,8 +644,6 @@ function App() {
                 </div>
                 <p className="text-slate-600 mb-6 text-sm leading-relaxed">
                   {loginError}
-                  <br /><br />
-                  Vui lòng sử dụng tài khoản email do nhà trường cung cấp (có đuôi <strong>@vnu.edu.vn</strong>) để truy cập vào hệ thống.
                 </p>
                 <div className="flex justify-end gap-3 mt-6">
                   <button

@@ -1287,6 +1287,10 @@ async function startServer() {
   // 1. Google Login endpoint
   app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Thiếu thông tin xác thực Google.' });
+    }
+
     try {
       let payload: any;
       try {
@@ -1307,8 +1311,8 @@ async function startServer() {
         return res.status(400).json({ error: 'Invalid token' });
       }
 
-      const email = payload.email;
-      const adminEmail = process.env.ADMIN_EMAIL;
+      const email = String(payload.email || '').trim().toLowerCase();
+      const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 
       if (!email.endsWith('@vnu.edu.vn') && email !== adminEmail) {
         return res.status(403).json({ error: 'Chỉ chấp nhận email @vnu.edu.vn' });
@@ -1317,7 +1321,7 @@ async function startServer() {
       // Check if this email exists in the lecturers table
       const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
       // Use lecturer name from DB if available, otherwise use Google name
-      const displayName = lecturerRecord?.name || payload.name;
+      const displayName = lecturerRecord?.name || payload.name || email;
       const isLecturerInDb = !!lecturerRecord;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');
 
@@ -1369,7 +1373,15 @@ async function startServer() {
       if (message.includes('không được phép đăng nhập/đăng ký')) {
         return res.status(403).json({ error: message });
       }
-      res.status(500).json({ error: 'Authenticaton failed', details: message });
+      const isGoogleTokenError = /token|jwt|audience|recipient|issuer|signature|login ticket|No pem found/i.test(message);
+      if (isGoogleTokenError) {
+        console.error('Google authentication failed:', message);
+        return res.status(401).json({
+          error: 'Không xác thực được tài khoản Google. Vui lòng thử đăng nhập lại; nếu vẫn lỗi, cần kiểm tra OAuth Client ID của frontend và API.',
+        });
+      }
+      console.error('Authentication failed:', err);
+      res.status(500).json({ error: 'Đăng nhập thất bại do lỗi hệ thống. Vui lòng thử lại sau.' });
     }
   });
 
