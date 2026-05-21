@@ -33,6 +33,47 @@ const DEFAULT_REGISTRATION_RULES = [
   'Sinh viên có nhu cầu Thực tập tại trường có thể đăng ký Nơi thực tập là Trường Đại học Công nghệ, lưu ý phải tìm và được sự đồng ý hướng dẫn của Giảng viên Khoa CNTT.',
   'Sinh viên có thể thay đổi đăng ký bằng cách chọn "Huỷ tất cả đăng ký" và đăng ký lại từ đầu trong thời gian Khoa mở đăng ký.',
 ].join('\n');
+
+const normalizeRegistrationRulesMarkdown = (content: string) => {
+  const text = String(content || '').trim();
+  if (!text) return '';
+  const hasMarkdownSyntax = /(^|\n)\s{0,3}(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+|```|\|.+\|)/.test(text)
+    || /(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/.test(text);
+  if (hasMarkdownSyntax) return text.replace(/^(\s*)•\s+/gm, '$1- ');
+  return text
+    .split(/\r?\n/)
+    .map(line => line.replace(/^[-*•]\s*/, '').trim())
+    .filter(Boolean)
+    .map(line => `- ${line}`)
+    .join('\n');
+};
+
+const RegistrationRulesMarkdown = ({ content }: { content: string }) => (
+  <div className="registration-rules-markdown text-sm text-blue-50">
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ node, ...props }) => <h1 className="text-base font-bold text-white mb-3" {...props} />,
+        h2: ({ node, ...props }) => <h2 className="text-sm font-bold text-white mt-4 mb-2" {...props} />,
+        h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-white mt-3 mb-2" {...props} />,
+        p: ({ node, ...props }) => <p className="mb-3 leading-relaxed text-blue-50" {...props} />,
+        ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-2 marker:text-blue-300" {...props} />,
+        ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-2 marker:text-blue-300" {...props} />,
+        li: ({ node, ...props }) => <li className="pl-1 leading-relaxed" {...props} />,
+        strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+        em: ({ node, ...props }) => <em className="text-blue-100" {...props} />,
+        a: ({ node, ...props }) => <a className="text-cyan-200 underline hover:text-white" target="_blank" rel="noreferrer" {...props} />,
+        code: ({ node, ...props }) => <code className="bg-blue-950/40 text-cyan-100 px-1 py-0.5 rounded" {...props} />,
+        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-300 pl-3 italic text-blue-100 my-3" {...props} />,
+        table: ({ node, ...props }) => <div className="overflow-x-auto my-3"><table className="min-w-full border border-blue-300/40 text-xs" {...props} /></div>,
+        th: ({ node, ...props }) => <th className="border border-blue-300/40 px-2 py-1 text-left text-white" {...props} />,
+        td: ({ node, ...props }) => <td className="border border-blue-300/30 px-2 py-1 text-blue-50" {...props} />,
+      }}
+    >
+      {normalizeRegistrationRulesMarkdown(content)}
+    </ReactMarkdown>
+  </div>
+);
 const DEFAULT_STUDENT_FAQ = `## FAQ cho sinh viên
 
 ### 1. Em được đăng ký tối đa bao nhiêu nơi thực tập?
@@ -1076,10 +1117,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
   };
 
   if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
-  const registrationRules = String(campaign.registration_rules_md || DEFAULT_REGISTRATION_RULES)
-    .split(/\r?\n/)
-    .map((item: string) => item.replace(/^[-*•]\s*/, '').trim())
-    .filter(Boolean);
+  const registrationRulesMarkdown = String(campaign.registration_rules_md || DEFAULT_REGISTRATION_RULES);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -1110,14 +1148,9 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
         <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md flex-1">
           <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
-          <ul className="text-sm space-y-3">
-            {registrationRules.map((rule, idx) => (
-              <li key={idx} className="flex gap-2">
-                <span className="text-blue-400">•</span>
-                <span>{rule}</span>
-              </li>
-            ))}
-          </ul>
+          {registrationRulesMarkdown.trim()
+            ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+            : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
         </div>
       </div>
 
@@ -5607,11 +5640,6 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
     }
   };
 
-  const ruleItems = String(rules || DEFAULT_REGISTRATION_RULES)
-    .split('\n')
-    .map(item => item.trim())
-    .filter(Boolean);
-
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải quy định đăng ký...</div>;
 
   return (
@@ -5620,7 +5648,7 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Shield className="text-slate-700" /> Cài đặt Quy định đăng ký</h2>
-          <p className="text-sm text-slate-500 mt-1">Mỗi dòng sẽ hiển thị thành một gạch đầu dòng trong khung Quy định Đăng ký của sinh viên.</p>
+          <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung quy định hiển thị cho sinh viên bằng Markdown.</p>
         </div>
         <button onClick={saveRules} disabled={saving} className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
           {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu quy định
@@ -5643,22 +5671,16 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
               value={rules}
               onChange={e => setRules(e.target.value)}
               className="w-full min-h-[480px] px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
-              placeholder="Mỗi dòng là một quy định..."
+              placeholder="Nhập nội dung quy định bằng Markdown..."
             />
           </div>
           <div className="p-5">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
             <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md">
               <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
-              <ul className="text-sm space-y-3">
-                {ruleItems.map((rule, idx) => (
-                  <li key={`${idx}-${rule}`} className="flex gap-2">
-                    <span className="text-blue-400">•</span>
-                    <span>{rule}</span>
-                  </li>
-                ))}
-              </ul>
-              {ruleItems.length === 0 && <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
+              {String(rules || '').trim()
+                ? <RegistrationRulesMarkdown content={rules} />
+                : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
             </div>
           </div>
         </div>
