@@ -3375,14 +3375,14 @@ function NotificationAdmin({ token }: { token: string }) {
 
   const createManualNotice = async () => {
     if (!manualNotice.subject.trim() || !manualNotice.body.trim()) return alert('Vui lòng nhập tiêu đề và nội dung thông báo.');
-    if (manualNotice.delivery_mode !== 'system_broadcast' && manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
-    const targetText = manualNotice.delivery_mode === 'system_broadcast'
-      ? 'tất cả người dùng'
+    if (manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
+    const targetText = manualNotice.target === 'system_all'
+      ? 'cả hệ thống'
       : manualNotice.target === 'single_account'
         ? `tài khoản ${manualNotice.recipient.trim()}`
         : 'nhóm người nhận đã chọn';
-    const deliveryText = manualNotice.delivery_mode === 'system_broadcast'
-      ? 'hệ thống cho tất cả người dùng bằng 1 bản ghi'
+    const deliveryText = manualNotice.target === 'system_all'
+      ? 'chỉ hiển thị trên website bằng 1 bản ghi'
       : manualNotice.delivery_mode === 'website_only'
         ? 'chỉ hiển thị trên website'
         : 'hiển thị trên website và đưa vào hàng đợi email';
@@ -3558,9 +3558,17 @@ function NotificationAdmin({ token }: { token: string }) {
           </div>
           <select
             value={manualNotice.target}
-            onChange={e => setManualNotice(prev => ({ ...prev, target: e.target.value }))}
+            onChange={e => {
+              const target = e.target.value;
+              setManualNotice(prev => ({
+                ...prev,
+                target,
+                delivery_mode: target === 'system_all' ? 'website_only' : prev.delivery_mode,
+              }));
+            }}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
           >
+            <option value="system_all">Cả hệ thống</option>
             <option value="students_with_registration">Sinh viên đã đăng ký</option>
             <option value="students_approved">Sinh viên có đăng ký đã duyệt</option>
             <option value="students_rejected">Sinh viên có đăng ký bị từ chối</option>
@@ -3573,12 +3581,15 @@ function NotificationAdmin({ token }: { token: string }) {
         <select
           value={manualNotice.delivery_mode}
           onChange={e => setManualNotice(prev => ({ ...prev, delivery_mode: e.target.value }))}
+          disabled={manualNotice.target === 'system_all'}
           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
         >
           <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
           <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
-          <option value="system_broadcast">Thông báo hệ thống cho tất cả user (1 bản ghi)</option>
         </select>
+        {manualNotice.target === 'system_all' && (
+          <p className="text-xs text-slate-500 -mt-1">Thông báo cho cả hệ thống chỉ hiển thị trên website và được lưu bằng 1 bản ghi nội dung.</p>
+        )}
         {manualNotice.target === 'single_account' && (
           <input
             value={manualNotice.recipient}

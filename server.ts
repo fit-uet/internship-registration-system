@@ -3356,9 +3356,10 @@ async function startServer() {
       const body = String(req.body.body || '').trim();
       if (!subject) return res.status(400).json({ error: 'Tiêu đề không được để trống.' });
       if (!body) return res.status(400).json({ error: 'Nội dung không được để trống.' });
-      if (!['website_and_email', 'website_only', 'system_broadcast'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
+      if (!['website_and_email', 'website_only'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
 
-      if (deliveryMode === 'system_broadcast') {
+      if (target === 'system_all') {
+        if (deliveryMode !== 'website_only') return res.status(400).json({ error: 'Thông báo cả hệ thống chỉ hỗ trợ chế độ hiển thị trên website.' });
         const result = await db.execute({
           sql: `
             INSERT INTO system_notifications (type, subject, body, target_role, active, created_by, created_at)
