@@ -731,6 +731,22 @@ async function initDb(env: Env) {
         sent_at DATETIME,
         read_at DATETIME
       );
+      CREATE TABLE IF NOT EXISTS system_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL DEFAULT 'system_announcement',
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        target_role TEXT NOT NULL DEFAULT 'all',
+        active INTEGER NOT NULL DEFAULT 1,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS system_notification_reads (
+        system_notification_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (system_notification_id, user_id)
+      );
       CREATE TABLE IF NOT EXISTS faq_questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -1054,18 +1070,50 @@ async function route(request: Request, env: Env) {
   }
 
   if (method === 'GET' && path === '/api/notifications/my') {
-    const rows = (await database.execute({
+    const personalRows = (await database.execute({
       sql: `
-        SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+        SELECT id, 'personal' as source, type, subject, body, status, error, created_at, sent_at, read_at
         FROM notifications
         WHERE lower(trim(recipient_email)) = lower(trim(?))
            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
-        ORDER BY created_at DESC
         LIMIT 100
       `,
       args: [user.email || '', user.personal_email || ''],
     })).rows as any[];
+    const systemRows = (await database.execute({
+      sql: `
+        SELECT s.id, 'system' as source, s.type, s.subject, s.body, 'system' as status, NULL as error, s.created_at, NULL as sent_at, r.read_at
+        FROM system_notifications s
+        LEFT JOIN system_notification_reads r ON r.system_notification_id = s.id AND r.user_id = ?
+        WHERE s.active = 1
+          AND (s.target_role = 'all' OR s.target_role = ?)
+        ORDER BY s.created_at DESC
+        LIMIT 100
+      `,
+      args: [user.id, user.role || 'student'],
+    })).rows as any[];
+    const rows = [...personalRows, ...systemRows]
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 100);
     return json({ rows, unread: rows.filter(row => !row.read_at).length });
+  }
+
+  const mySystemNotificationRead = path.match(/^\/api\/notifications\/my\/system\/(\d+)\/read$/);
+  if (method === 'PUT' && mySystemNotificationRead) {
+    const id = Number(mySystemNotificationRead[1]);
+    const notification = (await database.execute({
+      sql: `SELECT id FROM system_notifications WHERE id = ? AND active = 1 AND (target_role = 'all' OR target_role = ?)`,
+      args: [id, user.role || 'student'],
+    })).rows[0];
+    if (!notification) return json({ error: 'Không tìm thấy thông báo hệ thống.' }, 404);
+    await database.execute({
+      sql: `
+        INSERT OR REPLACE INTO system_notification_reads (system_notification_id, user_id, read_at)
+        VALUES (?, ?, datetime('now', '+7 hours'))
+      `,
+      args: [id, user.id],
+    });
+    return json({ success: true });
   }
 
   const myNotificationRead = path.match(/^\/api\/notifications\/my\/(\d+)\/read$/);
@@ -1094,6 +1142,15 @@ async function route(request: Request, env: Env) {
            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
       `,
       args: [user.email || '', user.personal_email || ''],
+    });
+    await database.execute({
+      sql: `
+        INSERT OR REPLACE INTO system_notification_reads (system_notification_id, user_id, read_at)
+        SELECT id, ?, datetime('now', '+7 hours')
+        FROM system_notifications
+        WHERE active = 1 AND (target_role = 'all' OR target_role = ?)
+      `,
+      args: [user.id, user.role || 'student'],
     });
     return json({ success: true });
   }
@@ -2455,7 +2512,17 @@ async function route(request: Request, env: Env) {
     const content = String(body.body || '').trim();
     if (!subject) return json({ error: 'Tiêu đề không được để trống.' }, 400);
     if (!content) return json({ error: 'Nội dung không được để trống.' }, 400);
-    if (!['website_and_email', 'website_only'].includes(deliveryMode)) return json({ error: 'Kiểu gửi thông báo không hợp lệ.' }, 400);
+    if (!['website_and_email', 'website_only', 'system_broadcast'].includes(deliveryMode)) return json({ error: 'Kiểu gửi thông báo không hợp lệ.' }, 400);
+    if (deliveryMode === 'system_broadcast') {
+      const result = await database.execute({
+        sql: `
+          INSERT INTO system_notifications (type, subject, body, target_role, active, created_by, created_at)
+          VALUES ('system_announcement', ?, ?, 'all', 1, ?, datetime('now', '+7 hours'))
+        `,
+        args: [subject, content, user.id],
+      });
+      return json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+    }
     let rows: any[] = [];
     if (target === 'lecturers') {
       rows = (await database.execute(`
@@ -2631,6 +2698,40 @@ async function route(request: Request, env: Env) {
       body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
     });
     return json({ success: true });
+  }
+
+  if (method === 'PUT' && path === '/api/admin/registrations/comments') {
+    const body = await readBody(request);
+    const reviewComment = String(body.review_comment || '').trim();
+    const rawIds = Array.isArray(body.registration_ids) ? body.registration_ids : [];
+    const registrationIds = rawIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0);
+    if (!reviewComment) return json({ error: 'Nội dung nhận xét không được để trống.' }, 400);
+    if (registrationIds.length === 0) return json({ error: 'Danh sách đăng ký cần gửi nhận xét đang trống.' }, 400);
+    const placeholders = registrationIds.map(() => '?').join(',');
+    const rows = (await database.execute({
+      sql: `
+        SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+        FROM registrations r
+        JOIN users u ON u.id = r.user_id
+        JOIN companies c ON c.id = r.company_id
+        WHERE r.id IN (${placeholders})
+      `,
+      args: registrationIds,
+    })).rows as any[];
+    await database.execute({
+      sql: `UPDATE registrations SET review_comment = ? WHERE id IN (${placeholders})`,
+      args: [reviewComment, ...registrationIds],
+    });
+    for (const row of rows) {
+      await notify({
+        user_id: Number(row.user_id),
+        recipient_email: row.personal_email || row.email,
+        type: 'registration_review_comment',
+        subject: 'Khoa gửi nhận xét về đăng ký thực tập',
+        body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
+      });
+    }
+    return json({ success: true, count: rows.length });
   }
 
   if (method === 'GET' && path === '/api/admin/admins') {

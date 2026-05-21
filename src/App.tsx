@@ -324,8 +324,11 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
 
   useEffect(() => { fetchRows(); }, [token]);
 
-  const markRead = async (id: number) => {
-    await fetch(`${API_BASE}/api/notifications/my/${id}/read`, {
+  const markRead = async (row: any) => {
+    const path = row.source === 'system'
+      ? `/api/notifications/my/system/${row.id}/read`
+      : `/api/notifications/my/${row.id}/read`;
+    await fetch(`${API_BASE}${path}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -347,6 +350,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
     if (type === 'final_report_status_changed') return 'Báo cáo';
     if (type === 'grade_locked') return 'Bảng điểm';
     if (type === 'faq_answered') return 'FAQ';
+    if (type === 'system_announcement') return 'Hệ thống';
     if (type === 'manual_student_notice' || type === 'manual_lecturer_notice') return 'Thông báo';
     return type || 'Thông báo';
   };
@@ -378,7 +382,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
         {visibleRows.length === 0 ? (
           <div className="p-6 text-center text-sm text-slate-500">Chưa có thông báo.</div>
         ) : visibleRows.map(row => (
-          <div key={row.id} className={`p-4 ${row.read_at ? 'bg-white' : 'bg-amber-50/70'}`}>
+          <div key={`${row.source || 'personal'}-${row.id}`} className={`p-4 ${row.read_at ? 'bg-white' : 'bg-amber-50/70'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -390,7 +394,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
                 <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
               </div>
               {!row.read_at && (
-                <button onClick={() => markRead(row.id)} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
+                <button onClick={() => markRead(row)} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
                   Đã đọc
                 </button>
               )}
@@ -1809,6 +1813,7 @@ function AdminPanel({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
@@ -2009,6 +2014,34 @@ function AdminPanel({ token }: { token: string }) {
     }
   };
 
+  const handleSendFilteredRegistrationComment = async () => {
+    if (filteredRegistrations.length === 0) return alert('Danh sách đang lọc đang trống.');
+    const comment = prompt(`Nhận xét gửi cho ${filteredRegistrations.length} đăng ký trong danh sách đang lọc:`, '');
+    if (comment === null) return;
+    const review_comment = comment.trim();
+    if (!review_comment) return alert('Vui lòng nhập nội dung nhận xét.');
+    if (!confirm(`Gửi nhận xét này cho ${filteredRegistrations.length} đăng ký trong danh sách đang lọc?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/registrations/comments`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          registration_ids: filteredRegistrations.map(reg => Number(reg.registration_id)).filter(Boolean),
+          review_comment
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi nhận xét thất bại.');
+      fetchRegistrations();
+      alert(`Đã gửi nhận xét cho ${data.count || 0} đăng ký.`);
+    } catch (e) {
+      alert('Lỗi kết nối.');
+    }
+  };
+
   const handleApproveAll = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn duyệt tất cả các đăng ký đang chờ?")) return;
     const commentPrompt = prompt('Nhận xét chung gửi cho các sinh viên được duyệt (có thể để trống):', '');
@@ -2061,11 +2094,12 @@ function AdminPanel({ token }: { token: string }) {
       (reg.review_comment || '').toLowerCase().includes(term)
     );
     const matchCourse = filterCourse ? reg.course_code === filterCourse : true;
-    return matchTerm && matchCourse;
+    const matchStatus = filterStatus ? reg.status === filterStatus : true;
+    return matchTerm && matchCourse && matchStatus;
   });
   useEffect(() => {
     setRegistrationPage(1);
-  }, [searchTerm, filterCourse, sortConfig, registrations.length]);
+  }, [searchTerm, filterCourse, filterStatus, sortConfig, registrations.length]);
   const registrationPagination = paginationBounds(filteredRegistrations.length, registrationPage, registrationPageSize);
   const paginatedRegistrations = filteredRegistrations.slice(
     (registrationPagination.safePage - 1) * registrationPageSize,
@@ -2082,6 +2116,14 @@ function AdminPanel({ token }: { token: string }) {
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
   const rejectedRegistrations = registrations.filter(r => r.status === 'rejected').length;
+  const clearRegistrationFilters = () => {
+    setSearchTerm('');
+    setFilterCourse('');
+    setFilterStatus('');
+  };
+  const applyRegistrationStatusFilter = (status: string) => {
+    setFilterStatus(status);
+  };
 
   if (loading) return <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>;
 
@@ -2090,10 +2132,15 @@ function AdminPanel({ token }: { token: string }) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm whitespace-nowrap font-medium">&larr; Quay lại</button>
-          <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm max-w-[220px] truncate bg-white cursor-pointer">
-            <option value="">Tất cả học phần</option>
-            {uniqueCourses.map(c => <option key={c as string} value={c as string}>{c as string}</option>)}
-          </select>
+          <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
+            <button
+              onClick={handleSendFilteredRegistrationComment}
+              disabled={filteredRegistrations.length === 0}
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 shadow-sm transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send size={16} /> Gửi nhận xét
+            </button>
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-3 flex-1 lg:justify-end">
           <div className="relative flex-1 min-w-[250px] max-w-lg">
@@ -2155,10 +2202,10 @@ function AdminPanel({ token }: { token: string }) {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <button type="button" onClick={clearRegistrationFilters} className={`text-left bg-white p-5 rounded-xl border shadow-sm flex flex-col transition-all hover:-translate-y-0.5 hover:shadow-md ${!searchTerm && !filterCourse && !filterStatus ? 'border-slate-400 ring-2 ring-slate-100' : 'border-slate-200'}`}>
           <span className="text-slate-500 text-sm font-medium mb-1">Tổng nguyện vọng</span>
           <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
-        </div>
+        </button>
         <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
           <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên đăng ký</span>
           <span className="text-3xl font-bold text-blue-700">{totalStudents}</span>
@@ -2167,10 +2214,10 @@ function AdminPanel({ token }: { token: string }) {
           <span className="text-cyan-700 text-sm font-medium mb-1">Số công ty</span>
           <span className="text-3xl font-bold text-cyan-800">{totalCompanies}</span>
         </div>
-        <div className="bg-orange-50 p-5 rounded-xl border border-orange-100 shadow-sm flex flex-col">
+        <button type="button" onClick={() => applyRegistrationStatusFilter('pending')} className={`text-left bg-orange-50 p-5 rounded-xl border shadow-sm flex flex-col transition-all hover:-translate-y-0.5 hover:shadow-md ${filterStatus === 'pending' ? 'border-orange-400 ring-2 ring-orange-100' : 'border-orange-100'}`}>
           <span className="text-orange-600 text-sm font-medium mb-1">Chờ duyệt</span>
           <span className="text-3xl font-bold text-orange-700">{pendingRegistrations}</span>
-        </div>
+        </button>
         <div className="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm flex flex-col">
           <span className="text-green-600 text-sm font-medium mb-1">Đã duyệt</span>
           <span className="text-3xl font-bold text-green-700">{approvedRegistrations}</span>
@@ -3328,9 +3375,17 @@ function NotificationAdmin({ token }: { token: string }) {
 
   const createManualNotice = async () => {
     if (!manualNotice.subject.trim() || !manualNotice.body.trim()) return alert('Vui lòng nhập tiêu đề và nội dung thông báo.');
-    if (manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
-    const targetText = manualNotice.target === 'single_account' ? `tài khoản ${manualNotice.recipient.trim()}` : 'nhóm người nhận đã chọn';
-    const deliveryText = manualNotice.delivery_mode === 'website_only' ? 'chỉ hiển thị trên website' : 'hiển thị trên website và đưa vào hàng đợi email';
+    if (manualNotice.delivery_mode !== 'system_broadcast' && manualNotice.target === 'single_account' && !manualNotice.recipient.trim()) return alert('Vui lòng nhập email hoặc mã sinh viên/giảng viên cần gửi.');
+    const targetText = manualNotice.delivery_mode === 'system_broadcast'
+      ? 'tất cả người dùng'
+      : manualNotice.target === 'single_account'
+        ? `tài khoản ${manualNotice.recipient.trim()}`
+        : 'nhóm người nhận đã chọn';
+    const deliveryText = manualNotice.delivery_mode === 'system_broadcast'
+      ? 'hệ thống cho tất cả người dùng bằng 1 bản ghi'
+      : manualNotice.delivery_mode === 'website_only'
+        ? 'chỉ hiển thị trên website'
+        : 'hiển thị trên website và đưa vào hàng đợi email';
     if (!confirm(`Tạo thông báo ${deliveryText} cho ${targetText}?`)) return;
     setCreatingManual(true);
     try {
@@ -3349,6 +3404,26 @@ function NotificationAdmin({ token }: { token: string }) {
     } finally {
       setCreatingManual(false);
     }
+  };
+
+  const notificationTypeLabel = (type?: string) => {
+    const labels: Record<string, string> = {
+      advisor_assigned: 'Phân công giảng viên hướng dẫn',
+      company_applicants_sent: 'Đã gửi danh sách cho doanh nghiệp',
+      faq_answered: 'Trả lời FAQ',
+      final_confirmation_open: 'Mở xác nhận nơi thực tập',
+      final_internship_confirmed: 'Xác nhận nơi thực tập',
+      final_report_due_reminder: 'Nhắc nộp báo cáo final',
+      final_report_status_changed: 'Trạng thái báo cáo final',
+      grade_locked: 'Bảng điểm đã khóa',
+      manual_direct_notice: 'Thông báo tới một tài khoản',
+      manual_lecturer_notice: 'Thông báo cho giảng viên',
+      manual_student_notice: 'Thông báo cho sinh viên',
+      registration_review_comment: 'Nhận xét đăng ký',
+      registration_status_changed: 'Trạng thái đăng ký',
+      system_announcement: 'Thông báo hệ thống',
+    };
+    return labels[String(type || '')] || String(type || 'Thông báo');
   };
 
   const types = Array.from(new Set(rows.map(row => row.type).filter(Boolean))).sort();
@@ -3465,7 +3540,7 @@ function NotificationAdmin({ token }: { token: string }) {
         <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm email, sinh viên, tiêu đề..." className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500" />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
           <option value="">Tất cả loại</option>
-          {types.map(type => <option key={type} value={type}>{type}</option>)}
+          {types.map(type => <option key={type} value={type}>{notificationTypeLabel(type)}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
           <option value="">Tất cả trạng thái</option>
@@ -3502,6 +3577,7 @@ function NotificationAdmin({ token }: { token: string }) {
         >
           <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
           <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
+          <option value="system_broadcast">Thông báo hệ thống cho tất cả user (1 bản ghi)</option>
         </select>
         {manualNotice.target === 'single_account' && (
           <input
@@ -3586,7 +3662,7 @@ function NotificationAdmin({ token }: { token: string }) {
                     <div className="font-semibold text-slate-900">{row.recipient_email}</div>
                     <div className="text-xs text-slate-500">{row.user_name || '-'} {row.student_id ? `· ${row.student_id}` : ''}</div>
                   </td>
-                  <td className="px-4 py-4"><span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2 py-1 rounded">{row.type}</span></td>
+                  <td className="px-4 py-4"><span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2 py-1 rounded">{notificationTypeLabel(row.type)}</span></td>
                   <td className="px-4 py-4 max-w-xl">
                     <div className="font-semibold text-slate-800">{row.subject}</div>
                     <div className="text-xs text-slate-500 whitespace-pre-wrap mt-1">{row.body}</div>

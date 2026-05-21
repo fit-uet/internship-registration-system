@@ -20,6 +20,33 @@ let db: Client;
 const DB_BATCH_SIZE = 100;
 let r2Client: S3Client | null = null;
 
+function isTransientLibsqlError(error: any) {
+  const message = String(error?.message || error?.cause?.message || '').toLowerCase();
+  const code = String(error?.code || '').toUpperCase();
+  const status = Number(error?.cause?.status || error?.status || 0);
+  return code === 'SERVER_ERROR' || [502, 503, 504].includes(status) || /bad gateway|service unavailable|gateway timeout|fetch failed|network/i.test(message);
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function withDbRetry<T>(operation: () => Promise<T>, label: string, attempts = 3): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      if (!isTransientLibsqlError(error) || attempt === attempts) break;
+      const delay = 150 * attempt;
+      console.warn(`[db] transient ${label} error, retry ${attempt}/${attempts - 1} after ${delay}ms: ${error.message}`);
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
 async function executeBatch(statements: any[], mode: 'read' | 'write' = 'write') {
   for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
     await (db as any).batch(statements.slice(i, i + DB_BATCH_SIZE), mode);
@@ -859,6 +886,10 @@ async function initDb() {
     url: databaseUrl,
     authToken: process.env.TURSO_AUTH_TOKEN
   });
+  const rawExecute = db.execute.bind(db);
+  const rawExecuteMultiple = db.executeMultiple.bind(db);
+  db.execute = ((statement: any) => withDbRetry(() => rawExecute(statement), 'execute')) as any;
+  db.executeMultiple = ((sql: string) => withDbRetry(() => rawExecuteMultiple(sql), 'executeMultiple')) as any;
   await db.execute('PRAGMA foreign_keys = ON');
 
   await db.executeMultiple(`
@@ -994,6 +1025,22 @@ async function initDb() {
       attempt_count INTEGER DEFAULT 0,
       last_attempt_at DATETIME,
       read_at DATETIME
+    );
+    CREATE TABLE IF NOT EXISTS system_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL DEFAULT 'system_announcement',
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      target_role TEXT NOT NULL DEFAULT 'all',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS system_notification_reads (
+      system_notification_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (system_notification_id, user_id)
     );
     CREATE TABLE IF NOT EXISTS faq_questions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1515,19 +1562,54 @@ async function startServer() {
 
   app.get('/api/notifications/my', requireAuth, async (req: any, res: any) => {
     try {
-      const rows = (await db.execute({
+      const personalRows = (await db.execute({
         sql: `
-          SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+          SELECT id, 'personal' as source, type, subject, body, status, error, created_at, sent_at, read_at
           FROM notifications
           WHERE lower(trim(recipient_email)) = lower(trim(?))
              OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
-          ORDER BY created_at DESC
           LIMIT 100
         `,
         args: [req.user.email || '', req.user.personal_email || ''],
       })).rows as any[];
+      const systemRows = (await db.execute({
+        sql: `
+          SELECT s.id, 'system' as source, s.type, s.subject, s.body, 'system' as status, NULL as error, s.created_at, NULL as sent_at, r.read_at
+          FROM system_notifications s
+          LEFT JOIN system_notification_reads r ON r.system_notification_id = s.id AND r.user_id = ?
+          WHERE s.active = 1
+            AND (s.target_role = 'all' OR s.target_role = ?)
+          ORDER BY s.created_at DESC
+          LIMIT 100
+        `,
+        args: [req.user.id, req.user.role || 'student'],
+      })).rows as any[];
+      const rows = [...personalRows, ...systemRows]
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 100);
       const unread = rows.filter(row => !row.read_at).length;
       res.json({ rows, unread });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.put('/api/notifications/my/system/:id/read', requireAuth, async (req: any, res: any) => {
+    try {
+      const id = Number(req.params.id);
+      const notification = (await db.execute({
+        sql: `SELECT id FROM system_notifications WHERE id = ? AND active = 1 AND (target_role = 'all' OR target_role = ?)`,
+        args: [id, req.user.role || 'student'],
+      })).rows[0];
+      if (!notification) return res.status(404).json({ error: 'Không tìm thấy thông báo hệ thống.' });
+      await db.execute({
+        sql: `
+          INSERT OR REPLACE INTO system_notification_reads (system_notification_id, user_id, read_at)
+          VALUES (?, ?, datetime('now', '+7 hours'))
+        `,
+        args: [id, req.user.id],
+      });
+      res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -1563,6 +1645,15 @@ async function startServer() {
              OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
         `,
         args: [req.user.email || '', req.user.personal_email || ''],
+      });
+      await db.execute({
+        sql: `
+          INSERT OR REPLACE INTO system_notification_reads (system_notification_id, user_id, read_at)
+          SELECT id, ?, datetime('now', '+7 hours')
+          FROM system_notifications
+          WHERE active = 1 AND (target_role = 'all' OR target_role = ?)
+        `,
+        args: [req.user.id, req.user.role || 'student'],
       });
       res.json({ success: true });
     } catch (e: any) {
@@ -3265,7 +3356,18 @@ async function startServer() {
       const body = String(req.body.body || '').trim();
       if (!subject) return res.status(400).json({ error: 'Tiêu đề không được để trống.' });
       if (!body) return res.status(400).json({ error: 'Nội dung không được để trống.' });
-      if (!['website_and_email', 'website_only'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
+      if (!['website_and_email', 'website_only', 'system_broadcast'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
+
+      if (deliveryMode === 'system_broadcast') {
+        const result = await db.execute({
+          sql: `
+            INSERT INTO system_notifications (type, subject, body, target_role, active, created_by, created_at)
+            VALUES ('system_announcement', ?, ?, 'all', 1, ?, datetime('now', '+7 hours'))
+          `,
+          args: [subject, body, req.user.id],
+        });
+        return res.json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+      }
 
       let rows: any[] = [];
       if (target === 'lecturers') {
@@ -3561,6 +3663,45 @@ async function startServer() {
     }
   });
 
+  app.put('/api/admin/registrations/comments', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const reviewComment = String(req.body?.review_comment || '').trim();
+    const rawIds = Array.isArray(req.body?.registration_ids) ? req.body.registration_ids : [];
+    const registrationIds = rawIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0);
+    if (!reviewComment) return res.status(400).json({ error: 'Nội dung nhận xét không được để trống.' });
+    if (registrationIds.length === 0) return res.status(400).json({ error: 'Danh sách đăng ký cần gửi nhận xét đang trống.' });
+
+    try {
+      const placeholders = registrationIds.map(() => '?').join(',');
+      const rows = (await db.execute({
+        sql: `
+          SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+          FROM registrations r
+          JOIN users u ON u.id = r.user_id
+          JOIN companies c ON c.id = r.company_id
+          WHERE r.id IN (${placeholders})
+        `,
+        args: registrationIds,
+      })).rows as any[];
+      await db.execute({
+        sql: `UPDATE registrations SET review_comment = ? WHERE id IN (${placeholders})`,
+        args: [reviewComment, ...registrationIds],
+      });
+      for (const row of rows) {
+        await createNotification({
+          user_id: Number(row.user_id),
+          recipient_email: row.personal_email || row.email,
+          type: 'registration_review_comment',
+          subject: 'Khoa gửi nhận xét về đăng ký thực tập',
+          body: `Đăng ký thực tập tại ${row.company_name === 'Công ty khác' ? row.other_company_name || 'Công ty khác' : row.company_name} có nhận xét từ Khoa:\n${reviewComment}`,
+          send_now: true,
+        });
+      }
+      res.json({ success: true, count: rows.length });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get('/api/settings/campaign', async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`
       SELECT key, value FROM settings
@@ -3620,95 +3761,119 @@ async function startServer() {
   });
 
   app.get('/api/settings/faq', requireAuth, async (req: any, res: any) => {
-    const settings = rowsToSettings((await db.execute(`
-      SELECT key, value FROM settings
-      WHERE key IN ('faq_student_md', 'faq_lecturer_md')
-    `)).rows);
-    res.json({
-      faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
-      faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
-    });
+    try {
+      const settings = rowsToSettings((await db.execute(`
+        SELECT key, value FROM settings
+        WHERE key IN ('faq_student_md', 'faq_lecturer_md')
+      `)).rows);
+      res.json({
+        faq_student_md: settings.faq_student_md || DEFAULT_STUDENT_FAQ,
+        faq_lecturer_md: settings.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+      });
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không tải được FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.put('/api/settings/faq', requireAuth, requireAdmin, async (req: any, res: any) => {
-    await executeBatch([
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(req.body.faq_student_md || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(req.body.faq_lecturer_md || '')] },
-    ]);
-    res.json({ success: true });
+    try {
+      await executeBatch([
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_student_md', ?)", args: [String(req.body.faq_student_md || '')] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('faq_lecturer_md', ?)", args: [String(req.body.faq_lecturer_md || '')] },
+      ]);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không lưu được FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.get('/api/faq/questions/my', requireAuth, async (req: any, res: any) => {
-    const rows = (await db.execute({
-      sql: `
-        SELECT id, role, question, answer, status, created_at, answered_at
-        FROM faq_questions
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT 100
-      `,
-      args: [req.user.id],
-    })).rows;
-    res.json(rows);
+    try {
+      const rows = (await db.execute({
+        sql: `
+          SELECT id, role, question, answer, status, created_at, answered_at
+          FROM faq_questions
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT 100
+        `,
+        args: [req.user.id],
+      })).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không tải được câu hỏi FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.post('/api/faq/questions', requireAuth, async (req: any, res: any) => {
-    const question = String(req.body.question || '').trim();
-    if (!question) return res.status(400).json({ error: 'Vui lòng nhập câu hỏi.' });
-    if (question.length > 2000) return res.status(400).json({ error: 'Câu hỏi không được vượt quá 2000 ký tự.' });
-    const role = req.user.role === 'lecturer' ? 'lecturer' : 'student';
-    const result = await db.execute({
-      sql: `
-        INSERT INTO faq_questions (user_id, role, question, status, created_at)
-        VALUES (?, ?, ?, 'pending', datetime('now', '+7 hours'))
-      `,
-      args: [req.user.id, role, question],
-    });
-    res.json({ success: true, id: Number(result.lastInsertRowid) });
+    try {
+      const question = String(req.body.question || '').trim();
+      if (!question) return res.status(400).json({ error: 'Vui lòng nhập câu hỏi.' });
+      if (question.length > 2000) return res.status(400).json({ error: 'Câu hỏi không được vượt quá 2000 ký tự.' });
+      const role = req.user.role === 'lecturer' ? 'lecturer' : 'student';
+      const result = await db.execute({
+        sql: `
+          INSERT INTO faq_questions (user_id, role, question, status, created_at)
+          VALUES (?, ?, ?, 'pending', datetime('now', '+7 hours'))
+        `,
+        args: [req.user.id, role, question],
+      });
+      res.json({ success: true, id: Number(result.lastInsertRowid) });
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không gửi được câu hỏi FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.get('/api/admin/faq/questions', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const rows = (await db.execute(`
-      SELECT q.*, u.name as user_name, u.email as user_email, u.student_id, a.name as answered_by_name
-      FROM faq_questions q
-      JOIN users u ON u.id = q.user_id
-      LEFT JOIN users a ON a.id = q.answered_by
-      ORDER BY CASE q.status WHEN 'pending' THEN 0 ELSE 1 END, q.created_at DESC
-      LIMIT 500
-    `)).rows;
-    res.json(rows);
+    try {
+      const rows = (await db.execute(`
+        SELECT q.*, u.name as user_name, u.email as user_email, u.student_id, a.name as answered_by_name
+        FROM faq_questions q
+        JOIN users u ON u.id = q.user_id
+        LEFT JOIN users a ON a.id = q.answered_by
+        ORDER BY CASE q.status WHEN 'pending' THEN 0 ELSE 1 END, q.created_at DESC
+        LIMIT 500
+      `)).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không tải được danh sách câu hỏi FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.put('/api/admin/faq/questions/:id/answer', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const answer = String(req.body.answer || '').trim();
-    if (!answer) return res.status(400).json({ error: 'Vui lòng nhập câu trả lời.' });
-    const existing = (await db.execute({
-      sql: `
-        SELECT q.*, u.email, u.personal_email
-        FROM faq_questions q
-        JOIN users u ON u.id = q.user_id
-        WHERE q.id = ?
-      `,
-      args: [Number(req.params.id)],
-    })).rows[0] as any;
-    if (!existing) return res.status(404).json({ error: 'Không tìm thấy câu hỏi.' });
-    await db.execute({
-      sql: `
-        UPDATE faq_questions
-        SET answer = ?, status = 'answered', answered_at = datetime('now', '+7 hours'), answered_by = ?
-        WHERE id = ?
-      `,
-      args: [answer, req.user.id, Number(req.params.id)],
-    });
-    await createNotification({
-      user_id: Number(existing.user_id),
-      recipient_email: existing.personal_email || existing.email,
-      type: 'faq_answered',
-      subject: 'Câu hỏi FAQ của bạn đã được trả lời',
-      body: `Câu hỏi:\n${existing.question}\n\nTrả lời:\n${answer}`,
-      status: 'website_only',
-    });
-    res.json({ success: true });
+    try {
+      const answer = String(req.body.answer || '').trim();
+      if (!answer) return res.status(400).json({ error: 'Vui lòng nhập câu trả lời.' });
+      const existing = (await db.execute({
+        sql: `
+          SELECT q.*, u.email, u.personal_email
+          FROM faq_questions q
+          JOIN users u ON u.id = q.user_id
+          WHERE q.id = ?
+        `,
+        args: [Number(req.params.id)],
+      })).rows[0] as any;
+      if (!existing) return res.status(404).json({ error: 'Không tìm thấy câu hỏi.' });
+      await db.execute({
+        sql: `
+          UPDATE faq_questions
+          SET answer = ?, status = 'answered', answered_at = datetime('now', '+7 hours'), answered_by = ?
+          WHERE id = ?
+        `,
+        args: [answer, req.user.id, Number(req.params.id)],
+      });
+      await createNotification({
+        user_id: Number(existing.user_id),
+        recipient_email: existing.personal_email || existing.email,
+        type: 'faq_answered',
+        subject: 'Câu hỏi FAQ của bạn đã được trả lời',
+        body: `Câu hỏi:\n${existing.question}\n\nTrả lời:\n${answer}`,
+        status: 'website_only',
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(503).json({ error: 'Không lưu được câu trả lời FAQ. Vui lòng thử lại sau.', detail: e.message });
+    }
   });
 
   app.get('/api/settings/plan', requireAuth, requireAdmin, async (req: any, res: any) => {
