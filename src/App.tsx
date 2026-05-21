@@ -391,6 +391,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
     if (type === 'final_report_status_changed') return 'Báo cáo';
     if (type === 'grade_locked') return 'Bảng điểm';
     if (type === 'faq_answered') return 'FAQ';
+    if (type === 'faq_question_created') return 'Câu hỏi FAQ';
     if (type === 'system_announcement') return 'Hệ thống';
     if (type === 'manual_student_notice' || type === 'manual_lecturer_notice') return 'Thông báo';
     return type || 'Thông báo';
@@ -661,6 +662,7 @@ function App() {
                 <Route path="/admin/admins" element={user.role === 'admin' ? <AdminRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/settings" element={user.role === 'admin' ? <AdminSettings token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/faq" element={user.role === 'admin' ? <FAQSettingsAdmin token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/faq-questions" element={user.role === 'admin' ? <FAQQuestionsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/plan" element={user.role === 'admin' ? <PlanSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/registration-rules" element={user.role === 'admin' ? <RegistrationRulesSettingsAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/company/:id" element={<CompanyDetail user={user} token={token} />} />
@@ -3446,6 +3448,7 @@ function NotificationAdmin({ token }: { token: string }) {
       advisor_assigned: 'Phân công giảng viên hướng dẫn',
       company_applicants_sent: 'Đã gửi danh sách cho doanh nghiệp',
       faq_answered: 'Trả lời FAQ',
+      faq_question_created: 'Câu hỏi FAQ mới',
       final_confirmation_open: 'Mở xác nhận nơi thực tập',
       final_internship_confirmed: 'Xác nhận nơi thực tập',
       final_report_due_reminder: 'Nhắc nộp báo cáo final',
@@ -5751,9 +5754,14 @@ function FAQView({ user, token }: { user: any, token: string }) {
               <p className="text-sm text-slate-500 mt-1">Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</p>
             </div>
             {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-                <Edit2 size={16} /> Cài đặt FAQ
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => navigate('/admin/faq-questions')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <Send size={16} /> Trả lời câu hỏi
+                </button>
+                <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <Edit2 size={16} /> Cài đặt FAQ
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -5841,16 +5849,12 @@ function FAQView({ user, token }: { user: any, token: string }) {
   );
 }
 
-function FAQSettingsAdmin({ token }: { token: string }) {
+function FAQQuestionsAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
-  const [faq, setFaq] = useState<any>({ faq_student_md: DEFAULT_STUDENT_FAQ, faq_lecturer_md: DEFAULT_LECTURER_FAQ });
   const [questions, setQuestions] = useState<any[]>([]);
   const [answerDrafts, setAnswerDrafts] = useState<Record<number, string>>({});
-  const [activeTab, setActiveTab] = useState<'student' | 'lecturer'>('student');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [answeringId, setAnsweringId] = useState<number | null>(null);
-  const [importingDocx, setImportingDocx] = useState(false);
 
   const fetchFaqQuestions = async () => {
     const res = await fetch(`${API_BASE}/api/admin/faq/questions`, { headers: { Authorization: `Bearer ${token}` } });
@@ -5861,42 +5865,11 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json())
-        .then(data => {
-          if (data && !data.error) {
-            setFaq({
-              faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
-              faq_lecturer_md: data.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
-            });
-          }
-        }),
-      fetchFaqQuestions().catch(() => setQuestions([])),
-    ])
+    fetchFaqQuestions()
+      .catch(() => setQuestions([]))
       .finally(() => setLoading(false));
   }, [token]);
 
-  const saveFaq = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/settings/faq`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(faq),
-      });
-      const data = await res.json();
-      if (!res.ok) return alert(data.error || 'Lưu FAQ thất bại.');
-      alert('Đã lưu FAQ.');
-    } catch (e) {
-      alert('Không thể kết nối đến máy chủ.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const activeKey = activeTab === 'student' ? 'faq_student_md' : 'faq_lecturer_md';
-  const activeDefault = activeTab === 'student' ? DEFAULT_STUDENT_FAQ : DEFAULT_LECTURER_FAQ;
   const pendingQuestions = questions.filter(q => q.status !== 'answered').length;
 
   const answerQuestion = async (questionId: number) => {
@@ -5920,37 +5893,18 @@ function FAQSettingsAdmin({ token }: { token: string }) {
     }
   };
 
-  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.docx')) {
-      alert('Vui lòng chọn file .docx');
-      return;
-    }
-    setImportingDocx(true);
-    try {
-      const markdown = await convertDocxFileToMarkdown(file);
-      setFaq((prev: any) => ({ ...prev, [activeKey]: markdown }));
-    } catch (err: any) {
-      alert('Không đọc được file Word: ' + (err?.message || err));
-    } finally {
-      setImportingDocx(false);
-      e.target.value = '';
-    }
-  };
-
-  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải cấu hình FAQ...</div>;
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải danh sách câu hỏi...</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
-          <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng, chỉnh nội dung FAQ và trả lời câu hỏi được gửi từ người dùng.</p>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Send className="text-blue-600" /> Trả lời câu hỏi FAQ</h2>
+          <p className="text-sm text-slate-500 mt-1">Xem và trả lời câu hỏi do sinh viên hoặc giảng viên gửi từ trang FAQ.</p>
         </div>
-        <button onClick={saveFaq} disabled={saving} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
-          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu FAQ
+        <button onClick={fetchFaqQuestions} className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm font-semibold shadow-sm flex items-center gap-2">
+          <RefreshCw size={16} /> Tải lại
         </button>
       </div>
 
@@ -5960,9 +5914,6 @@ function FAQSettingsAdmin({ token }: { token: string }) {
             <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Câu hỏi gửi tới FAQ</h3>
             <p className="text-xs text-slate-500 mt-1">Còn <strong>{pendingQuestions}</strong> câu hỏi đang chờ trả lời.</p>
           </div>
-          <button onClick={fetchFaqQuestions} className="text-sm font-semibold text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-lg flex items-center gap-2 w-fit">
-            <RefreshCw size={15} /> Tải lại
-          </button>
         </div>
         <div className="divide-y divide-slate-100">
           {questions.length === 0 ? (
@@ -6003,6 +5954,86 @@ function FAQSettingsAdmin({ token }: { token: string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FAQSettingsAdmin({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [faq, setFaq] = useState<any>({ faq_student_md: DEFAULT_STUDENT_FAQ, faq_lecturer_md: DEFAULT_LECTURER_FAQ });
+  const [activeTab, setActiveTab] = useState<'student' | 'lecturer'>('student');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [importingDocx, setImportingDocx] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          setFaq({
+            faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
+            faq_lecturer_md: data.faq_lecturer_md || DEFAULT_LECTURER_FAQ,
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const saveFaq = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/faq`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(faq),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu FAQ thất bại.');
+      alert('Đã lưu FAQ.');
+    } catch (e) {
+      alert('Không thể kết nối đến máy chủ.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeKey = activeTab === 'student' ? 'faq_student_md' : 'faq_lecturer_md';
+  const activeDefault = activeTab === 'student' ? DEFAULT_STUDENT_FAQ : DEFAULT_LECTURER_FAQ;
+
+  const handleImportDocx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      alert('Vui lòng chọn file .docx');
+      return;
+    }
+    setImportingDocx(true);
+    try {
+      const markdown = await convertDocxFileToMarkdown(file);
+      setFaq((prev: any) => ({ ...prev, [activeKey]: markdown }));
+    } catch (err: any) {
+      alert('Không đọc được file Word: ' + (err?.message || err));
+    } finally {
+      setImportingDocx(false);
+      e.target.value = '';
+    }
+  };
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải cấu hình FAQ...</div>;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
+          <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng và chỉnh nội dung FAQ hiển thị cho sinh viên hoặc giảng viên.</p>
+        </div>
+        <button onClick={saveFaq} disabled={saving} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu FAQ
+        </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

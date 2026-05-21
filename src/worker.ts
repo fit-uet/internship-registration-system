@@ -2862,6 +2862,24 @@ async function route(request: Request, env: Env) {
       `,
       args: [user.id, role, question],
     });
+    const admins = (await database.execute(`
+      SELECT id, email, personal_email, name
+      FROM users
+      WHERE role = 'admin'
+        AND email IS NOT NULL
+        AND trim(email) != ''
+    `)).rows as any[];
+    const askerName = user.name || user.email || (role === 'lecturer' ? 'Giảng viên' : 'Sinh viên');
+    for (const admin of admins) {
+      await notify({
+        user_id: Number(admin.id),
+        recipient_email: admin.personal_email || admin.email,
+        type: 'faq_question_created',
+        subject: 'Có câu hỏi FAQ mới cần trả lời',
+        body: `${askerName} vừa gửi câu hỏi FAQ:\n\n${question}\n\nVui lòng vào trang Trả lời câu hỏi FAQ để xử lý.`,
+        status: 'website_only',
+      });
+    }
     return json({ success: true, id: Number(result.lastInsertRowid) });
   }
 
