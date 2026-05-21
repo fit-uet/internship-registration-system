@@ -2514,7 +2514,6 @@ async function route(request: Request, env: Env) {
     if (!content) return json({ error: 'Nội dung không được để trống.' }, 400);
     if (!['website_and_email', 'website_only'].includes(deliveryMode)) return json({ error: 'Kiểu gửi thông báo không hợp lệ.' }, 400);
     if (target === 'system_all') {
-      if (deliveryMode !== 'website_only') return json({ error: 'Thông báo cả hệ thống chỉ hỗ trợ chế độ hiển thị trên website.' }, 400);
       const result = await database.execute({
         sql: `
           INSERT INTO system_notifications (type, subject, body, target_role, active, created_by, created_at)
@@ -2522,7 +2521,29 @@ async function route(request: Request, env: Env) {
         `,
         args: [subject, content, user.id],
       });
-      return json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+      if (deliveryMode === 'website_only') return json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+
+      const users = (await database.execute(`
+        SELECT id as user_id, email, personal_email, role
+        FROM users
+        WHERE email IS NOT NULL AND trim(email) != ''
+        ORDER BY role ASC, name ASC
+      `)).rows as any[];
+      let count = 0;
+      for (const row of users) {
+        const recipient = row.personal_email || row.email;
+        if (!recipient) continue;
+        await notify({
+          user_id: Number(row.user_id),
+          recipient_email: recipient,
+          type: row.role === 'lecturer' ? 'manual_lecturer_notice' : 'manual_student_notice',
+          subject,
+          body: content,
+          status: 'queued',
+        });
+        count++;
+      }
+      return json({ success: true, count, system_notification_id: Number(result.lastInsertRowid) });
     }
     let rows: any[] = [];
     if (target === 'lecturers') {

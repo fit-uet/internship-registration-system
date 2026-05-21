@@ -3382,7 +3382,9 @@ function NotificationAdmin({ token }: { token: string }) {
         ? `tài khoản ${manualNotice.recipient.trim()}`
         : 'nhóm người nhận đã chọn';
     const deliveryText = manualNotice.target === 'system_all'
-      ? 'chỉ hiển thị trên website bằng 1 bản ghi'
+      ? (manualNotice.delivery_mode === 'website_only'
+        ? 'chỉ hiển thị trên website bằng 1 bản ghi'
+        : 'hiển thị trên website bằng 1 bản ghi và đưa email vào hàng đợi')
       : manualNotice.delivery_mode === 'website_only'
         ? 'chỉ hiển thị trên website'
         : 'hiển thị trên website và đưa vào hàng đợi email';
@@ -3563,17 +3565,16 @@ function NotificationAdmin({ token }: { token: string }) {
               setManualNotice(prev => ({
                 ...prev,
                 target,
-                delivery_mode: target === 'system_all' ? 'website_only' : prev.delivery_mode,
               }));
             }}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
           >
-            <option value="system_all">Cả hệ thống</option>
+            <option value="system_all">Cả hệ thống (1 bản ghi website)</option>
             <option value="students_with_registration">Sinh viên đã đăng ký</option>
             <option value="students_approved">Sinh viên có đăng ký đã duyệt</option>
             <option value="students_rejected">Sinh viên có đăng ký bị từ chối</option>
             <option value="students_pending">Sinh viên có đăng ký chờ duyệt</option>
-            <option value="all_students">Tất cả sinh viên trong hệ thống</option>
+            <option value="all_students">Tất cả sinh viên (tạo từng thông báo)</option>
             <option value="lecturers">Giảng viên có email</option>
             <option value="single_account">Một tài khoản cụ thể</option>
           </select>
@@ -3581,14 +3582,15 @@ function NotificationAdmin({ token }: { token: string }) {
         <select
           value={manualNotice.delivery_mode}
           onChange={e => setManualNotice(prev => ({ ...prev, delivery_mode: e.target.value }))}
-          disabled={manualNotice.target === 'system_all'}
           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
         >
           <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
           <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
         </select>
         {manualNotice.target === 'system_all' && (
-          <p className="text-xs text-slate-500 -mt-1">Thông báo cho cả hệ thống chỉ hiển thị trên website và được lưu bằng 1 bản ghi nội dung.</p>
+          <p className="text-xs text-slate-500 -mt-1">
+            Phần hiển thị trên website của thông báo cả hệ thống luôn được lưu bằng 1 bản ghi nội dung. Nếu chọn gửi email, hệ thống sẽ tạo thêm hàng đợi email theo từng tài khoản.
+          </p>
         )}
         {manualNotice.target === 'single_account' && (
           <input
