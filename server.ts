@@ -2082,14 +2082,36 @@ async function startServer() {
           return res.status(403).json({ error: `Đã hết thời gian đăng ký. Thời gian kết thúc: ${new Date(closeUTC.getTime() + 7*3600000).toISOString().replace('T',' ').slice(0,16)} (GMT+7).` });
         }
       }
-      if (!Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
+      if (!Array.isArray(req.body.preferences) && !Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {
         return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
       }
 
       const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0] as any;
       const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
-      const normal_company_ids = Array.isArray(company_ids) ? Array.from(new Set(company_ids.filter((id: number) => id !== khacCompany?.id))) : [];
-      const totalWishes = normal_company_ids.length + (other_companies ? other_companies.length : 0);
+      const fallbackCompanyIds = Array.isArray(company_ids) ? Array.from(new Set(company_ids.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id !== khacCompany?.id))) : [];
+      const fallbackOtherCompanies = Array.isArray(other_companies) ? other_companies : [];
+      const rawPreferences = Array.isArray(req.body.preferences) ? req.body.preferences : [];
+      const orderedPreferences = rawPreferences.length > 0
+        ? rawPreferences.flatMap((item: any) => {
+          if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact }];
+          const companyId = Number(item?.company_id);
+          if (!Number.isFinite(companyId) || companyId === khacCompany?.id) return [];
+          return [{ type: 'company', company_id: companyId }];
+        })
+        : [
+          ...fallbackCompanyIds.map((companyId: number) => ({ type: 'company', company_id: companyId })),
+          ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact })),
+        ];
+      const seenCompanyIds = new Set<number>();
+      const dedupedPreferences = orderedPreferences.filter((item: any) => {
+        if (item.type !== 'company') return true;
+        if (seenCompanyIds.has(item.company_id)) return false;
+        seenCompanyIds.add(item.company_id);
+        return true;
+      });
+      const normal_company_ids = dedupedPreferences.filter((item: any) => item.type === 'company').map((item: any) => item.company_id);
+      const otherCompanies = dedupedPreferences.filter((item: any) => item.type === 'other');
+      const totalWishes = dedupedPreferences.length;
 
       if (!profile.student_id || !profile.dob || !profile.class_name || !profile.course_code || !profile.phone || !profile.personal_email) {
         return res.status(400).json({ error: 'Vui lòng cập nhật đầy đủ Mã SV, ngày sinh, lớp khóa học, học phần thực tập, số điện thoại và email cá nhân trước khi đăng ký.' });
@@ -2134,7 +2156,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 công ty.' });
       }
 
-      if (other_companies && other_companies.length > 0) {
+      if (otherCompanies.length > 0) {
         const seenOtherNames = new Set();
         let selectedCompanyNames: string[] = [];
         if (normal_company_ids.length > 0) {
@@ -2145,7 +2167,7 @@ async function startServer() {
           selectedCompanyNames = selectedRes.rows.map(r => (r.name as string).trim().toLowerCase());
         }
 
-        for (const other of other_companies) {
+        for (const other of otherCompanies) {
           if (!other.name || !other.role || !other.contact) {
             return res.status(400).json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' });
           }
@@ -2172,19 +2194,19 @@ async function startServer() {
       ];
 
       let preferenceOrder = 1;
-      for (const companyId of normal_company_ids) {
-        const contactInfo = companyId === schoolCompany?.id ? schoolLecturerName : null;
-        const roleInfo = companyId === schoolCompany?.id ? schoolCoLecturerName || null : null;
-        writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, roleInfo, contactInfo || null, preferenceOrder] });
-        preferenceOrder += 1;
-      }
-
-      if (other_companies && Array.isArray(other_companies)) {
-        const approvedRows = (await db.execute('SELECT normalized_name FROM approved_company_names')).rows;
-        const approvedCompanyNames = approvedRows.length > 0
-          ? new Set(approvedRows.map((row: any) => String(row.normalized_name || '').trim()).filter(Boolean))
-          : getItCompanyNameSet();
-        for (const other of other_companies) {
+      const approvedRows = otherCompanies.length > 0 ? (await db.execute('SELECT normalized_name FROM approved_company_names')).rows : [];
+      const approvedCompanyNames = approvedRows.length > 0
+        ? new Set(approvedRows.map((row: any) => String(row.normalized_name || '').trim()).filter(Boolean))
+        : getItCompanyNameSet();
+      for (const preference of dedupedPreferences) {
+        if (preference.type === 'company') {
+          const companyId = preference.company_id;
+          const contactInfo = companyId === schoolCompany?.id ? schoolLecturerName : null;
+          const roleInfo = companyId === schoolCompany?.id ? schoolCoLecturerName || null : null;
+          writeStatements.push({ sql: insertSql2, args: [req.user.id, companyId, note || null, 'approved', null, roleInfo, contactInfo || null, preferenceOrder] });
+          preferenceOrder += 1;
+        } else {
+          const other = preference;
           const inList = other.name ? approvedCompanyNames.has(normalizeCompanyName(other.name)) : false;
           const status = inList ? 'approved' : 'pending';
 

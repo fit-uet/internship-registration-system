@@ -832,6 +832,17 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
   const schoolCompany = companies.find(c => c.name === 'Trường Đại học Công nghệ');
   const hasSelectedSchool = schoolCompany && selectedCompanies.has(schoolCompany.id);
+  const selectedPreferencePreview = Array.from(selectedCompanies).flatMap((companyId) => {
+    if (khacCompany && companyId === khacCompany.id) {
+      return otherCompanies.map((otherCompany, index) => ({
+        key: `other-${index}`,
+        name: otherCompany.name?.trim() ? `(Khác) ${otherCompany.name.trim()}` : `Công ty tự liên hệ ${index + 1}`,
+      }));
+    }
+    const company = companies.find(c => c.id === companyId);
+    return [{ key: `company-${companyId}`, name: company?.name || 'Không rõ' }];
+  });
+  const selectedWishCount = selectedPreferencePreview.length;
 
   useEffect(() => {
     sessionStorage.setItem('selectedCompanies', JSON.stringify(Array.from(selectedCompanies)));
@@ -966,7 +977,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
   const submitRegister = async (e: any) => {
     e.preventDefault();
-    if (selectedCompanies.size === 0) return;
+    if (selectedWishCount === 0) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -979,6 +990,17 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         },
         body: JSON.stringify({
           company_ids: Array.from(selectedCompanies).filter(id => id !== khacCompany?.id),
+          preferences: Array.from(selectedCompanies).flatMap((companyId) => {
+            if (khacCompany && companyId === khacCompany.id) {
+              return otherCompanies.map(c => ({
+                type: 'other',
+                name: c.name,
+                role: c.role,
+                contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`
+              }));
+            }
+            return [{ type: 'company', company_id: companyId }];
+          }),
           student_id: registerForm.student_id,
           dob: registerForm.dob,
           class_name: registerForm.class_name,
@@ -1336,8 +1358,8 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
-              {!hasRegistered && selectedCompanies.size > 0 && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedCompanies.size}/5</span>
+              {!hasRegistered && selectedWishCount > 0 && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedWishCount}/5</span>
               )}
             </div>
             <div className="flex gap-2 items-center">
@@ -1363,11 +1385,11 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                     </button>
                   ) : (
                     <button
-                      disabled={selectedCompanies.size === 0}
+                      disabled={selectedWishCount === 0}
                       onClick={() => setRegisterModalOpen(true)}
-                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedCompanies.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedWishCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                     >
-                      Đăng ký ({selectedCompanies.size})
+                      Đăng ký ({selectedWishCount})
                     </button>
                   )}
                 </>
@@ -1432,7 +1454,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
                         <input
                           type="checkbox"
                           checked={isSelected || isRegistered}
-                          disabled={hasRegistered || (!isSelected && selectedCompanies.size >= 5)}
+                          disabled={hasRegistered || (!isSelected && selectedWishCount >= 5)}
                           onChange={() => toggleCompanySelection(company.id)}
                           className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
@@ -1674,12 +1696,11 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
               </button>
             </div>
             <div className="mb-4">
-              <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedCompanies.size}</strong> công ty:</p>
+              <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedWishCount}</strong> nguyện vọng:</p>
               <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                {Array.from(selectedCompanies).map((cId, idx) => {
-                  const comp = companies.find(c => c.id === cId);
-                  return <li key={cId} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {comp?.name || 'Không rõ'}</li>;
-                })}
+                {selectedPreferencePreview.map((item, idx) => (
+                  <li key={item.key} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {item.name}</li>
+                ))}
               </ul>
             </div>
             <form onSubmit={submitRegister} className="space-y-4">

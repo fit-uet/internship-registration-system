@@ -1320,9 +1320,32 @@ async function route(request: Request, env: Env) {
 
     const khac = (await database.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0] as any;
     const school = (await database.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
-    const companyIds = Array.isArray(body.company_ids) ? Array.from(new Set(body.company_ids.filter((id: number) => id !== khac?.id))) : [];
-    const otherCompanies = Array.isArray(body.other_companies) ? body.other_companies : [];
-    const total = companyIds.length + otherCompanies.length;
+    const fallbackCompanyIds = Array.isArray(body.company_ids)
+      ? Array.from(new Set(body.company_ids.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id !== khac?.id)))
+      : [];
+    const fallbackOtherCompanies = Array.isArray(body.other_companies) ? body.other_companies : [];
+    const rawPreferences = Array.isArray(body.preferences) ? body.preferences : [];
+    const orderedPreferences = rawPreferences.length > 0
+      ? rawPreferences.flatMap((item: any) => {
+        if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact }];
+        const companyId = Number(item?.company_id);
+        if (!Number.isFinite(companyId) || companyId === khac?.id) return [];
+        return [{ type: 'company', company_id: companyId }];
+      })
+      : [
+        ...fallbackCompanyIds.map((companyId: number) => ({ type: 'company', company_id: companyId })),
+        ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact })),
+      ];
+    const seenCompanyIds = new Set<number>();
+    const dedupedPreferences = orderedPreferences.filter((item: any) => {
+      if (item.type !== 'company') return true;
+      if (seenCompanyIds.has(item.company_id)) return false;
+      seenCompanyIds.add(item.company_id);
+      return true;
+    });
+    const companyIds = dedupedPreferences.filter((item: any) => item.type === 'company').map((item: any) => item.company_id);
+    const otherCompanies = dedupedPreferences.filter((item: any) => item.type === 'other');
+    const total = dedupedPreferences.length;
     if (total === 0) return json({ error: 'Vui lòng chọn ít nhất 1 nơi thực tập.' }, 400);
     if (total > 5) return json({ error: 'Bạn chỉ được chọn tối đa 5 nơi thực tập.' }, 400);
     const schoolLecturerName = String(body.school_lecturer || '').trim();
@@ -1344,31 +1367,34 @@ async function route(request: Request, env: Env) {
       { sql: 'UPDATE users SET student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?', args: [profile.student_id, profile.dob, profile.class_name, profile.course_code, profile.phone, profile.personal_email, user.id] },
     ];
     let preferenceOrder = 1;
-    for (const companyId of companyIds) {
-      statements.push({
-        sql: insertSql,
-        args: [
-          user.id,
-          companyId,
-          body.note || null,
-          'approved',
-          null,
-          companyId === school?.id ? schoolCoLecturerName || null : null,
-          companyId === school?.id ? schoolLecturerName : null,
-          preferenceOrder,
-        ],
-      });
-      preferenceOrder += 1;
-    }
     const approvedNameRows = otherCompanies.length > 0
       ? (await database.execute('SELECT normalized_name FROM approved_company_names')).rows
       : [];
     const approvedNames = new Set(approvedNameRows.map((row: any) => String(row.normalized_name || '').trim()).filter(Boolean));
-    for (const other of otherCompanies) {
-      if (!other.name || !other.role || !other.contact) return json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' }, 400);
-      const status = approvedNames.has(normalizeCompanyName(other.name)) ? 'approved' : 'pending';
-      statements.push({ sql: insertSql, args: [user.id, khac.id, body.note || null, status, other.name, other.role, other.contact, preferenceOrder] });
-      preferenceOrder += 1;
+    for (const preference of dedupedPreferences) {
+      if (preference.type === 'company') {
+        const companyId = preference.company_id;
+        statements.push({
+          sql: insertSql,
+          args: [
+            user.id,
+            companyId,
+            body.note || null,
+            'approved',
+            null,
+            companyId === school?.id ? schoolCoLecturerName || null : null,
+            companyId === school?.id ? schoolLecturerName : null,
+            preferenceOrder,
+          ],
+        });
+        preferenceOrder += 1;
+      } else {
+        const other = preference;
+        if (!other.name || !other.role || !other.contact) return json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' }, 400);
+        const status = approvedNames.has(normalizeCompanyName(other.name)) ? 'approved' : 'pending';
+        statements.push({ sql: insertSql, args: [user.id, khac.id, body.note || null, status, other.name, other.role, other.contact, preferenceOrder] });
+        preferenceOrder += 1;
+      }
     }
     await executeBatch(database, statements);
     const updatedUser = (await database.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows[0];
