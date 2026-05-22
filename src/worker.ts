@@ -759,7 +759,7 @@ async function initDb(env: Env) {
         answered_by INTEGER
       );
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
-      CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT);
+      CREATE TABLE IF NOT EXISTS lecturers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, email TEXT, work_unit TEXT);
     `);
 
     await database.executeMultiple(`
@@ -792,6 +792,7 @@ async function initDb(env: Env) {
       'ALTER TABLE final_reports ADD COLUMN lecturer_comment TEXT',
       'ALTER TABLE grades ADD COLUMN locked_at DATETIME',
       'ALTER TABLE notifications ADD COLUMN read_at DATETIME',
+      'ALTER TABLE lecturers ADD COLUMN work_unit TEXT',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -1797,12 +1798,27 @@ async function route(request: Request, env: Env) {
 
   if (method === 'POST' && path === '/api/admin/lecturers/bulk') {
     const body = await readBody(request);
-    if (body.override) await database.execute('DELETE FROM lecturers');
     const lecturers = Array.isArray(body.lecturers) ? body.lecturers : [];
     const statements = lecturers.map((item: any) => {
       const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
       const email = typeof item === 'string' ? null : item?.email?.trim() || null;
-      return name ? { sql: `INSERT INTO lecturers (name, email) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET email = CASE WHEN excluded.email IS NOT NULL AND excluded.email != '' AND (lecturers.email IS NULL OR lecturers.email = '') THEN excluded.email ELSE lecturers.email END`, args: [name, email] } : null;
+      const workUnit = typeof item === 'string' ? null : item?.work_unit?.trim() || null;
+      return name ? {
+        sql: `INSERT INTO lecturers (name, email, work_unit)
+              VALUES (?, ?, ?)
+              ON CONFLICT(name) DO UPDATE SET
+                email = CASE
+                  WHEN ? = 1 AND excluded.email IS NOT NULL AND excluded.email != '' THEN excluded.email
+                  WHEN excluded.email IS NOT NULL AND excluded.email != '' AND (lecturers.email IS NULL OR lecturers.email = '') THEN excluded.email
+                  ELSE lecturers.email
+                END,
+                work_unit = CASE
+                  WHEN ? = 1 AND excluded.work_unit IS NOT NULL AND excluded.work_unit != '' THEN excluded.work_unit
+                  WHEN excluded.work_unit IS NOT NULL AND excluded.work_unit != '' AND (lecturers.work_unit IS NULL OR lecturers.work_unit = '') THEN excluded.work_unit
+                  ELSE lecturers.work_unit
+                END`,
+        args: [name, email, workUnit, body.override ? 1 : 0, body.override ? 1 : 0]
+      } : null;
     }).filter(Boolean);
     await executeBatch(database, statements);
     await syncLecturerUsers(database);
@@ -1812,7 +1828,7 @@ async function route(request: Request, env: Env) {
   if (method === 'POST' && path === '/api/admin/lecturers') {
     const body = await readBody(request);
     if (!body.name) return json({ error: 'Tên không được để trống' }, 400);
-    const result = await database.execute({ sql: 'INSERT INTO lecturers (name, email) VALUES (?, ?)', args: [body.name.trim(), body.email?.trim() || null] });
+    const result = await database.execute({ sql: 'INSERT INTO lecturers (name, email, work_unit) VALUES (?, ?, ?)', args: [body.name.trim(), body.email?.trim() || null, body.work_unit?.trim() || null] });
     await syncLecturerUsers(database);
     return json((await database.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0]);
   }
@@ -1820,7 +1836,7 @@ async function route(request: Request, env: Env) {
   const lecturerId = path.match(/^\/api\/admin\/lecturers\/(\d+)$/);
   if (lecturerId && method === 'PUT') {
     const body = await readBody(request);
-    await database.execute({ sql: 'UPDATE lecturers SET name = ?, email = ? WHERE id = ?', args: [body.name?.trim(), body.email?.trim() || null, lecturerId[1]] });
+    await database.execute({ sql: 'UPDATE lecturers SET name = ?, email = ?, work_unit = ? WHERE id = ?', args: [body.name?.trim(), body.email?.trim() || null, body.work_unit?.trim() || null, lecturerId[1]] });
     await syncLecturerUsers(database);
     return json({ success: true });
   }

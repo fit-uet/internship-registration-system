@@ -3780,9 +3780,11 @@ function LecturerRegistry({ token }: { token: string }) {
 
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newWorkUnit, setNewWorkUnit] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editWorkUnit, setEditWorkUnit] = useState('');
 
   const fetchLecturers = async () => {
     try {
@@ -3810,7 +3812,11 @@ function LecturerRegistry({ token }: { token: string }) {
     let result = [...lecturers];
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      result = result.filter(l => l.name?.toLowerCase().includes(lower) || l.email?.toLowerCase().includes(lower));
+      result = result.filter(l =>
+        l.name?.toLowerCase().includes(lower) ||
+        l.email?.toLowerCase().includes(lower) ||
+        l.work_unit?.toLowerCase().includes(lower)
+      );
     }
     if (sortConfig) {
       result.sort((a, b) => {
@@ -3830,8 +3836,8 @@ function LecturerRegistry({ token }: { token: string }) {
   const paginatedLecturers = filteredAndSorted.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Họ và tên', 'Email'];
-    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '']);
+    const headers = ['STT', 'Họ và tên', 'Email', 'Đơn vị công tác'];
+    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '', l.work_unit || '']);
     saveXlsx('danh_sach_giang_vien.xlsx', headers, rows, 'Giảng viên');
   };
 
@@ -3843,31 +3849,58 @@ function LecturerRegistry({ token }: { token: string }) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try {
       const rows = await readSpreadsheetRows(file);
-      const imported: { name: string; email?: string }[] = [];
+      const imported: { name: string; email?: string; work_unit?: string }[] = [];
+      const normalizeHeader = (value: string) => String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/\s+/g, ' ');
+      const headers = rows[0]?.map(normalizeHeader) || [];
+      const nameIndex = headers.findIndex(h => ['ho va ten', 'ten', 'ten giang vien', 'giang vien', 'ho ten'].includes(h));
+      const emailIndex = headers.findIndex(h => ['email', 'email vnu', 'thu dien tu'].includes(h));
+      const workUnitIndex = headers.findIndex(h => ['don vi cong tac', 'don vi', 'bo mon', 'khoa/bo mon', 'khoa', 'department', 'work unit', 'work_unit'].includes(h));
+      const hasHeader = nameIndex >= 0 || emailIndex >= 0 || workUnitIndex >= 0;
 
       for (let i = 0; i < rows.length; i++) {
         const parts = rows[i];
         if (!parts.some(Boolean)) continue;
-        // Detect format:
-        // Format A: STT, Tên, Email  (3+ cols, col0 is a number)
-        // Format B: Tên, Email        (2 cols)
-        // Format C: Tên only          (1 col)
-        // Skip header rows
-        if (i === 0 && (parts[0].toLowerCase() === 'stt' || parts[0].toLowerCase() === 'họ và tên' || parts[0].toLowerCase() === 'tên')) continue;
+        if (hasHeader && i === 0) continue;
 
         const isNumeric = (s: string) => /^\d+$/.test(s);
 
         let name = '';
         let email = '';
+        let workUnit = '';
 
-        if (parts.length >= 3 && isNumeric(parts[0])) {
-          // Format A: STT, Tên, Email
+        if (hasHeader) {
+          name = nameIndex >= 0 ? parts[nameIndex] : '';
+          email = emailIndex >= 0 ? parts[emailIndex] : '';
+          workUnit = workUnitIndex >= 0 ? parts[workUnitIndex] : '';
+        } else if (parts.length >= 4 && isNumeric(parts[0])) {
+          // Format A: STT, Tên, Email, Đơn vị công tác
           name = parts[1];
-          email = parts[2];
+          email = parts[2]?.includes('@') ? parts[2] : '';
+          workUnit = parts[3] || (!email ? parts[2] : '');
+        } else if (parts.length >= 3 && isNumeric(parts[0])) {
+          // Format A: STT, Tên, Email hoặc STT, Tên, Đơn vị công tác
+          name = parts[1];
+          email = parts[2]?.includes('@') ? parts[2] : '';
+          workUnit = parts[2]?.includes('@') ? '' : parts[2];
+        } else if (parts.length >= 3 && !isNumeric(parts[0])) {
+          // Format B: Tên, Email, Đơn vị công tác
+          name = parts[0];
+          email = parts[1]?.includes('@') ? parts[1] : '';
+          workUnit = parts[2] || (!email ? parts[1] : '');
         } else if (parts.length >= 2 && !isNumeric(parts[0]) && parts[1].includes('@')) {
           // Format B: Tên, Email
           name = parts[0];
           email = parts[1];
+        } else if (parts.length >= 2 && !isNumeric(parts[0])) {
+          // Format B without email: Tên, Đơn vị công tác
+          name = parts[0];
+          workUnit = parts[1];
         } else if (parts.length >= 2 && isNumeric(parts[0])) {
           // Format A without email: STT, Tên
           name = parts[1];
@@ -3876,7 +3909,7 @@ function LecturerRegistry({ token }: { token: string }) {
           name = parts[0];
         }
 
-        if (name) imported.push({ name, email: email || undefined });
+        if (name) imported.push({ name, email: email || undefined, work_unit: workUnit || undefined });
       }
 
       if (imported.length === 0) {
@@ -3912,11 +3945,12 @@ function LecturerRegistry({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/lecturers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: newName.trim(), email: newEmail.trim() || undefined })
+        body: JSON.stringify({ name: newName.trim(), email: newEmail.trim() || undefined, work_unit: newWorkUnit.trim() || undefined })
       });
       if (res.ok) {
         setNewName('');
         setNewEmail('');
+        setNewWorkUnit('');
         fetchLecturers();
       } else {
         const err = await res.json();
@@ -3933,7 +3967,7 @@ function LecturerRegistry({ token }: { token: string }) {
       const res = await fetch(`${API_BASE}/api/admin/lecturers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || undefined })
+        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || undefined, work_unit: editWorkUnit.trim() || undefined })
       });
       if (res.ok) {
         setEditingId(null);
@@ -3969,14 +4003,14 @@ function LecturerRegistry({ token }: { token: string }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserIcon className="text-teal-600" /> Quản lý Giảng viên</h2>
-          <p className="text-sm text-slate-500 mt-1">Danh sách giảng viên dùng để sinh viên chọn hướng dẫn.</p>
+          <p className="text-sm text-slate-500 mt-1">Danh sách giảng viên dùng để sinh viên chọn hướng dẫn. Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Tìm theo Tên..."
+              placeholder="Tìm tên, email, đơn vị..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
@@ -3984,7 +4018,7 @@ function LecturerRegistry({ token }: { token: string }) {
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
             <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
-            Ghi đè GV
+            Cập nhật dữ liệu trùng
           </label>
           <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
@@ -4020,6 +4054,14 @@ function LecturerRegistry({ token }: { token: string }) {
           className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
+        <input
+          type="text"
+          placeholder="Đơn vị công tác (tuỳ chọn)"
+          value={newWorkUnit}
+          onChange={e => setNewWorkUnit(e.target.value)}
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+        />
         <button onClick={handleAdd} className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap">
           <Plus size={16} /> Thêm Giảng viên
         </button>
@@ -4036,13 +4078,16 @@ function LecturerRegistry({ token }: { token: string }) {
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
                 Email {sortConfig?.key === 'email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('work_unit')}>
+                Đơn vị công tác {sortConfig?.key === 'work_unit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="p-4 font-semibold whitespace-nowrap text-right w-40">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredAndSorted.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-10 text-center text-slate-500">
+                <td colSpan={5} className="p-10 text-center text-slate-500">
                   {lecturers.length === 0 ? 'Chưa có dữ liệu giảng viên.' : 'Không có giảng viên phù hợp.'}
                 </td>
               </tr>
@@ -4083,6 +4128,23 @@ function LecturerRegistry({ token }: { token: string }) {
                       : <span className="text-slate-400 italic text-xs">Chưa có</span>
                   )}
                 </td>
+                <td className="p-4 text-sm">
+                  {editingId === l.id ? (
+                    <input
+                      type="text"
+                      value={editWorkUnit}
+                      onChange={e => setEditWorkUnit(e.target.value)}
+                      placeholder="Đơn vị công tác..."
+                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleUpdate(l.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                    />
+                  ) : (
+                    l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
+                  )}
+                </td>
                 <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
                   {editingId === l.id ? (
                     <>
@@ -4091,7 +4153,7 @@ function LecturerRegistry({ token }: { token: string }) {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
+                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
                       <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
                     </>
                   )}

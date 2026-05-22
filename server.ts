@@ -1060,7 +1060,8 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS lecturers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
-      email TEXT
+      email TEXT,
+      work_unit TEXT
     );
   `);
 
@@ -1170,6 +1171,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN is_lecturer INTEGER DEFAULT 0'); } catch (e) { }
   // Migration: add email to lecturers if not exists
   try { await db.executeMultiple('ALTER TABLE lecturers ADD COLUMN email TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE lecturers ADD COLUMN work_unit TEXT'); } catch (e) { }
   // Migration: add phone and personal_email to users if not exists
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN personal_email TEXT'); } catch (e) { }
@@ -1198,8 +1200,9 @@ async function initDb() {
           const parts = line.split(',').map((s: string) => s.trim());
           const name = parts[0];
           const email = parts[1] && parts[1].includes('@') ? parts[1] : null;
+          const workUnit = parts[2] || (parts[1] && !parts[1].includes('@') ? parts[1] : null);
           if (!name) return null;
-          return { sql: "INSERT OR IGNORE INTO lecturers (name, email) VALUES (?, ?)", args: [name, email] };
+          return { sql: "INSERT OR IGNORE INTO lecturers (name, email, work_unit) VALUES (?, ?, ?)", args: [name, email, workUnit] };
         })
         .filter(Boolean);
       if (statements.length > 0) {
@@ -2406,26 +2409,31 @@ async function startServer() {
     const { lecturers, override } = req.body;
     if (!Array.isArray(lecturers)) return res.status(400).json({ error: 'Expected array' });
     try {
-      if (override) {
-        await db.execute("DELETE FROM lecturers");
-      }
       const statements = lecturers
         .map((item: any) => {
           const name = typeof item === 'string' ? item.trim() : item?.name?.trim();
           const email = typeof item === 'string' ? null : item?.email?.trim() || null;
+          const workUnit = typeof item === 'string' ? null : item?.work_unit?.trim() || null;
           if (!name) return null;
           return {
             sql: `
-              INSERT INTO lecturers (name, email)
-              VALUES (?, ?)
+              INSERT INTO lecturers (name, email, work_unit)
+              VALUES (?, ?, ?)
               ON CONFLICT(name) DO UPDATE SET
                 email = CASE
+                  WHEN ? = 1 AND excluded.email IS NOT NULL AND excluded.email != '' THEN excluded.email
                   WHEN excluded.email IS NOT NULL AND excluded.email != '' AND (lecturers.email IS NULL OR lecturers.email = '')
                   THEN excluded.email
                   ELSE lecturers.email
+                END,
+                work_unit = CASE
+                  WHEN ? = 1 AND excluded.work_unit IS NOT NULL AND excluded.work_unit != '' THEN excluded.work_unit
+                  WHEN excluded.work_unit IS NOT NULL AND excluded.work_unit != '' AND (lecturers.work_unit IS NULL OR lecturers.work_unit = '')
+                  THEN excluded.work_unit
+                  ELSE lecturers.work_unit
                 END
             `,
-            args: [name, email]
+            args: [name, email, workUnit, override ? 1 : 0, override ? 1 : 0]
           };
         })
         .filter(Boolean);
@@ -2442,9 +2450,9 @@ async function startServer() {
   // 17b. Admin: Add Single Lecturer
   app.post('/api/admin/lecturers', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const { name, email } = req.body;
+      const { name, email, work_unit } = req.body;
       if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
-      const result = await db.execute({ sql: "INSERT INTO lecturers (name, email) VALUES (?, ?)", args: [name.trim(), email?.trim() || null] });
+      const result = await db.execute({ sql: "INSERT INTO lecturers (name, email, work_unit) VALUES (?, ?, ?)", args: [name.trim(), email?.trim() || null, work_unit?.trim() || null] });
       if (email?.trim()) {
         await db.execute({
           sql: "UPDATE users SET is_lecturer = 1, name = ? WHERE email = ? AND role = 'admin'",
@@ -2463,10 +2471,10 @@ async function startServer() {
   // 17c. Admin: Update Single Lecturer
   app.put('/api/admin/lecturers/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const { name, email } = req.body;
+      const { name, email, work_unit } = req.body;
       if (!name) return res.status(400).json({ error: 'Tên không được để trống' });
       const oldLecturer = (await db.execute({ sql: "SELECT email FROM lecturers WHERE id = ?", args: [req.params.id] })).rows[0] as any;
-      await db.execute({ sql: "UPDATE lecturers SET name = ?, email = ? WHERE id = ?", args: [name.trim(), email?.trim() || null, req.params.id] });
+      await db.execute({ sql: "UPDATE lecturers SET name = ?, email = ?, work_unit = ? WHERE id = ?", args: [name.trim(), email?.trim() || null, work_unit?.trim() || null, req.params.id] });
       if (oldLecturer?.email && oldLecturer.email !== email?.trim()) {
         await db.execute({
           sql: "UPDATE users SET is_lecturer = 0 WHERE email = ? AND role = 'admin'",
