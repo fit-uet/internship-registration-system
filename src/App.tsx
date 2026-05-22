@@ -575,10 +575,10 @@ function App() {
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                        <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                          <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
-                        </Link>
-                        {user.role === 'admin' && (
+                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                            <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
+                          </Link>
+                          {user.role === 'admin' && (
                             <>
                               <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
@@ -4003,7 +4003,7 @@ function LecturerRegistry({ token }: { token: string }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserIcon className="text-teal-600" /> Quản lý Giảng viên</h2>
-          <p className="text-sm text-slate-500 mt-1">Danh sách giảng viên dùng để sinh viên chọn hướng dẫn. Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có.</p>
+          <p className="text-sm text-slate-500 mt-1">Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
@@ -6556,7 +6556,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                 {(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email (không thể thay đổi)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                 <input
                   type="text"
                   value={user.email}
