@@ -266,10 +266,13 @@ async function assertStudentCohortAllowed(database: DatabaseClient, email: strin
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const studentId = normalizedEmail.split('@')[0] || '';
   const settings = rowsToSettings((await database.execute({
-    sql: "SELECT key, value FROM settings WHERE key IN ('allowed_registration_cohorts', 'allow_listed_student_cohort_exceptions')",
+    sql: "SELECT key, value FROM settings WHERE key IN ('allowed_registration_cohorts')",
     args: [],
   })).rows);
-  if (settings.allow_listed_student_cohort_exceptions === 'true' && studentId) {
+  const cohort = cohortFromVnuEmail(normalizedEmail);
+  const allowed = new Set(String(settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS).split(',').map(item => item.trim()).filter(Boolean));
+  if (cohort && allowed.has(cohort)) return;
+  if (studentId) {
     const listed = (await database.execute({
       sql: `SELECT id FROM users
             WHERE role = 'student'
@@ -279,9 +282,6 @@ async function assertStudentCohortAllowed(database: DatabaseClient, email: strin
     })).rows[0];
     if (listed) return;
   }
-  const cohort = cohortFromVnuEmail(normalizedEmail);
-  const allowed = new Set(String(settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS).split(',').map(item => item.trim()).filter(Boolean));
-  if (cohort && allowed.has(cohort)) return;
   const allowedText = Array.from(allowed).join(', ') || 'không có khóa nào';
   throw new Error(`Khóa ${cohort || 'không xác định'} không được phép đăng nhập/đăng ký học phần trong đợt này. Các khóa đang mở: ${allowedText}.`);
 }
@@ -511,14 +511,13 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
 }
 
 async function getCampaignSettings(database: DatabaseClient) {
-  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'allow_listed_student_cohort_exceptions', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
+  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
   return {
     year: settings.campaign_year || '2026',
     start: settings.campaign_start || '22/05/2026',
     end: settings.campaign_end || '15/06/2026',
     classes_list: settings.classes_list || DEFAULT_CLASSES,
     allowed_registration_cohorts: settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS,
-    allow_listed_student_cohort_exceptions: settings.allow_listed_student_cohort_exceptions === 'true',
     registration_rules_md: settings.registration_rules_md || DEFAULT_REGISTRATION_RULES,
     registration_open_at: settings.registration_open_at || '',
     registration_close_at: settings.registration_close_at || '',
@@ -804,7 +803,6 @@ async function initDb(env: Env) {
       INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('allowed_registration_cohorts', '${DEFAULT_ALLOWED_REGISTRATION_COHORTS}');
-      INSERT OR IGNORE INTO settings (key, value) VALUES ('allow_listed_student_cohort_exceptions', 'false');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_open_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_close_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('confirmation_open_at', '');
@@ -2885,7 +2883,6 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [body.final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [body.classes_list || DEFAULT_CLASSES] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(body.allowed_registration_cohorts) ? body.allowed_registration_cohorts.join(',') : String(body.allowed_registration_cohorts || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allow_listed_student_cohort_exceptions', ?)", args: [body.allow_listed_student_cohort_exceptions ? 'true' : 'false'] },
     ]);
     return json({ success: true });
   }
