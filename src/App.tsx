@@ -5152,6 +5152,22 @@ function AdminSettings({ token }: { token: string }) {
               ))}
             </div>
           </div>
+          <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <label className="flex items-start gap-3 text-sm text-amber-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean((campaign as any).allow_listed_student_cohort_exceptions)}
+                onChange={e => setCampaign({ ...campaign, allow_listed_student_cohort_exceptions: e.target.checked } as any)}
+                className="mt-0.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span>
+                <span className="font-semibold">Cho phép ngoại lệ theo danh sách sinh viên</span>
+                <span className="block text-xs text-amber-800 mt-1">
+                  Khi bật, sinh viên ngoài các khóa đã chọn vẫn được đăng nhập và đăng ký nếu MSSV/email của sinh viên đã có trong site Quản lý sinh viên. Ví dụ K69 MSSV 24021400 chỉ được vào nếu admin đã thêm/import sinh viên này.
+                </span>
+              </span>
+            </label>
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">⏰ Mở đăng ký lúc <span className="text-slate-400 font-normal">(GMT+7)</span></label>
             <input

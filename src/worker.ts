@@ -18,6 +18,7 @@ type Env = {
 const encoder = new TextEncoder();
 const DB_BATCH_SIZE = 100;
 const MAX_REPORT_BYTES = 10 * 1024 * 1024;
+const DEFAULT_ALLOWED_REGISTRATION_COHORTS = 'K66,K67,K68';
 const DEFAULT_CLASSES = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
 const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
 
@@ -253,6 +254,38 @@ function rowsToSettings(rows: any[]) {
   return Object.fromEntries(rows.map(row => [row.key, row.value])) as Record<string, string>;
 }
 
+function cohortFromVnuEmail(email: string) {
+  const localPart = String(email || '').toLowerCase().split('@')[0] || '';
+  const prefix = localPart.match(/^\d{4}/)?.[0] || '';
+  const yearCode = Number(prefix.slice(0, 2));
+  if (!Number.isInteger(yearCode) || yearCode < 0) return null;
+  return `K${yearCode + 45}`;
+}
+
+async function assertStudentCohortAllowed(database: DatabaseClient, email: string) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const studentId = normalizedEmail.split('@')[0] || '';
+  const settings = rowsToSettings((await database.execute({
+    sql: "SELECT key, value FROM settings WHERE key IN ('allowed_registration_cohorts', 'allow_listed_student_cohort_exceptions')",
+    args: [],
+  })).rows);
+  if (settings.allow_listed_student_cohort_exceptions === 'true' && studentId) {
+    const listed = (await database.execute({
+      sql: `SELECT id FROM users
+            WHERE role = 'student'
+              AND (lower(email) = ? OR student_id = ?)
+            LIMIT 1`,
+      args: [normalizedEmail, studentId],
+    })).rows[0];
+    if (listed) return;
+  }
+  const cohort = cohortFromVnuEmail(normalizedEmail);
+  const allowed = new Set(String(settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS).split(',').map(item => item.trim()).filter(Boolean));
+  if (cohort && allowed.has(cohort)) return;
+  const allowedText = Array.from(allowed).join(', ') || 'không có khóa nào';
+  throw new Error(`Khóa ${cohort || 'không xác định'} không được phép đăng nhập/đăng ký học phần trong đợt này. Các khóa đang mở: ${allowedText}.`);
+}
+
 function normalizeCompanyName(name: string) {
   return String(name || '')
     .trim()
@@ -478,12 +511,14 @@ function calculateFinalScore(progressScore: number | null, reportScore: number |
 }
 
 async function getCampaignSettings(database: DatabaseClient) {
-  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
+  const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('campaign_year', 'campaign_start', 'campaign_end', 'classes_list', 'allowed_registration_cohorts', 'allow_listed_student_cohort_exceptions', 'registration_rules_md', 'registration_open_at', 'registration_close_at', 'confirmation_open_at', 'confirmation_close_at', 'final_report_open_at', 'final_report_close_at', 'faq_student_md', 'faq_lecturer_md')")).rows);
   return {
     year: settings.campaign_year || '2026',
     start: settings.campaign_start || '22/05/2026',
     end: settings.campaign_end || '15/06/2026',
     classes_list: settings.classes_list || DEFAULT_CLASSES,
+    allowed_registration_cohorts: settings.allowed_registration_cohorts || DEFAULT_ALLOWED_REGISTRATION_COHORTS,
+    allow_listed_student_cohort_exceptions: settings.allow_listed_student_cohort_exceptions === 'true',
     registration_rules_md: settings.registration_rules_md || DEFAULT_REGISTRATION_RULES,
     registration_open_at: settings.registration_open_at || '',
     registration_close_at: settings.registration_close_at || '',
@@ -768,6 +803,8 @@ async function initDb(env: Env) {
       INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_year', '2026');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_start', '22/05/2026');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('campaign_end', '15/06/2026');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('allowed_registration_cohorts', '${DEFAULT_ALLOWED_REGISTRATION_COHORTS}');
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('allow_listed_student_cohort_exceptions', 'false');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_open_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('registration_close_at', '');
       INSERT OR IGNORE INTO settings (key, value) VALUES ('confirmation_open_at', '');
@@ -956,6 +993,10 @@ async function handleAuthGoogle(request: Request, env: Env) {
         args: [studentId],
       })).rows[0] as any;
     }
+    const effectiveRole = user?.role || defaultRole;
+    if (effectiveRole === 'student' && !isLecturer && email !== adminEmail) {
+      await assertStudentCohortAllowed(database, email);
+    }
     if (!user) {
       const result = await database.execute({
         sql: 'INSERT INTO users (email, name, picture, role, student_id, is_lecturer) VALUES (?, ?, ?, ?, ?, ?)',
@@ -977,6 +1018,9 @@ async function handleAuthGoogle(request: Request, env: Env) {
     return json({ token, user });
   } catch (error: any) {
     const message = String(error?.message || '');
+    if (message.includes('không được phép đăng nhập/đăng ký')) {
+      return json({ error: message }, 403);
+    }
     if (/UNIQUE constraint failed: users\.student_id|idx_users_student_id_unique/i.test(message)) {
       return json({ error: 'Tài khoản này bị trùng mã sinh viên với một hồ sơ khác trong hệ thống. Vui lòng liên hệ quản trị viên để gộp hoặc sửa hồ sơ sinh viên.' }, 409);
     }
@@ -1303,6 +1347,7 @@ async function route(request: Request, env: Env) {
   if (method === 'POST' && path === '/api/registrations') {
     requireRole(user, ['student']);
     const body = await readBody(request);
+    await assertStudentCohortAllowed(database, user.email);
     const profile = {
       student_id: body.student_id || user.student_id || null,
       dob: body.dob || user.dob || null,
@@ -2839,6 +2884,8 @@ async function route(request: Request, env: Env) {
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [body.final_report_open_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [body.final_report_close_at || ''] },
       { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [body.classes_list || DEFAULT_CLASSES] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(body.allowed_registration_cohorts) ? body.allowed_registration_cohorts.join(',') : String(body.allowed_registration_cohorts || '')] },
+      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allow_listed_student_cohort_exceptions', ?)", args: [body.allow_listed_student_cohort_exceptions ? 'true' : 'false'] },
     ]);
     return json({ success: true });
   }
@@ -3076,6 +3123,9 @@ export default {
         Object.entries(headers).forEach(([key, value]) => out.headers.set(key, value));
         out.headers.set('content-type', 'application/json; charset=utf-8');
         return out;
+      }
+      if (String(error?.message || '').includes('không được phép đăng nhập/đăng ký')) {
+        return json({ error: error.message }, 403, headers);
       }
       return json({ error: error?.message || 'Internal error' }, 500, headers);
     }
