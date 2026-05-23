@@ -6718,11 +6718,15 @@ function StudentRegistry({ token }: { token: string }) {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [savingStudent, setSavingStudent] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [importMessage, setImportMessage] = useState('');
   const [override, setOverride] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const emptyStudentForm = { student_id: '', name: '', dob: '', class_name: '', phone: '', personal_email: '' };
+  const [newStudent, setNewStudent] = useState(emptyStudentForm);
   const pageSize = 25;
 
   const fetchStudents = async () => {
@@ -6867,12 +6871,44 @@ function StudentRegistry({ token }: { token: string }) {
     }
   };
 
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      student_id: newStudent.student_id.trim(),
+      name: newStudent.name.trim(),
+      dob: newStudent.dob,
+      class_name: newStudent.class_name.trim(),
+      phone: newStudent.phone.trim(),
+      personal_email: newStudent.personal_email.trim(),
+    };
+    if (!payload.student_id || !payload.name) {
+      alert('Vui lòng nhập Mã SV và Họ tên.');
+      return;
+    }
+    setSavingStudent(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không thể thêm sinh viên.');
+      setNewStudent(emptyStudentForm);
+      setShowAddForm(false);
+      await fetchStudents();
+    } catch (e) {
+      alert('Lỗi thêm sinh viên');
+    } finally {
+      setSavingStudent(false);
+    }
+  };
+
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
-          <p className="text-sm text-slate-500 mt-1">Danh sách sinh viên dùng để tự động điền thông tin khi đăng nhập.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
@@ -6893,11 +6929,85 @@ function StudentRegistry({ token }: { token: string }) {
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
+          <button onClick={() => setShowAddForm(prev => !prev)} disabled={importing} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            {showAddForm ? <X size={16} /> : <Plus size={16} />} {showAddForm ? 'Đóng' : 'Thêm sinh viên'}
+          </button>
           <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
+      {showAddForm && (
+        <form onSubmit={handleAddStudent} className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Mã SV *</label>
+              <input
+                value={newStudent.student_id}
+                onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="24021400"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Họ và tên *</label>
+              <input
+                value={newStudent.name}
+                onChange={e => setNewStudent({ ...newStudent, name: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nguyễn Văn A"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Ngày sinh</label>
+              <input
+                type="date"
+                value={newStudent.dob}
+                onChange={e => setNewStudent({ ...newStudent, dob: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">SĐT</label>
+              <input
+                value={newStudent.phone}
+                onChange={e => setNewStudent({ ...newStudent, phone: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="09..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Lớp khoá học</label>
+              <input
+                value={newStudent.class_name}
+                onChange={e => setNewStudent({ ...newStudent, class_name: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="QH-2024-I/CQ..."
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Email cá nhân</label>
+              <input
+                type="email"
+                value={newStudent.personal_email}
+                onChange={e => setNewStudent({ ...newStudent, personal_email: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="email@example.com"
+              />
+            </div>
+            <div className="md:col-span-3 flex items-end justify-end gap-2">
+              <button type="button" onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }} disabled={savingStudent} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-white disabled:opacity-60">
+                Huỷ
+              </button>
+              <button type="submit" disabled={savingStudent} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2">
+                {savingStudent ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                {savingStudent ? 'Đang lưu...' : 'Lưu sinh viên'}
+              </button>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Email VNU được tạo tự động theo dạng MSSV@vnu.edu.vn. Sinh viên ngoài khóa đang mở sẽ được xem là ngoại lệ nếu MSSV/email này tồn tại trong danh sách.</p>
+        </form>
+      )}
       {importing && (
         <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />

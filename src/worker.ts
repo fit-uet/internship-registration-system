@@ -1799,7 +1799,14 @@ async function route(request: Request, env: Env) {
   if (method === 'POST' && path === '/api/admin/students') {
     const body = await readBody(request);
     if (!body.student_id || !body.name) return json({ error: 'Mã SV và Họ tên là bắt buộc' }, 400);
-    await database.execute({ sql: `INSERT INTO users (email, name, role, student_id, dob, class_name) VALUES (?, ?, 'student', ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`, args: [`${body.student_id}@vnu.edu.vn`, body.name, body.student_id, body.dob || '', body.class_name || ''] });
+    await database.execute({
+      sql: `INSERT INTO users (email, name, role, student_id, dob, class_name, phone, personal_email)
+            VALUES (?, ?, 'student', ?, ?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+            name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id,
+            phone=excluded.phone, personal_email=excluded.personal_email`,
+      args: [`${body.student_id}@vnu.edu.vn`, body.name, body.student_id, body.dob || '', body.class_name || '', body.phone || '', body.personal_email || '']
+    });
     return json({ success: true });
   }
 

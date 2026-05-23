@@ -2361,15 +2361,16 @@ async function startServer() {
 
   // 14. Admin: Add/Update Single Student
   app.post('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { student_id, name, dob, class_name } = req.body;
+    const { student_id, name, dob, class_name, phone, personal_email } = req.body;
     if (!student_id || !name) return res.status(400).json({ error: 'Mã SV và Họ tên là bắt buộc' });
     try {
       await db.execute({
-        sql: `INSERT INTO users (email, name, role, student_id, dob, class_name) 
-              VALUES (?, ?, 'student', ?, ?, ?) 
-              ON CONFLICT(email) DO UPDATE SET 
-              name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id`,
-        args: [`${student_id}@vnu.edu.vn`, name, student_id, dob || '', class_name || '']
+        sql: `INSERT INTO users (email, name, role, student_id, dob, class_name, phone, personal_email)
+              VALUES (?, ?, 'student', ?, ?, ?, ?, ?)
+              ON CONFLICT(email) DO UPDATE SET
+              name=excluded.name, dob=excluded.dob, class_name=excluded.class_name, student_id=excluded.student_id,
+              phone=excluded.phone, personal_email=excluded.personal_email`,
+        args: [`${student_id}@vnu.edu.vn`, name, student_id, dob || '', class_name || '', phone || '', personal_email || '']
       });
       res.json({ success: true });
     } catch (e: any) {
