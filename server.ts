@@ -1696,9 +1696,9 @@ async function startServer() {
   app.get('/api/registrations/my', requireAuth, requireStudent, async (req: any, res: any) => {
     const regs = (await db.execute({
       sql: `
-      SELECT r.*, c.name as company_name 
+      SELECT r.*, COALESCE(c.name, 'Không rõ/đã bị xoá') as company_name
       FROM registrations r
-      JOIN companies c ON r.company_id = c.id
+      LEFT JOIN companies c ON r.company_id = c.id
       WHERE r.user_id = ?
       ORDER BY COALESCE(r.preference_order, r.id) ASC, r.id ASC
     `, args: [req.user.id]
@@ -2728,7 +2728,7 @@ async function startServer() {
         r.note,
         r.review_comment,
         r.preference_order,
-        c.name as company_name,
+        COALESCE(c.name, 'Không rõ/đã bị xoá') as company_name,
         r.status,
         r.created_at,
         r.other_company_name,
@@ -2742,7 +2742,7 @@ async function startServer() {
         u.personal_email
       FROM registrations r
       JOIN users u ON r.user_id = u.id
-      JOIN companies c ON r.company_id = c.id
+      LEFT JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
     `)).rows;
     res.json(data);

@@ -1201,7 +1201,7 @@ async function route(request: Request, env: Env) {
   if (method === 'GET' && path === '/api/registrations/my') {
     requireRole(user, ['student']);
     const regs = (await database.execute({
-      sql: `SELECT r.*, c.name as company_name FROM registrations r JOIN companies c ON r.company_id = c.id WHERE r.user_id = ? ORDER BY COALESCE(r.preference_order, r.id) ASC, r.id ASC`,
+      sql: `SELECT r.*, COALESCE(c.name, 'Không rõ/đã bị xoá') as company_name FROM registrations r LEFT JOIN companies c ON r.company_id = c.id WHERE r.user_id = ? ORDER BY COALESCE(r.preference_order, r.id) ASC, r.id ASC`,
       args: [user.id],
     })).rows;
     return json(regs);
@@ -2020,10 +2020,10 @@ async function route(request: Request, env: Env) {
     return json((await database.execute(`
       SELECT r.id as registration_id, r.user_id, r.company_id, u.email, u.name as student_name, u.student_id, u.dob, u.class_name, r.note, r.review_comment,
              r.preference_order,
-             c.name as company_name, r.status, r.created_at, r.other_company_name, r.other_company_role,
+             COALESCE(c.name, 'Không rõ/đã bị xoá') as company_name, r.status, r.created_at, r.other_company_name, r.other_company_role,
              r.other_company_contact, r.sent_to_company_at, r.sent_to_company_note,
              u.course_code, c.contact_email, u.phone, u.personal_email
-      FROM registrations r JOIN users u ON r.user_id = u.id JOIN companies c ON r.company_id = c.id
+      FROM registrations r JOIN users u ON r.user_id = u.id LEFT JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
     `)).rows);
   }

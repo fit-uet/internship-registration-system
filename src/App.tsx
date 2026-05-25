@@ -714,6 +714,7 @@ function App() {
 function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: string }) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [myRegs, setMyRegs] = useState<any[]>([]);
+  const [myRegsError, setMyRegsError] = useState('');
   const [finalInternship, setFinalInternship] = useState<any>(null);
   const [myAdvisors, setMyAdvisors] = useState<any[]>([]);
   const [finalReport, setFinalReport] = useState<any>(null);
@@ -907,8 +908,15 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
       const compData = await compRes.json();
       setCompanies(Array.isArray(compData) ? compData : []);
 
-      const regData = regRes ? await regRes.json() : [];
-      setMyRegs(Array.isArray(regData) ? regData : []);
+      const regData = regRes ? await regRes.json().catch(() => null) : [];
+      if (regRes && !regRes.ok) {
+        setMyRegsError(regData?.error || 'Không tải được danh sách đăng ký của bạn.');
+      } else if (Array.isArray(regData)) {
+        setMyRegs(regData);
+        setMyRegsError('');
+      } else {
+        setMyRegsError('Dữ liệu đăng ký trả về không hợp lệ.');
+      }
 
       const finalData = finalRes ? await finalRes.json() : null;
       setFinalInternship(finalData && !finalData.error ? finalData : null);
@@ -928,6 +936,9 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
       setLecturers(await lecRes.json());
     } catch (e) {
       console.error(e);
+      if (user?.role === 'student') {
+        setMyRegsError('Không kết nối được tới máy chủ để kiểm tra danh sách đăng ký.');
+      }
     }
     setLoading(false);
   };
@@ -1207,7 +1218,12 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
           </div>
         </div>
 
-        {hasRegistered ? (
+        {myRegsError ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-sm">
+            Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng tải lại trang hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
+            <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
+          </div>
+        ) : hasRegistered ? (
           <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
@@ -1236,8 +1252,14 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
             </div>
           </div>
         ) : (
-          <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 text-blue-800 text-sm">
-            Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 nơi thực tập từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.
+          <div className={`${registrationWindowStatus === 'open' ? 'bg-blue-50/30 border-blue-100 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-xl p-4 text-sm`}>
+            {registrationWindowStatus === 'open' ? (
+              <>Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 nơi thực tập từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.</>
+            ) : registrationWindowStatus === 'not_open_yet' ? (
+              <>Bạn chưa có đăng ký nào được ghi nhận. Đợt đăng ký hiện chưa mở.</>
+            ) : (
+              <>Bạn chưa có đăng ký nào được ghi nhận trong hệ thống. Đợt đăng ký đã đóng, vui lòng liên hệ Khoa nếu bạn cho rằng dữ liệu đăng ký của mình bị thiếu.</>
+            )}
           </div>
         )}
 
