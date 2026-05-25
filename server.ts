@@ -2718,6 +2718,7 @@ async function startServer() {
     const data = (await db.execute(`
       SELECT 
         r.id as registration_id,
+        r.user_id,
         r.company_id,
         u.email,
         u.name as student_name,
@@ -2726,6 +2727,7 @@ async function startServer() {
         u.class_name,
         r.note,
         r.review_comment,
+        r.preference_order,
         c.name as company_name,
         r.status,
         r.created_at,
@@ -2744,6 +2746,105 @@ async function startServer() {
       ORDER BY r.created_at DESC
     `)).rows;
     res.json(data);
+  });
+
+  app.put('/api/admin/registrations/:id(\\d+)', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { id } = req.params;
+    const companyId = Number(req.body?.company_id);
+    const status = String(req.body?.status || 'pending');
+    const note = String(req.body?.note || '').trim();
+    const reviewComment = String(req.body?.review_comment || '').trim();
+    const courseCode = String(req.body?.course_code || '').trim();
+    const preferenceOrder = req.body?.preference_order === '' || req.body?.preference_order === undefined || req.body?.preference_order === null
+      ? null
+      : Number(req.body.preference_order);
+
+    if (!Number.isInteger(companyId) || companyId <= 0) return res.status(400).json({ error: 'Nơi thực tập không hợp lệ.' });
+    if (!['pending', 'approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
+    if (preferenceOrder !== null && (!Number.isInteger(preferenceOrder) || preferenceOrder < 1)) return res.status(400).json({ error: 'Thứ tự nguyện vọng không hợp lệ.' });
+
+    try {
+      const current = (await db.execute({
+        sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+              FROM registrations r
+              JOIN users u ON u.id = r.user_id
+              JOIN companies c ON c.id = r.company_id
+              WHERE r.id = ?`,
+        args: [id],
+      })).rows[0] as any;
+      if (!current) return res.status(404).json({ error: 'Không tìm thấy đăng ký.' });
+
+      const company = (await db.execute({ sql: 'SELECT id, name FROM companies WHERE id = ?', args: [companyId] })).rows[0] as any;
+      if (!company) return res.status(400).json({ error: 'Không tìm thấy nơi thực tập.' });
+
+      const isOtherCompany = company.name === 'Công ty khác';
+      const isSchoolInternship = company.name === 'Trường Đại học Công nghệ';
+      const otherCompanyName = isOtherCompany ? String(req.body?.other_company_name || '').trim() : '';
+      const otherCompanyRole = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_role || '').trim() : '';
+      const otherCompanyContact = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_contact || '').trim() : '';
+      if (isOtherCompany && !otherCompanyName) return res.status(400).json({ error: 'Vui lòng nhập tên công ty tự liên hệ.' });
+      const targetChanged =
+        Number(current.company_id) !== companyId ||
+        String(current.other_company_name || '').trim() !== otherCompanyName;
+
+      await db.execute({
+        sql: `UPDATE registrations
+              SET company_id = ?, note = ?, status = ?, review_comment = ?, preference_order = ?,
+                  other_company_name = ?, other_company_role = ?, other_company_contact = ?
+              WHERE id = ?`,
+        args: [companyId, note || null, status, reviewComment || null, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, id],
+      });
+      await db.execute({
+        sql: 'UPDATE users SET course_code = ? WHERE id = ?',
+        args: [courseCode || null, current.user_id],
+      });
+      if (targetChanged) {
+        await db.execute({
+          sql: 'UPDATE registrations SET sent_to_company_at = NULL, sent_to_company_note = NULL WHERE id = ?',
+          args: [id],
+        });
+      }
+
+      const updated = {
+        ...current,
+        company_id: companyId,
+        company_name: company.name,
+        other_company_name: otherCompanyName,
+        other_company_role: otherCompanyRole,
+        other_company_contact: otherCompanyContact,
+      };
+      if (status === 'approved') {
+        await addApprovedCompanyFromRegistration(updated);
+        const autoApproved = await approveMatchingOtherCompanyRegistrations(updated, reviewComment);
+        for (const item of autoApproved) {
+          await createNotification({
+            user_id: Number(item.user_id),
+            recipient_email: item.personal_email || item.email,
+            type: 'registration_status_changed',
+            subject: 'Đăng ký thực tập đã được duyệt',
+            body: `Đăng ký thực tập tại ${item.other_company_name || 'Công ty tự liên hệ'} đã được tự động duyệt vì công ty này đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+            send_now: true,
+          });
+        }
+      }
+
+      if (current.status !== status) {
+        await createNotification({
+          user_id: Number(current.user_id),
+          recipient_email: current.personal_email || current.email,
+          type: 'registration_status_changed',
+          subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
+          body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+          send_now: true,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      const message = String(e?.message || '');
+      if (message.toLowerCase().includes('unique')) return res.status(400).json({ error: 'Sinh viên đã có đăng ký trùng nơi thực tập này.' });
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.get('/api/admin/approved-companies', requireAuth, requireAdmin, async (req, res) => {

@@ -2018,13 +2018,111 @@ async function route(request: Request, env: Env) {
 
   if (method === 'GET' && path === '/api/admin/registrations') {
     return json((await database.execute(`
-      SELECT r.id as registration_id, r.company_id, u.email, u.name as student_name, u.student_id, u.dob, u.class_name, r.note, r.review_comment,
+      SELECT r.id as registration_id, r.user_id, r.company_id, u.email, u.name as student_name, u.student_id, u.dob, u.class_name, r.note, r.review_comment,
+             r.preference_order,
              c.name as company_name, r.status, r.created_at, r.other_company_name, r.other_company_role,
              r.other_company_contact, r.sent_to_company_at, r.sent_to_company_note,
              u.course_code, c.contact_email, u.phone, u.personal_email
       FROM registrations r JOIN users u ON r.user_id = u.id JOIN companies c ON r.company_id = c.id
       ORDER BY r.created_at DESC
     `)).rows);
+  }
+
+  const registrationUpdateMatch = path.match(/^\/api\/admin\/registrations\/(\d+)$/);
+  if (method === 'PUT' && registrationUpdateMatch) {
+    const body = await readBody(request);
+    const companyId = Number(body.company_id);
+    const status = String(body.status || 'pending');
+    const note = String(body.note || '').trim();
+    const reviewComment = String(body.review_comment || '').trim();
+    const courseCode = String(body.course_code || '').trim();
+    const preferenceOrder = body.preference_order === '' || body.preference_order === undefined || body.preference_order === null
+      ? null
+      : Number(body.preference_order);
+
+    if (!Number.isInteger(companyId) || companyId <= 0) return json({ error: 'Nơi thực tập không hợp lệ.' }, 400);
+    if (!['pending', 'approved', 'rejected'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
+    if (preferenceOrder !== null && (!Number.isInteger(preferenceOrder) || preferenceOrder < 1)) return json({ error: 'Thứ tự nguyện vọng không hợp lệ.' }, 400);
+
+    const current = (await database.execute({
+      sql: `SELECT r.*, u.id as user_id, u.email, u.personal_email, c.name as company_name
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.id = ?`,
+      args: [registrationUpdateMatch[1]],
+    })).rows[0] as any;
+    if (!current) return json({ error: 'Không tìm thấy đăng ký.' }, 404);
+
+    const company = (await database.execute({ sql: 'SELECT id, name FROM companies WHERE id = ?', args: [companyId] })).rows[0] as any;
+    if (!company) return json({ error: 'Không tìm thấy nơi thực tập.' }, 400);
+
+    const isOtherCompany = company.name === 'Công ty khác';
+    const isSchoolInternship = company.name === 'Trường Đại học Công nghệ';
+    const otherCompanyName = isOtherCompany ? String(body.other_company_name || '').trim() : '';
+    const otherCompanyRole = isOtherCompany || isSchoolInternship ? String(body.other_company_role || '').trim() : '';
+    const otherCompanyContact = isOtherCompany || isSchoolInternship ? String(body.other_company_contact || '').trim() : '';
+    if (isOtherCompany && !otherCompanyName) return json({ error: 'Vui lòng nhập tên công ty tự liên hệ.' }, 400);
+    const targetChanged =
+      Number(current.company_id) !== companyId ||
+      String(current.other_company_name || '').trim() !== otherCompanyName;
+
+    try {
+      await database.execute({
+        sql: `UPDATE registrations
+              SET company_id = ?, note = ?, status = ?, review_comment = ?, preference_order = ?,
+                  other_company_name = ?, other_company_role = ?, other_company_contact = ?
+              WHERE id = ?`,
+        args: [companyId, note || null, status, reviewComment || null, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, registrationUpdateMatch[1]],
+      });
+      await database.execute({
+        sql: 'UPDATE users SET course_code = ? WHERE id = ?',
+        args: [courseCode || null, current.user_id],
+      });
+      if (targetChanged) {
+        await database.execute({
+          sql: 'UPDATE registrations SET sent_to_company_at = NULL, sent_to_company_note = NULL WHERE id = ?',
+          args: [registrationUpdateMatch[1]],
+        });
+      }
+    } catch (e: any) {
+      const message = String(e?.message || '');
+      if (message.toLowerCase().includes('unique')) return json({ error: 'Sinh viên đã có đăng ký trùng nơi thực tập này.' }, 400);
+      throw e;
+    }
+
+    const updated = {
+      ...current,
+      company_id: companyId,
+      company_name: company.name,
+      other_company_name: otherCompanyName,
+      other_company_role: otherCompanyRole,
+      other_company_contact: otherCompanyContact,
+    };
+    if (status === 'approved') {
+      await addApprovedCompanyFromRegistration(database, updated);
+      const autoApproved = await approveMatchingOtherCompanyRegistrations(database, updated, reviewComment);
+      for (const item of autoApproved) {
+        await notify({
+          user_id: Number(item.user_id),
+          recipient_email: item.personal_email || item.email,
+          type: 'registration_status_changed',
+          subject: 'Đăng ký thực tập đã được duyệt',
+          body: `Đăng ký thực tập tại ${item.other_company_name || 'Công ty tự liên hệ'} đã được tự động duyệt vì công ty này đã được Khoa duyệt.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+        });
+      }
+    }
+
+    if (current.status !== status) {
+      await notify({
+        user_id: Number(current.user_id),
+        recipient_email: current.personal_email || current.email,
+        type: 'registration_status_changed',
+        subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
+        body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+      });
+    }
+    return json({ success: true });
   }
 
   if (method === 'PUT' && path === '/api/admin/registrations/mark-sent') {
