@@ -574,7 +574,7 @@ async function sendNotificationEmail(database: DatabaseClient, env: Env, notific
       body: JSON.stringify({
         from,
         to: [data.recipient_email],
-        cc: data.cc_emails || undefined,
+        ...((data.cc_emails || []).length > 0 ? { cc: data.cc_emails } : {}),
         subject: data.subject,
         text: data.body,
       }),

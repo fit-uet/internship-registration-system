@@ -514,7 +514,7 @@ async function sendNotificationEmail(notificationId: number, data: {
         body: JSON.stringify({
           sender: parseEmailAddress(from),
           to: [parseEmailAddress(data.recipient_email)],
-          cc: (data.cc_emails || []).map(parseEmailAddress),
+          ...((data.cc_emails || []).length > 0 ? { cc: data.cc_emails.map(parseEmailAddress) } : {}),
           subject: data.subject,
           textContent: data.body,
         }),
@@ -531,7 +531,7 @@ async function sendNotificationEmail(notificationId: number, data: {
         body: JSON.stringify({
           from,
           to: [data.recipient_email],
-          cc: data.cc_emails || undefined,
+          ...((data.cc_emails || []).length > 0 ? { cc: data.cc_emails } : {}),
           subject: data.subject,
           text: data.body,
         }),
