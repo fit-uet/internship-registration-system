@@ -4454,17 +4454,25 @@ function CompanyRegistry({ token }: { token: string }) {
   const [mailMergeUseGmail, setMailMergeUseGmail] = useState(true);
   const [mailMergeReplyDeadline, setMailMergeReplyDeadline] = useState('');
   const [mailMergeSubject, setMailMergeSubject] = useState('Danh sách sinh viên đăng ký thực tập - {{company_name}}');
-  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi {{contact_name}},
+  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi Quý Công ty {{company_name}},
 
-Khoa CNTT - Trường Đại học Công nghệ gửi danh sách sinh viên đăng ký thực tập tại {{company_name}}.
+Khoa Công nghệ thông tin - Trường Đại học Công nghệ, Đại học Quốc gia Hà Nội trân trọng gửi tới Quý Công ty danh sách sinh viên đăng ký thực tập đã được Khoa rà soát trong đợt triển khai thực tập năm học hiện tại.
 
-Số sinh viên đã được Khoa duyệt để gửi tới Quý Công ty: {{approved_student_count}}.
+Thông tin tổng hợp:
+- Doanh nghiệp tiếp nhận: {{company_name}}
+- Số sinh viên trong danh sách gửi Quý Công ty: {{approved_student_count}}
+- Email liên hệ đang ghi nhận: {{contact_email}}
 {{reply_deadline_line}}
 {{applicants_drive_link_line}}
 
 {{applicant_list_text}}
 
-Trân trọng.`);
+Kính đề nghị Quý Công ty xem xét hồ sơ, liên hệ sinh viên để phỏng vấn/trao đổi nếu cần, và phản hồi kết quả tiếp nhận cho Khoa để phối hợp quản lý học phần thực tập.
+
+Trân trọng,
+Khoa Công nghệ thông tin
+Trường Đại học Công nghệ, ĐHQGHN`);
+  const [openCompanyActionKey, setOpenCompanyActionKey] = useState<string | null>(null);
   const pageSize = 20;
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -4542,6 +4550,7 @@ Trân trọng.`);
   });
 
   const extractEmails = (value: string) => Array.from(new Set((value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []));
+  const companyActionKey = (company: any) => company.company_key || String(company.id || company.name);
   const isOfficialBusinessCompany = (company: any) =>
     company.record_type !== 'other' && !['Công ty khác', 'Trường Đại học Công nghệ'].includes(company.name || '');
 
@@ -4563,16 +4572,19 @@ Trân trọng.`);
 
   const renderCompanyTemplate = (template: string, company: any, data: any[]) => {
     const emails = companyRecipientEmails(company);
+    const deadlineDisplay = mailMergeReplyDeadline
+      ? new Date(`${mailMergeReplyDeadline}T00:00:00+07:00`).toLocaleDateString('vi-VN')
+      : '';
     const replacements: Record<string, string> = {
       company_name: company.name || '',
       contact_name: company.contact_name || 'Quý Công ty',
       contact_email: emails[0] || '',
       student_count: String(getCompanyRegistrations(company).length),
       approved_student_count: String(data.length),
-      reply_deadline: mailMergeReplyDeadline || '',
-      reply_deadline_line: mailMergeReplyDeadline ? `Kính mong Quý Công ty phản hồi trước ngày ${mailMergeReplyDeadline}.` : '',
+      reply_deadline: deadlineDisplay,
+      reply_deadline_line: deadlineDisplay ? `- Thời hạn Khoa mong nhận phản hồi: ${deadlineDisplay}` : '',
       applicants_drive_link: company.applicants_drive_link || '',
-      applicants_drive_link_line: company.applicants_drive_link ? `Danh sách sinh viên: ${company.applicants_drive_link}` : '',
+      applicants_drive_link_line: company.applicants_drive_link ? `- Link danh sách sinh viên: ${company.applicants_drive_link}` : '',
       applicant_list_text: company.applicants_drive_link ? '' : buildApplicantListText(data),
     };
     return template.replace(/\{\{(\w+)\}\}/g, (_, key) => replacements[key] ?? '');
@@ -4905,15 +4917,18 @@ Trân trọng.`);
       ? `${data.slice(0, 25).map((row: any, idx: number) => `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''}`).join('\n')}\n\n(Danh sách đầy đủ có ${data.length} sinh viên. Vui lòng đính kèm file XLSX đã xuất từ hệ thống hoặc link Google Drive.)`
       : fullList;
     const body = [
-      'Kính gửi Quý Công ty,',
+      `Kính gửi Quý Công ty ${company.name},`,
       '',
-      `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${company.name}.`,
+      'Khoa Công nghệ thông tin - Trường Đại học Công nghệ, Đại học Quốc gia Hà Nội trân trọng gửi tới Quý Công ty danh sách sinh viên đăng ký thực tập đã được Khoa rà soát.',
       '',
-      driveLink ? `Danh sách XLSX: ${driveLink}` : '',
-      driveLink ? '' : '',
+      `Số sinh viên trong danh sách: ${data.length}.`,
+      driveLink ? `Link danh sách sinh viên: ${driveLink}` : '',
+      driveLink ? 'Kính đề nghị Quý Công ty xem xét hồ sơ, liên hệ sinh viên để phỏng vấn/trao đổi nếu cần, và phản hồi kết quả tiếp nhận cho Khoa.' : '',
       listForUrl,
       '',
-      'Trân trọng.',
+      'Trân trọng,',
+      'Khoa Công nghệ thông tin',
+      'Trường Đại học Công nghệ, ĐHQGHN',
     ].filter((line, idx, arr) => line !== '' || arr[idx - 1] !== '').join('\n');
     const useGmail = confirm('Mở Gmail để soạn thư?\n\nChọn OK: mở Gmail trên trình duyệt.\nChọn Cancel: mở ứng dụng Mail mặc định.');
     const url = useGmail
@@ -5043,33 +5058,39 @@ Trân trọng.`);
 
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
-          <p className="text-sm text-slate-500 mt-1">Bao gồm công ty chính thức và công ty sinh viên tự liên hệ đã phát sinh đăng ký. Tổng: <strong>{companies.length}</strong></p>
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <div className="min-w-0">
+            <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+            <button
+              onClick={() => navigate('/admin/approved-companies')}
+              className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Shield size={16} /> Công ty thẩm định
+            </button>
+            <button
+              onClick={() => setMailMergeOpen(true)}
+              className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Send size={16} /> Mail merge
+            </button>
+            <button
+              onClick={createDriveLinksForFilteredOfficial}
+              disabled={mailMergeSending}
+              className="bg-sky-600 text-white px-3 py-2 rounded-lg hover:bg-sky-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+            >
+              {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
+            </button>
+            <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+              <Download size={16} /> Xuất XLSX
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-          <button
-            onClick={() => navigate('/admin/approved-companies')}
-            className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
-          >
-            <Shield size={16} /> Công ty thẩm định
-          </button>
-          <button
-            onClick={() => setMailMergeOpen(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
-          >
-            <Send size={16} /> Mail merge
-          </button>
-          <button
-            onClick={createDriveLinksForFilteredOfficial}
-            disabled={mailMergeSending}
-            className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
-          >
-            {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
-          </button>
-          <div className="relative w-full sm:w-72">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative w-full md:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
@@ -5079,17 +5100,16 @@ Trân trọng.`);
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60" />
-            Ghi đè
-          </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
-            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
-          </label>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất XLSX
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
+              <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60" />
+              Ghi đè khi import
+            </label>
+            <label className={`px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
+              {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+              <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+            </label>
+          </div>
         </div>
       </div>
 
@@ -5152,7 +5172,7 @@ Trân trọng.`);
                   <div className="text-sm text-slate-600">
                     Sẵn sàng gửi: <strong>{mailMergeItems.filter(item => item.emails.length > 0 && item.data.length > 0).length}</strong> / <strong>{mailMergeItems.length}</strong> công ty
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
                     <button onClick={createDriveLinksForMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-60 disabled:cursor-not-allowed">
                       {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
                     </button>
@@ -5181,16 +5201,10 @@ Trân trọng.`);
                             {item.company.applicants_drive_link && <> · <a href={item.company.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Link Drive</a></>}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => exportApplicantsForCompany(item.company)} className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">
-                            Xuất XLSX
-                          </button>
-                          <button onClick={() => openMailMergeComposer(item)} disabled={item.emails.length === 0} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">
-                            Mở email
-                          </button>
-                          <button onClick={() => sendBrevoMailMergeItem(item)} disabled={item.emails.length === 0 || mailMergeSending} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">
-                            Gửi Brevo
-                          </button>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <button onClick={() => exportApplicantsForCompany(item.company)} className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">XLSX</button>
+                          <button onClick={() => openMailMergeComposer(item)} disabled={item.emails.length === 0} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">Soạn</button>
+                          <button onClick={() => sendBrevoMailMergeItem(item)} disabled={item.emails.length === 0 || mailMergeSending} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">Brevo</button>
                         </div>
                       </div>
                       <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 p-3">
@@ -5305,22 +5319,43 @@ Trân trọng.`);
                     <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-3 text-right flex items-center justify-end gap-1">
-                      <button onClick={() => exportApplicantsForCompany(c)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Xuất danh sách đăng ký"><Download size={16} /></button>
-                      {isOfficialBusinessCompany(c) && (
-                        <button onClick={() => composeCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Tạo link Drive và soạn email gửi DN">
-                          {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
+                    <td className="p-3 text-right">
+                      <div className="relative inline-block text-left">
+                        <button
+                          onClick={() => setOpenCompanyActionKey(openCompanyActionKey === companyActionKey(c) ? null : companyActionKey(c))}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Thao tác <ChevronDown size={13} />
                         </button>
-                      )}
-                      <button onClick={() => markCompanySent(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Đánh dấu đã gửi DN">
-                        {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                      </button>
-                      {c.record_type !== 'other' && (
-                        <>
-                          <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
-                          <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
-                        </>
-                      )}
+                        {openCompanyActionKey === companyActionKey(c) && (
+                          <>
+                            <div className="fixed inset-0 z-20" onClick={() => setOpenCompanyActionKey(null)} />
+                            <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+                              <button onClick={() => { exportApplicantsForCompany(c); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                <Download size={14} className="text-green-600" /> Xuất danh sách XLSX
+                              </button>
+                              {isOfficialBusinessCompany(c) && (
+                                <button onClick={() => { composeCompanyEmail(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                  <FileText size={14} className="text-indigo-600" /> Tạo link/soạn email
+                                </button>
+                              )}
+                              <button onClick={() => { markCompanySent(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                <CheckCircle2 size={14} className="text-emerald-600" /> Đánh dấu đã gửi
+                              </button>
+                              {c.record_type !== 'other' && (
+                                <>
+                                  <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                    <Edit2 size={14} className="text-blue-600" /> Sửa công ty
+                                  </button>
+                                  <button onClick={() => { handleDelete(c.id, c.name); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
+                                    <Trash2 size={14} /> Xóa công ty
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </>
                 )}
