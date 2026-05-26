@@ -4813,7 +4813,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
   const exportApplicantsForCompany = (company: any) => {
     const data = getCompanyRegistrations(company);
     if (data.length === 0) return alert('Công ty này chưa có đăng ký.');
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Ghi chú', 'Trạng thái', 'Đã gửi DN', 'Thời gian đăng ký'];
     const rows = data.map((r, idx) => [
       idx + 1,
       r.student_id || '',
@@ -4823,9 +4823,6 @@ Trường Đại học Công nghệ, ĐHQGHN`);
       r.personal_email || '',
       r.class_name || '',
       r.course_code || '',
-      r.company_name === 'Công ty khác' ? (r.other_company_name || '') : (r.company_name || ''),
-      r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh',
-      r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || ''),
       r.note || '',
       r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt',
       r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
@@ -4836,7 +4833,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
   };
 
   const companyApplicantsXlsxData = (company: any, data: any[]) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Nơi thực tập', 'Vị trí', 'Liên hệ', 'Ghi chú'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Ngày sinh', 'SĐT', 'Email cá nhân', 'Lớp KH', 'Mã môn học', 'Ghi chú'];
     const rows = data.map((r, idx) => [
       idx + 1,
       r.student_id || '',
@@ -4846,9 +4843,6 @@ Trường Đại học Công nghệ, ĐHQGHN`);
       r.personal_email || '',
       r.class_name || '',
       r.course_code || '',
-      r.company_name === 'Công ty khác' ? (r.other_company_name || '') : (r.company_name || company.name || ''),
-      r.company_name === 'Công ty khác' ? (r.other_company_role || '') : 'Thực tập sinh',
-      r.company_name === 'Công ty khác' ? (r.other_company_contact || '') : (r.contact_email || ''),
       r.note || '',
     ]);
     return { headers, rows };
