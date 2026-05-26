@@ -4448,6 +4448,23 @@ function CompanyRegistry({ token }: { token: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [mailMergeOpen, setMailMergeOpen] = useState(false);
+  const [mailMergeScope, setMailMergeScope] = useState<'filtered' | 'page' | 'unsent'>('filtered');
+  const [mailMergeSending, setMailMergeSending] = useState(false);
+  const [mailMergeUseGmail, setMailMergeUseGmail] = useState(true);
+  const [mailMergeReplyDeadline, setMailMergeReplyDeadline] = useState('');
+  const [mailMergeSubject, setMailMergeSubject] = useState('Danh sách sinh viên đăng ký thực tập - {{company_name}}');
+  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi {{contact_name}},
+
+Khoa CNTT - Trường Đại học Công nghệ gửi danh sách sinh viên đăng ký thực tập tại {{company_name}}.
+
+Số sinh viên đã được Khoa duyệt để gửi tới Quý Công ty: {{approved_student_count}}.
+{{reply_deadline_line}}
+{{applicants_drive_link_line}}
+
+{{applicant_list_text}}
+
+Trân trọng.`);
   const pageSize = 20;
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -4525,9 +4542,245 @@ function CompanyRegistry({ token }: { token: string }) {
   });
 
   const extractEmails = (value: string) => Array.from(new Set((value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []));
+  const isOfficialBusinessCompany = (company: any) =>
+    company.record_type !== 'other' && !['Công ty khác', 'Trường Đại học Công nghệ'].includes(company.name || '');
+
+  const approvedRegistrationsForCompany = (company: any) =>
+    getCompanyRegistrations(company).filter((r: any) => r.status === 'approved');
+
+  const companyRecipientEmails = (company: any) =>
+    company.record_type === 'other'
+      ? extractEmails(company.contacts || '')
+      : extractEmails([company.contact_email, company.contacts].filter(Boolean).join(' '));
+
+  const buildApplicantListText = (data: any[], maxRows = 30) => {
+    const rows = data.slice(0, maxRows).map((row: any, idx: number) =>
+      `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''} - ${row.phone || ''} - ${row.personal_email || ''}${row.note ? ` - Ghi chú: ${row.note}` : ''}`
+    );
+    if (data.length > maxRows) rows.push(`\n(Danh sách đầy đủ có ${data.length} sinh viên. Vui lòng đính kèm file XLSX đã xuất từ hệ thống nếu cần.)`);
+    return rows.join('\n');
+  };
+
+  const renderCompanyTemplate = (template: string, company: any, data: any[]) => {
+    const emails = companyRecipientEmails(company);
+    const replacements: Record<string, string> = {
+      company_name: company.name || '',
+      contact_name: company.contact_name || 'Quý Công ty',
+      contact_email: emails[0] || '',
+      student_count: String(getCompanyRegistrations(company).length),
+      approved_student_count: String(data.length),
+      reply_deadline: mailMergeReplyDeadline || '',
+      reply_deadline_line: mailMergeReplyDeadline ? `Kính mong Quý Công ty phản hồi trước ngày ${mailMergeReplyDeadline}.` : '',
+      applicants_drive_link: company.applicants_drive_link || '',
+      applicants_drive_link_line: company.applicants_drive_link ? `Danh sách sinh viên: ${company.applicants_drive_link}` : '',
+      applicant_list_text: company.applicants_drive_link ? '' : buildApplicantListText(data),
+    };
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => replacements[key] ?? '');
+  };
+
+  const mailMergeSourceCompanies = useMemo(() => {
+    const source = mailMergeScope === 'page'
+      ? paginatedCompanies
+      : filteredAndSorted;
+    const withApproved = source.filter(company => isOfficialBusinessCompany(company) && approvedRegistrationsForCompany(company).length > 0);
+    if (mailMergeScope === 'unsent') {
+      return withApproved.filter(company => approvedRegistrationsForCompany(company).some((reg: any) => !reg.sent_to_company_at));
+    }
+    return withApproved;
+  }, [mailMergeScope, paginatedCompanies, filteredAndSorted, registrations]);
+
+  const mailMergeItems = useMemo(() => mailMergeSourceCompanies.map(company => {
+    const data = approvedRegistrationsForCompany(company);
+    const emails = companyRecipientEmails(company);
+    return {
+      company,
+      data,
+      emails,
+      subject: renderCompanyTemplate(mailMergeSubject, company, data),
+      body: renderCompanyTemplate(mailMergeBody, company, data),
+      registrationIds: data.map((row: any) => Number(row.registration_id)).filter(Boolean),
+    };
+  }), [mailMergeSourceCompanies, mailMergeSubject, mailMergeBody, mailMergeReplyDeadline]);
+
+  const openMailMergeComposer = (item: any) => {
+    if (!item.emails.length) return;
+    const bodyForUrl = item.body.length > 6500
+      ? `${item.body.slice(0, 6200)}\n\n(Nội dung bị rút gọn do giới hạn URL. Vui lòng đính kèm/xuất file XLSX từ hệ thống nếu cần danh sách đầy đủ.)`
+      : item.body;
+    const url = mailMergeUseGmail
+      ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.emails.join(','))}&su=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`
+      : `mailto:${encodeURIComponent(item.emails.join(','))}?subject=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const saveApplicantsDriveLink = async (company: any, link: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/companies/${company.id}/applicants-drive-link`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ applicants_drive_link: link })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Không lưu được link Drive cho ${company.name}.`);
+  };
+
+  const createDriveLinkForCompany = async (accessToken: string, folderId: string, company: any, data: any[]) => {
+    const { headers, rows } = companyApplicantsXlsxData(company, data);
+    const safeName = (company.name || 'cong_ty').replace(/[^a-z0-9]+/gi, '_');
+    const file = xlsxBlob(headers, rows, 'Đăng ký');
+    const link = await uploadXlsxToDrive(accessToken, folderId, `dang_ky_${safeName}.xlsx`, file);
+    await saveApplicantsDriveLink(company, link);
+    return link;
+  };
+
+  const createDriveLinksForMailMerge = async () => {
+    const items = mailMergeItems.filter(item => item.data.length > 0 && item.company.id);
+    if (items.length === 0) return alert('Không có doanh nghiệp chính thức nào có đăng ký đã duyệt để tạo link.');
+    if (!GOOGLE_API_KEY) return alert('Chưa cấu hình VITE_GOOGLE_API_KEY nên hệ thống chưa tạo được link Google Drive.');
+    if (!confirm(`Tạo lại link Google Drive cho ${items.length} doanh nghiệp? Nếu đã có link cũ, hệ thống sẽ lưu link mới thay thế trong DB.`)) return;
+    setMailMergeSending(true);
+    try {
+      const accessToken = await getDriveAccessToken();
+      const folder = await pickDriveFolder(accessToken);
+      for (const item of items) {
+        await createDriveLinkForCompany(accessToken, folder.id, item.company, item.data);
+      }
+      await fetchCompanies();
+      alert(`Đã tạo và lưu link Drive cho ${items.length} doanh nghiệp trong thư mục "${folder.name}".`);
+    } catch (e: any) {
+      alert(e?.message || 'Không tạo được link Drive.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const createDriveLinksForFilteredOfficial = async () => {
+    const items = filteredAndSorted
+      .filter(company => isOfficialBusinessCompany(company))
+      .map(company => ({ company, data: approvedRegistrationsForCompany(company) }))
+      .filter(item => item.data.length > 0 && item.company.id);
+    if (items.length === 0) return alert('Không có doanh nghiệp chính thức nào trong danh sách đang lọc có đăng ký đã duyệt.');
+    if (!GOOGLE_API_KEY) return alert('Chưa cấu hình VITE_GOOGLE_API_KEY nên hệ thống chưa tạo được link Google Drive.');
+    if (!confirm(`Tạo lại link Google Drive cho ${items.length} doanh nghiệp chính thức trong danh sách đang lọc? Link mới sẽ được lưu thay thế link cũ trong DB.`)) return;
+    setMailMergeSending(true);
+    try {
+      const accessToken = await getDriveAccessToken();
+      const folder = await pickDriveFolder(accessToken);
+      for (const item of items) {
+        await createDriveLinkForCompany(accessToken, folder.id, item.company, item.data);
+      }
+      await fetchCompanies();
+      alert(`Đã tạo và lưu link Drive cho ${items.length} doanh nghiệp trong thư mục "${folder.name}".`);
+    } catch (e: any) {
+      alert(e?.message || 'Không tạo được link Drive.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const sendBrevoMailMergeItem = async (item: any) => {
+    if (!isOfficialBusinessCompany(item.company)) return alert('Chỉ gửi email thật cho doanh nghiệp chính thức.');
+    if (!item.emails.length) return alert('Doanh nghiệp này chưa có email liên hệ.');
+    if (!confirm(`Gửi email thật qua Brevo tới ${item.company.name}?`)) return;
+    setMailMergeSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/companies/send-applicants-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          company_name: item.company.name,
+          recipient_email: item.emails[0],
+          subject: item.subject,
+          body: item.body,
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Gửi email thật thất bại.');
+      await fetchCompanies();
+      alert(`Đã gửi email thật cho ${item.company.name}.`);
+    } catch (e: any) {
+      alert(e?.message || 'Gửi email thật thất bại.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const sendAllBrevoMailMerge = async () => {
+    const sendable = mailMergeItems.filter(item => item.emails.length > 0 && item.data.length > 0 && isOfficialBusinessCompany(item.company));
+    if (sendable.length === 0) return alert('Không có doanh nghiệp chính thức nào đủ điều kiện gửi Brevo.');
+    if (!confirm(`Gửi email thật qua Brevo cho ${sendable.length} doanh nghiệp? Các lỗi quota/cấu hình sẽ dừng tiến trình và hiển thị thông báo.`)) return;
+    setMailMergeSending(true);
+    try {
+      let sent = 0;
+      for (const item of sendable) {
+        const res = await fetch(`${API_BASE}/api/admin/companies/send-applicants-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            company_name: item.company.name,
+            recipient_email: item.emails[0],
+            subject: item.subject,
+            body: item.body,
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(`${item.company.name}: ${data.error || 'Gửi email thật thất bại.'}`);
+        sent++;
+      }
+      await fetchCompanies();
+      alert(`Đã gửi email thật cho ${sent} doanh nghiệp.`);
+    } catch (e: any) {
+      alert(e?.message || 'Gửi email thật thất bại.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const markMailMergeSent = async (items: any[]) => {
+    const registrationIds = Array.from(new Set(items.flatMap(item => item.registrationIds))).filter(Boolean);
+    if (registrationIds.length === 0) return;
+    const res = await fetch(`${API_BASE}/api/admin/registrations/mark-sent`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ registration_ids: registrationIds, note: 'Mail merge thủ công' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Đánh dấu đã gửi DN thất bại.');
+  };
+
+  const openAllMailMerge = async () => {
+    const sendable = mailMergeItems.filter(item => item.emails.length > 0 && item.data.length > 0);
+    const missingEmail = mailMergeItems.length - sendable.length;
+    if (sendable.length === 0) return alert('Không có công ty nào đủ điều kiện gửi mail merge.');
+    if (!confirm(`Mở ${sendable.length} email đã merge${missingEmail ? ` (${missingEmail} công ty thiếu email sẽ bỏ qua)` : ''}? Trình duyệt có thể hỏi quyền mở nhiều cửa sổ.`)) return;
+    setMailMergeSending(true);
+    try {
+      sendable.forEach(item => openMailMergeComposer(item));
+      if (confirm('Sau khi mở email, đánh dấu các đăng ký tương ứng là Đã gửi DN?')) {
+        await markMailMergeSent(sendable);
+        await fetchCompanies();
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Mail merge thất bại.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const exportMailMergeZip = async () => {
+    const items = mailMergeItems.filter(item => item.data.length > 0);
+    if (items.length === 0) return alert('Không có dữ liệu để xuất.');
+    const zip = new JSZip();
+    items.forEach(item => {
+      const { headers, rows } = companyApplicantsXlsxData(item.company, item.data);
+      const safeName = (item.company.name || 'cong_ty').replace(/[^a-z0-9]+/gi, '_');
+      zip.file(`dang_ky_${safeName}.xlsx`, xlsxArrayBuffer(headers, rows, 'Đăng ký'));
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'mail_merge_danh_sach_theo_cong_ty.zip');
+  };
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Loại', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Đã duyệt', 'Đã gửi DN', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
+    const headers = ['STT', 'Loại', 'Tên doanh nghiệp', 'Chỉ tiêu', 'Ứng viên', 'Đã duyệt', 'Đã gửi DN', 'Link Drive', 'Email liên hệ', 'Người liên hệ', 'SĐT', 'Địa chỉ'];
     const rows = filteredAndSorted.map((c, idx) => [
       idx + 1,
       c.record_type === 'other' ? 'Tự liên hệ' : 'Danh sách chính thức',
@@ -4536,6 +4789,7 @@ function CompanyRegistry({ token }: { token: string }) {
       c.applicant_count ?? 0,
       c.approved_applicant_count ?? 0,
       c.sent_count ? `${c.sent_count}${c.last_sent_at ? ` (${new Date(c.last_sent_at).toLocaleString('vi-VN')})` : ''}` : '',
+      c.applicants_drive_link || '',
       c.contact_email || extractEmails(c.contacts || '').join('; '),
       c.contact_name || '',
       c.phone || '',
@@ -4613,6 +4867,7 @@ function CompanyRegistry({ token }: { token: string }) {
   };
 
   const composeCompanyEmail = async (company: any) => {
+    if (!isOfficialBusinessCompany(company)) return alert('Chỉ soạn/gửi email doanh nghiệp cho doanh nghiệp chính thức.');
     const emails = company.record_type === 'other' ? extractEmails(company.contacts || '') : extractEmails(company.contact_email || '');
     if (emails.length === 0) return alert('Chưa có email liên hệ cho công ty này. Vui lòng xuất danh sách và gửi thủ công.');
     const data = getCompanyRegistrations(company).filter((r: any) => r.status === 'approved');
@@ -4630,6 +4885,7 @@ function CompanyRegistry({ token }: { token: string }) {
           const { headers, rows } = companyApplicantsXlsxData(company, data);
           const file = xlsxBlob(headers, rows, 'Đăng ký');
           driveLink = await uploadXlsxToDrive(accessToken, folder.id, `dang_ky_${safeName}.xlsx`, file);
+          if (company.id) await saveApplicantsDriveLink(company, driveLink);
           alert(`Đã tạo file trong thư mục "${folder.name}" và bật quyền xem bằng link.`);
         } catch (e: any) {
           alert(e?.message || 'Không tạo được file Google Drive. Email sẽ được soạn không kèm link.');
@@ -4637,14 +4893,15 @@ function CompanyRegistry({ token }: { token: string }) {
           setMarkingSentKey(null);
         }
       }
-    } else {
+    } else if (!company.applicants_drive_link) {
       alert('Chưa cấu hình VITE_GOOGLE_API_KEY nên hệ thống chưa mở được Google Drive Picker. Email sẽ được soạn sẵn; vui lòng tự đính kèm file XLSX hoặc link Drive.');
     }
     const subject = `Danh sách sinh viên đăng ký thực tập - ${company.name}`;
+    driveLink = driveLink || company.applicants_drive_link || '';
     const fullList = data.map((row: any, idx: number) =>
       `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''} - ${row.phone || ''} - ${row.personal_email || ''}${row.note ? ` - Ghi chú: ${row.note}` : ''}`
     ).join('\n');
-    const listForUrl = fullList.length > 4500
+    const listForUrl = driveLink ? '' : fullList.length > 4500
       ? `${data.slice(0, 25).map((row: any, idx: number) => `${idx + 1}. ${row.student_id || ''} - ${row.student_name || ''} - ${row.class_name || ''} - ${row.course_code || ''}`).join('\n')}\n\n(Danh sách đầy đủ có ${data.length} sinh viên. Vui lòng đính kèm file XLSX đã xuất từ hệ thống hoặc link Google Drive.)`
       : fullList;
     const body = [
@@ -4799,6 +5056,19 @@ function CompanyRegistry({ token }: { token: string }) {
           >
             <Shield size={16} /> Công ty thẩm định
           </button>
+          <button
+            onClick={() => setMailMergeOpen(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
+          >
+            <Send size={16} /> Mail merge
+          </button>
+          <button
+            onClick={createDriveLinksForFilteredOfficial}
+            disabled={mailMergeSending}
+            className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+          >
+            {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
+          </button>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -4827,6 +5097,113 @@ function CompanyRegistry({ token }: { token: string }) {
         <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
+        </div>
+      )}
+
+      {mailMergeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><Send size={18} className="text-indigo-600" /> Mail merge doanh nghiệp</h3>
+                <p className="text-sm text-slate-500 mt-1">Tạo email riêng cho từng công ty có sinh viên đã duyệt. Hệ thống mở Gmail/Mail để admin gửi thủ công.</p>
+              </div>
+              <button onClick={() => setMailMergeOpen(false)} disabled={mailMergeSending} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-60">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 max-h-[calc(92vh-73px)] overflow-hidden">
+              <div className="lg:col-span-2 border-r border-slate-200 p-5 overflow-y-auto">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Phạm vi công ty</label>
+                    <select value={mailMergeScope} onChange={e => setMailMergeScope(e.target.value as any)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                      <option value="filtered">Toàn bộ danh sách đang lọc</option>
+                      <option value="page">Trang hiện tại</option>
+                      <option value="unsent">Đang lọc và chưa gửi DN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Cách mở email</label>
+                    <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
+                      <button type="button" onClick={() => setMailMergeUseGmail(true)} className={`px-3 py-2 ${mailMergeUseGmail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>Gmail</button>
+                      <button type="button" onClick={() => setMailMergeUseGmail(false)} className={`px-3 py-2 ${!mailMergeUseGmail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>Mail app</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Hạn phản hồi</label>
+                    <input type="date" value={mailMergeReplyDeadline} onChange={e => setMailMergeReplyDeadline(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Tiêu đề</label>
+                    <input value={mailMergeSubject} onChange={e => setMailMergeSubject(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Nội dung</label>
+                    <textarea value={mailMergeBody} onChange={e => setMailMergeBody(e.target.value)} rows={12} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    Biến hỗ trợ: <code>{'{{company_name}}'}</code>, <code>{'{{contact_name}}'}</code>, <code>{'{{contact_email}}'}</code>, <code>{'{{student_count}}'}</code>, <code>{'{{approved_student_count}}'}</code>, <code>{'{{reply_deadline}}'}</code>, <code>{'{{reply_deadline_line}}'}</code>, <code>{'{{applicants_drive_link}}'}</code>, <code>{'{{applicants_drive_link_line}}'}</code>, <code>{'{{applicant_list_text}}'}</code>.
+                  </div>
+                </div>
+              </div>
+              <div className="lg:col-span-3 flex flex-col min-h-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                  <div className="text-sm text-slate-600">
+                    Sẵn sàng gửi: <strong>{mailMergeItems.filter(item => item.emails.length > 0 && item.data.length > 0).length}</strong> / <strong>{mailMergeItems.length}</strong> công ty
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={createDriveLinksForMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-60 disabled:cursor-not-allowed">
+                      {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
+                    </button>
+                    <button onClick={exportMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 disabled:opacity-60 disabled:cursor-not-allowed">
+                      <Download size={16} /> Xuất ZIP XLSX
+                    </button>
+                    <button onClick={sendAllBrevoMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed">
+                      {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi Brevo
+                    </button>
+                    <button onClick={openAllMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                      {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
+                      Mở tất cả email
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-y-auto p-5 space-y-3">
+                  {mailMergeItems.length === 0 ? (
+                    <div className="rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Không có công ty nào có đăng ký đã duyệt trong phạm vi hiện tại.</div>
+                  ) : mailMergeItems.map(item => (
+                    <div key={item.company.company_key || item.company.id || item.company.name} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold text-slate-900">{item.company.name}</div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {item.data.length} sinh viên đã duyệt · {item.emails.length ? item.emails[0] : 'Thiếu email liên hệ'}
+                            {item.company.applicants_drive_link && <> · <a href={item.company.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Link Drive</a></>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => exportApplicantsForCompany(item.company)} className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">
+                            Xuất XLSX
+                          </button>
+                          <button onClick={() => openMailMergeComposer(item)} disabled={item.emails.length === 0} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Mở email
+                          </button>
+                          <button onClick={() => sendBrevoMailMergeItem(item)} disabled={item.emails.length === 0 || mailMergeSending} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Gửi Brevo
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 p-3">
+                        <div className="text-xs font-semibold text-slate-500 mb-1">Preview</div>
+                        <div className="text-sm font-semibold text-slate-800">{item.subject}</div>
+                        <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap text-xs text-slate-600 font-sans">{item.body}</pre>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -4869,6 +5246,7 @@ function CompanyRegistry({ token }: { token: string }) {
               <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('applicant_count')}>ƯV<SortIcon col="applicant_count" /></th>
               <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-24" onClick={() => handleSort('approved_applicant_count')}>Đã duyệt<SortIcon col="approved_applicant_count" /></th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('last_sent_at')}>Gửi DN<SortIcon col="last_sent_at" /></th>
+              <th className="p-3 font-semibold">Link Drive</th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('contact_email')}>Email<SortIcon col="contact_email" /></th>
               <th className="p-3 font-semibold">Người LH</th>
               <th className="p-3 font-semibold">SĐT</th>
@@ -4888,6 +5266,7 @@ function CompanyRegistry({ token }: { token: string }) {
                     <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
                     <td className="p-3 text-center text-slate-500">{c.approved_applicant_count ?? 0}</td>
                     <td className="p-3 text-slate-500">{c.last_sent_at ? new Date(c.last_sent_at).toLocaleString('vi-VN') : 'Chưa gửi'}</td>
+                    <td className="p-3 text-slate-400">—</td>
                     <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
@@ -4919,15 +5298,20 @@ function CompanyRegistry({ token }: { token: string }) {
                       )}
                       {Number(c.sent_count || 0) > 0 && <div className="text-[11px] text-slate-400">{c.sent_count} đăng ký</div>}
                     </td>
+                    <td className="p-3 text-slate-600">
+                      {c.applicants_drive_link ? <a href={c.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
                     <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-right flex items-center justify-end gap-1">
                       <button onClick={() => exportApplicantsForCompany(c)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Xuất danh sách đăng ký"><Download size={16} /></button>
-                      <button onClick={() => composeCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Tạo link Drive và soạn email gửi DN">
-                        {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
-                      </button>
+                      {isOfficialBusinessCompany(c) && (
+                        <button onClick={() => composeCompanyEmail(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Tạo link Drive và soạn email gửi DN">
+                          {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />}
+                        </button>
+                      )}
                       <button onClick={() => markCompanySent(c)} disabled={markingSentKey === (c.company_key || String(c.id || c.name))} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors disabled:opacity-50" title="Đánh dấu đã gửi DN">
                         {markingSentKey === (c.company_key || String(c.id || c.name)) ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                       </button>

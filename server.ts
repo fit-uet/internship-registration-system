@@ -944,7 +944,8 @@ async function initDb() {
       qualifications TEXT,
       address TEXT,
       recruitment_link TEXT,
-      phone TEXT
+      phone TEXT,
+      applicants_drive_link TEXT
     );
     CREATE TABLE IF NOT EXISTS registrations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1171,6 +1172,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN address TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN applicants_drive_link TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN dob TEXT'); } catch (e) { }
@@ -2576,6 +2578,20 @@ async function startServer() {
     }
   });
 
+  app.put('/api/admin/companies/:id/applicants-drive-link', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const link = String(req.body?.applicants_drive_link || '').trim();
+      if (!link) return res.status(400).json({ error: 'Link Drive không được để trống.' });
+      await db.execute({
+        sql: 'UPDATE companies SET applicants_drive_link = ? WHERE id = ?',
+        args: [link, req.params.id],
+      });
+      res.json({ success: true, applicants_drive_link: link });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
   app.get('/api/admin/companies', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const officialRows = (await db.execute(`
@@ -2957,6 +2973,7 @@ async function startServer() {
       if (!companyName) return res.status(400).json({ error: 'Thiếu tên công ty.' });
       if (!recipientEmail) return res.status(400).json({ error: 'Thiếu email doanh nghiệp.' });
       const isOther = Boolean(req.body.other_company_name);
+      if (isOther) return res.status(400).json({ error: 'Chỉ hỗ trợ gửi email thật cho doanh nghiệp chính thức.' });
       const rows = (await db.execute({
         sql: `SELECT r.id, u.student_id, u.name, u.phone, u.personal_email, u.class_name, u.course_code, r.note
               FROM registrations r
@@ -2968,7 +2985,7 @@ async function startServer() {
         args: isOther ? [companyName] : [companyName, companyName],
       })).rows as any[];
       if (rows.length === 0) return res.status(400).json({ error: 'Công ty này chưa có đăng ký đã duyệt để gửi.' });
-      const body = [
+      const body = String(req.body.body || '').trim() || [
         'Kính gửi Quý Công ty,',
         '',
         `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${companyName}.`,
@@ -2977,10 +2994,11 @@ async function startServer() {
         '',
         'Trân trọng.',
       ].join('\n');
+      const subject = String(req.body.subject || '').trim() || `Danh sách sinh viên đăng ký thực tập - ${companyName}`;
       const notificationStatus = await createNotification({
         recipient_email: recipientEmail,
         type: 'company_applicants_sent',
-        subject: `Danh sách sinh viên đăng ký thực tập - ${companyName}`,
+        subject,
         body,
         send_now: true,
       });

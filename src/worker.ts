@@ -659,7 +659,8 @@ async function initDb(env: Env) {
         qualifications TEXT,
         address TEXT,
         recruitment_link TEXT,
-        phone TEXT
+        phone TEXT,
+        applicants_drive_link TEXT
       );
       CREATE TABLE IF NOT EXISTS registrations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -828,6 +829,7 @@ async function initDb(env: Env) {
       'ALTER TABLE grades ADD COLUMN locked_at DATETIME',
       'ALTER TABLE notifications ADD COLUMN read_at DATETIME',
       'ALTER TABLE lecturers ADD COLUMN work_unit TEXT',
+      'ALTER TABLE companies ADD COLUMN applicants_drive_link TEXT',
     ];
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
@@ -1992,6 +1994,14 @@ async function route(request: Request, env: Env) {
     await database.execute({ sql: `UPDATE companies SET name = ?, description = ?, slots = ?, contact_email = ?, address = ?, recruitment_link = ?, phone = ?, contact_name = ?, history = ?, qualifications = ? WHERE id = ?`, args: [body.name?.trim(), body.description || 'Chưa rõ', parseInt(body.slots) || 5, body.contact_email || '', body.address || '', body.recruitment_link || '', body.phone || '', body.contact_name || '', body.history || '', body.qualifications || '', companyAdmin[1]] });
     return json({ success: true });
   }
+  const companyDriveLinkMatch = path.match(/^\/api\/admin\/companies\/(\d+)\/applicants-drive-link$/);
+  if (companyDriveLinkMatch && method === 'PUT') {
+    const body = await readBody(request);
+    const link = String(body.applicants_drive_link || '').trim();
+    if (!link) return json({ error: 'Link Drive không được để trống.' }, 400);
+    await database.execute({ sql: 'UPDATE companies SET applicants_drive_link = ? WHERE id = ?', args: [link, companyDriveLinkMatch[1]] });
+    return json({ success: true, applicants_drive_link: link });
+  }
   if (companyAdmin && method === 'DELETE') {
     await executeBatch(database, [
       { sql: 'DELETE FROM final_internships WHERE company_id = ?', args: [companyAdmin[1]] },
@@ -2169,6 +2179,7 @@ async function route(request: Request, env: Env) {
     if (!companyName) return json({ error: 'Thiếu tên công ty.' }, 400);
     if (!recipientEmail) return json({ error: 'Thiếu email doanh nghiệp.' }, 400);
     const isOther = Boolean(body.other_company_name);
+    if (isOther) return json({ error: 'Chỉ hỗ trợ gửi email thật cho doanh nghiệp chính thức.' }, 400);
     const rows = (await database.execute({
       sql: `SELECT r.id, u.student_id, u.name, u.phone, u.personal_email, u.class_name, u.course_code, r.note
             FROM registrations r
@@ -2180,7 +2191,7 @@ async function route(request: Request, env: Env) {
       args: isOther ? [companyName] : [companyName, companyName],
     })).rows as any[];
     if (rows.length === 0) return json({ error: 'Công ty này chưa có đăng ký đã duyệt để gửi.' }, 400);
-    const emailBody = [
+    const emailBody = String(body.body || '').trim() || [
       'Kính gửi Quý Công ty,',
       '',
       `Khoa CNTT gửi danh sách sinh viên đăng ký thực tập tại ${companyName}.`,
@@ -2189,16 +2200,17 @@ async function route(request: Request, env: Env) {
       '',
       'Trân trọng.',
     ].join('\n');
+    const subject = String(body.subject || '').trim() || `Danh sách sinh viên đăng ký thực tập - ${companyName}`;
     const notificationStatus = await notify({
       recipient_email: recipientEmail,
       type: 'company_applicants_sent',
-      subject: `Danh sách sinh viên đăng ký thực tập - ${companyName}`,
+      subject,
       body: emailBody,
     });
     if (notificationStatus !== 'sent') {
       return json({
         error: notificationStatus === 'queued'
-          ? 'Chưa cấu hình RESEND_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
+          ? 'Chưa cấu hình EMAIL_PROVIDER/BREVO_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
           : 'Gửi email thất bại. Vui lòng xem trang Thông báo để biết lỗi chi tiết.',
       }, 400);
     }
