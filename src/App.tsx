@@ -4452,14 +4452,15 @@ function CompanyRegistry({ token }: { token: string }) {
   const [mailMergeScope, setMailMergeScope] = useState<'filtered' | 'page' | 'unsent'>('filtered');
   const [mailMergeSending, setMailMergeSending] = useState(false);
   const [mailMergeUseGmail, setMailMergeUseGmail] = useState(true);
+  const [mailMergeCc, setMailMergeCc] = useState('');
   const [mailMergeReplyDeadline, setMailMergeReplyDeadline] = useState('');
   const [mailMergeSubject, setMailMergeSubject] = useState('Danh sách sinh viên đăng ký thực tập - {{company_name}}');
-  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi Quý Công ty {{company_name}},
+  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi Quý Công ty,
 
 Khoa Công nghệ thông tin - Trường Đại học Công nghệ, Đại học Quốc gia Hà Nội trân trọng gửi tới Quý Công ty danh sách sinh viên đăng ký thực tập đã được Khoa rà soát trong đợt triển khai thực tập năm học hiện tại.
 
 Thông tin tổng hợp:
-- Doanh nghiệp tiếp nhận: {{company_name}}
+- Doanh nghiệp/Nơi tiếp nhận: {{company_name}}
 - Số sinh viên trong danh sách gửi Quý Công ty: {{approved_student_count}}
 - Email liên hệ đang ghi nhận: {{contact_email}}
 {{reply_deadline_line}}
@@ -4467,7 +4468,7 @@ Thông tin tổng hợp:
 
 {{applicant_list_text}}
 
-Kính đề nghị Quý Công ty xem xét hồ sơ, liên hệ sinh viên để phỏng vấn/trao đổi nếu cần, và phản hồi kết quả tiếp nhận cho Khoa để phối hợp quản lý học phần thực tập.
+Kính đề nghị Quý Công ty xem xét hồ sơ, liên hệ sinh viên để phỏng vấn/trao đổi nếu cần và phản hồi kết quả tiếp nhận cho Khoa để phối hợp quản lý học phần thực tập.
 
 Trân trọng,
 Khoa Công nghệ thông tin
@@ -4561,6 +4562,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
     company.record_type === 'other'
       ? extractEmails(company.contacts || '')
       : extractEmails([company.contact_email, company.contacts].filter(Boolean).join(' '));
+  const mailMergeCcEmails = () => extractEmails(mailMergeCc);
 
   const buildApplicantListText = (data: any[], maxRows = 30) => {
     const rows = data.slice(0, maxRows).map((row: any, idx: number) =>
@@ -4620,8 +4622,8 @@ Trường Đại học Công nghệ, ĐHQGHN`);
       ? `${item.body.slice(0, 6200)}\n\n(Nội dung bị rút gọn do giới hạn URL. Vui lòng đính kèm/xuất file XLSX từ hệ thống nếu cần danh sách đầy đủ.)`
       : item.body;
     const url = mailMergeUseGmail
-      ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.emails.join(','))}&su=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`
-      : `mailto:${encodeURIComponent(item.emails.join(','))}?subject=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`;
+      ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(item.emails.join(','))}&cc=${encodeURIComponent(mailMergeCcEmails().join(','))}&su=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`
+      : `mailto:${encodeURIComponent(item.emails.join(','))}?cc=${encodeURIComponent(mailMergeCcEmails().join(','))}&subject=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(bodyForUrl)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -4701,6 +4703,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
         body: JSON.stringify({
           company_name: item.company.name,
           recipient_email: item.emails[0],
+          cc_emails: mailMergeCcEmails(),
           subject: item.subject,
           body: item.body,
         })
@@ -4730,6 +4733,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
           body: JSON.stringify({
             company_name: item.company.name,
             recipient_email: item.emails[0],
+            cc_emails: mailMergeCcEmails(),
             subject: item.subject,
             body: item.body,
           })
@@ -5115,9 +5119,9 @@ Trường Đại học Công nghệ, ĐHQGHN`);
       )}
 
       {mailMergeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 p-3 sm:p-4 overflow-y-auto">
+          <div className="mx-auto my-3 sm:my-6 w-full max-w-6xl rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)]">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2"><Send size={18} className="text-indigo-600" /> Mail merge doanh nghiệp</h3>
                 <p className="text-sm text-slate-500 mt-1">Tạo email riêng cho từng công ty có sinh viên đã duyệt. Hệ thống mở Gmail/Mail để admin gửi thủ công.</p>
@@ -5126,8 +5130,8 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                 <X size={20} />
               </button>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 max-h-[calc(92vh-73px)] overflow-hidden">
-              <div className="lg:col-span-2 border-r border-slate-200 p-5 overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 min-h-0 flex-1 overflow-hidden">
+              <div className="lg:col-span-2 border-r border-slate-200 p-5 overflow-y-auto min-h-0">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Phạm vi công ty</label>
@@ -5143,6 +5147,16 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                       <button type="button" onClick={() => setMailMergeUseGmail(true)} className={`px-3 py-2 ${mailMergeUseGmail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>Gmail</button>
                       <button type="button" onClick={() => setMailMergeUseGmail(false)} className={`px-3 py-2 ${!mailMergeUseGmail ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>Mail app</button>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">CC email</label>
+                    <input
+                      value={mailMergeCc}
+                      onChange={e => setMailMergeCc(e.target.value)}
+                      placeholder="vd: fit@vnu.edu.vn; admin@vnu.edu.vn"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">Có thể nhập nhiều email, phân tách bằng dấu phẩy, chấm phẩy hoặc khoảng trắng.</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Hạn phản hồi</label>
@@ -5161,8 +5175,8 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                   </div>
                 </div>
               </div>
-              <div className="lg:col-span-3 flex flex-col min-h-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div className="lg:col-span-3 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 shrink-0">
                   <div className="text-sm text-slate-600">
                     Sẵn sàng gửi: <strong>{mailMergeItems.filter(item => item.emails.length > 0 && item.data.length > 0).length}</strong> / <strong>{mailMergeItems.length}</strong> công ty
                   </div>
@@ -5182,7 +5196,7 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                     </button>
                   </div>
                 </div>
-                <div className="overflow-y-auto p-5 space-y-3">
+                <div className="overflow-y-auto p-5 space-y-3 min-h-0 flex-1">
                   {mailMergeItems.length === 0 ? (
                     <div className="rounded-xl border border-slate-200 p-8 text-center text-sm text-slate-500">Không có công ty nào có đăng ký đã duyệt trong phạm vi hiện tại.</div>
                   ) : mailMergeItems.map(item => (

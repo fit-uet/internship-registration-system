@@ -533,6 +533,7 @@ async function getCampaignSettings(database: DatabaseClient) {
 async function createNotification(database: DatabaseClient, data: {
   user_id?: number | null;
   recipient_email: string;
+  cc_emails?: string[];
   type: string;
   subject: string;
   body: string;
@@ -556,6 +557,7 @@ async function createNotification(database: DatabaseClient, data: {
 
 async function sendNotificationEmail(database: DatabaseClient, env: Env, notificationId: number, data: {
   recipient_email: string;
+  cc_emails?: string[];
   subject: string;
   body: string;
 }) {
@@ -572,6 +574,7 @@ async function sendNotificationEmail(database: DatabaseClient, env: Env, notific
       body: JSON.stringify({
         from,
         to: [data.recipient_email],
+        cc: data.cc_emails || undefined,
         subject: data.subject,
         text: data.body,
       }),
@@ -2176,6 +2179,9 @@ async function route(request: Request, env: Env) {
     const body = await readBody(request);
     const companyName = String(body.company_name || body.other_company_name || '').trim();
     const recipientEmail = String(body.recipient_email || '').trim();
+    const ccEmails = Array.isArray(body.cc_emails)
+      ? body.cc_emails.map((email: any) => String(email || '').trim()).filter(Boolean)
+      : String(body.cc_emails || '').split(/[,\s;]+/).map((email: string) => email.trim()).filter(Boolean);
     if (!companyName) return json({ error: 'Thiếu tên công ty.' }, 400);
     if (!recipientEmail) return json({ error: 'Thiếu email doanh nghiệp.' }, 400);
     const isOther = Boolean(body.other_company_name);
@@ -2203,6 +2209,7 @@ async function route(request: Request, env: Env) {
     const subject = String(body.subject || '').trim() || `Danh sách sinh viên đăng ký thực tập - ${companyName}`;
     const notificationStatus = await notify({
       recipient_email: recipientEmail,
+      cc_emails: ccEmails,
       type: 'company_applicants_sent',
       subject,
       body: emailBody,

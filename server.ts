@@ -464,6 +464,7 @@ async function emailSentTodayCount() {
 async function createNotification(data: {
   user_id?: number | null;
   recipient_email: string;
+  cc_emails?: string[];
   type: string;
   subject: string;
   body: string;
@@ -489,6 +490,7 @@ async function createNotification(data: {
 
 async function sendNotificationEmail(notificationId: number, data: {
   recipient_email: string;
+  cc_emails?: string[];
   subject: string;
   body: string;
 }) {
@@ -512,6 +514,7 @@ async function sendNotificationEmail(notificationId: number, data: {
         body: JSON.stringify({
           sender: parseEmailAddress(from),
           to: [parseEmailAddress(data.recipient_email)],
+          cc: (data.cc_emails || []).map(parseEmailAddress),
           subject: data.subject,
           textContent: data.body,
         }),
@@ -528,6 +531,7 @@ async function sendNotificationEmail(notificationId: number, data: {
         body: JSON.stringify({
           from,
           to: [data.recipient_email],
+          cc: data.cc_emails || undefined,
           subject: data.subject,
           text: data.body,
         }),
@@ -2970,6 +2974,9 @@ async function startServer() {
     try {
       const companyName = String(req.body.company_name || req.body.other_company_name || '').trim();
       const recipientEmail = String(req.body.recipient_email || '').trim();
+      const ccEmails = Array.isArray(req.body.cc_emails)
+        ? req.body.cc_emails.map((email: any) => String(email || '').trim()).filter(Boolean)
+        : String(req.body.cc_emails || '').split(/[,\s;]+/).map((email: string) => email.trim()).filter(Boolean);
       if (!companyName) return res.status(400).json({ error: 'Thiếu tên công ty.' });
       if (!recipientEmail) return res.status(400).json({ error: 'Thiếu email doanh nghiệp.' });
       const isOther = Boolean(req.body.other_company_name);
@@ -2997,6 +3004,7 @@ async function startServer() {
       const subject = String(req.body.subject || '').trim() || `Danh sách sinh viên đăng ký thực tập - ${companyName}`;
       const notificationStatus = await createNotification({
         recipient_email: recipientEmail,
+        cc_emails: ccEmails,
         type: 'company_applicants_sent',
         subject,
         body,
