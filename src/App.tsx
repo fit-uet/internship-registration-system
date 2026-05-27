@@ -1220,7 +1220,7 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
 
         {myRegsError ? (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-sm">
-            Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng tải lại trang hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
+            Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng đăng nhập lại để hiện thị đúng thông tin đăng ký hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
             <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
           </div>
         ) : hasRegistered ? (
