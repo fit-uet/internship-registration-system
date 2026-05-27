@@ -4448,14 +4448,15 @@ function CompanyRegistry({ token }: { token: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCompanyKeys, setSelectedCompanyKeys] = useState<string[]>([]);
   const [mailMergeOpen, setMailMergeOpen] = useState(false);
-  const [mailMergeScope, setMailMergeScope] = useState<'filtered' | 'page' | 'unsent'>('filtered');
+  const [mailMergeScope, setMailMergeScope] = useState<'filtered' | 'page' | 'selected' | 'unsent'>('filtered');
   const [mailMergeSending, setMailMergeSending] = useState(false);
   const [mailMergeUseGmail, setMailMergeUseGmail] = useState(true);
   const [mailMergeCc, setMailMergeCc] = useState('');
   const [mailMergeReplyDeadline, setMailMergeReplyDeadline] = useState('');
-  const [mailMergeSubject, setMailMergeSubject] = useState('Danh sách sinh viên đăng ký thực tập - {{company_name}}');
-  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi Quý Công ty,
+  const defaultMailMergeSubject = 'Danh sách sinh viên đăng ký thực tập - {{company_name}}';
+  const defaultMailMergeBody = `Kính gửi Quý Công ty,
 
 Khoa Công nghệ thông tin - Trường Đại học Công nghệ, Đại học Quốc gia Hà Nội trân trọng gửi tới Quý Công ty danh sách sinh viên đăng ký thực tập đã được Khoa rà soát trong đợt triển khai thực tập năm học hiện tại.
 
@@ -4472,7 +4473,9 @@ Kính đề nghị Quý Công ty xem xét hồ sơ, liên hệ sinh viên để 
 
 Trân trọng,
 Khoa Công nghệ thông tin
-Trường Đại học Công nghệ, ĐHQGHN`);
+Trường Đại học Công nghệ, ĐHQGHN`;
+  const [mailMergeSubject, setMailMergeSubject] = useState(defaultMailMergeSubject);
+  const [mailMergeBody, setMailMergeBody] = useState(defaultMailMergeBody);
   const [openCompanyActionKey, setOpenCompanyActionKey] = useState<string | null>(null);
   const pageSize = 20;
 
@@ -4552,6 +4555,31 @@ Trường Đại học Công nghệ, ĐHQGHN`);
 
   const extractEmails = (value: string) => Array.from(new Set((value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []));
   const companyActionKey = (company: any) => company.company_key || String(company.id || company.name);
+  const selectedCompanyKeySet = useMemo(() => new Set(selectedCompanyKeys), [selectedCompanyKeys]);
+  const selectedPageCompanyKeys = paginatedCompanies.map(companyActionKey);
+  const selectedPageCount = selectedPageCompanyKeys.filter(key => selectedCompanyKeySet.has(key)).length;
+  const isPageSelected = selectedPageCompanyKeys.length > 0 && selectedPageCount === selectedPageCompanyKeys.length;
+  const toggleCompanySelection = (company: any, checked: boolean) => {
+    const key = companyActionKey(company);
+    setSelectedCompanyKeys(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(key);
+      else next.delete(key);
+      return Array.from(next);
+    });
+  };
+  const toggleCurrentPageSelection = (checked: boolean) => {
+    setSelectedCompanyKeys(prev => {
+      const next = new Set(prev);
+      selectedPageCompanyKeys.forEach(key => checked ? next.add(key) : next.delete(key));
+      return Array.from(next);
+    });
+  };
+  const openSelectedMailMerge = () => {
+    if (selectedCompanyKeys.length === 0) return alert('Vui lòng chọn ít nhất một công ty.');
+    setMailMergeScope('selected');
+    setMailMergeOpen(true);
+  };
   const isOfficialBusinessCompany = (company: any) =>
     company.record_type !== 'other' && !['Công ty khác', 'Trường Đại học Công nghệ'].includes(company.name || '');
 
@@ -4595,13 +4623,15 @@ Trường Đại học Công nghệ, ĐHQGHN`);
   const mailMergeSourceCompanies = useMemo(() => {
     const source = mailMergeScope === 'page'
       ? paginatedCompanies
-      : filteredAndSorted;
+      : mailMergeScope === 'selected'
+        ? companies.filter(company => selectedCompanyKeySet.has(companyActionKey(company)))
+        : filteredAndSorted;
     const withApproved = source.filter(company => isOfficialBusinessCompany(company) && approvedRegistrationsForCompany(company).length > 0);
     if (mailMergeScope === 'unsent') {
       return withApproved.filter(company => approvedRegistrationsForCompany(company).some((reg: any) => !reg.sent_to_company_at));
     }
     return withApproved;
-  }, [mailMergeScope, paginatedCompanies, filteredAndSorted, registrations]);
+  }, [mailMergeScope, paginatedCompanies, filteredAndSorted, companies, selectedCompanyKeySet, registrations]);
 
   const mailMergeItems = useMemo(() => mailMergeSourceCompanies.map(company => {
     const data = approvedRegistrationsForCompany(company);
@@ -4668,13 +4698,19 @@ Trường Đại học Công nghệ, ĐHQGHN`);
   };
 
   const createDriveLinksForFilteredOfficial = async () => {
-    const items = filteredAndSorted
+    const hasSelectedCompanies = selectedCompanyKeys.length > 0;
+    const sourceCompanies = hasSelectedCompanies
+      ? companies.filter(company => selectedCompanyKeySet.has(companyActionKey(company)))
+      : filteredAndSorted;
+    const items = sourceCompanies
       .filter(company => isOfficialBusinessCompany(company))
       .map(company => ({ company, data: approvedRegistrationsForCompany(company) }))
       .filter(item => item.data.length > 0 && item.company.id);
-    if (items.length === 0) return alert('Không có doanh nghiệp chính thức nào trong danh sách đang lọc có đăng ký đã duyệt.');
+    if (items.length === 0) return alert(hasSelectedCompanies
+      ? 'Không có doanh nghiệp chính thức nào trong danh sách đã chọn có đăng ký đã duyệt.'
+      : 'Không có doanh nghiệp chính thức nào trong danh sách đang lọc có đăng ký đã duyệt.');
     if (!GOOGLE_API_KEY) return alert('Chưa cấu hình VITE_GOOGLE_API_KEY nên hệ thống chưa tạo được link Google Drive.');
-    if (!confirm(`Tạo lại link Google Drive cho ${items.length} doanh nghiệp chính thức trong danh sách đang lọc? Link mới sẽ được lưu thay thế link cũ trong DB.`)) return;
+    if (!confirm(`Tạo lại link Google Drive cho ${items.length} doanh nghiệp chính thức ${hasSelectedCompanies ? 'đã chọn' : 'trong danh sách đang lọc'}? Link mới sẽ được lưu thay thế link cũ trong DB.`)) return;
     setMailMergeSending(true);
     try {
       const accessToken = await getDriveAccessToken();
@@ -5076,11 +5112,19 @@ Trường Đại học Công nghệ, ĐHQGHN`);
               <Send size={16} /> Mail merge
             </button>
             <button
+              onClick={openSelectedMailMerge}
+              disabled={selectedCompanyKeys.length === 0}
+              className="bg-violet-600 text-white px-3 py-2 rounded-lg hover:bg-violet-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Tạo mail merge cho các công ty đang được chọn"
+            >
+              <Send size={16} /> Mail merge đã chọn ({selectedCompanyKeys.length})
+            </button>
+            <button
               onClick={createDriveLinksForFilteredOfficial}
               disabled={mailMergeSending}
               className="bg-sky-600 text-white px-3 py-2 rounded-lg hover:bg-sky-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
             >
-              {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
+              {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} {selectedCompanyKeys.length > 0 ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
             </button>
             <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
               <Download size={16} /> Xuất XLSX
@@ -5107,6 +5151,17 @@ Trường Đại học Công nghệ, ĐHQGHN`);
               {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
               <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
             </label>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span>Đã chọn: <strong>{selectedCompanyKeys.length}</strong></span>
+              <button type="button" onClick={() => toggleCurrentPageSelection(!isPageSelected)} className="font-semibold text-blue-600 hover:underline">
+                {isPageSelected ? 'Bỏ chọn trang' : 'Chọn trang'}
+              </button>
+              {selectedCompanyKeys.length > 0 && (
+                <button type="button" onClick={() => setSelectedCompanyKeys([])} className="font-semibold text-slate-500 hover:underline">
+                  Xóa chọn
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -5138,8 +5193,12 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                     <select value={mailMergeScope} onChange={e => setMailMergeScope(e.target.value as any)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
                       <option value="filtered">Toàn bộ danh sách đang lọc</option>
                       <option value="page">Trang hiện tại</option>
+                      <option value="selected">Công ty đã chọn ({selectedCompanyKeys.length})</option>
                       <option value="unsent">Đang lọc và chưa gửi DN</option>
                     </select>
+                    {mailMergeScope === 'selected' && selectedCompanyKeys.length === 0 && (
+                      <p className="mt-1 text-[11px] text-amber-600">Chưa chọn công ty nào trong bảng Quản lý công ty.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Cách mở email</label>
@@ -5167,7 +5226,19 @@ Trường Đại học Công nghệ, ĐHQGHN`);
                     <input value={mailMergeSubject} onChange={e => setMailMergeSubject(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Nội dung</label>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-semibold text-slate-600">Nội dung</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMailMergeSubject(defaultMailMergeSubject);
+                          setMailMergeBody(defaultMailMergeBody);
+                        }}
+                        className="text-xs font-semibold text-indigo-600 hover:underline"
+                      >
+                        Khôi phục mẫu
+                      </button>
+                    </div>
                     <textarea value={mailMergeBody} onChange={e => setMailMergeBody(e.target.value)} rows={12} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -5261,6 +5332,16 @@ Trường Đại học Công nghệ, ĐHQGHN`);
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
+              <th className="p-3 font-semibold w-10">
+                <input
+                  type="checkbox"
+                  checked={isPageSelected}
+                  disabled={paginatedCompanies.length === 0}
+                  onChange={e => toggleCurrentPageSelection(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-40"
+                  title="Chọn/bỏ chọn công ty trong trang hiện tại"
+                />
+              </th>
               <th className="p-3 font-semibold w-12">STT</th>
               <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên doanh nghiệp<SortIcon col="name" /></th>
               <th className="p-3 font-semibold">Loại</th>
@@ -5279,6 +5360,15 @@ Trường Đại học Công nghệ, ĐHQGHN`);
           <tbody className="divide-y divide-slate-100">
             {paginatedCompanies.map((c, idx) => (
               <tr key={c.company_key || c.id || `${c.record_type}-${c.name}`} className="hover:bg-slate-50/50 transition-colors text-xs">
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedCompanyKeySet.has(companyActionKey(c))}
+                    onChange={e => toggleCompanySelection(c, e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    title="Chọn công ty"
+                  />
+                </td>
                 <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                 {editingId === c.id && c.record_type !== 'other' ? (
                   <>
