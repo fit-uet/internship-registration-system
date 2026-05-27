@@ -7416,7 +7416,10 @@ function StudentRegistry({ token }: { token: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const emptyStudentForm = { student_id: '', name: '', dob: '', class_name: '', phone: '', personal_email: '' };
   const [newStudent, setNewStudent] = useState(emptyStudentForm);
+  const [editingStudentKey, setEditingStudentKey] = useState<string | null>(null);
+  const [editStudent, setEditStudent] = useState(emptyStudentForm);
   const pageSize = 25;
+  const studentSelector = (student: any) => student?.student_id || `user:${student?.id}`;
 
   const fetchStudents = async () => {
     try {
@@ -7593,6 +7596,56 @@ function StudentRegistry({ token }: { token: string }) {
     }
   };
 
+  const startEditStudent = (student: any) => {
+    setShowAddForm(false);
+    setEditingStudentKey(studentSelector(student));
+    setEditStudent({
+      student_id: student.student_id || '',
+      name: student.name || '',
+      dob: student.dob || '',
+      class_name: student.class_name || '',
+      phone: student.phone || '',
+      personal_email: student.personal_email || '',
+    });
+  };
+
+  const cancelEditStudent = () => {
+    setEditingStudentKey(null);
+    setEditStudent(emptyStudentForm);
+  };
+
+  const handleUpdateStudent = async () => {
+    if (!editingStudentKey) return;
+    const payload = {
+      student_id: editStudent.student_id.trim(),
+      name: editStudent.name.trim(),
+      dob: editStudent.dob,
+      class_name: editStudent.class_name.trim(),
+      phone: editStudent.phone.trim(),
+      personal_email: editStudent.personal_email.trim(),
+    };
+    if (!payload.student_id || !payload.name) {
+      alert('Vui lòng nhập Mã SV và Họ tên.');
+      return;
+    }
+    setSavingStudent(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students/${encodeURIComponent(editingStudentKey)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không thể cập nhật sinh viên.');
+      cancelEditStudent();
+      await fetchStudents();
+    } catch (e) {
+      alert('Lỗi cập nhật sinh viên');
+    } finally {
+      setSavingStudent(false);
+    }
+  };
+
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -7736,24 +7789,94 @@ function StudentRegistry({ token }: { token: string }) {
                   {students.length === 0 ? 'Chưa có dữ liệu sinh viên.' : 'Không có sinh viên phù hợp.'}
                 </td>
               </tr>
-            ) : paginatedStudents.map((s, idx) => (
-              <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
-                <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
-                <td className="p-4 text-sm text-slate-800">{s.name}</td>
-                <td className="p-4 text-sm text-slate-600">{s.dob}</td>
-                <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
-                <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
-                <td className="p-4 text-sm text-slate-600">
-                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
-                </td>
-                <td className="p-4 text-sm text-right">
-                  <button onClick={() => handleDelete(s.student_id || `user:${s.id}`)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            ) : paginatedStudents.map((s, idx) => {
+              const selector = studentSelector(s);
+              const isEditing = editingStudentKey === selector;
+              return (
+                <tr key={selector} className="hover:bg-slate-50/50 transition-colors align-top">
+                  <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
+                  {isEditing ? (
+                    <>
+                      <td className="p-3">
+                        <input
+                          value={editStudent.student_id}
+                          onChange={e => setEditStudent({ ...editStudent, student_id: e.target.value })}
+                          className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          value={editStudent.name}
+                          onChange={e => setEditStudent({ ...editStudent, name: e.target.value })}
+                          className="w-48 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          type="date"
+                          value={editStudent.dob}
+                          onChange={e => setEditStudent({ ...editStudent, dob: e.target.value })}
+                          className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          value={editStudent.phone}
+                          onChange={e => setEditStudent({ ...editStudent, phone: e.target.value })}
+                          className="w-32 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          type="email"
+                          value={editStudent.personal_email}
+                          onChange={e => setEditStudent({ ...editStudent, personal_email: e.target.value })}
+                          className="w-52 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          value={editStudent.class_name}
+                          onChange={e => setEditStudent({ ...editStudent, class_name: e.target.value })}
+                          className="w-44 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors disabled:opacity-50" title="Lưu">
+                            {savingStudent ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                          </button>
+                          <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg transition-colors disabled:opacity-50" title="Huỷ">
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
+                      <td className="p-4 text-sm text-slate-800">{s.name}</td>
+                      <td className="p-4 text-sm text-slate-600">{s.dob}</td>
+                      <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
+                      <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
+                      <td className="p-4 text-sm text-slate-600">
+                        <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
+                      </td>
+                      <td className="p-4 text-sm text-right">
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => startEditStudent(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
+                            <Edit2 size={18} />
+                          </button>
+                          <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

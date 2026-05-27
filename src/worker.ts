@@ -1816,6 +1816,59 @@ async function route(request: Request, env: Env) {
   }
 
   const studentDelete = path.match(/^\/api\/admin\/students\/([^/]+)$/);
+  if (method === 'PUT' && studentDelete) {
+    try {
+      const selector = decodeURIComponent(studentDelete[1] || '').trim();
+      if (!selector) return json({ error: 'Thiếu mã sinh viên cần sửa.' }, 400);
+
+      const isUserIdSelector = selector.startsWith('user:');
+      const userId = isUserIdSelector ? Number(selector.slice(5)) : null;
+      if (isUserIdSelector && (!Number.isInteger(userId) || userId <= 0)) {
+        return json({ error: 'Mã định danh sinh viên không hợp lệ.' }, 400);
+      }
+
+      const current = (await database.execute({
+        sql: isUserIdSelector
+          ? "SELECT id FROM users WHERE id = ? AND role = 'student'"
+          : "SELECT id FROM users WHERE student_id = ? AND role = 'student'",
+        args: [isUserIdSelector ? userId : selector],
+      })).rows[0] as any;
+      if (!current) return json({ error: 'Không tìm thấy sinh viên.' }, 404);
+
+      const body = await readBody(request);
+      const studentId = String(body.student_id || '').trim();
+      const name = String(body.name || '').trim();
+      const dob = String(body.dob || '').trim();
+      const className = String(body.class_name || '').trim();
+      const phone = String(body.phone || '').trim();
+      const personalEmail = String(body.personal_email || '').trim();
+
+      if (!studentId || !name) return json({ error: 'Mã SV và Họ tên là bắt buộc.' }, 400);
+      if (!/^\d{8}$/.test(studentId)) return json({ error: 'Mã SV phải gồm 8 chữ số.' }, 400);
+      if (phone) {
+        const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+        if (!/^(0|\+84)[35789]\d{8}$/.test(cleanPhone)) {
+          return json({ error: 'Số điện thoại cá nhân không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 10 chữ số).' }, 400);
+        }
+      }
+      if (personalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail)) {
+        return json({ error: 'Email cá nhân không hợp lệ.' }, 400);
+      }
+
+      await database.execute({
+        sql: `UPDATE users
+              SET email = ?, name = ?, student_id = ?, dob = ?, class_name = ?, phone = ?, personal_email = ?
+              WHERE id = ? AND role = 'student'`,
+        args: [`${studentId}@vnu.edu.vn`, name, studentId, dob || '', className || '', phone || '', personalEmail || '', current.id],
+      });
+      return json({ success: true });
+    } catch (e: any) {
+      const message = String(e?.message || '');
+      if (message.toLowerCase().includes('unique')) return json({ error: 'Mã SV hoặc email VNU đã tồn tại ở tài khoản khác.' }, 400);
+      return json({ error: 'Database error: ' + message }, 500);
+    }
+  }
+
   if (method === 'DELETE' && studentDelete) {
     const selector = decodeURIComponent(studentDelete[1] || '').trim();
     if (!selector) return json({ error: 'Thiếu mã sinh viên cần xoá.' }, 400);

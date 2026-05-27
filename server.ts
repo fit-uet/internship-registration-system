@@ -17,7 +17,7 @@ const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '123456789-mock.ap
 const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 let db: Client;
-const DB_BATCH_SIZE = 100;
+const DB_BATCH_SIZE = 50;
 let r2Client: S3Client | null = null;
 
 function isTransientLibsqlError(error: any) {
@@ -31,7 +31,7 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function withDbRetry<T>(operation: () => Promise<T>, label: string, attempts = 3): Promise<T> {
+async function withDbRetry<T>(operation: () => Promise<T>, label: string, attempts = 5): Promise<T> {
   let lastError: any;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -39,7 +39,7 @@ async function withDbRetry<T>(operation: () => Promise<T>, label: string, attemp
     } catch (error: any) {
       lastError = error;
       if (!isTransientLibsqlError(error) || attempt === attempts) break;
-      const delay = 150 * attempt;
+      const delay = Math.min(3000, 250 * Math.pow(2, attempt - 1));
       console.warn(`[db] transient ${label} error, retry ${attempt}/${attempts - 1} after ${delay}ms: ${error.message}`);
       await sleep(delay);
     }
@@ -49,8 +49,27 @@ async function withDbRetry<T>(operation: () => Promise<T>, label: string, attemp
 
 async function executeBatch(statements: any[], mode: 'read' | 'write' = 'write') {
   for (let i = 0; i < statements.length; i += DB_BATCH_SIZE) {
-    await (db as any).batch(statements.slice(i, i + DB_BATCH_SIZE), mode);
+    const chunk = statements.slice(i, i + DB_BATCH_SIZE);
+    await withDbRetry(() => (db as any).batch(chunk, mode), `batch(${chunk.length})`);
   }
+}
+
+function normalizeOrigin(value: string) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+}
+
+function isCorsAllowed(origin: string | undefined, allowedOrigins: string[]) {
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  if (allowedOrigins.includes(normalized)) return true;
+  if (process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) return true;
+  return false;
 }
 
 function rowsToSettings(rows: any[]) {
@@ -1328,18 +1347,26 @@ async function startServer() {
   const processingUsers = new Set<number>();
 
 
-  app.use(express.json());
   const allowedOrigins = (process.env.CORS_ORIGIN || 'https://fit-uet.github.io')
     .split(',')
-    .map(origin => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
+  app.use((req: any, res: any, next: any) => {
+    const origin = req.headers.origin as string | undefined;
+    if (req.path?.startsWith('/api/') && !isCorsAllowed(origin, allowedOrigins)) {
+      console.warn(`[cors] blocked origin: ${origin || '(empty)'}; allowed: ${allowedOrigins.join(', ') || '(none)'}`);
+      return res.status(403).json({ error: 'Origin không được phép gọi API. Vui lòng kiểm tra CORS_ORIGIN trên Render.' });
+    }
+    next();
+  });
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
+      if (isCorsAllowed(origin, allowedOrigins)) return callback(null, true);
+      return callback(null, false);
     },
     credentials: true,
   }));
+  app.use(express.json());
 
   // --- API Routes ---
 
@@ -2381,6 +2408,60 @@ async function startServer() {
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  // 14b. Admin: Edit Single Student
+  app.put('/api/admin/students/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const selector = decodeURIComponent(req.params.id || '').trim();
+      if (!selector) return res.status(400).json({ error: 'Thiếu mã sinh viên cần sửa.' });
+
+      const isUserIdSelector = selector.startsWith('user:');
+      const userId = isUserIdSelector ? Number(selector.slice(5)) : null;
+      if (isUserIdSelector && (!Number.isInteger(userId) || userId <= 0)) {
+        return res.status(400).json({ error: 'Mã định danh sinh viên không hợp lệ.' });
+      }
+
+      const current = (await db.execute({
+        sql: isUserIdSelector
+          ? "SELECT id FROM users WHERE id = ? AND role = 'student'"
+          : "SELECT id FROM users WHERE student_id = ? AND role = 'student'",
+        args: [isUserIdSelector ? userId : selector],
+      })).rows[0] as any;
+      if (!current) return res.status(404).json({ error: 'Không tìm thấy sinh viên.' });
+
+      const studentId = String(req.body.student_id || '').trim();
+      const name = String(req.body.name || '').trim();
+      const dob = String(req.body.dob || '').trim();
+      const className = String(req.body.class_name || '').trim();
+      const phone = String(req.body.phone || '').trim();
+      const personalEmail = String(req.body.personal_email || '').trim();
+
+      if (!studentId || !name) return res.status(400).json({ error: 'Mã SV và Họ tên là bắt buộc.' });
+      if (!/^\d{8}$/.test(studentId)) return res.status(400).json({ error: 'Mã SV phải gồm 8 chữ số.' });
+      if (phone) {
+        const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+        if (!/^(0|\+84)[35789]\d{8}$/.test(cleanPhone)) {
+          return res.status(400).json({ error: 'Số điện thoại cá nhân không hợp lệ (phải bắt đầu bằng 0 hoặc +84 và có 10 chữ số).' });
+        }
+      }
+      if (personalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail)) {
+        return res.status(400).json({ error: 'Email cá nhân không hợp lệ.' });
+      }
+
+      const email = `${studentId}@vnu.edu.vn`;
+      await db.execute({
+        sql: `UPDATE users
+              SET email = ?, name = ?, student_id = ?, dob = ?, class_name = ?, phone = ?, personal_email = ?
+              WHERE id = ? AND role = 'student'`,
+        args: [email, name, studentId, dob || '', className || '', phone || '', personalEmail || '', current.id],
+      });
+      res.json({ success: true });
+    } catch (e: any) {
+      const message = String(e?.message || '');
+      if (message.toLowerCase().includes('unique')) return res.status(400).json({ error: 'Mã SV hoặc email VNU đã tồn tại ở tài khoản khác.' });
+      res.status(500).json({ error: 'Database error: ' + message });
     }
   });
 
@@ -4310,6 +4391,12 @@ async function startServer() {
   app.use((err: any, req: any, res: any, next: any) => {
     if (err?.type === 'entity.too.large') {
       return res.status(413).json({ error: 'File PDF vượt quá 10 MB. Vui lòng nén lại trước khi nộp.' });
+    }
+    if (err?.message === 'Not allowed by CORS') {
+      return res.status(403).json({ error: 'Origin không được phép gọi API. Vui lòng kiểm tra CORS_ORIGIN trên Render.' });
+    }
+    if (isTransientLibsqlError(err)) {
+      return res.status(503).json({ error: 'Cơ sở dữ liệu Turso tạm thời không phản hồi. Vui lòng thử lại sau.' });
     }
     if (req.path?.startsWith('/api/')) {
       return res.status(500).json({ error: err?.message || 'Internal server error' });
