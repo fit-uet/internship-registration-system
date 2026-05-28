@@ -302,6 +302,9 @@ const paginationBounds = (total: number, currentPage: number, pageSize: number) 
   return { totalPages, safePage, start, end };
 };
 
+const isAuthExpiredResponse = (res: Response, data?: any) =>
+  res.status === 401 && /invalid token|unauthorized|user not found/i.test(String(data?.error || ''));
+
 function PaginationControls({
   total,
   currentPage,
@@ -485,7 +488,7 @@ function App() {
     }
   };
 
-  const logout = () => {
+  const clearAuthSession = (message?: string) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
@@ -493,6 +496,15 @@ function App() {
     setUnreadNotifications(0);
     setIsNotificationOpen(false);
     setIsMenuOpen(false);
+    if (message) setLoginError(message);
+  };
+
+  const logout = () => {
+    clearAuthSession();
+  };
+
+  const handleAuthExpired = () => {
+    clearAuthSession('Phiên đăng nhập đã hết hạn hoặc không còn hợp lệ. Vui lòng đăng nhập lại.');
   };
 
   const refreshUnreadNotifications = async () => {
@@ -500,6 +512,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/notifications/my`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
+      if (isAuthExpiredResponse(res, data)) return handleAuthExpired();
       if (res.ok) setUnreadNotifications(Number(data.unread || 0));
     } catch (e) { }
   };
@@ -648,7 +661,7 @@ function App() {
               </div>
             ) : (
               <Routes>
-                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : <Dashboard user={user} setUser={setUser} token={token} />} />
+                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : <Dashboard user={user} setUser={setUser} token={token} onAuthExpired={handleAuthExpired} />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/final-internships" element={user.role === 'admin' ? <FinalInternshipListAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
@@ -711,7 +724,7 @@ function App() {
   );
 }
 
-function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: string }) {
+function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser: any, token: string, onAuthExpired: () => void }) {
   const [companies, setCompanies] = useState<any[]>([]);
   const [myRegs, setMyRegs] = useState<any[]>([]);
   const [myRegsError, setMyRegsError] = useState('');
@@ -905,11 +918,13 @@ function Dashboard({ user, setUser, token }: { user: any, setUser: any, token: s
         fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      const compData = await compRes.json();
+      const compData = await compRes.json().catch(() => null);
+      if (isAuthExpiredResponse(compRes, compData)) return onAuthExpired();
       setCompanies(Array.isArray(compData) ? compData : []);
 
       const regData = regRes ? await regRes.json().catch(() => null) : [];
       if (regRes && !regRes.ok) {
+        if (isAuthExpiredResponse(regRes, regData)) return onAuthExpired();
         setMyRegsError(regData?.error || 'Không tải được danh sách đăng ký của bạn.');
       } else if (Array.isArray(regData)) {
         setMyRegs(regData);
