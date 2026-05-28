@@ -1330,6 +1330,9 @@ async function route(request: Request, env: Env) {
 
   if (method === 'DELETE' && path === '/api/registrations/my') {
     requireRole(user, ['student']);
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('registration_open_at', 'registration_close_at')")).rows);
+    const windowStatus = isWithinLocalWindow(settings, 'registration_open_at', 'registration_close_at');
+    if (!windowStatus.ok) return json({ error: 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký.' }, 403);
     await executeBatch(database, [
       { sql: 'DELETE FROM final_internships WHERE user_id = ? AND locked_at IS NULL', args: [user.id] },
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] },
@@ -1340,6 +1343,9 @@ async function route(request: Request, env: Env) {
   const regDeleteMatch = path.match(/^\/api\/registrations\/(\d+)$/);
   if (method === 'DELETE' && regDeleteMatch) {
     requireRole(user, ['student']);
+    const settings = rowsToSettings((await database.execute("SELECT key, value FROM settings WHERE key IN ('registration_open_at', 'registration_close_at')")).rows);
+    const windowStatus = isWithinLocalWindow(settings, 'registration_open_at', 'registration_close_at');
+    if (!windowStatus.ok) return json({ error: 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký.' }, 403);
     await executeBatch(database, [
       { sql: 'DELETE FROM final_internships WHERE registration_id = ? AND user_id = ? AND locked_at IS NULL', args: [regDeleteMatch[1], user.id] },
       { sql: 'DELETE FROM registrations WHERE id = ? AND user_id = ?', args: [regDeleteMatch[1], user.id] },

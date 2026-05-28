@@ -794,6 +794,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     if (closeUTC && now > closeUTC) return 'closed';
     return 'open';
   }, [campaign]);
+  const canWithdrawRegistration = registrationWindowStatus === 'open';
 
   const confirmationWindowStatus = useMemo(() => {
     const openStr = campaign?.confirmation_open_at;
@@ -1108,14 +1109,22 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   };
 
   const handleWithdraw = async () => {
+    if (!canWithdrawRegistration) {
+      setIsWithdrawModalOpen(false);
+      alert('Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký.');
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/registrations/my`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         fetchData();
         setIsWithdrawModalOpen(false);
+      } else {
+        alert(data.error || 'Không thể hủy đăng ký.');
       }
     } catch (e) {
       alert("Hủy lỗi!");
@@ -1259,8 +1268,10 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 </div>
               </div>
               <button
-                onClick={() => setIsWithdrawModalOpen(true)}
-                className="px-4 py-1.5 border border-red-500 text-red-500 rounded-md text-xs font-bold hover:bg-red-50/50 transition-colors whitespace-nowrap"
+                onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
+                disabled={!canWithdrawRegistration}
+                title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
+                className={`px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-red-500 text-red-500 hover:bg-red-50/50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
               >
                 Hủy tất cả đăng ký
               </button>
@@ -1565,7 +1576,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       </div>
 
       {/* Withdraw Modal */}
-      {isWithdrawModalOpen && (
+      {isWithdrawModalOpen && canWithdrawRegistration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
             <div className="flex items-center gap-3 text-red-600 mb-4">

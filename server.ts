@@ -2305,6 +2305,14 @@ async function startServer() {
 
   // 5. Withdraw Registration
   app.delete('/api/registrations/my', requireAuth, requireStudent, async (req: any, res: any) => {
+    const settings = rowsToSettings((await db.execute(`
+      SELECT key, value FROM settings
+      WHERE key IN ('registration_open_at', 'registration_close_at')
+    `)).rows as any[]);
+    const windowStatus = isWithinLocalWindow(settings, 'registration_open_at', 'registration_close_at');
+    if (!windowStatus.ok) {
+      return res.status(403).json({ error: 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký.' });
+    }
     await executeBatch([
       { sql: 'DELETE FROM final_internships WHERE user_id = ? AND locked_at IS NULL', args: [req.user.id] },
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] },
@@ -2315,6 +2323,14 @@ async function startServer() {
   // 5b. Withdraw a single registration
   app.delete('/api/registrations/:id', requireAuth, requireStudent, async (req: any, res: any) => {
     const { id } = req.params;
+    const settings = rowsToSettings((await db.execute(`
+      SELECT key, value FROM settings
+      WHERE key IN ('registration_open_at', 'registration_close_at')
+    `)).rows as any[]);
+    const windowStatus = isWithinLocalWindow(settings, 'registration_open_at', 'registration_close_at');
+    if (!windowStatus.ok) {
+      return res.status(403).json({ error: 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký.' });
+    }
     // Only allow deleting own registration
     const reg = (await db.execute({ sql: 'SELECT * FROM registrations WHERE id = ? AND user_id = ?', args: [id, req.user.id] })).rows[0];
     if (!reg) {
