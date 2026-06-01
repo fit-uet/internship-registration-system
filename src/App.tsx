@@ -849,7 +849,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const finalReportWindowStatus = useMemo(() => {
     const openStr = campaign?.final_report_open_at;
     const closeStr = campaign?.final_report_close_at;
-    if (!openStr && !closeStr) return 'open';
+    if (!openStr && !closeStr) return 'unconfigured';
     const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
     const now = new Date();
     const openUTC = openStr ? toUTC(openStr) : null;
@@ -1112,6 +1112,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', school_co_lecturer: '', note: '' });
         setAdvisorRequestForm({ request_type: '', lecturer_name: '', co_lecturer_name: '', student_note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+        if (data.advisor_warning) alert(data.advisor_warning);
         fetchData();
       } else {
         alert(data.error);
@@ -1217,7 +1218,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       if (!res.ok) return alert(data.error || 'Không gửi được đề xuất GVHD.');
       setAdvisorRequest(data.request || null);
       setIsAdvisorEditOpen(false);
-      alert('Đã ghi nhận đề xuất GVHD.');
+      alert(data.warning || 'Đã ghi nhận đề xuất GVHD.');
       fetchData();
     } catch (e) {
       alert('Lỗi kết nối khi gửi đề xuất GVHD.');
@@ -1285,6 +1286,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         return;
       }
       setConfirmFinalOpen(false);
+      if (data.advisor_warning) alert(data.advisor_warning);
       fetchData();
     } catch (e) {
       alert('Lỗi kết nối khi xác nhận nơi thực tập.');
@@ -1548,9 +1550,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         )) : null}
 
-        {(showConfirmationBlock || showAdvisorTask) && (
+        {showConfirmationBlock && (
           <div className={`border rounded-2xl p-6 shadow-sm ${finalInternship ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-            {showConfirmationBlock && <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className={finalInternship ? 'text-emerald-600' : 'text-slate-400'} size={20} />
@@ -1604,9 +1606,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 </button>
               </div>
               )}
-            </div>}
-            {showAdvisorTask && <div className={showConfirmationBlock ? 'mt-5 border-t border-slate-200 pt-4' : ''}>
-              <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
+            </div>
+          </div>
+        )}
+
+        {showAdvisorTask && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
               {advisorRequestWindowStatus !== 'open' && (
                 <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                   {advisorRequestWindowStatus === 'not_open_yet'
@@ -1614,7 +1620,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
                 </div>
               )}
-              <form onSubmit={submitAdvisorRequest} className="space-y-3">
+            <form onSubmit={submitAdvisorRequest} className="space-y-3">
                 {hasAdvisorSelection && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
@@ -1630,6 +1636,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         {advisorRequest && (
                           <div className="mt-1 text-xs text-emerald-800">
                             Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                            {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, cần Khoa duyệt thủ công' : ''}
                             {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
                             {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
                           </div>
@@ -1711,8 +1718,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     </div>
                   </div>
                 )}
-              </form>
-            </div>}
+            </form>
           </div>
         )}
 
@@ -3818,9 +3824,11 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final PDF</h2>
           <p className="text-sm text-slate-500 mt-1">Nộp bản báo cáo thực tập final để giảng viên hướng dẫn đánh giá và chấm điểm.</p>
         </div>
-        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
-          <div className="font-bold">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : 'Đã hết hạn'}</div>
-          <div className="text-xs mt-1">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-100 text-red-800'}`}>
+          <div className="font-bold">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
+          {finalReportWindowStatus === 'unconfigured'
+            ? <div className="text-xs mt-1">Khoa chưa cấu hình thời gian nộp báo cáo final.</div>
+            : <div className="text-xs mt-1">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>}
         </div>
       </div>
 

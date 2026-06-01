@@ -1841,7 +1841,9 @@ async function startServer() {
         const coLecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE id = ?', args: [coLecturerId] })).rows[0];
         if (!coLecturer) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ.' });
       }
-      const quotaStatus = requestType === 'faculty_assign' ? 'unknown' : await advisorQuotaStatus(lecturerId);
+      const primaryQuotaStatus = requestType === 'faculty_assign' ? 'unknown' : await advisorQuotaStatus(lecturerId);
+      const coQuotaStatus = coLecturerId ? await advisorQuotaStatus(coLecturerId) : 'within_quota';
+      const quotaStatus = primaryQuotaStatus === 'over_quota' || coQuotaStatus === 'over_quota' ? 'over_quota' : primaryQuotaStatus;
       await executeBatch([
         { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
         { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
@@ -1864,7 +1866,7 @@ async function startServer() {
                 updated_at = datetime('now', '+7 hours')`,
         args: [req.user.id, lecturerId, coLecturerId, requestType, quotaStatus, req.body.student_note || null],
       });
-      if (requestType === 'agreed' && lecturerId) {
+      if (requestType === 'agreed' && lecturerId && quotaStatus !== 'over_quota') {
         const primaryResult = await createAdvisorAssignment({
           user_id: req.user.id,
           lecturer_id: lecturerId,
@@ -1891,7 +1893,13 @@ async function startServer() {
           args: [req.user.id],
         });
       }
-      res.json({ success: true, request: await advisorRequestWithNames(req.user.id) });
+      res.json({
+        success: true,
+        request: await advisorRequestWithNames(req.user.id),
+        warning: quotaStatus === 'over_quota'
+          ? 'Giảng viên đã đủ chỉ tiêu. Đề xuất của bạn đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.'
+          : null,
+      });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -2229,25 +2237,31 @@ async function startServer() {
             req.body.note || null,
           ],
         });
+        let advisorWarning: string | null = null;
         if (!requestAssignment && validLecturer) {
           const quotaStatus = await advisorQuotaStatus(Number(validLecturer.id));
           await db.execute({
             sql: `INSERT INTO advisor_requests (user_id, lecturer_id, lecturer_name_text, request_type, status, quota_status, student_note, created_at, updated_at)
-                  VALUES (?, ?, ?, 'agreed', 'approved', ?, 'Sinh viên xác nhận đã được GV đồng ý hướng dẫn thực tập tại trường.', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
+                  VALUES (?, ?, ?, 'agreed', ?, ?, 'Sinh viên xác nhận đã được GV đồng ý hướng dẫn thực tập tại trường.', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
                   ON CONFLICT(user_id) DO UPDATE SET lecturer_id = excluded.lecturer_id, lecturer_name_text = excluded.lecturer_name_text,
-                    request_type = 'agreed', status = 'approved', quota_status = excluded.quota_status, student_note = excluded.student_note,
-                    reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours')`,
-            args: [req.user.id, Number(validLecturer.id), lecturerName, quotaStatus],
+                    request_type = 'agreed', status = excluded.status, quota_status = excluded.quota_status, student_note = excluded.student_note,
+                    reviewed_at = CASE WHEN excluded.status = 'approved' THEN datetime('now', '+7 hours') ELSE NULL END,
+                    updated_at = datetime('now', '+7 hours')`,
+            args: [req.user.id, Number(validLecturer.id), lecturerName, quotaStatus === 'over_quota' ? 'pending' : 'approved', quotaStatus],
           });
-          await createAdvisorAssignment({
-            user_id: req.user.id,
-            lecturer_id: Number(validLecturer.id),
-            role: 'primary',
-            note: 'Sinh viên xác nhận GVHD thực tập tại trường',
-            allow_over_quota: true,
-            allow_without_final: true,
-            suppress_student_notification: true,
-          }, req.user.id);
+          if (quotaStatus === 'over_quota') {
+            advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đề xuất GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
+          } else {
+            await createAdvisorAssignment({
+              user_id: req.user.id,
+              lecturer_id: Number(validLecturer.id),
+              role: 'primary',
+              note: 'Sinh viên xác nhận GVHD thực tập tại trường',
+              allow_over_quota: true,
+              allow_without_final: true,
+              suppress_student_notification: true,
+            }, req.user.id);
+          }
         }
         await createNotification({
           user_id: req.user.id,
@@ -2257,7 +2271,7 @@ async function startServer() {
           body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: Thực tập tại trường.${requestAssignment ? '\nBạn đã chọn nhờ Khoa phân công GVHD.' : `\nGVHD đăng ký: ${lecturerName}.`}`,
           send_now: true,
         });
-        return res.json({ success: true });
+        return res.json({ success: true, advisor_warning: advisorWarning });
       }
 
       const registrationId = Number(req.body.registration_id);
@@ -2413,7 +2427,9 @@ async function startServer() {
           advisorCoLecturer = await findLecturerByNameText(advisorCoLecturerName);
           if (!advisorCoLecturer) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
         }
-        advisorQuota = await advisorQuotaStatus(Number(advisorLecturer.id));
+        const primaryQuotaStatus = await advisorQuotaStatus(Number(advisorLecturer.id));
+        const coQuotaStatus = advisorCoLecturer ? await advisorQuotaStatus(Number(advisorCoLecturer.id)) : 'within_quota';
+        advisorQuota = primaryQuotaStatus === 'over_quota' || coQuotaStatus === 'over_quota' ? 'over_quota' : primaryQuotaStatus;
       }
       if (normal_company_ids.includes(schoolCompany?.id)) {
         if (!schoolLecturerName && advisorRequestType !== 'faculty_assign') {
@@ -2534,7 +2550,11 @@ async function startServer() {
                   updated_at = datetime('now', '+7 hours')`,
           args: [req.user.id, advisorLecturer?.id || null, advisorCoLecturer?.id || null, advisorRequestType, advisorQuota, advisorRequestPayload.student_note || null],
         });
-        if (advisorRequestType === 'agreed' && advisorLecturer) {
+        let advisorWarning: string | null = null;
+        if (advisorRequestType === 'agreed' && advisorQuota === 'over_quota') {
+          advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đề xuất GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
+        }
+        if (advisorRequestType === 'agreed' && advisorLecturer && advisorQuota !== 'over_quota') {
           const primaryResult = await createAdvisorAssignment({
             user_id: req.user.id,
             lecturer_id: Number(advisorLecturer.id),
@@ -2561,11 +2581,12 @@ async function startServer() {
             args: [req.user.id],
           });
         }
+        (req as any).advisorWarning = advisorWarning;
       }
 
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 
-      res.json({ success: true, user: updatedUser });
+      res.json({ success: true, user: updatedUser, advisor_warning: (req as any).advisorWarning || null });
     } catch (e: any) {
       const message = String(e?.message || '');
       res.status(message.includes('không được phép đăng nhập/đăng ký') ? 403 : 500).json({ error: message.includes('không được phép đăng nhập/đăng ký') ? message : 'Database error: ' + message });
@@ -3509,6 +3530,19 @@ async function startServer() {
     if (!coLecturerId && request.co_lecturer_name_text) {
       const coLecturer = await findLecturerByNameText(request.co_lecturer_name_text);
       coLecturerId = coLecturer?.id ? Number(coLecturer.id) : 0;
+    }
+    const primaryQuotaStatus = await advisorQuotaStatus(lecturerId || null);
+    const coQuotaStatus = coLecturerId ? await advisorQuotaStatus(coLecturerId) : 'within_quota';
+    const quotaStatus = primaryQuotaStatus === 'over_quota' || coQuotaStatus === 'over_quota' ? 'over_quota' : primaryQuotaStatus;
+    if (quotaStatus === 'over_quota') {
+      await db.execute({
+        sql: `UPDATE advisor_requests
+              SET lecturer_id = ?, co_lecturer_id = ?, quota_status = 'over_quota', status = 'pending',
+                  reviewed_by = NULL, reviewed_at = NULL, updated_at = datetime('now', '+7 hours')
+              WHERE id = ?`,
+        args: [lecturerId || null, coLecturerId || null, Number(request.id)],
+      });
+      return false;
     }
     if (lecturerId) {
       const primaryResult = await createAdvisorAssignment({
