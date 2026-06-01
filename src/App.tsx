@@ -1346,11 +1346,11 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           ? 'final_report'
           : 'registration';
   const activeCampaignTitle = openCampaign?.label || 'Đăng ký thực tập';
-  const showRegistrationTask = activeCampaignKey === 'registration';
+  const showRegistrationTask = activeCampaignKey === 'registration' || registrationWindowStatus === 'open';
   const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
-  const showAdvisorTask = activeCampaignKey === 'advisor' && hasRegistered;
+  const showAdvisorTask = advisorRequestWindowStatus === 'open' && hasRegistered;
   const showFinalReportTask = activeCampaignKey === 'final_report' && !!finalInternship;
-  const showCompanyList = showRegistrationTask && !hasRegistered;
+  const showCompanyList = registrationWindowStatus === 'open' && !hasRegistered;
   const registrationSummary = hasRegistered
     ? `Đã đăng ký ${myRegs.length} nơi`
     : registrationWindowStatus === 'open'
@@ -1494,6 +1494,11 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
                   <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
+                {canWithdrawRegistration && (
+                  <p className="mt-3 text-xs text-green-700">
+                    Nếu cần đăng ký lại trong thời gian Khoa mở bổ sung, hãy hủy đăng ký hiện tại. Sau khi hủy, danh sách nơi thực tập sẽ hiện lại để chọn nguyện vọng mới.
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
