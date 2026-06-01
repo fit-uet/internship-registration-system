@@ -1819,7 +1819,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
         {showAdvisorTask && (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
+            <h4 className="text-sm font-bold text-slate-800 mb-2">Đăng ký giảng viên hướng dẫn</h4>
               {advisorRequestWindowStatus !== 'open' && (
                 <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                   {advisorRequestWindowStatus === 'not_open_yet'
@@ -3799,7 +3799,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       body: JSON.stringify({ action, admin_note: adminNote || '' })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return alert(data.error || 'Không xử lý được đề xuất.');
+    if (!res.ok) return alert(data.error || 'Không xử lý được đăng ký.');
     fetchData();
   };
 

@@ -1911,7 +1911,7 @@ async function startServer() {
         success: true,
         request: await advisorRequestWithNames(req.user.id),
         warning: quotaStatus === 'over_quota'
-          ? 'Giảng viên đã đủ chỉ tiêu. Đề xuất của bạn đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.'
+          ? 'Giảng viên đã đủ chỉ tiêu. Đăng ký của bạn đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.'
           : null,
       });
     } catch (e: any) {
@@ -4243,7 +4243,7 @@ async function startServer() {
     if (action !== 'approve') return res.status(400).json({ error: 'Thao tác không hợp lệ.' });
     const lecturerId = req.body.lecturer_id ? Number(req.body.lecturer_id) : Number(request.lecturer_id);
     const coLecturerId = req.body.co_lecturer_id ? Number(req.body.co_lecturer_id) : Number(request.co_lecturer_id || 0);
-    if (!lecturerId) return res.status(400).json({ error: 'Đề xuất chưa có GVHD chính để duyệt.' });
+    if (!lecturerId) return res.status(400).json({ error: 'Đăng ký chưa có GVHD chính để duyệt.' });
     const primaryResult = await createAdvisorAssignment({
       user_id: Number(request.user_id),
       lecturer_id: lecturerId,
