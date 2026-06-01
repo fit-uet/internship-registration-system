@@ -8084,7 +8084,6 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   });
   const [saving, setSaving] = useState(false);
   const [classesList, setClassesList] = useState<string[]>([]);
-  const [myRegs, setMyRegs] = useState<any[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -8098,10 +8097,6 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
         })
         .catch(() => { });
 
-      fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json())
-        .then(data => { setMyRegs(Array.isArray(data) ? data : []); })
-        .catch(() => { });
     }
   }, [token, isStaff]);
 
@@ -8288,35 +8283,6 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                     <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">Thực tập Doanh nghiệp Nhật Bản INT4003</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="pt-6 border-t border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <Building2 size={20} className="text-blue-600" /> Nơi đăng ký thực tập
-                </h3>
-                {myRegs.length > 0 ? (
-                  <ul className="space-y-3">
-                    {myRegs.map((reg: any, idx: number) => (
-                      <li key={reg.id} className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-sm flex flex-col gap-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <span className="text-blue-900">
-                            <strong>NV{idx + 1}:</strong> {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
-                          </span>
-                          <span className={`text-xs font-semibold px-2 py-1 rounded w-fit ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
-                          </span>
-                        </div>
-                        {reg.review_comment && (
-                          <div className={`text-xs rounded-lg px-3 py-2 whitespace-pre-wrap ${reg.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-white/80 text-slate-600 border border-blue-100'}`}>
-                            <strong>Nhận xét của Khoa:</strong> {reg.review_comment}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg border border-slate-100">Bạn chưa đăng ký nơi thực tập nào. Vui lòng quay lại trang chủ để đăng ký.</p>
-                )}
               </div>
             </>
           )}
