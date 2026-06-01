@@ -756,6 +756,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
   const [showConfirmationDetails, setShowConfirmationDetails] = useState(false);
+  const [editingPreferences, setEditingPreferences] = useState(false);
+  const [preferenceEdits, setPreferenceEdits] = useState<any[]>([]);
+  const [savingPreferences, setSavingPreferences] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(() => {
     try {
       const saved = sessionStorage.getItem('selectedCompanies');
@@ -895,6 +898,158 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     return [{ key: `company-${companyId}`, name: company?.name || 'Không rõ' }];
   });
   const selectedWishCount = selectedPreferencePreview.length;
+
+  const registrationToPreferenceEdit = (reg: any) => ({
+    local_id: `reg-${reg.id}`,
+    id: reg.id,
+    type: reg.company_name === 'Công ty khác' ? 'other' : 'company',
+    company_id: reg.company_id ? String(reg.company_id) : '',
+    name: reg.other_company_name || '',
+    role: reg.other_company_role || '',
+    contact: reg.other_company_contact || '',
+    note: reg.note || '',
+    status: reg.status,
+    review_comment: reg.review_comment || '',
+    sent_to_company_at: reg.sent_to_company_at || null,
+  });
+
+  const resetPreferenceEdits = (rows = myRegs) => {
+    setPreferenceEdits(rows.map(registrationToPreferenceEdit));
+  };
+
+  const updatePreferenceEdit = (index: number, patch: any) => {
+    setPreferenceEdits(prev => prev.map((item, idx) => idx === index ? { ...item, ...patch } : item));
+  };
+
+  const movePreferenceEdit = (index: number, direction: -1 | 1) => {
+    setPreferenceEdits(prev => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const removePreferenceEdit = (index: number) => {
+    setPreferenceEdits(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const addPreferenceEdit = () => {
+    setPreferenceEdits(prev => {
+      if (prev.length >= 5) return prev;
+      return [...prev, { local_id: `new-${Date.now()}`, id: null, type: 'company', company_id: '', name: '', role: '', contact: '', note: '', status: 'pending' }];
+    });
+  };
+
+  const startEditingPreferences = () => {
+    resetPreferenceEdits();
+    setEditingPreferences(true);
+  };
+
+  const cancelEditingPreferences = () => {
+    resetPreferenceEdits();
+    setEditingPreferences(false);
+  };
+
+  const savePreferenceEdits = async () => {
+    if (savingPreferences) return;
+    if (registrationWindowStatus !== 'open') {
+      alert('Chỉ được sửa nguyện vọng trong thời gian Khoa mở đăng ký.');
+      return;
+    }
+    if (preferenceEdits.length === 0) {
+      alert('Vui lòng giữ ít nhất 1 nguyện vọng.');
+      return;
+    }
+    if (preferenceEdits.length > 5) {
+      alert('Sinh viên chỉ được chọn tối đa 5 nơi thực tập.');
+      return;
+    }
+    const compactName = (value: string) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const seenCompanyIds = new Set<string>();
+    const seenOtherNames = new Set<string>();
+    const seenAllNames = new Set<string>();
+    for (const item of preferenceEdits) {
+      if (item.type === 'other') {
+        const name = String(item.name || '').trim();
+        const role = String(item.role || '').trim();
+        const contact = String(item.contact || '').trim();
+        if (!name || !role || !contact) {
+          alert('Vui lòng nhập đầy đủ tên công ty, vị trí và thông tin liên hệ cho các nguyện vọng tự liên hệ.');
+          return;
+        }
+        const normalizedName = compactName(name);
+        if (seenAllNames.has(normalizedName)) {
+          alert(`Danh sách nguyện vọng bị trùng nơi thực tập "${name}".`);
+          return;
+        }
+        seenAllNames.add(normalizedName);
+        if (seenOtherNames.has(normalizedName)) {
+          alert(`Nguyện vọng tự liên hệ bị trùng công ty "${name}".`);
+          return;
+        }
+        seenOtherNames.add(normalizedName);
+      } else {
+        if (!item.company_id) {
+          alert('Vui lòng chọn công ty cho tất cả nguyện vọng.');
+          return;
+        }
+        const companyId = String(item.company_id);
+        if (seenCompanyIds.has(companyId)) {
+          alert('Danh sách nguyện vọng có công ty bị chọn trùng.');
+          return;
+        }
+        seenCompanyIds.add(companyId);
+        const companyName = companies.find(c => Number(c.id) === Number(item.company_id))?.name || '';
+        const normalizedName = compactName(companyName);
+        if (normalizedName && seenAllNames.has(normalizedName)) {
+          alert(`Danh sách nguyện vọng bị trùng nơi thực tập "${companyName}".`);
+          return;
+        }
+        if (normalizedName) seenAllNames.add(normalizedName);
+      }
+    }
+    if (schoolCompany && preferenceEdits.some(item => item.type !== 'other' && Number(item.company_id) === Number(schoolCompany.id)) && preferenceEdits.length > 1) {
+      alert('Nếu chọn Trường Đại học Công nghệ, sinh viên không được chọn thêm nơi thực tập khác.');
+      return;
+    }
+    const accepted = window.confirm('Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.\n\nBạn chắc chắn muốn lưu thay đổi nguyện vọng?');
+    if (!accepted) return;
+
+    setSavingPreferences(true);
+    try {
+      const payload = preferenceEdits.map(item => ({
+        id: item.id || null,
+        type: item.type,
+        company_id: item.type === 'other' ? null : Number(item.company_id),
+        name: item.type === 'other' ? item.name : '',
+        role: item.type === 'other' ? item.role : '',
+        contact: item.type === 'other' ? item.contact : '',
+        note: item.note || '',
+      }));
+      const res = await fetch(`${API_BASE}/api/registrations/my/preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ preferences: payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Không thể cập nhật nguyện vọng.');
+        return;
+      }
+      const rows = data.registrations || [];
+      setMyRegs(rows);
+      setPreferenceEdits(rows.map(registrationToPreferenceEdit));
+      setEditingPreferences(false);
+      await fetchData();
+      alert('Đã cập nhật nguyện vọng.');
+    } catch (err) {
+      alert('Lỗi kết nối khi cập nhật nguyện vọng.');
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
 
   useEffect(() => {
     sessionStorage.setItem('selectedCompanies', JSON.stringify(Array.from(selectedCompanies)));
@@ -1503,40 +1658,153 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng đăng nhập lại để hiện thị đúng thông tin đăng ký hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
             <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
           </div>
-        ) : showRegistrationTask ? (hasRegistered ? (showRegistrationDetails ? (
+        ) : (showRegistrationTask || (hasRegistered && showRegistrationDetails)) ? (hasRegistered ? (showRegistrationDetails ? (
           <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="text-green-600" size={20} />
-                  <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} công ty</h3>
+            {!editingPreferences ? (
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="text-green-600" size={20} />
+                    <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} công ty</h3>
+                  </div>
+                  <ul className="text-sm text-green-800 mb-4 space-y-2">
+                    {myRegs.map((reg: any, idx: number) => (
+                      <li key={reg.id}>
+                        <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
+                        {reg.review_comment && <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">Nhận xét của Khoa: {reg.review_comment}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
+                    <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                  {canWithdrawRegistration && (
+                    <p className="mt-3 text-xs text-green-700">
+                      Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.
+                    </p>
+                  )}
                 </div>
-                <ul className="text-sm text-green-800 mb-4 space-y-1">
-                  {myRegs.map((reg: any, idx: number) => (
-                    <li key={reg.id}>
-                      <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
-                      {reg.review_comment && <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">Nhận xét của Khoa: {reg.review_comment}</div>}
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
-                  <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  <button
+                    onClick={startEditingPreferences}
+                    disabled={!canWithdrawRegistration}
+                    title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-blue-500 text-blue-700 bg-white hover:bg-blue-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
+                  >
+                    <Edit2 size={14} /> Chỉnh sửa nguyện vọng
+                  </button>
+                  <button
+                    onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
+                    disabled={!canWithdrawRegistration}
+                    title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-red-500 text-red-600 bg-white hover:bg-red-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
+                  >
+                    <Trash2 size={14} /> Hủy tất cả
+                  </button>
                 </div>
-                {canWithdrawRegistration && (
-                  <p className="mt-3 text-xs text-green-700">
-                    Nếu cần đăng ký lại trong thời gian Khoa mở bổ sung, hãy hủy đăng ký hiện tại. Sau khi hủy, danh sách nơi thực tập sẽ hiện lại để chọn nguyện vọng mới.
-                  </p>
-                )}
               </div>
-              <button
-                onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
-                disabled={!canWithdrawRegistration}
-                title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
-                className={`px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-red-500 text-red-500 hover:bg-red-50/50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
-              >
-                Hủy tất cả đăng ký
-              </button>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Edit2 className="text-blue-600" size={20} />
+                      <h3 className="text-base font-bold text-slate-900">Chỉnh sửa nguyện vọng thực tập</h3>
+                    </div>
+                    <p className="text-sm text-slate-600">Kéo thứ tự bằng nút lên/xuống; hệ thống sẽ lưu lại NV1 đến NV5 theo thứ tự đang hiển thị.</p>
+                  </div>
+                  <button
+                    onClick={addPreferenceEdit}
+                    disabled={preferenceEdits.length >= 5 || savingPreferences}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={16} /> Thêm nguyện vọng
+                  </button>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                    <div><strong>Lưu ý:</strong> Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.</div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {preferenceEdits.map((item: any, idx: number) => (
+                    <div key={item.local_id || item.id || idx} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+                        <div className="flex items-center justify-between lg:w-24">
+                          <span className="text-sm font-bold text-slate-800">NV{idx + 1}</span>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => movePreferenceEdit(idx, -1)} disabled={idx === 0 || savingPreferences} className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" title="Đưa lên">↑</button>
+                            <button type="button" onClick={() => movePreferenceEdit(idx, 1)} disabled={idx === preferenceEdits.length - 1 || savingPreferences} className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" title="Đưa xuống">↓</button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
+                          <div className={item.type === 'other' ? 'md:col-span-2 xl:col-span-1' : 'md:col-span-2 xl:col-span-2'}>
+                            <label className="block text-xs font-bold text-slate-600 mb-1">Nơi thực tập</label>
+                            <select
+                              value={item.type === 'other' ? 'other' : item.company_id}
+                              onChange={e => {
+                                const value = e.target.value;
+                                if (value === 'other') updatePreferenceEdit(idx, { type: 'other', company_id: '', name: '', role: '', contact: '' });
+                                else updatePreferenceEdit(idx, { type: 'company', company_id: value, name: '', role: '', contact: '' });
+                              }}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">-- Chọn nơi thực tập --</option>
+                              {companies.filter(c => c.name !== 'Công ty khác').map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                              {khacCompany && <option value="other">Công ty tự liên hệ</option>}
+                            </select>
+                          </div>
+                          {item.type === 'other' && (
+                            <>
+                              <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Tên công ty *</label>
+                                <input value={item.name || ''} onChange={e => updatePreferenceEdit(idx, { name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên công ty tự liên hệ" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Vị trí *</label>
+                                <input value={item.role || ''} onChange={e => updatePreferenceEdit(idx, { role: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="VD: Backend Intern" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Liên hệ *</label>
+                                <input value={item.contact || ''} onChange={e => updatePreferenceEdit(idx, { contact: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên/email/số điện thoại" />
+                              </div>
+                            </>
+                          )}
+                          <div className={item.type === 'other' ? 'md:col-span-2 xl:col-span-4' : 'md:col-span-2'}>
+                            <label className="block text-xs font-bold text-slate-600 mb-1">Ghi chú</label>
+                            <input value={item.note || ''} onChange={e => updatePreferenceEdit(idx, { note: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Thông tin bổ sung nếu có" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePreferenceEdit(idx)}
+                          disabled={preferenceEdits.length <= 1 || savingPreferences}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 disabled:text-slate-300 disabled:border-slate-200 disabled:cursor-not-allowed"
+                          title="Xóa nguyện vọng này"
+                        >
+                          <Trash2 size={16} /> Xóa
+                        </button>
+                      </div>
+                      {(item.status || item.review_comment) && (
+                        <div className="mt-3 flex flex-col sm:flex-row gap-2 text-xs">
+                          {item.status && <span className={`font-semibold px-2 py-1 rounded w-fit ${item.status === 'approved' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{item.status === 'pending' ? 'Chờ Duyệt' : item.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span>}
+                          {item.review_comment && <span className="text-slate-600">Nhận xét của Khoa: {item.review_comment}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  <button onClick={cancelEditingPreferences} disabled={savingPreferences} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60">Hủy chỉnh sửa</button>
+                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                    <Save size={16} /> {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : null) : (
           <div className={`${registrationWindowStatus === 'open' ? 'bg-blue-50/30 border-blue-100 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-xl p-4 text-sm`}>

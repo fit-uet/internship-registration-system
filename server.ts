@@ -2595,6 +2595,164 @@ async function startServer() {
     }
   });
 
+  app.put('/api/registrations/my/preferences', requireAuth, requireStudent, async (req: any, res: any) => {
+    const userId = req.user.id;
+    if (processingUsers.has(userId)) {
+      return res.status(429).json({ error: 'Yêu cầu cập nhật đang được xử lý, vui lòng không nhấn thêm.' });
+    }
+    processingUsers.add(userId);
+    try {
+      await assertStudentCohortAllowed(req.user.email);
+      const settings = rowsToSettings((await db.execute(`
+        SELECT key, value FROM settings
+        WHERE key IN ('registration_open_at', 'registration_close_at')
+      `)).rows as any[]);
+      const windowStatus = isWithinLocalWindow(settings, 'registration_open_at', 'registration_close_at');
+      if (!windowStatus.ok) return res.status(403).json({ error: 'Chỉ được sửa nguyện vọng trong thời gian Khoa mở đăng ký.' });
+
+      const preferences = Array.isArray(req.body.preferences) ? req.body.preferences : [];
+      if (preferences.length === 0) return res.status(400).json({ error: 'Vui lòng giữ ít nhất 1 nguyện vọng.' });
+      if (preferences.length > 5) return res.status(400).json({ error: 'Bạn chỉ được chọn tối đa 5 nơi thực tập.' });
+
+      const khacCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Công ty khác'")).rows[0] as any;
+      const schoolCompany = (await db.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
+      if (!khacCompany) return res.status(500).json({ error: 'Thiếu bản ghi Công ty khác trong hệ thống.' });
+
+      const existingRows = (await db.execute({ sql: 'SELECT * FROM registrations WHERE user_id = ? ORDER BY preference_order ASC, created_at ASC', args: [userId] })).rows as any[];
+      const existingById = new Map(existingRows.map(row => [Number(row.id), row]));
+      const final = (await db.execute({ sql: 'SELECT * FROM final_internships WHERE user_id = ?', args: [userId] })).rows[0] as any;
+      if (final?.locked_at) return res.status(400).json({ error: 'Nơi thực tập chính thức đã bị khóa. Vui lòng liên hệ Khoa nếu cần thay đổi nguyện vọng.' });
+
+      const approvedRows = (await db.execute('SELECT normalized_name FROM approved_company_names')).rows as any[];
+      const approvedCompanyNames = approvedRows.length > 0
+        ? new Set(approvedRows.map(row => String(row.normalized_name || '').trim()).filter(Boolean))
+        : getItCompanyNameSet();
+
+      const normalizedPrefs: any[] = [];
+      const seenCompanyIds = new Set<number>();
+      const seenOtherNames = new Set<string>();
+      const seenCompanyNames = new Set<string>();
+      for (const raw of preferences) {
+        const id = raw.id ? Number(raw.id) : null;
+        if (id && !existingById.has(id)) return res.status(403).json({ error: 'Nguyện vọng không thuộc tài khoản của bạn.' });
+        if (final?.registration_id && id === Number(final.registration_id)) {
+          const existing = existingById.get(id);
+          const requestedCompanyId = raw.type === 'other' ? Number(khacCompany.id) : Number(raw.company_id);
+          if (requestedCompanyId !== Number(existing.company_id)) {
+            return res.status(400).json({ error: 'Không thể đổi nơi thực tập đã được dùng để xác nhận chính thức.' });
+          }
+          if (requestedCompanyId === Number(khacCompany.id)) {
+            const requestedOtherName = normalizeCompanyName(String(raw.name || raw.other_company_name || ''));
+            const existingOtherName = normalizeCompanyName(String(existing.other_company_name || ''));
+            if (requestedOtherName !== existingOtherName) {
+              return res.status(400).json({ error: 'Không thể đổi nơi thực tập đã được dùng để xác nhận chính thức.' });
+            }
+          }
+        }
+        if (raw.type === 'other') {
+          const name = String(raw.name || raw.other_company_name || '').trim();
+          const role = String(raw.role || raw.other_company_role || '').trim();
+          const contact = String(raw.contact || raw.other_company_contact || '').trim();
+          if (!name || !role || !contact) return res.status(400).json({ error: 'Vui lòng nhập đầy đủ tên, vị trí và liên hệ cho công ty tự liên hệ.' });
+          const normalizedName = normalizeCompanyName(name);
+          if (seenCompanyNames.has(normalizedName)) return res.status(400).json({ error: `Bạn đã chọn trùng nơi thực tập "${name}".` });
+          seenCompanyNames.add(normalizedName);
+          if (seenOtherNames.has(normalizedName)) return res.status(400).json({ error: `Bạn đã nhập trùng công ty "${name}".` });
+          seenOtherNames.add(normalizedName);
+          normalizedPrefs.push({ id, type: 'other', company_id: Number(khacCompany.id), name, role, contact, status: approvedCompanyNames.has(normalizedName) ? 'approved' : 'pending', note: String(raw.note || '').trim() || null });
+        } else {
+          const companyId = Number(raw.company_id);
+          if (!Number.isFinite(companyId) || companyId === Number(khacCompany.id)) return res.status(400).json({ error: 'Công ty không hợp lệ.' });
+          if (seenCompanyIds.has(companyId)) return res.status(400).json({ error: 'Bạn đã chọn trùng công ty trong danh sách nguyện vọng.' });
+          seenCompanyIds.add(companyId);
+          const company = (await db.execute({ sql: 'SELECT id, name FROM companies WHERE id = ?', args: [companyId] })).rows[0] as any;
+          if (!company) return res.status(400).json({ error: 'Không tìm thấy công ty đã chọn.' });
+          const normalizedName = normalizeCompanyName(String(company.name || ''));
+          if (seenCompanyNames.has(normalizedName)) return res.status(400).json({ error: `Bạn đã chọn trùng nơi thực tập "${company.name}".` });
+          seenCompanyNames.add(normalizedName);
+          normalizedPrefs.push({ id, type: 'company', company_id: companyId, name: company.name, status: 'approved', note: String(raw.note || '').trim() || null });
+        }
+      }
+      if (normalizedPrefs.some(item => item.company_id === Number(schoolCompany?.id)) && normalizedPrefs.length > 1) {
+        return res.status(400).json({ error: 'Nếu chọn Trường Đại học Công nghệ, sinh viên không được chọn thêm nơi thực tập khác.' });
+      }
+
+      const incomingIds = new Set(normalizedPrefs.map(item => item.id).filter(Boolean).map(Number));
+      if (final?.registration_id && !incomingIds.has(Number(final.registration_id))) {
+        return res.status(400).json({ error: 'Không thể xóa nguyện vọng đã được dùng để xác nhận nơi thực tập chính thức.' });
+      }
+
+      const statements: any[] = [];
+      for (const row of existingRows) {
+        if (!incomingIds.has(Number(row.id))) {
+          statements.push({ sql: 'DELETE FROM registrations WHERE id = ? AND user_id = ?', args: [Number(row.id), userId] });
+        }
+      }
+      normalizedPrefs.forEach((item, idx) => {
+        const order = idx + 1;
+        if (item.id) {
+          const otherName = item.type === 'other' ? item.name : null;
+          statements.push({
+            sql: `UPDATE registrations
+                  SET sent_to_company_at = CASE WHEN ? != 'approved' OR company_id != ? OR COALESCE(other_company_name, '') != COALESCE(?, '') THEN NULL ELSE sent_to_company_at END,
+                      sent_to_company_note = CASE WHEN ? != 'approved' OR company_id != ? OR COALESCE(other_company_name, '') != COALESCE(?, '') THEN NULL ELSE sent_to_company_note END,
+                      company_id = ?, note = ?, status = ?, other_company_name = ?, other_company_role = ?, other_company_contact = ?,
+                      preference_order = ?, review_comment = CASE WHEN status != ? THEN NULL ELSE review_comment END
+                  WHERE id = ? AND user_id = ?`,
+            args: [
+              item.status,
+              item.company_id,
+              otherName,
+              item.status,
+              item.company_id,
+              otherName,
+              item.company_id,
+              item.note,
+              item.status,
+              otherName,
+              item.type === 'other' ? item.role : null,
+              item.type === 'other' ? item.contact : null,
+              order,
+              item.status,
+              item.id,
+              userId,
+            ],
+          });
+        } else {
+          statements.push({
+            sql: `INSERT INTO registrations (user_id, company_id, note, status, other_company_name, other_company_role, other_company_contact, preference_order, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+            args: [
+              userId,
+              item.company_id,
+              item.note,
+              item.status,
+              item.type === 'other' ? item.name : null,
+              item.type === 'other' ? item.role : null,
+              item.type === 'other' ? item.contact : null,
+              order,
+            ],
+          });
+        }
+      });
+      await executeBatch(statements);
+      const rows = (await db.execute({
+        sql: `SELECT r.*, c.name as company_name, c.contact_email, c.address, c.slots, c.description
+              FROM registrations r
+              JOIN companies c ON r.company_id = c.id
+              WHERE r.user_id = ?
+              ORDER BY r.preference_order ASC, r.created_at ASC`,
+        args: [userId],
+      })).rows;
+      res.json({ success: true, registrations: rows });
+    } catch (e: any) {
+      const message = String(e?.message || '');
+      res.status(message.includes('không được phép đăng nhập/đăng ký') ? 403 : 500).json({ error: message.includes('không được phép đăng nhập/đăng ký') ? message : 'Database error: ' + message });
+    } finally {
+      processingUsers.delete(userId);
+    }
+  });
+
   // 5. Withdraw Registration
   app.delete('/api/registrations/my', requireAuth, requireStudent, async (req: any, res: any) => {
     const settings = rowsToSettings((await db.execute(`
