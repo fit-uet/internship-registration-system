@@ -3734,9 +3734,9 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
     return 'Chưa nộp';
   };
   const finalReportWindowStatus = useMemo(() => {
-    const openStr = campaign?.final_report_open_at;
-    const closeStr = campaign?.final_report_close_at;
-    if (!openStr && !closeStr) return 'open';
+    const openStr = String(campaign?.final_report_open_at || '').trim();
+    const closeStr = String(campaign?.final_report_close_at || '').trim();
+    if (!openStr && !closeStr) return 'unconfigured';
     const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
     const now = new Date();
     const openUTC = openStr ? toUTC(openStr) : null;
