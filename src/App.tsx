@@ -592,9 +592,14 @@ function App() {
                             <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
                           </Link>
                           {user.role === 'student' && (
-                            <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <CheckCircle2 size={16} className="text-green-600" /> Điểm thực tập
-                            </Link>
+                            <>
+                              <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <FileText size={16} className="text-indigo-600" /> Báo cáo final
+                              </Link>
+                              <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <CheckCircle2 size={16} className="text-green-600" /> Điểm thực tập
+                              </Link>
+                            </>
                           )}
                           {user.role === 'admin' && (
                             <>
@@ -689,6 +694,7 @@ function App() {
                 <Route path="/plan" element={<PlanView user={user} />} />
                 <Route path="/faq" element={<FAQView user={user} token={token} />} />
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
+                <Route path="/reports/final" element={user.role === 'student' ? <StudentFinalReportView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
@@ -749,6 +755,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const companyPageSize = 10;
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
+  const [showConfirmationDetails, setShowConfirmationDetails] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(() => {
     try {
       const saved = sessionStorage.getItem('selectedCompanies');
@@ -1350,8 +1357,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const showRegistrationTask = activeCampaignKey === 'registration' || registrationWindowStatus === 'open';
   const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
   const showAdvisorTask = advisorRequestWindowStatus === 'open' && hasRegistered;
-  const showFinalReportTask = activeCampaignKey === 'final_report' && !!finalInternship;
+  const showFinalReportTask = false;
   const showCompanyList = registrationWindowStatus === 'open' && !hasRegistered;
+  const showConfirmationBlock = hasRegistered && showConfirmationDetails;
   const registrationSummary = hasRegistered
     ? `Đã đăng ký ${myRegs.length} nơi`
     : registrationWindowStatus === 'open'
@@ -1462,19 +1470,30 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
             {hasRegistered && <div className="mt-2 text-xs font-semibold text-blue-700">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
           </button>
-          <div className={`rounded-xl border p-4 ${showConfirmationTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+          <button
+            type="button"
+            onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
+            disabled={!hasRegistered}
+            className={`rounded-xl border p-4 text-left transition-colors ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'} ${hasRegistered ? 'hover:border-emerald-300 hover:bg-emerald-50/70 cursor-pointer' : 'cursor-default'}`}
+          >
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Nơi thực tập chính thức</div>
             <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{finalInternshipSummary}</div>
-          </div>
+            {hasRegistered && <div className="mt-2 text-xs font-semibold text-emerald-700">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
+          </button>
           <div className={`rounded-xl border p-4 ${showAdvisorTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Giảng viên hướng dẫn</div>
             <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{advisorSummary}</div>
           </div>
-          <div className={`rounded-xl border p-4 ${showFinalReportTask ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
+          <button
+            type="button"
+            onClick={() => navigate('/reports/final')}
+            className={`rounded-xl border p-4 text-left transition-colors ${activeCampaignKey === 'final_report' ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-white'} hover:border-indigo-300 hover:bg-indigo-50/70`}
+          >
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Báo cáo final</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{finalReportSummary}</div>
             {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleString('vi-VN')}</div>}
-          </div>
+            <div className="mt-2 text-xs font-semibold text-indigo-700">Mở trang nộp báo cáo</div>
+          </button>
         </div>
 
         {myRegsError ? (
@@ -1529,9 +1548,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         )) : null}
 
-        {(showConfirmationTask || showAdvisorTask) && (
+        {(showConfirmationBlock || showAdvisorTask) && (
           <div className={`border rounded-2xl p-6 shadow-sm ${finalInternship ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-            {showConfirmationTask && <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            {showConfirmationBlock && <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className={finalInternship ? 'text-emerald-600' : 'text-slate-400'} size={20} />
@@ -1586,7 +1605,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               </div>
               )}
             </div>}
-            {showAdvisorTask && <div className={showConfirmationTask ? 'mt-5 border-t border-slate-200 pt-4' : ''}>
+            {showAdvisorTask && <div className={showConfirmationBlock ? 'mt-5 border-t border-slate-200 pt-4' : ''}>
               <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
               {advisorRequestWindowStatus !== 'open' && (
                 <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -3679,6 +3698,184 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           ))}
         </div>
       </div>}
+    </div>
+  );
+}
+
+function StudentFinalReportView({ token, user }: { token: string, user: any }) {
+  const [campaign, setCampaign] = useState<any>({});
+  const [finalInternship, setFinalInternship] = useState<any>(null);
+  const [finalReport, setFinalReport] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const navigate = useNavigate();
+
+  const formatGMT7Local = (isoLocal: string) => {
+    if (!isoLocal) return '—';
+    const [date, time] = isoLocal.split('T');
+    const [y, m, d] = date.split('-');
+    return `${d}/${m}/${y} ${time}`;
+  };
+  const formatBytesLocal = (bytes: number) => {
+    if (!bytes) return '0 B';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  const reportStatusLabelLocal = (status?: string) => {
+    if (status === 'accepted') return 'Đã chấp nhận';
+    if (status === 'needs_revision') return 'Cần nộp lại';
+    if (status === 'submitted') return 'Đã nộp';
+    return 'Chưa nộp';
+  };
+  const finalReportWindowStatus = useMemo(() => {
+    const openStr = campaign?.final_report_open_at;
+    const closeStr = campaign?.final_report_close_at;
+    if (!openStr && !closeStr) return 'open';
+    const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const openUTC = openStr ? toUTC(openStr) : null;
+    const closeUTC = closeStr ? toUTC(closeStr) : null;
+    if (openUTC && now < openUTC) return 'not_open_yet';
+    if (closeUTC && now > closeUTC) return 'closed';
+    return 'open';
+  }, [campaign]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [campRes, finalRes, reportRes] = await Promise.all([
+        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const campData = await campRes.json().catch(() => ({}));
+      const finalData = await finalRes.json().catch(() => null);
+      const reportData = await reportRes.json().catch(() => null);
+      if (campData && !campData.error) setCampaign(campData);
+      setFinalInternship(finalData && !finalData.error ? finalData : null);
+      setFinalReport(reportData && !reportData.error ? reportData : null);
+    } catch (e) {
+      alert('Không tải được dữ liệu báo cáo final.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const uploadFinalReport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+      alert('Vui lòng chọn file PDF.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File PDF vượt quá 10 MB. Vui lòng nén PDF xuống tối đa 10 MB rồi nộp lại.');
+      e.target.value = '';
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/final`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/pdf',
+          'X-Filename': encodeURIComponent(file.name)
+        },
+        body: file
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Nộp báo cáo thất bại.');
+      setFinalReport(data);
+      alert('Đã nộp báo cáo final.');
+    } catch (e) {
+      alert('Lỗi kết nối khi nộp báo cáo.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const downloadMyFinalReport = async () => {
+    if (!finalReport) return;
+    const res = await fetch(`${API_BASE}/api/reports/final/${user.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return alert('Không tải được báo cáo đã nộp.');
+    saveAs(await res.blob(), finalReport.original_filename || 'final-report.pdf');
+  };
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải trang nộp báo cáo...</div>;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại trang chủ</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final PDF</h2>
+          <p className="text-sm text-slate-500 mt-1">Nộp bản báo cáo thực tập final để giảng viên hướng dẫn đánh giá và chấm điểm.</p>
+        </div>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+          <div className="font-bold">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : 'Đã hết hạn'}</div>
+          <div className="text-xs mt-1">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Nơi thực tập chính thức</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">
+              {finalInternship
+                ? finalInternship.internship_type === 'school'
+                  ? 'Thực tập tại trường'
+                  : finalInternship.company_name === 'Công ty khác'
+                    ? finalInternship.other_company_name || 'Công ty khác'
+                    : finalInternship.company_name
+                : 'Chưa xác nhận'}
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Trạng thái báo cáo</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">{reportStatusLabelLocal(finalReport?.status)}</div>
+            {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleString('vi-VN')}</div>}
+          </div>
+        </div>
+
+        {!finalInternship ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Bạn cần xác nhận nơi thực tập chính thức trước khi nộp báo cáo final.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+            {finalReport ? (
+              <div className="text-sm text-indigo-950 space-y-1">
+                <div>File đã nộp: <strong>{finalReport.original_filename}</strong> ({formatBytesLocal(Number(finalReport.file_size || 0))})</div>
+                {finalReport.lecturer_comment && <div className="text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</div>}
+              </div>
+            ) : (
+              <div className="text-sm text-indigo-950">Chưa có file báo cáo final.</div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          {finalReport && (
+            <button onClick={downloadMyFinalReport} className="px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 bg-slate-100 text-slate-800 hover:bg-slate-200">
+              <Download size={16} /> Tải PDF đã nộp
+            </button>
+          )}
+          <label className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${finalInternship && finalReportWindowStatus === 'open' && !uploading ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+            {uploading ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+            {finalReport ? 'Nộp lại PDF' : 'Nộp PDF'}
+            <input type="file" accept="application/pdf,.pdf" disabled={!finalInternship || finalReportWindowStatus !== 'open' || uploading} className="hidden" onChange={uploadFinalReport} />
+          </label>
+        </div>
+        <p className="text-xs text-slate-500">Chỉ nhận PDF tối đa 10 MB. Nếu file lớn hơn, vui lòng nén lại trước khi nộp.</p>
+      </div>
     </div>
   );
 }
