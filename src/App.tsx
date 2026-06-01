@@ -1356,8 +1356,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
       return;
     }
-    if (!['agreed', 'proposed'].includes(advisorRequestForm.request_type)) {
-      alert('Vui lòng chọn phương án đăng ký giảng viên hướng dẫn.');
+    if (advisorRequestForm.request_type !== 'agreed') {
+      alert('Chỉ đăng ký GVHD khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, Khoa sẽ phân công sau.');
       return;
     }
     setAdvisorRequestSaving(true);
@@ -1374,13 +1374,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         body: JSON.stringify(payload)
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return alert(data.error || 'Không gửi được đề xuất GVHD.');
+      if (!res.ok) return alert(data.error || 'Không gửi được đăng ký GVHD.');
       setAdvisorRequest(data.request || null);
       setIsAdvisorEditOpen(false);
-      alert(data.warning || 'Đã ghi nhận đề xuất GVHD.');
+      alert(data.warning || 'Đã ghi nhận đăng ký GVHD.');
       fetchData();
     } catch (e) {
-      alert('Lỗi kết nối khi gửi đề xuất GVHD.');
+      alert('Lỗi kết nối khi gửi đăng ký GVHD.');
     } finally {
       setAdvisorRequestSaving(false);
     }
@@ -1536,7 +1536,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     : advisorRequest
       ? advisorRequest.request_type === 'faculty_assign'
         ? 'Khoa sẽ phân công'
-        : advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Đã gửi đề xuất'
+        : advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Đã gửi đăng ký GVHD'
       : 'Chưa có GVHD';
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
@@ -1877,9 +1877,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         }}
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
                       >
-                        <option value="">-- Chọn phương án GVHD --</option>
+                        <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
                         <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
-                        <option value="proposed">Sinh viên tự đề xuất GVHD</option>
                       </select>
                       <input
                         value={advisorRequestForm.lecturer_name}
@@ -1908,13 +1907,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <textarea
                       value={advisorRequestForm.student_note}
                       onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                      placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
+                      placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
                       rows={2}
                     />
                     <div className="flex flex-wrap gap-2">
                       <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
-                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Gửi đề xuất GVHD'}
+                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
                       </button>
                       {hasAdvisorSelection && (
                         <button type="button" onClick={() => setIsAdvisorEditOpen(false)} disabled={advisorRequestSaving} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
@@ -2430,7 +2429,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-lg space-y-3">
                 <div>
                   <h4 className="text-sm font-bold text-emerald-900">Đăng ký giảng viên hướng dẫn</h4>
-                  <p className="text-xs text-emerald-800 mt-1">Nếu chưa chọn trong bước này, Khoa sẽ phân công sau theo quota còn lại.</p>
+                  <p className="text-xs text-emerald-800 mt-1">Chỉ điền khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, để trống; Khoa sẽ phân công sau theo quota còn lại.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <select
@@ -2446,9 +2445,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     }}
                     className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
-                    <option value="">Không đăng ký GVHD trong bước này</option>
+                    <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
                     <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
-                    <option value="proposed">Sinh viên tự đề xuất GVHD</option>
                   </select>
                   <input
                     value={advisorRequestForm.lecturer_name}
@@ -2477,7 +2475,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <textarea
                   value={advisorRequestForm.student_note}
                   onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                  placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
+                  placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
                   className="w-full border border-emerald-200 rounded-lg px-3 py-2 text-sm resize-y bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   rows={2}
                 />
@@ -3784,7 +3782,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const isAssignmentsView = view === 'assignments';
   const isRequestsView = view === 'requests';
   const isQuotasView = view === 'quotas';
-  const pageTitle = isRequestsView ? 'Phê duyệt đề xuất GVHD' : isQuotasView ? 'Chỉ tiêu giảng viên' : 'Phân công giảng viên hướng dẫn';
+  const pageTitle = isRequestsView ? 'Phê duyệt đăng ký GVHD' : isQuotasView ? 'Chỉ tiêu giảng viên' : 'Phân công giảng viên hướng dẫn';
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải dữ liệu GVHD...</div>;
 
@@ -3802,7 +3800,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => navigate('/admin/advisors/requests')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <CheckCircle2 size={16} /> Phê duyệt đề xuất
+                  <CheckCircle2 size={16} /> Phê duyệt đăng ký
                   {advisorRequests.filter(item => item.status === 'pending').length > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{advisorRequests.filter(item => item.status === 'pending').length}</span>}
                 </button>
                 <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
@@ -3833,15 +3831,15 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       {isRequestsView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
-            <h3 className="font-bold text-slate-800">Đề xuất GVHD từ sinh viên</h3>
-            <p className="text-xs text-slate-500 mt-1">Sinh viên đã được GV đồng ý, tự đề xuất, hoặc nhờ Khoa phân công.</p>
+            <h3 className="font-bold text-slate-800">Đăng ký GVHD từ sinh viên</h3>
+            <p className="text-xs text-slate-500 mt-1">Chỉ hiển thị các sinh viên khai báo đã được giảng viên đồng ý hướng dẫn và cần Khoa xử lý quota/trạng thái.</p>
           </div>
           <span className="text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100 px-3 py-1">
             {advisorRequests.filter(item => item.status === 'pending').length} chờ xử lý
           </span>
         </div>
         {advisorRequests.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-slate-500">Chưa có đề xuất GVHD.</div>
+          <div className="px-5 py-8 text-center text-sm text-slate-500">Chưa có đăng ký GVHD.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -3849,7 +3847,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 <tr>
                   <th className="px-4 py-3">Sinh viên</th>
                   <th className="px-4 py-3">Nguồn / Trạng thái</th>
-                  <th className="px-4 py-3">GV đề xuất</th>
+                  <th className="px-4 py-3">GV đăng ký</th>
                   <th className="px-4 py-3">Ghi chú</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
@@ -3864,7 +3862,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-xs font-semibold text-slate-700">
-                        {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Khoa sẽ phân công' : 'Tự đề xuất'}
+                        {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Khoa sẽ phân công' : 'Không còn hỗ trợ'}
                       </div>
                       <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-bold ${request.status === 'pending' ? 'bg-amber-100 text-amber-700' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {request.status === 'pending' ? 'Chờ xử lý' : request.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}

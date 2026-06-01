@@ -1031,7 +1031,7 @@ async function initDb() {
       co_lecturer_id INTEGER,
       lecturer_name_text TEXT,
       co_lecturer_name_text TEXT,
-      request_type TEXT NOT NULL DEFAULT 'proposed',
+      request_type TEXT NOT NULL DEFAULT 'agreed',
       status TEXT NOT NULL DEFAULT 'pending',
       quota_status TEXT NOT NULL DEFAULT 'unknown',
       student_note TEXT,
@@ -1264,7 +1264,7 @@ async function initDb() {
       co_lecturer_id INTEGER,
       lecturer_name_text TEXT,
       co_lecturer_name_text TEXT,
-      request_type TEXT NOT NULL DEFAULT 'proposed',
+      request_type TEXT NOT NULL DEFAULT 'agreed',
       status TEXT NOT NULL DEFAULT 'pending',
       quota_status TEXT NOT NULL DEFAULT 'unknown',
       student_note TEXT,
@@ -1825,23 +1825,22 @@ async function startServer() {
       const advisorWindow = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_request_open_at', 'advisor_request_close_at')")).rows as any[]);
       const windowStatus = isWithinLocalWindow(advisorWindow, 'advisor_request_open_at', 'advisor_request_close_at');
       if (!windowStatus.ok) return res.status(403).json({ error: `Ngoài thời gian đăng ký GVHD: ${windowStatus.error}` });
-      const requestType = ['agreed', 'proposed', 'faculty_assign'].includes(req.body.request_type) ? req.body.request_type : 'proposed';
+      const requestType = req.body.request_type === 'agreed' ? 'agreed' : null;
+      if (!requestType) return res.status(400).json({ error: 'Chỉ đăng ký GVHD khi sinh viên đã được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, Khoa sẽ phân công sau.' });
       const lecturerFromName = req.body.lecturer_name ? await findLecturerByNameText(String(req.body.lecturer_name || '')) : null;
       const coLecturerFromName = req.body.co_lecturer_name ? await findLecturerByNameText(String(req.body.co_lecturer_name || '')) : null;
       const lecturerId = req.body.lecturer_id ? Number(req.body.lecturer_id) : lecturerFromName ? Number(lecturerFromName.id) : null;
       const coLecturerId = req.body.co_lecturer_id ? Number(req.body.co_lecturer_id) : coLecturerFromName ? Number(coLecturerFromName.id) : null;
-      if (requestType !== 'faculty_assign') {
-        if (!lecturerId) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn.' });
-        const lecturer = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [lecturerId] })).rows[0] as any;
-        if (!lecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ.' });
-        if (isBachelorLecturer(lecturer.name)) return res.status(400).json({ error: 'Giảng viên CN không được làm hướng dẫn chính.' });
-        if (coLecturerId && coLecturerId === lecturerId) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không được trùng GVHD chính.' });
-      }
+      if (!lecturerId) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn.' });
+      const lecturer = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [lecturerId] })).rows[0] as any;
+      if (!lecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ.' });
+      if (isBachelorLecturer(lecturer.name)) return res.status(400).json({ error: 'Giảng viên CN không được làm hướng dẫn chính.' });
+      if (coLecturerId && coLecturerId === lecturerId) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không được trùng GVHD chính.' });
       if (coLecturerId) {
         const coLecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE id = ?', args: [coLecturerId] })).rows[0];
         if (!coLecturer) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ.' });
       }
-      const primaryQuotaStatus = requestType === 'faculty_assign' ? 'unknown' : await advisorQuotaStatus(lecturerId);
+      const primaryQuotaStatus = await advisorQuotaStatus(lecturerId);
       const coQuotaStatus = coLecturerId ? await advisorQuotaStatus(coLecturerId) : 'within_quota';
       const quotaStatus = primaryQuotaStatus === 'over_quota' || coQuotaStatus === 'over_quota' ? 'over_quota' : primaryQuotaStatus;
       await executeBatch([
@@ -2250,7 +2249,7 @@ async function startServer() {
             args: [req.user.id, Number(validLecturer.id), lecturerName, quotaStatus === 'over_quota' ? 'pending' : 'approved', quotaStatus],
           });
           if (quotaStatus === 'over_quota') {
-            advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đề xuất GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
+            advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đăng ký GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
           } else {
             await createAdvisorAssignment({
               user_id: req.user.id,
@@ -2319,8 +2318,12 @@ async function startServer() {
       await assertStudentCohortAllowed(req.user.email);
       const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, school_co_lecturer, phone, personal_email } = req.body;
       const advisorRequestPayload = req.body.advisor_request && typeof req.body.advisor_request === 'object' ? req.body.advisor_request : null;
-      const advisorRequestType = advisorRequestPayload && ['agreed', 'proposed', 'faculty_assign'].includes(advisorRequestPayload.request_type)
-        ? advisorRequestPayload.request_type
+      const rawAdvisorRequestType = advisorRequestPayload ? String(advisorRequestPayload.request_type || '') : '';
+      if (advisorRequestPayload && rawAdvisorRequestType !== 'agreed') {
+        return res.status(400).json({ error: 'Chỉ đăng ký GVHD khi sinh viên đã được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, Khoa sẽ phân công sau.' });
+      }
+      const advisorRequestType = advisorRequestPayload && rawAdvisorRequestType === 'agreed'
+        ? 'agreed'
         : 'faculty_assign';
       const advisorLecturerName = String(advisorRequestPayload?.lecturer_name || '').trim();
       const advisorCoLecturerName = String(advisorRequestPayload?.co_lecturer_name || '').trim();
@@ -2552,7 +2555,7 @@ async function startServer() {
         });
         let advisorWarning: string | null = null;
         if (advisorRequestType === 'agreed' && advisorQuota === 'over_quota') {
-          advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đề xuất GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
+          advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đăng ký GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
         }
         if (advisorRequestType === 'agreed' && advisorLecturer && advisorQuota !== 'over_quota') {
           const primaryResult = await createAdvisorAssignment({
@@ -3888,7 +3891,7 @@ async function startServer() {
         SELECT 1 FROM advisor_requests ar
         WHERE ar.user_id = f.user_id
           AND ar.status IN ('pending', 'approved')
-          AND ar.request_type IN ('agreed', 'proposed')
+          AND ar.request_type = 'agreed'
       )
       ORDER BY u.student_id ASC
     `)).rows as any[];
@@ -4090,7 +4093,7 @@ async function startServer() {
       }, 0);
     } catch (error: any) {
       console.error('[advisor] failed to load advisor requests:', error);
-      res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách đề xuất GVHD.', detail: error?.message || String(error) });
+      res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách đăng ký GVHD.', detail: error?.message || String(error) });
     }
   });
 
@@ -4098,7 +4101,7 @@ async function startServer() {
     const id = Number(req.params.id);
     const action = String(req.body.action || '').trim();
     const request = (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE id = ?', args: [id] })).rows[0] as any;
-    if (!request) return res.status(404).json({ error: 'Không tìm thấy đề xuất GVHD.' });
+    if (!request) return res.status(404).json({ error: 'Không tìm thấy đăng ký GVHD.' });
     if (action === 'reject') {
       await db.execute({
         sql: `UPDATE advisor_requests SET status = 'rejected', admin_note = ?, reviewed_by = ?, reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE id = ?`,
@@ -4109,8 +4112,8 @@ async function startServer() {
         user_id: Number(request.user_id),
         recipient_email: student?.personal_email || student?.email,
         type: 'advisor_request_rejected',
-        subject: 'Đề xuất GVHD chưa được duyệt',
-        body: `Khoa chưa duyệt đề xuất GVHD của bạn.${req.body.admin_note ? `\nNhận xét: ${req.body.admin_note}` : ''}`,
+        subject: 'Đăng ký GVHD chưa được duyệt',
+        body: `Khoa chưa duyệt đăng ký GVHD của bạn.${req.body.admin_note ? `\nNhận xét: ${req.body.admin_note}` : ''}`,
       });
       return res.json({ success: true });
     }
@@ -4122,7 +4125,7 @@ async function startServer() {
       user_id: Number(request.user_id),
       lecturer_id: lecturerId,
       role: 'primary',
-      note: req.body.admin_note || 'Duyệt đề xuất GVHD từ sinh viên',
+      note: req.body.admin_note || 'Duyệt đăng ký GVHD từ sinh viên',
       allow_over_quota: true,
       allow_without_final: true,
       suppress_student_notification: request.request_type === 'agreed',
@@ -4133,7 +4136,7 @@ async function startServer() {
         user_id: Number(request.user_id),
         lecturer_id: coLecturerId,
         role: 'co',
-        note: req.body.admin_note || 'Duyệt đề xuất đồng hướng dẫn từ sinh viên',
+        note: req.body.admin_note || 'Duyệt đăng ký đồng hướng dẫn từ sinh viên',
         allow_over_quota: true,
         allow_without_final: true,
         suppress_student_notification: request.request_type === 'agreed',
