@@ -1392,10 +1392,19 @@ async function startServer() {
   const processingUsers = new Set<number>();
 
 
-  const allowedOrigins = (process.env.CORS_ORIGIN || 'https://fit-uet.github.io')
-    .split(',')
-    .map(normalizeOrigin)
-    .filter(Boolean);
+  const allowedOrigins = Array.from(new Set([
+    'https://fit-uet.github.io',
+    ...(process.env.CORS_ORIGIN || '').split(',')
+  ].map(normalizeOrigin).filter(Boolean)));
+  const corsOptions = {
+    origin: (origin: string | undefined, callback: any) => {
+      if (isCorsAllowed(origin, allowedOrigins)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+  };
+  app.use(cors(corsOptions));
+  app.options('/api/*', cors(corsOptions));
   app.use((req: any, res: any, next: any) => {
     const origin = req.headers.origin as string | undefined;
     if (req.path?.startsWith('/api/') && !isCorsAllowed(origin, allowedOrigins)) {
@@ -1404,13 +1413,6 @@ async function startServer() {
     }
     next();
   });
-  app.use(cors({
-    origin: (origin, callback) => {
-      if (isCorsAllowed(origin, allowedOrigins)) return callback(null, true);
-      return callback(null, false);
-    },
-    credentials: true,
-  }));
   app.use(express.json());
 
   // --- API Routes ---
