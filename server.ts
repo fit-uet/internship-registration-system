@@ -2089,6 +2089,55 @@ async function startServer() {
     res.json(rows);
   });
 
+  app.get('/api/grades/my', requireAuth, requireStudent, async (req: any, res: any) => {
+    try {
+      const row = (await db.execute({
+        sql: `WITH registration_places AS (
+                SELECT r.user_id,
+                       GROUP_CONCAT(
+                         CASE
+                           WHEN c.name = 'Công ty khác' THEN COALESCE(NULLIF(trim(r.other_company_name), ''), c.name)
+                           ELSE c.name
+                         END,
+                         '; '
+                       ) as registered_places
+                FROM registrations r
+                JOIN companies c ON c.id = r.company_id
+                WHERE r.status != 'rejected'
+                GROUP BY r.user_id
+              )
+              SELECT u.id as user_id, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+                     f.internship_type, f.confirmed_at,
+                     CASE
+                       WHEN f.id IS NULL THEN rp.registered_places
+                       WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                       ELSE c.name
+                     END as internship_place,
+                     GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
+                     GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors,
+                     g.progress_score, g.report_score, g.company_score, g.final_score,
+                     COALESCE(g.status, 'missing') as grade_status, g.comment,
+                     g.submitted_at as grade_submitted_at, g.locked_at,
+                     gl.name as grading_lecturer_name
+              FROM users u
+              LEFT JOIN final_internships f ON f.user_id = u.id
+              LEFT JOIN registration_places rp ON rp.user_id = u.id
+              LEFT JOIN companies c ON c.id = f.company_id
+              LEFT JOIN registrations r ON r.id = f.registration_id
+              LEFT JOIN advisor_assignments aa ON aa.user_id = u.id
+              LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+              LEFT JOIN grades g ON g.user_id = u.id
+              LEFT JOIN lecturers gl ON gl.id = g.lecturer_id
+              WHERE u.id = ?
+              GROUP BY u.id`,
+        args: [req.user.id],
+      })).rows[0] as any;
+      res.json(row || null);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Không tải được điểm thực tập.', detail: e.message });
+    }
+  });
+
   app.put('/api/lecturer/grades/:userId', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
     const userId = Number(req.params.userId);
