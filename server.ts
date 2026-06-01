@@ -1391,6 +1391,7 @@ async function startServer() {
   // In-memory lock to prevent duplicate concurrent registration requests
   const processingUsers = new Set<number>();
   let advisorAutoAssignRunning = false;
+  let advisorRequestBackfillRunning = false;
 
 
   const allowedOrigins = Array.from(new Set([
@@ -1859,6 +1860,31 @@ async function startServer() {
                 updated_at = datetime('now', '+7 hours')`,
         args: [req.user.id, lecturerId, coLecturerId, requestType, quotaStatus, req.body.student_note || null],
       });
+      if (requestType === 'agreed' && lecturerId) {
+        const primaryResult = await createAdvisorAssignment({
+          user_id: req.user.id,
+          lecturer_id: lecturerId,
+          role: 'primary',
+          note: 'Sinh viên khai báo đã được GV đồng ý hướng dẫn',
+          allow_over_quota: true,
+          allow_without_final: true,
+        }, req.user.id);
+        if (primaryResult.error) return res.status(primaryResult.status || 400).json({ error: primaryResult.error });
+        if (coLecturerId) {
+          await createAdvisorAssignment({
+            user_id: req.user.id,
+            lecturer_id: coLecturerId,
+            role: 'co',
+            note: 'Sinh viên khai báo đồng hướng dẫn',
+            allow_over_quota: true,
+            allow_without_final: true,
+          }, req.user.id);
+        }
+        await db.execute({
+          sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
+          args: [req.user.id],
+        });
+      }
       const admins = (await db.execute("SELECT id, email FROM users WHERE role = 'admin' AND COALESCE(email, '') != ''")).rows as any[];
       for (const admin of admins) {
         await createNotification({
@@ -2152,27 +2178,20 @@ async function startServer() {
           const quotaStatus = await advisorQuotaStatus(Number(validLecturer.id));
           await db.execute({
             sql: `INSERT INTO advisor_requests (user_id, lecturer_id, lecturer_name_text, request_type, status, quota_status, student_note, created_at, updated_at)
-                  VALUES (?, ?, ?, 'agreed', 'pending', ?, 'Sinh viên xác nhận đã được GV đồng ý hướng dẫn thực tập tại trường.', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
+                  VALUES (?, ?, ?, 'agreed', 'approved', ?, 'Sinh viên xác nhận đã được GV đồng ý hướng dẫn thực tập tại trường.', datetime('now', '+7 hours'), datetime('now', '+7 hours'))
                   ON CONFLICT(user_id) DO UPDATE SET lecturer_id = excluded.lecturer_id, lecturer_name_text = excluded.lecturer_name_text,
-                    request_type = 'agreed', status = 'pending', quota_status = excluded.quota_status, student_note = excluded.student_note,
-                    updated_at = datetime('now', '+7 hours')`,
+                    request_type = 'agreed', status = 'approved', quota_status = excluded.quota_status, student_note = excluded.student_note,
+                    reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours')`,
             args: [req.user.id, Number(validLecturer.id), lecturerName, quotaStatus],
           });
-          try {
-            if (quotaStatus === 'within_quota') {
-              const result = await db.execute({
-                sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
-                      VALUES (?, ?, 'primary', ?, 'Sinh viên xác nhận GVHD thực tập tại trường', datetime('now', '+7 hours'))`,
-                args: [req.user.id, Number(validLecturer.id), req.user.id],
-              });
-              await db.execute({
-                sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
-                      VALUES (?, ?, ?, 'primary', 'student_created', ?, 'Sinh viên xác nhận GVHD thực tập tại trường', datetime('now', '+7 hours'))`,
-                args: [Number(result.lastInsertRowid), req.user.id, Number(validLecturer.id), req.user.id],
-              });
-              await db.execute({ sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours') WHERE user_id = ?", args: [req.user.id] });
-            }
-          } catch (e) { }
+          await createAdvisorAssignment({
+            user_id: req.user.id,
+            lecturer_id: Number(validLecturer.id),
+            role: 'primary',
+            note: 'Sinh viên xác nhận GVHD thực tập tại trường',
+            allow_over_quota: true,
+            allow_without_final: true,
+          }, req.user.id);
         }
         await createNotification({
           user_id: req.user.id,
@@ -3368,6 +3387,30 @@ async function startServer() {
             VALUES (?, ?, ?, ?, ?, 'agreed', 'pending', ?, 'Sinh viên đã khai báo GVHD khi đăng ký thực tập tại trường.', ?, datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
       args: [userId, lecturer?.id || null, coLecturer?.id || null, reg.other_company_contact || null, reg.other_company_role || null, quotaStatus, Number(reg.id)],
     });
+    if (lecturer?.id) {
+      await createAdvisorAssignment({
+        user_id: userId,
+        lecturer_id: Number(lecturer.id),
+        role: 'primary',
+        note: 'Tự duyệt từ khai báo đã được GV đồng ý hướng dẫn',
+        allow_over_quota: true,
+        allow_without_final: true,
+      }, userId);
+      if (coLecturer?.id) {
+        await createAdvisorAssignment({
+          user_id: userId,
+          lecturer_id: Number(coLecturer.id),
+          role: 'co',
+          note: 'Tự duyệt đồng hướng dẫn từ khai báo của sinh viên',
+          allow_over_quota: true,
+          allow_without_final: true,
+        }, userId);
+      }
+      await db.execute({
+        sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
+        args: [userId],
+      });
+    }
     return (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE user_id = ?', args: [userId] })).rows[0] as any;
   }
 
@@ -3403,7 +3446,7 @@ async function startServer() {
     const role = body.role === 'co' ? 'co' : 'primary';
     if (!userId || !lecturerId) return { error: 'Sinh viên hoặc giảng viên không hợp lệ.', status: 400 };
     const final = (await db.execute({ sql: 'SELECT id FROM final_internships WHERE user_id = ?', args: [userId] })).rows[0];
-    if (!final) return { error: 'Sinh viên chưa xác nhận nơi thực tập chính thức.', status: 400 };
+    if (!final && !body.allow_without_final) return { error: 'Sinh viên chưa xác nhận nơi thực tập chính thức.', status: 400 };
     const lecturer = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [lecturerId] })).rows[0] as any;
     if (!lecturer) return { error: 'Không tìm thấy giảng viên.', status: 404 };
     if (role === 'primary' && isBachelorLecturer(lecturer.name)) return { error: 'Giảng viên CN không được làm hướng dẫn chính.', status: 400 };
@@ -3413,6 +3456,7 @@ async function startServer() {
       sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?',
       args: [userId, lecturerId, role],
     })).rows[0];
+    if (alreadyAssigned) return { row: alreadyAssigned };
     if (!alreadyAssigned && Number(current?.count || 0) >= maxTotal && !body.allow_over_quota) return { error: `Giảng viên đã đủ chỉ tiêu ${maxTotal} sinh viên.`, status: 400 };
     try {
       const result = await db.execute({
@@ -3444,6 +3488,11 @@ async function startServer() {
       }
       return { row: (await db.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
     } catch (e) {
+      const existing = (await db.execute({
+        sql: 'SELECT * FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?',
+        args: [userId, lecturerId, role],
+      })).rows[0];
+      if (existing) return { row: existing };
       return { error: role === 'primary' ? 'Sinh viên đã có giảng viên hướng dẫn chính.' : 'Phân công này đã tồn tại.', status: 400 };
     }
   }
@@ -3480,7 +3529,7 @@ async function startServer() {
       AND NOT EXISTS (
         SELECT 1 FROM advisor_requests ar
         WHERE ar.user_id = f.user_id
-          AND ar.status = 'pending'
+          AND ar.status IN ('pending', 'approved')
           AND ar.request_type IN ('agreed', 'proposed')
       )
       ORDER BY u.student_id ASC
@@ -3547,18 +3596,30 @@ async function startServer() {
   app.get('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const rows = (await db.execute(`
-        SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+        WITH participants AS (
+          SELECT user_id FROM final_internships
+          UNION
+          SELECT user_id FROM advisor_requests
+        )
+        SELECT p.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+               ar.request_type as advisor_request_type, ar.status as advisor_request_status,
                u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
-               CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+               CASE
+                 WHEN f.id IS NULL THEN 'Chưa xác nhận nơi thực tập'
+                 WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                 ELSE c.name
+               END as internship_place,
                GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
                GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
-        FROM final_internships f
-        JOIN users u ON u.id = f.user_id
+        FROM participants p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN final_internships f ON f.user_id = p.user_id
+        LEFT JOIN advisor_requests ar ON ar.user_id = p.user_id
         LEFT JOIN companies c ON c.id = f.company_id
         LEFT JOIN registrations r ON r.id = f.registration_id
-        LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+        LEFT JOIN advisor_assignments aa ON aa.user_id = p.user_id
         LEFT JOIN lecturers l ON l.id = aa.lecturer_id
-        GROUP BY f.user_id
+        GROUP BY p.user_id
         ORDER BY u.student_id ASC
       `)).rows;
       const quotaSettings = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_quota_pgs', 'advisor_quota_ts', 'advisor_quota_ths')")).rows as any[]);
@@ -3598,7 +3659,7 @@ async function startServer() {
   });
 
   app.post('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const result = await createAdvisorAssignment(req.body, req.user.id);
+    const result = await createAdvisorAssignment({ ...req.body, allow_without_final: true }, req.user.id);
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json(result.row);
   });
@@ -3614,7 +3675,7 @@ async function startServer() {
         errors.push(`${studentId}: không tìm thấy sinh viên`);
         continue;
       }
-      const result = await createAdvisorAssignment({ ...item, user_id: student.id }, req.user.id);
+      const result = await createAdvisorAssignment({ ...item, user_id: student.id, allow_without_final: true }, req.user.id);
       if (result.error) errors.push(`${studentId}: ${result.error}`);
       else count++;
     }
@@ -3628,11 +3689,6 @@ async function startServer() {
 
   app.get('/api/admin/advisor-requests', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      try {
-        await ensureAdvisorRequestsFromLegacySchoolRegistrations();
-      } catch (legacyError: any) {
-        console.error('[advisor] failed to backfill legacy school advisor requests:', legacyError);
-      }
       const rows = (await db.execute(`
         SELECT ar.*, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
                l.name as lecturer_name, l.email as lecturer_email,
@@ -3648,6 +3704,17 @@ async function startServer() {
         ORDER BY CASE ar.status WHEN 'pending' THEN 0 ELSE 1 END, ar.updated_at DESC
       `)).rows;
       res.json(rows);
+      setTimeout(() => {
+        if (advisorRequestBackfillRunning) return;
+        advisorRequestBackfillRunning = true;
+        ensureAdvisorRequestsFromLegacySchoolRegistrations()
+          .catch((legacyError: any) => {
+            console.error('[advisor] failed to backfill legacy school advisor requests:', legacyError);
+          })
+          .finally(() => {
+            advisorRequestBackfillRunning = false;
+          });
+      }, 0);
     } catch (error: any) {
       console.error('[advisor] failed to load advisor requests:', error);
       res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách đề xuất GVHD.', detail: error?.message || String(error) });
@@ -3684,6 +3751,7 @@ async function startServer() {
       role: 'primary',
       note: req.body.admin_note || 'Duyệt đề xuất GVHD từ sinh viên',
       allow_over_quota: true,
+      allow_without_final: true,
     }, req.user.id);
     if (primaryResult.error) return res.status(primaryResult.status || 400).json({ error: primaryResult.error });
     if (coLecturerId) {
@@ -3693,6 +3761,7 @@ async function startServer() {
         role: 'co',
         note: req.body.admin_note || 'Duyệt đề xuất đồng hướng dẫn từ sinh viên',
         allow_over_quota: true,
+        allow_without_final: true,
       }, req.user.id);
     }
     await db.execute({

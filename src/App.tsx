@@ -3281,7 +3281,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> Phân công giảng viên hướng dẫn</h2>
-          <p className="text-sm text-slate-500 mt-1">Phân công trên danh sách sinh viên đã xác nhận nơi thực tập chính thức.</p>
+          <p className="text-sm text-slate-500 mt-1">Phân công trên danh sách sinh viên đã xác nhận nơi thực tập hoặc đã gửi đề xuất GVHD.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative">
