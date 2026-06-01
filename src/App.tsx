@@ -1001,10 +1001,10 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     setLoading(false);
   };
 
-  const filteredCompanies = companies.filter(company =>
+  const filteredCompanies = useMemo(() => companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     companyDescriptionText(company.description).toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ), [companies, searchTerm]);
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -1023,7 +1023,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       <span className="text-blue-600 font-bold">↓</span>;
   };
 
-  const sortedCompanies = [...filteredCompanies].sort((a, b) => {
+  const sortedCompanies = useMemo(() => [...filteredCompanies].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
     const aVal = a[key] !== undefined ? a[key] : '';
@@ -1036,7 +1036,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     if (aVal < bVal) return direction === 'asc' ? -1 : 1;
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;
-  });
+  }), [filteredCompanies, sortConfig]);
   useEffect(() => {
     setCompanyPage(1);
   }, [searchTerm, sortConfig, companies.length]);
@@ -1316,6 +1316,42 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         ? 'bg-slate-50 text-slate-700 border-slate-200'
         : 'bg-red-50 text-red-700 border-red-100';
   const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-red-500';
+  const openCampaign = campaignStatusItems
+    .filter(item => item.status === 'open')
+    .sort((a, b) => String(b.openAt || '').localeCompare(String(a.openAt || '')))[0];
+  const activeCampaignKey = openCampaign?.label === 'Đăng ký thực tập'
+    ? 'registration'
+    : openCampaign?.label === 'Xác nhận nơi thực tập'
+      ? 'confirmation'
+      : openCampaign?.label === 'Đăng ký GVHD'
+        ? 'advisor'
+        : openCampaign?.label === 'Nộp báo cáo final'
+          ? 'final_report'
+          : 'registration';
+  const activeCampaignTitle = openCampaign?.label || 'Đăng ký thực tập';
+  const showRegistrationTask = activeCampaignKey === 'registration';
+  const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
+  const showAdvisorTask = activeCampaignKey === 'advisor' && hasRegistered;
+  const showFinalReportTask = activeCampaignKey === 'final_report' && !!finalInternship;
+  const showCompanyList = showRegistrationTask && !hasRegistered;
+  const registrationSummary = hasRegistered
+    ? `Đã đăng ký ${myRegs.length} nơi`
+    : registrationWindowStatus === 'open'
+      ? 'Chưa đăng ký'
+      : 'Chưa có dữ liệu';
+  const finalInternshipSummary = finalInternship
+    ? (finalInternship.internship_type === 'school'
+      ? 'Thực tập tại trường'
+      : (finalInternship.company_name === 'Công ty khác' ? finalInternship.other_company_name || 'Công ty khác' : finalInternship.company_name))
+    : 'Chưa xác nhận';
+  const advisorSummary = myAdvisors.length > 0
+    ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
+    : advisorRequest
+      ? advisorRequest.request_type === 'faculty_assign'
+        ? 'Nhờ Khoa phân công'
+        : advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Đã gửi đề xuất'
+      : 'Chưa có GVHD';
+  const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -1351,17 +1387,25 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         </div>
 
-        <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md flex-1">
-          <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
-          {registrationRulesMarkdown.trim()
-            ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-            : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
-        </div>
+        <details className="group bg-[#004a99] text-white rounded-2xl shadow-md overflow-hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
+            <span className="text-xs font-bold text-blue-200 uppercase tracking-widest">Quy định Đăng ký</span>
+            <ChevronDown size={18} className="text-blue-200 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="px-5 pb-5 max-h-[55vh] overflow-y-auto">
+            {registrationRulesMarkdown.trim()
+              ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+              : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
+          </div>
+        </details>
       </div>
 
       <div className="col-span-1 lg:col-span-9 flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
+            <p className="mt-1 text-sm text-slate-500">Việc cần làm hiện tại: <strong className="text-slate-800">{activeCampaignTitle}</strong></p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/plan')}
@@ -1388,12 +1432,33 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className={`rounded-xl border p-4 ${showRegistrationTask ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'}`}>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Đăng ký thực tập</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">{registrationSummary}</div>
+            {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
+          </div>
+          <div className={`rounded-xl border p-4 ${showConfirmationTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Nơi thực tập chính thức</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{finalInternshipSummary}</div>
+          </div>
+          <div className={`rounded-xl border p-4 ${showAdvisorTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Giảng viên hướng dẫn</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{advisorSummary}</div>
+          </div>
+          <div className={`rounded-xl border p-4 ${showFinalReportTask ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Báo cáo final</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">{finalReportSummary}</div>
+            {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleString('vi-VN')}</div>}
+          </div>
+        </div>
+
         {myRegsError ? (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-sm">
             Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng đăng nhập lại để hiện thị đúng thông tin đăng ký hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
             <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
           </div>
-        ) : hasRegistered ? (
+        ) : showRegistrationTask ? (hasRegistered ? (
           <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div>
@@ -1433,11 +1498,11 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               <>Bạn chưa có đăng ký nào được ghi nhận trong hệ thống. Đợt đăng ký đã đóng, vui lòng liên hệ Khoa nếu bạn cho rằng dữ liệu đăng ký của mình bị thiếu.</>
             )}
           </div>
-        )}
+        )) : null}
 
-        {hasRegistered && (
+        {(showConfirmationTask || showAdvisorTask) && (
           <div className={`border rounded-2xl p-6 shadow-sm ${finalInternship ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            {showConfirmationTask && <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className={finalInternship ? 'text-emerald-600' : 'text-slate-400'} size={20} />
@@ -1487,12 +1552,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     disabled={confirmationWindowStatus !== 'open'}
                     className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
                   >
-                    Thực tập tại trường
-                  </button>
-                </div>
+                  Thực tập tại trường
+                </button>
+              </div>
               )}
-            </div>
-            <div className="mt-5 border-t border-slate-200 pt-4">
+            </div>}
+            {showAdvisorTask && <div className={showConfirmationTask ? 'mt-5 border-t border-slate-200 pt-4' : ''}>
               <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
               {advisorRequestWindowStatus !== 'open' && (
                 <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -1598,11 +1663,11 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   </div>
                 )}
               </form>
-            </div>
+            </div>}
           </div>
         )}
 
-        {finalInternship && (
+        {showFinalReportTask && (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div>
@@ -1655,7 +1720,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         )}
 
         {/* Registration Table Area */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+        {showCompanyList && <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
@@ -1825,7 +1890,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           )}
 
 
-        </div>
+        </div>}
       </div>
 
       {/* Withdraw Modal */}
