@@ -1390,6 +1390,7 @@ async function startServer() {
 
   // In-memory lock to prevent duplicate concurrent registration requests
   const processingUsers = new Set<number>();
+  let advisorAutoAssignRunning = false;
 
 
   const allowedOrigins = Array.from(new Set([
@@ -3538,46 +3539,62 @@ async function startServer() {
     const result = await autoAssignPrimaryAdvisors(adminUserId);
     await db.execute({
       sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_auto_assigned_at', datetime('now', '+7 hours'))",
+      args: [],
     });
     return { ...result, skipped: false };
   }
 
   app.get('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
-    await autoAssignAfterAdvisorWindow(req.user.id);
-    const rows = (await db.execute(`
-      SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
-             u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
-             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
-      FROM final_internships f
-      JOIN users u ON u.id = f.user_id
-      LEFT JOIN companies c ON c.id = f.company_id
-      LEFT JOIN registrations r ON r.id = f.registration_id
-      LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
-      LEFT JOIN lecturers l ON l.id = aa.lecturer_id
-      GROUP BY f.user_id
-      ORDER BY u.student_id ASC
-    `)).rows;
-    const quotaSettings = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_quota_pgs', 'advisor_quota_ts', 'advisor_quota_ths')")).rows as any[]);
-    const lecturersRaw = (await db.execute(`
-      SELECT l.*, q.max_total_students as quota_override,
-             COALESCE(ac.assignment_count, 0) as assignment_count
-      FROM lecturers l
-      LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
-      LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
-      ORDER BY l.name ASC
-    `)).rows as any[];
-    const lecturers = lecturersRaw.map((lecturer: any) => {
-      const upper = String(lecturer.name || '').toUpperCase();
-      const defaultQuota = /\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')
-        ? Number(quotaSettings.advisor_quota_pgs || 5)
-        : /\bTS\b/.test(upper) || upper.includes('TS.')
-          ? Number(quotaSettings.advisor_quota_ts || 8)
-          : Number(quotaSettings.advisor_quota_ths || 10);
-      return { ...lecturer, max_total_students: Number(lecturer.quota_override || defaultQuota), assignment_count: Number(lecturer.assignment_count || 0) };
-    });
-    res.json({ rows, lecturers });
+    try {
+      const rows = (await db.execute(`
+        SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+               u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
+               CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
+               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+        FROM final_internships f
+        JOIN users u ON u.id = f.user_id
+        LEFT JOIN companies c ON c.id = f.company_id
+        LEFT JOIN registrations r ON r.id = f.registration_id
+        LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
+        LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+        GROUP BY f.user_id
+        ORDER BY u.student_id ASC
+      `)).rows;
+      const quotaSettings = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_quota_pgs', 'advisor_quota_ts', 'advisor_quota_ths')")).rows as any[]);
+      const lecturersRaw = (await db.execute(`
+        SELECT l.*, q.max_total_students as quota_override,
+               COALESCE(ac.assignment_count, 0) as assignment_count
+        FROM lecturers l
+        LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
+        LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
+        ORDER BY l.name ASC
+      `)).rows as any[];
+      const lecturers = lecturersRaw.map((lecturer: any) => {
+        const upper = String(lecturer.name || '').toUpperCase();
+        const defaultQuota = /\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')
+          ? Number(quotaSettings.advisor_quota_pgs || 5)
+          : /\bTS\b/.test(upper) || upper.includes('TS.')
+            ? Number(quotaSettings.advisor_quota_ts || 8)
+            : Number(quotaSettings.advisor_quota_ths || 10);
+        return { ...lecturer, max_total_students: Number(lecturer.quota_override || defaultQuota), assignment_count: Number(lecturer.assignment_count || 0) };
+      });
+      res.json({ rows, lecturers });
+      setTimeout(() => {
+        if (advisorAutoAssignRunning) return;
+        advisorAutoAssignRunning = true;
+        autoAssignAfterAdvisorWindow(req.user.id)
+          .catch((autoAssignError: any) => {
+            console.error('[advisor] auto-assign after window failed:', autoAssignError);
+          })
+          .finally(() => {
+            advisorAutoAssignRunning = false;
+          });
+      }, 0);
+    } catch (error: any) {
+      console.error('[advisor] failed to load advisor assignments:', error);
+      res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách phân công.', detail: error?.message || String(error) });
+    }
   });
 
   app.post('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
@@ -3610,22 +3627,31 @@ async function startServer() {
   });
 
   app.get('/api/admin/advisor-requests', requireAuth, requireAdmin, async (req: any, res: any) => {
-    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
-    const rows = (await db.execute(`
-      SELECT ar.*, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
-             l.name as lecturer_name, l.email as lecturer_email,
-             cl.name as co_lecturer_name, cl.email as co_lecturer_email,
-             CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place
-      FROM advisor_requests ar
-      JOIN users u ON u.id = ar.user_id
-      LEFT JOIN lecturers l ON l.id = ar.lecturer_id
-      LEFT JOIN lecturers cl ON cl.id = ar.co_lecturer_id
-      LEFT JOIN final_internships f ON f.user_id = ar.user_id
-      LEFT JOIN companies c ON c.id = f.company_id
-      LEFT JOIN registrations r ON r.id = f.registration_id
-      ORDER BY CASE ar.status WHEN 'pending' THEN 0 ELSE 1 END, ar.updated_at DESC
-    `)).rows;
-    res.json(rows);
+    try {
+      try {
+        await ensureAdvisorRequestsFromLegacySchoolRegistrations();
+      } catch (legacyError: any) {
+        console.error('[advisor] failed to backfill legacy school advisor requests:', legacyError);
+      }
+      const rows = (await db.execute(`
+        SELECT ar.*, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+               l.name as lecturer_name, l.email as lecturer_email,
+               cl.name as co_lecturer_name, cl.email as co_lecturer_email,
+               CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place
+        FROM advisor_requests ar
+        JOIN users u ON u.id = ar.user_id
+        LEFT JOIN lecturers l ON l.id = ar.lecturer_id
+        LEFT JOIN lecturers cl ON cl.id = ar.co_lecturer_id
+        LEFT JOIN final_internships f ON f.user_id = ar.user_id
+        LEFT JOIN companies c ON c.id = f.company_id
+        LEFT JOIN registrations r ON r.id = f.registration_id
+        ORDER BY CASE ar.status WHEN 'pending' THEN 0 ELSE 1 END, ar.updated_at DESC
+      `)).rows;
+      res.json(rows);
+    } catch (error: any) {
+      console.error('[advisor] failed to load advisor requests:', error);
+      res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách đề xuất GVHD.', detail: error?.message || String(error) });
+    }
   });
 
   app.put('/api/admin/advisor-requests/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
