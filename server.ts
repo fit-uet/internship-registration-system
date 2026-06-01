@@ -4340,33 +4340,38 @@ async function startServer() {
   });
 
   app.put('/api/settings/campaign', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const { year, start, end, classes_list, allowed_registration_cohorts, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at, advisor_request_open_at, advisor_request_close_at, advisor_quota_pgs, advisor_quota_ts, advisor_quota_ths } = req.body;
-    const currentAdvisorCloseAt = (((await db.execute("SELECT value FROM settings WHERE key = 'advisor_request_close_at'")).rows as any[])[0]?.value || '').toString();
-    const statements: any[] = [
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end || null] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_open_at', ?)", args: [registration_open_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_open_at', ?)", args: [confirmation_open_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_close_at', ?)", args: [confirmation_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_request_open_at', ?)", args: [advisor_request_open_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_request_close_at', ?)", args: [advisor_request_close_at || ''] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_pgs', ?)", args: [String(advisor_quota_pgs || '5')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_ts', ?)", args: [String(advisor_quota_ts || '8')] },
-      { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_ths', ?)", args: [String(advisor_quota_ths || '10')] }
-    ];
-    if (currentAdvisorCloseAt !== String(advisor_request_close_at || '')) {
-      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_auto_assigned_at', '')" });
+    try {
+      const { year, start, end, classes_list, allowed_registration_cohorts, registration_open_at, registration_close_at, confirmation_open_at, confirmation_close_at, final_report_open_at, final_report_close_at, advisor_request_open_at, advisor_request_close_at, advisor_quota_pgs, advisor_quota_ts, advisor_quota_ths } = req.body;
+      const currentAdvisorCloseAt = (((await db.execute("SELECT value FROM settings WHERE key = 'advisor_request_close_at'")).rows as any[])[0]?.value || '').toString();
+      const statements: any[] = [
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_year', ?)", args: [year || null] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_start', ?)", args: [start || null] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('campaign_end', ?)", args: [end || null] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_open_at', ?)", args: [registration_open_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('registration_close_at', ?)", args: [registration_close_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_open_at', ?)", args: [confirmation_open_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('confirmation_close_at', ?)", args: [confirmation_close_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_open_at', ?)", args: [final_report_open_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('final_report_close_at', ?)", args: [final_report_close_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_request_open_at', ?)", args: [advisor_request_open_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_request_close_at', ?)", args: [advisor_request_close_at || ''] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('allowed_registration_cohorts', ?)", args: [Array.isArray(allowed_registration_cohorts) ? allowed_registration_cohorts.join(',') : String(allowed_registration_cohorts || '')] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_pgs', ?)", args: [String(advisor_quota_pgs || '5')] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_ts', ?)", args: [String(advisor_quota_ts || '8')] },
+        { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_quota_ths', ?)", args: [String(advisor_quota_ths || '10')] }
+      ];
+      if (currentAdvisorCloseAt !== String(advisor_request_close_at || '')) {
+        statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('advisor_auto_assigned_at', '')", args: [] });
+      }
+      if (classes_list) {
+        statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
+      }
+      await executeBatch(statements);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[settings] failed to update campaign settings:', error);
+      res.status(500).json({ error: 'Không thể lưu cài đặt hệ thống. Vui lòng thử lại sau.', detail: error?.message || String(error) });
     }
-    if (classes_list) {
-      statements.push({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('classes_list', ?)", args: [classes_list] });
-    }
-    await executeBatch(statements);
-    res.json({ success: true });
   });
 
   app.get('/api/settings/registration-rules', requireAuth, requireAdmin, async (req: any, res: any) => {
