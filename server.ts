@@ -2314,8 +2314,17 @@ async function startServer() {
     try {
       await assertStudentCohortAllowed(req.user.email);
       const { company_ids, student_id, dob, class_name, note, other_companies, course_code, school_lecturer, school_co_lecturer, phone, personal_email } = req.body;
-      const schoolLecturerName = String(school_lecturer || '').trim();
-      const schoolCoLecturerName = String(school_co_lecturer || '').trim();
+      const advisorRequestPayload = req.body.advisor_request && typeof req.body.advisor_request === 'object' ? req.body.advisor_request : null;
+      const advisorRequestType = advisorRequestPayload && ['agreed', 'proposed', 'faculty_assign'].includes(advisorRequestPayload.request_type)
+        ? advisorRequestPayload.request_type
+        : 'faculty_assign';
+      const advisorLecturerName = String(advisorRequestPayload?.lecturer_name || '').trim();
+      const advisorCoLecturerName = String(advisorRequestPayload?.co_lecturer_name || '').trim();
+      const schoolLecturerName = String(school_lecturer || advisorLecturerName || '').trim();
+      const schoolCoLecturerName = String(school_co_lecturer || advisorCoLecturerName || '').trim();
+      let advisorLecturer: any = null;
+      let advisorCoLecturer: any = null;
+      let advisorQuota = 'unknown';
       const profile = {
         student_id: student_id || req.user.student_id || null,
         dob: dob || req.user.dob || null,
@@ -2402,21 +2411,37 @@ async function startServer() {
       if (totalWishes === 0) {
         return res.status(400).json({ error: 'Vui lòng chọn ít nhất 1 công ty.' });
       }
-      if (normal_company_ids.includes(schoolCompany?.id)) {
-        if (!schoolLecturerName) {
-          return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
-        }
-        const validLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolLecturerName] })).rows[0];
-        if (!validLecturer) {
-          return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
-        }
-        if (schoolCoLecturerName) {
-          if (schoolCoLecturerName === schoolLecturerName) {
+      if (advisorRequestPayload && advisorRequestType !== 'faculty_assign') {
+        if (!advisorLecturerName) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn.' });
+        advisorLecturer = await findLecturerByNameText(advisorLecturerName);
+        if (!advisorLecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        if (isBachelorLecturer(advisorLecturer.name)) return res.status(400).json({ error: 'Giảng viên CN không được làm hướng dẫn chính.' });
+        if (advisorCoLecturerName) {
+          if (advisorCoLecturerName === advisorLecturerName) {
             return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.' });
           }
-          const validCoLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolCoLecturerName] })).rows[0];
-          if (!validCoLecturer) {
-            return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+          advisorCoLecturer = await findLecturerByNameText(advisorCoLecturerName);
+          if (!advisorCoLecturer) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+        }
+        advisorQuota = await advisorQuotaStatus(Number(advisorLecturer.id));
+      }
+      if (normal_company_ids.includes(schoolCompany?.id)) {
+        if (!schoolLecturerName && advisorRequestType !== 'faculty_assign') {
+          return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn khi thực tập ở trường.' });
+        }
+        if (schoolLecturerName) {
+          const validLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolLecturerName] })).rows[0];
+          if (!validLecturer) {
+            return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+          }
+          if (schoolCoLecturerName) {
+            if (schoolCoLecturerName === schoolLecturerName) {
+              return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.' });
+            }
+            const validCoLecturer = (await db.execute({ sql: "SELECT id FROM lecturers WHERE name = ?", args: [schoolCoLecturerName] })).rows[0];
+            if (!validCoLecturer) {
+              return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
+            }
           }
         }
       }
@@ -2495,6 +2520,58 @@ async function startServer() {
         }
       }
       await executeBatch(writeStatements);
+
+      if (advisorRequestPayload) {
+        await executeBatch([
+          { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
+          { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
+        ]);
+        await db.execute({
+          sql: `INSERT INTO advisor_requests (user_id, lecturer_id, co_lecturer_id, lecturer_name_text, co_lecturer_name_text, request_type, status, quota_status, student_note, source_registration_id, created_at, updated_at)
+                VALUES (?, ?, ?, NULL, NULL, ?, 'pending', ?, ?, NULL, datetime('now', '+7 hours'), datetime('now', '+7 hours'))
+                ON CONFLICT(user_id) DO UPDATE SET
+                  lecturer_id = excluded.lecturer_id,
+                  co_lecturer_id = excluded.co_lecturer_id,
+                  lecturer_name_text = excluded.lecturer_name_text,
+                  co_lecturer_name_text = excluded.co_lecturer_name_text,
+                  request_type = excluded.request_type,
+                  status = 'pending',
+                  quota_status = excluded.quota_status,
+                  student_note = excluded.student_note,
+                  admin_note = NULL,
+                  reviewed_by = NULL,
+                  reviewed_at = NULL,
+                  updated_at = datetime('now', '+7 hours')`,
+          args: [req.user.id, advisorLecturer?.id || null, advisorCoLecturer?.id || null, advisorRequestType, advisorQuota, advisorRequestPayload.student_note || null],
+        });
+        if (advisorRequestType === 'agreed' && advisorLecturer) {
+          const primaryResult = await createAdvisorAssignment({
+            user_id: req.user.id,
+            lecturer_id: Number(advisorLecturer.id),
+            role: 'primary',
+            note: 'Sinh viên khai báo đã được GV đồng ý hướng dẫn khi đăng ký thực tập',
+            allow_over_quota: true,
+            allow_without_final: true,
+            suppress_student_notification: true,
+          }, req.user.id);
+          if (primaryResult.error) return res.status(primaryResult.status || 400).json({ error: primaryResult.error });
+          if (advisorCoLecturer) {
+            await createAdvisorAssignment({
+              user_id: req.user.id,
+              lecturer_id: Number(advisorCoLecturer.id),
+              role: 'co',
+              note: 'Sinh viên khai báo đồng hướng dẫn khi đăng ký thực tập',
+              allow_over_quota: true,
+              allow_without_final: true,
+              suppress_student_notification: true,
+            }, req.user.id);
+          }
+          await db.execute({
+            sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
+            args: [req.user.id],
+          });
+        }
+      }
 
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
 

@@ -789,7 +789,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     contact_email: ''
   }]);
   const [advisorRequestForm, setAdvisorRequestForm] = useState({
-    request_type: 'agreed',
+    request_type: 'faculty_assign',
     lecturer_name: '',
     co_lecturer_name: '',
     student_note: ''
@@ -1078,6 +1078,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           personal_email: registerForm.personal_email,
           school_lecturer: registerForm.school_lecturer,
           school_co_lecturer: registerForm.school_co_lecturer,
+          advisor_request: {
+            request_type: advisorRequestForm.request_type,
+            lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
+            co_lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name,
+            student_note: advisorRequestForm.student_note
+          },
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
@@ -1095,6 +1101,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
         setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', school_co_lecturer: '', note: '' });
+        setAdvisorRequestForm({ request_type: 'faculty_assign', lecturer_name: '', co_lecturer_name: '', student_note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -1220,7 +1227,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       if (!res.ok) return alert(data.error || 'Không hủy được đăng ký GVHD.');
       setAdvisorRequest(null);
       setMyAdvisors([]);
-      setAdvisorRequestForm({ request_type: 'agreed', lecturer_name: '', co_lecturer_name: '', student_note: '' });
+      setAdvisorRequestForm({ request_type: 'faculty_assign', lecturer_name: '', co_lecturer_name: '', student_note: '' });
       setIsAdvisorEditOpen(true);
       fetchData();
     } catch (e) {
@@ -1392,7 +1399,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             <span className="text-xs font-bold text-blue-200 uppercase tracking-widest">Quy định Đăng ký</span>
             <ChevronDown size={18} className="text-blue-200 transition-transform group-open:rotate-180" />
           </summary>
-          <div className="px-5 pb-5 max-h-[55vh] overflow-y-auto">
+          <div className="px-5 pb-5">
             {registrationRulesMarkdown.trim()
               ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
               : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
@@ -2110,41 +2117,66 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <textarea className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={hasSelectedKhac ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
 
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-lg space-y-3">
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-900">Đăng ký giảng viên hướng dẫn</h4>
+                  <p className="text-xs text-emerald-800 mt-1">Có thể gửi cùng lúc với đăng ký thực tập để không phải thao tác thêm ở đợt đăng ký GVHD.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <select
+                    value={advisorRequestForm.request_type}
+                    onChange={e => {
+                      const requestType = e.target.value;
+                      setAdvisorRequestForm({
+                        ...advisorRequestForm,
+                        request_type: requestType,
+                        lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
+                        co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
+                      });
+                    }}
+                    className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="faculty_assign">Nhờ Khoa phân công</option>
+                    <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
+                    <option value="proposed">Sinh viên tự đề xuất GVHD</option>
+                  </select>
+                  <input
+                    value={advisorRequestForm.lecturer_name}
+                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
+                    disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                    required={advisorRequestForm.request_type !== 'faculty_assign'}
+                    list="registration-advisor-primary-lecturers"
+                    placeholder="Nhập/chọn GVHD chính"
+                    className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-emerald-50 disabled:text-emerald-400"
+                  />
+                  <input
+                    value={advisorRequestForm.co_lecturer_name}
+                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
+                    disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                    list="registration-advisor-co-lecturers"
+                    placeholder="Nhập/chọn đồng hướng dẫn"
+                    className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-emerald-50 disabled:text-emerald-400"
+                  />
+                  <datalist id="registration-advisor-primary-lecturers">
+                    {lecturers.map(name => <option key={name} value={name} />)}
+                  </datalist>
+                  <datalist id="registration-advisor-co-lecturers">
+                    {lecturers.map(name => <option key={name} value={name} />)}
+                  </datalist>
+                </div>
+                <textarea
+                  value={advisorRequestForm.student_note}
+                  onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
+                  placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
+                  className="w-full border border-emerald-200 rounded-lg px-3 py-2 text-sm resize-y bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  rows={2}
+                />
+              </div>
+
               {hasSelectedSchool && (
-                <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-blue-800">Thông tin Thực tập tại Trường</h4>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên hướng dẫn *</label>
-                    <input
-                      type="text"
-                      list="lecturers-list"
-                      required
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={registerForm.school_lecturer}
-                      onChange={e => setRegisterForm({ ...registerForm, school_lecturer: e.target.value })}
-                      placeholder="Gõ để tìm kiếm giảng viên..."
-                    />
-                    <datalist id="lecturers-list">
-                      {lecturers.map(lec => (
-                        <option key={lec} value={lec} />
-                      ))}
-                    </datalist>
-                    <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">* Lưu ý: Sinh viên bắt buộc phải liên hệ với thầy/cô từ trước.</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên đồng hướng dẫn <span className="text-slate-400 font-normal">(không bắt buộc)</span></label>
-                    <input
-                      type="text"
-                      list="lecturers-list"
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={registerForm.school_co_lecturer}
-                      onChange={e => setRegisterForm({ ...registerForm, school_co_lecturer: e.target.value })}
-                      placeholder="Gõ để tìm kiếm giảng viên đồng hướng dẫn..."
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1.5 italic font-medium">Chỉ chọn nếu đã được thầy/cô đồng ý đồng hướng dẫn.</p>
-                  </div>
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-sm text-blue-900">
+                  <h4 className="text-sm font-bold text-blue-900">Thực tập tại Trường</h4>
+                  <p className="mt-1">Thông tin GVHD được lấy từ phần “Đăng ký giảng viên hướng dẫn” ở trên. Nếu chưa có giảng viên đồng ý, chọn “Nhờ Khoa phân công”.</p>
                 </div>
               )}
 
