@@ -6104,6 +6104,24 @@ function AdminSettings({ token }: { token: string }) {
     setCampaign({ ...campaign, allowed_registration_cohorts: ordered.join(',') } as any);
   };
 
+  const campaignWindowStatus = (openKey: string, closeKey: string) => {
+    const toGMT7Date = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const open = toGMT7Date((campaign as any)[openKey]);
+    const close = toGMT7Date((campaign as any)[closeKey]);
+    if (open && now < open) return { label: 'Chưa mở', className: 'bg-orange-50 border-orange-200 text-orange-800' };
+    if (close && now > close) return { label: 'Đã đóng', className: 'bg-red-50 border-red-200 text-red-800' };
+    if (open || close) return { label: 'Đang mở', className: 'bg-green-50 border-green-200 text-green-800' };
+    return { label: 'Chưa cấu hình', className: 'bg-slate-50 border-slate-200 text-slate-700' };
+  };
+
+  const campaignWindows = [
+    { title: 'Đăng ký học phần', openKey: 'registration_open_at', closeKey: 'registration_close_at' },
+    { title: 'Xác nhận nơi thực tập', openKey: 'confirmation_open_at', closeKey: 'confirmation_close_at' },
+    { title: 'Nộp báo cáo final', openKey: 'final_report_open_at', closeKey: 'final_report_close_at' },
+    { title: 'Đăng ký GV hướng dẫn', openKey: 'advisor_request_open_at', closeKey: 'advisor_request_close_at' }
+  ];
+
   const handleSyncCompanies = async () => {
     // Show a choice dialog
     const choice = prompt(
@@ -6299,30 +6317,21 @@ function AdminSettings({ token }: { token: string }) {
             </div>
             <p className="mt-2 text-xs text-slate-500">Quota riêng của từng giảng viên trong site Phân công GVHD vẫn được ưu tiên nếu đã thiết lập.</p>
           </div>
-          <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
-          {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (
-            <div className={`md:col-span-2 p-3 rounded-lg text-sm flex items-center gap-2 ${(() => {
-              const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
-              const now = new Date();
-              const open = toUTC((campaign as any).registration_open_at);
-              const close = toUTC((campaign as any).registration_close_at);
-              if (open && now < open) return 'bg-orange-50 border border-orange-200 text-orange-800';
-              if (close && now > close) return 'bg-red-50 border border-red-200 text-red-800';
-              return 'bg-green-50 border border-green-200 text-green-800';
-            })()
-              }`}>
-              <Clock size={16} className="shrink-0" />
-              <span>Trạng thái hiện tại: {(() => {
-                const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
-                const now = new Date();
-                const open = toUTC((campaign as any).registration_open_at);
-                const close = toUTC((campaign as any).registration_close_at);
-                if (open && now < open) return <strong>Chưa mở</strong>;
-                if (close && now > close) return <strong>Đã đóng</strong>;
-                return <strong>Đang mở</strong>;
-              })()}</span>
-            </div>
-          )}
+          <p className="md:col-span-2 text-xs text-slate-500">Mỗi campaign dùng khoảng thời gian riêng. Để trống nếu chưa cấu hình campaign đó.</p>
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {campaignWindows.map(item => {
+              const status = campaignWindowStatus(item.openKey, item.closeKey);
+              return (
+                <div key={item.openKey} className={`p-3 rounded-lg text-sm border flex items-start gap-2 ${status.className}`}>
+                  <Clock size={16} className="shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold">{item.title}</div>
+                    <div>Trạng thái hiện tại: <strong>{status.label}</strong></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex justify-end mt-2">
