@@ -1144,7 +1144,8 @@ async function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
       email TEXT,
-      work_unit TEXT
+      work_unit TEXT,
+      students_drive_link TEXT
     );
   `);
 
@@ -1234,6 +1235,7 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN recruitment_link TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN phone TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN applicants_drive_link TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE lecturers ADD COLUMN students_drive_link TEXT'); } catch (e) { }
 
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN student_id TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE users ADD COLUMN dob TEXT'); } catch (e) { }
@@ -3006,6 +3008,56 @@ async function startServer() {
     }
   });
 
+  app.get('/api/admin/lecturers/student-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const rows = (await db.execute(`
+        WITH participants AS (
+          SELECT user_id FROM final_internships
+          UNION
+          SELECT user_id FROM advisor_requests
+          UNION
+          SELECT user_id FROM registrations WHERE status != 'rejected'
+        ),
+        registration_places AS (
+          SELECT r.user_id,
+                 GROUP_CONCAT(
+                   CASE
+                     WHEN c.name = 'Công ty khác' THEN COALESCE(NULLIF(trim(r.other_company_name), ''), c.name)
+                     ELSE c.name
+                   END,
+                   '; '
+                 ) as registered_places
+          FROM registrations r
+          JOIN companies c ON c.id = r.company_id
+          WHERE r.status != 'rejected'
+          GROUP BY r.user_id
+        )
+        SELECT p.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+               u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
+               CASE
+                 WHEN f.id IS NULL THEN COALESCE(rp.registered_places, 'Chưa xác nhận nơi thực tập')
+                 WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                 ELSE c.name
+               END as internship_place,
+               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
+               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+        FROM participants p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN final_internships f ON f.user_id = p.user_id
+        LEFT JOIN registration_places rp ON rp.user_id = p.user_id
+        LEFT JOIN companies c ON c.id = f.company_id
+        LEFT JOIN registrations r ON r.id = f.registration_id
+        LEFT JOIN advisor_assignments aa ON aa.user_id = p.user_id
+        LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+        GROUP BY p.user_id
+        ORDER BY u.student_id ASC
+      `)).rows;
+      res.json({ rows });
+    } catch (e: any) {
+      res.status(isTransientLibsqlError(e) ? 503 : 500).json({ error: 'Không tải được danh sách sinh viên theo giảng viên.', detail: e?.message || String(e) });
+    }
+  });
+
   // 17. Admin: Bulk Import Lecturers
   app.post('/api/admin/lecturers/bulk', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { lecturers, override } = req.body;
@@ -3094,6 +3146,54 @@ async function startServer() {
     } catch (e: any) {
       if (e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Tên giảng viên đã tồn tại' });
       res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.put('/api/admin/lecturers/:id/students-drive-link', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const link = String(req.body?.students_drive_link || '').trim();
+      if (!link) return res.status(400).json({ error: 'Link Drive không được để trống.' });
+      await db.execute({
+        sql: 'UPDATE lecturers SET students_drive_link = ? WHERE id = ?',
+        args: [link, req.params.id],
+      });
+      res.json({ success: true, students_drive_link: link });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.post('/api/admin/lecturers/send-students-email', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const lecturerName = String(req.body.lecturer_name || '').trim();
+      const recipientEmail = String(req.body.recipient_email || '').trim();
+      const ccEmails = Array.isArray(req.body.cc_emails)
+        ? req.body.cc_emails.map((email: any) => String(email || '').trim()).filter(Boolean)
+        : String(req.body.cc_emails || '').split(/[,\s;]+/).map((email: string) => email.trim()).filter(Boolean);
+      const subject = String(req.body.subject || '').trim();
+      const body = String(req.body.body || '').trim();
+      if (!lecturerName) return res.status(400).json({ error: 'Thiếu tên giảng viên.' });
+      if (!recipientEmail) return res.status(400).json({ error: 'Thiếu email giảng viên.' });
+      if (!subject) return res.status(400).json({ error: 'Thiếu tiêu đề email.' });
+      if (!body) return res.status(400).json({ error: 'Thiếu nội dung email.' });
+      const notificationStatus = await createNotification({
+        recipient_email: recipientEmail,
+        cc_emails: ccEmails,
+        type: 'lecturer_students_mail_merge',
+        subject,
+        body,
+        send_now: true,
+      });
+      if (notificationStatus !== 'sent') {
+        return res.status(400).json({
+          error: notificationStatus === 'queued'
+            ? 'Chưa cấu hình EMAIL_PROVIDER/BREVO_API_KEY/EMAIL_FROM nên email chỉ được ghi vào hàng đợi, chưa gửi thật.'
+            : 'Gửi email thất bại. Vui lòng xem trang Thông báo để biết lỗi chi tiết.',
+        });
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
   });
 

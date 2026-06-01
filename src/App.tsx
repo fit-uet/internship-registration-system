@@ -396,6 +396,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
     if (type === 'faq_answered') return 'FAQ';
     if (type === 'faq_question_created') return 'Câu hỏi FAQ';
     if (type === 'system_announcement') return 'Hệ thống';
+    if (type === 'lecturer_students_mail_merge') return 'Mail GVHD';
     if (type === 'manual_student_notice' || type === 'manual_lecturer_notice') return 'Thông báo';
     return type || 'Thông báo';
   };
@@ -3604,6 +3605,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const [importing, setImporting] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [advisorSortConfig, setAdvisorSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'student_id', direction: 'asc' });
   const pageSize = 25;
 
   const fetchData = async () => {
@@ -3638,19 +3640,56 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const filteredRows = rows.filter(row => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
+    const primaryText = parseAssignments(row.primary_assignments).map(a => `${a.name} ${a.email || ''}`).join(' ').toLowerCase();
+    const coText = parseAssignments(row.co_assignments).map(a => `${a.name} ${a.email || ''}`).join(' ').toLowerCase();
     return (
-      row.student_id?.toLowerCase().includes(term) ||
-      row.student_name?.toLowerCase().includes(term) ||
-      row.class_name?.toLowerCase().includes(term) ||
-      row.course_code?.toLowerCase().includes(term) ||
-      row.internship_place?.toLowerCase().includes(term)
+      String(row.student_id || '').toLowerCase().includes(term) ||
+      String(row.student_name || '').toLowerCase().includes(term) ||
+      String(row.class_name || '').toLowerCase().includes(term) ||
+      String(row.course_code || '').toLowerCase().includes(term) ||
+      String(row.internship_place || '').toLowerCase().includes(term) ||
+      primaryText.includes(term) ||
+      coText.includes(term)
     );
   });
+  const advisorSortValue = (row: any, key: string) => {
+    if (key === 'primary_assignments') return parseAssignments(row.primary_assignments).map(a => a.name).join('; ');
+    if (key === 'co_assignments') return parseAssignments(row.co_assignments).map(a => a.name).join('; ');
+    if (key === 'advisor_status') return parseAssignments(row.primary_assignments).length > 0 ? '1' : '0';
+    if (key === 'student') return `${row.student_name || ''} ${row.student_id || ''}`;
+    if (key === 'lecturer') return `${row.lecturer_name || row.lecturer_name_text || ''} ${row.co_lecturer_name || row.co_lecturer_name_text || ''}`;
+    if (key === 'request_status') return `${row.status || ''} ${row.quota_status || ''}`;
+    return row[key] ?? '';
+  };
+  const compareAdvisorValues = (a: any, b: any) => {
+    const left = advisorSortValue(a, advisorSortConfig.key);
+    const right = advisorSortValue(b, advisorSortConfig.key);
+    const direction = advisorSortConfig.direction === 'asc' ? 1 : -1;
+    const leftNumber = Number(left);
+    const rightNumber = Number(right);
+    if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && String(left).trim() !== '' && String(right).trim() !== '') {
+      return (leftNumber - rightNumber) * direction;
+    }
+    return String(left).localeCompare(String(right), 'vi', { numeric: true, sensitivity: 'base' }) * direction;
+  };
+  const sortedRows = [...filteredRows].sort(compareAdvisorValues);
+  const sortedAdvisorRequests = [...advisorRequests].sort(compareAdvisorValues);
+  const sortedLecturers = [...lecturers].sort(compareAdvisorValues);
+  const requestAdvisorSort = (key: string) => {
+    setAdvisorSortConfig(prev => prev.key === key
+      ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      : { key, direction: 'asc' });
+  };
+  const AdvisorSortIcon = ({ col }: { col: string }) => (
+    <span className="ml-1 inline-flex align-middle text-xs">
+      {advisorSortConfig.key === col ? (advisorSortConfig.direction === 'asc' ? '↑' : '↓') : <ArrowUpDown size={12} className="text-slate-400" />}
+    </span>
+  );
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, rows.length]);
-  const pagination = paginationBounds(filteredRows.length, currentPage, pageSize);
-  const paginatedRows = filteredRows.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
+  }, [searchTerm, rows.length, advisorSortConfig.key, advisorSortConfig.direction]);
+  const pagination = paginationBounds(sortedRows.length, currentPage, pageSize);
+  const paginatedRows = sortedRows.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
   const assign = async (row: any) => {
     const key = String(row.user_id);
@@ -3765,8 +3804,9 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const exportXlsx = () => {
+    if (sortedRows.length === 0) return alert('Không có dữ liệu để xuất.');
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
-    const data = filteredRows.map((row, idx) => [
+    const summaryRows = sortedRows.map((row, idx) => [
       idx + 1,
       row.student_id || '',
       row.student_name || '',
@@ -3776,7 +3816,76 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
       parseAssignments(row.co_assignments).map(a => a.name).join('; ')
     ]);
-    saveXlsx('phan_cong_gvhd.xlsx', headers, data, 'Phân công GVHD');
+    const workbook = XLSX.utils.book_new();
+    const usedSheetNames = new Set<string>();
+    const safeSheetName = (name: string) => {
+      const base = String(name || 'Sheet')
+        .replace(/[:\\/?*\[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 31) || 'Sheet';
+      let candidate = base;
+      let idx = 2;
+      while (usedSheetNames.has(candidate)) {
+        const suffix = ` ${idx}`;
+        candidate = `${base.slice(0, Math.max(1, 31 - suffix.length))}${suffix}`;
+        idx += 1;
+      }
+      usedSheetNames.add(candidate);
+      return candidate;
+    };
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers, ...summaryRows]), safeSheetName('Tong hop'));
+
+    const lecturerMap = new Map<string, { lecturer: any; rows: any[][] }>();
+    const unassignedRows: any[][] = [];
+    sortedRows.forEach(row => {
+      const primary = parseAssignments(row.primary_assignments);
+      const co = parseAssignments(row.co_assignments);
+      const assignments = [
+        ...primary.map(a => ({ ...a, role: 'GVHD chính' })),
+        ...co.map(a => ({ ...a, role: 'Đồng hướng dẫn' })),
+      ];
+      if (assignments.length === 0) {
+        unassignedRows.push([
+          unassignedRows.length + 1,
+          row.student_id || '',
+          row.student_name || '',
+          row.class_name || '',
+          row.course_code || '',
+          row.internship_place || '',
+          '',
+          parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
+          parseAssignments(row.co_assignments).map(a => a.name).join('; '),
+        ]);
+        return;
+      }
+      assignments.forEach(lecturer => {
+        const key = String(lecturer.id || lecturer.email || lecturer.name);
+        if (!lecturerMap.has(key)) lecturerMap.set(key, { lecturer, rows: [] });
+        const entry = lecturerMap.get(key)!;
+        entry.rows.push([
+          entry.rows.length + 1,
+          row.student_id || '',
+          row.student_name || '',
+          row.class_name || '',
+          row.course_code || '',
+          row.internship_place || '',
+          lecturer.role,
+          primary.map(a => a.name).join('; '),
+          co.map(a => a.name).join('; '),
+        ]);
+      });
+    });
+    const lecturerHeaders = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'Vai trò của giảng viên', 'GVHD chính', 'Đồng hướng dẫn'];
+    Array.from(lecturerMap.values())
+      .sort((a, b) => String(a.lecturer.name || '').localeCompare(String(b.lecturer.name || ''), 'vi'))
+      .forEach(entry => {
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([lecturerHeaders, ...entry.rows]), safeSheetName(entry.lecturer.name));
+      });
+    if (unassignedRows.length > 0) {
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([lecturerHeaders, ...unassignedRows]), safeSheetName('Chua phan cong'));
+    }
+    XLSX.writeFile(workbook, 'phan_cong_gvhd_theo_giang_vien.xlsx');
   };
 
   const isAssignmentsView = view === 'assignments';
@@ -3809,7 +3918,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
               </div>
               <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập, giảng viên..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
               </div>
               <div className="flex flex-wrap gap-2">
                 <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
@@ -3845,15 +3954,15 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">Sinh viên</th>
-                  <th className="px-4 py-3">Nguồn / Trạng thái</th>
-                  <th className="px-4 py-3">GV đăng ký</th>
-                  <th className="px-4 py-3">Ghi chú</th>
+                  <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('student')}>Sinh viên <AdvisorSortIcon col="student" /></th>
+                  <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('request_status')}>Nguồn / Trạng thái <AdvisorSortIcon col="request_status" /></th>
+                  <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('lecturer')}>GV đăng ký <AdvisorSortIcon col="lecturer" /></th>
+                  <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('student_note')}>Ghi chú <AdvisorSortIcon col="student_note" /></th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {advisorRequests.slice(0, 12).map(request => (
+                {sortedAdvisorRequests.slice(0, 12).map(request => (
                   <tr key={request.id} className="hover:bg-slate-50 align-top">
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-900">{request.student_name}</div>
@@ -3899,14 +4008,14 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
               <tr>
-                <th className="px-4 py-3">Sinh viên</th>
-                <th className="px-4 py-3">Nơi thực tập</th>
-                <th className="px-4 py-3">GVHD hiện tại</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('student')}>Sinh viên <AdvisorSortIcon col="student" /></th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('internship_place')}>Nơi thực tập <AdvisorSortIcon col="internship_place" /></th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('primary_assignments')}>GVHD hiện tại <AdvisorSortIcon col="primary_assignments" /></th>
                 <th className="px-4 py-3">Phân công</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRows.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên cần phân công.</td></tr>
               ) : paginatedRows.map(row => {
                 const key = String(row.user_id);
@@ -3962,7 +4071,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           </table>
         </div>
         <PaginationControls
-          total={filteredRows.length}
+          total={sortedRows.length}
           currentPage={currentPage}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
@@ -3971,9 +4080,16 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       </div>}
 
       {isQuotasView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-        <h3 className="font-bold text-slate-800 mb-3">Chỉ tiêu giảng viên</h3>
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="font-bold text-slate-800">Chỉ tiêu giảng viên</h3>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => requestAdvisorSort('name')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Tên GV <AdvisorSortIcon col="name" /></button>
+            <button onClick={() => requestAdvisorSort('assignment_count')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Đã phân công <AdvisorSortIcon col="assignment_count" /></button>
+            <button onClick={() => requestAdvisorSort('max_total_students')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Chỉ tiêu <AdvisorSortIcon col="max_total_students" /></button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {lecturers.map(lecturer => (
+          {sortedLecturers.map(lecturer => (
             <div key={lecturer.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="font-medium text-sm text-slate-800 truncate">{lecturer.name}</div>
@@ -4801,6 +4917,7 @@ function NotificationAdmin({ token }: { token: string }) {
       final_report_due_reminder: 'Nhắc nộp báo cáo final',
       final_report_status_changed: 'Trạng thái báo cáo final',
       grade_locked: 'Bảng điểm đã khóa',
+      lecturer_students_mail_merge: 'Mail merge giảng viên',
       manual_direct_notice: 'Thông báo tới một tài khoản',
       manual_lecturer_notice: 'Thông báo cho giảng viên',
       manual_student_notice: 'Thông báo cho sinh viên',
@@ -5095,6 +5212,7 @@ function NotificationAdmin({ token }: { token: string }) {
 
 function LecturerRegistry({ token }: { token: string }) {
   const [lecturers, setLecturers] = useState<any[]>([]);
+  const [assignmentRows, setAssignmentRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
@@ -5102,6 +5220,28 @@ function LecturerRegistry({ token }: { token: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedLecturerIds, setSelectedLecturerIds] = useState<number[]>([]);
+  const [driveBusy, setDriveBusy] = useState(false);
+  const [mailMergeOpen, setMailMergeOpen] = useState(false);
+  const [mailMergeScope, setMailMergeScope] = useState<'filtered' | 'page' | 'selected'>('filtered');
+  const [mailMergeUseGmail, setMailMergeUseGmail] = useState(true);
+  const [mailMergeCc, setMailMergeCc] = useState('');
+  const [mailMergeReplyDeadline, setMailMergeReplyDeadline] = useState('');
+  const [mailMergeSubject, setMailMergeSubject] = useState('Danh sách sinh viên thực tập được phân công hướng dẫn - {{lecturer_name}}');
+  const [mailMergeBody, setMailMergeBody] = useState(`Kính gửi {{lecturer_name}},
+
+Khoa Công nghệ Thông tin gửi Thầy/Cô danh sách sinh viên thực tập đã được phân công hướng dẫn.
+
+Số lượng sinh viên: {{student_count}}
+{{reply_deadline_line}}
+{{students_drive_link_line}}
+{{student_list_text}}
+
+Kính mong Thầy/Cô rà soát thông tin và phản hồi lại Khoa nếu cần điều chỉnh.
+
+Trân trọng,
+Khoa Công nghệ Thông tin`);
+  const [mailMergeSending, setMailMergeSending] = useState(false);
   const pageSize = 25;
 
   const [newName, setNewName] = useState('');
@@ -5114,9 +5254,17 @@ function LecturerRegistry({ token }: { token: string }) {
 
   const fetchLecturers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setLecturers(data);
+      const lecturerRes = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
+      const lecturerData = await lecturerRes.json();
+      setLecturers(Array.isArray(lecturerData) ? lecturerData : []);
+      try {
+        const assignmentRes = await fetch(`${API_BASE}/api/admin/lecturers/student-assignments`, { headers: { Authorization: `Bearer ${token}` } });
+        const assignmentData = await assignmentRes.json();
+        setAssignmentRows(Array.isArray(assignmentData?.rows) ? assignmentData.rows : []);
+      } catch (assignmentError) {
+        console.warn('[lecturers] cannot load advisor assignments', assignmentError);
+        setAssignmentRows([]);
+      }
     } catch (e) {
       alert('Lỗi lấy danh sách giảng viên');
     } finally {
@@ -5160,10 +5308,259 @@ function LecturerRegistry({ token }: { token: string }) {
   }, [searchTerm, sortConfig, lecturers.length]);
   const pagination = paginationBounds(filteredAndSorted.length, currentPage, pageSize);
   const paginatedLecturers = filteredAndSorted.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
+  const selectedLecturerIdSet = useMemo(() => new Set(selectedLecturerIds.map(String)), [selectedLecturerIds]);
+  const selectedLecturers = useMemo(
+    () => lecturers.filter(l => selectedLecturerIdSet.has(String(l.id))),
+    [lecturers, selectedLecturerIdSet]
+  );
+  const pageLecturerIds = paginatedLecturers.map(l => Number(l.id)).filter(Boolean);
+  const allPageSelected = pageLecturerIds.length > 0 && pageLecturerIds.every(id => selectedLecturerIdSet.has(String(id)));
+
+  const parseAssignmentList = (value: string) => String(value || '')
+    .split(',')
+    .map(item => {
+      const [id, name, email] = item.split('|');
+      return { id: Number(id), name: (name || '').trim(), email: (email || '').trim() };
+    })
+    .filter(item => Number.isFinite(item.id) && item.id > 0 && item.name);
+
+  const getLecturerStudentRows = (lecturer: any) => {
+    const lecturerId = Number(lecturer?.id);
+    const rows: any[] = [];
+    assignmentRows.forEach(row => {
+      const primary = parseAssignmentList(row.primary_assignments);
+      const co = parseAssignmentList(row.co_assignments);
+      const matchedPrimary = primary.some(item => item.id === lecturerId);
+      const matchedCo = co.some(item => item.id === lecturerId);
+      if (!matchedPrimary && !matchedCo) return;
+      rows.push({
+        ...row,
+        lecturer_role: matchedPrimary && matchedCo ? 'GVHD chính; Đồng hướng dẫn' : matchedPrimary ? 'GVHD chính' : 'Đồng hướng dẫn',
+        primary_names: primary.map(item => item.name).join('; '),
+        co_names: co.map(item => item.name).join('; '),
+      });
+    });
+    return rows.sort((a, b) => String(a.student_id || '').localeCompare(String(b.student_id || ''), 'vi', { numeric: true }));
+  };
+
+  const lecturerStudentXlsxData = (lecturer: any, rows = getLecturerStudentRows(lecturer)) => {
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email', 'Lớp khóa học', 'Học phần', 'Nơi thực tập', 'Vai trò hướng dẫn', 'GVHD chính', 'Đồng hướng dẫn'];
+    const data = rows.map((row, idx) => [
+      idx + 1,
+      row.student_id || '',
+      row.student_name || '',
+      row.email || '',
+      row.class_name || '',
+      row.course_code || '',
+      row.internship_place || '',
+      row.lecturer_role || '',
+      row.primary_names || '',
+      row.co_names || '',
+    ]);
+    return { headers, rows: data };
+  };
+
+  const saveLecturerDriveLink = async (lecturerId: number, link: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/lecturers/${lecturerId}/students-drive-link`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ students_drive_link: link }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Không lưu được link Drive cho giảng viên.');
+    }
+    setLecturers(prev => prev.map(l => Number(l.id) === lecturerId ? { ...l, students_drive_link: link } : l));
+  };
+
+  const createDriveLinkForLecturer = async (accessToken: string, folderId: string, lecturer: any) => {
+    const students = getLecturerStudentRows(lecturer);
+    if (students.length === 0) throw new Error(`${lecturer.name}: chưa có sinh viên được phân công.`);
+    const { headers, rows } = lecturerStudentXlsxData(lecturer, students);
+    const safeName = (lecturer.name || 'giang_vien').replace(/[^a-z0-9]+/gi, '_');
+    const file = xlsxBlob(headers, rows, 'Sinh viên');
+    const link = await uploadXlsxToDrive(accessToken, folderId, `sinh_vien_${safeName}.xlsx`, file);
+    await saveLecturerDriveLink(Number(lecturer.id), link);
+    return link;
+  };
+
+  const lecturerMailMergeSource = useMemo(() => {
+    if (mailMergeScope === 'selected') return selectedLecturers;
+    if (mailMergeScope === 'page') return paginatedLecturers;
+    return filteredAndSorted;
+  }, [mailMergeScope, selectedLecturers, paginatedLecturers, filteredAndSorted]);
+
+  const extractEmails = (value: string) =>
+    String(value || '').split(/[;,]+/).map(item => item.trim()).filter(item => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item));
+
+  const mailMergeCcEmails = useMemo(() => extractEmails(mailMergeCc), [mailMergeCc]);
+
+  const buildStudentListText = (students: any[]) => {
+    if (!students.length) return '- Chưa có sinh viên được phân công.';
+    return students.map((row, idx) => `${idx + 1}. ${row.student_name || ''} (${row.student_id || ''}) - ${row.class_name || ''} - ${row.internship_place || ''}`).join('\n');
+  };
+
+  const renderLecturerTemplate = (template: string, lecturer: any, students: any[]) => {
+    const driveLink = lecturer.students_drive_link || '';
+    const values: Record<string, string> = {
+      lecturer_name: lecturer.name || '',
+      lecturer_email: lecturer.email || '',
+      student_count: String(students.length),
+      reply_deadline: mailMergeReplyDeadline || '',
+      reply_deadline_line: mailMergeReplyDeadline ? `Hạn phản hồi: ${mailMergeReplyDeadline}` : '',
+      students_drive_link: driveLink,
+      students_drive_link_line: driveLink ? `Link danh sách sinh viên: ${driveLink}` : '',
+      student_list_text: driveLink ? '' : `Danh sách sinh viên:\n${buildStudentListText(students)}`,
+    };
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key) => values[key] ?? '');
+  };
+
+  const mailMergeItems = useMemo(() => lecturerMailMergeSource
+    .map(lecturer => {
+      const students = getLecturerStudentRows(lecturer);
+      return {
+        lecturer,
+        students,
+        emails: extractEmails(lecturer.email || ''),
+        subject: renderLecturerTemplate(mailMergeSubject, lecturer, students),
+        body: renderLecturerTemplate(mailMergeBody, lecturer, students),
+      };
+    })
+    .filter(item => item.students.length > 0), [lecturerMailMergeSource, mailMergeSubject, mailMergeBody, mailMergeReplyDeadline, assignmentRows]);
+
+  const openLecturerMailMergeComposer = (item: any) => {
+    const to = item.emails.join(',');
+    const cc = mailMergeCcEmails.join(',');
+    const subject = encodeURIComponent(item.subject);
+    const body = encodeURIComponent(item.body);
+    if (mailMergeUseGmail) {
+      const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${cc ? `&cc=${encodeURIComponent(cc)}` : ''}&su=${subject}&body=${body}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      const url = `mailto:${encodeURIComponent(to)}?${cc ? `cc=${encodeURIComponent(cc)}&` : ''}subject=${subject}&body=${body}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const createDriveLinksForLecturers = async (scope: 'filtered' | 'page' | 'selected' = mailMergeScope) => {
+    const source = scope === 'selected' ? selectedLecturers : scope === 'page' ? paginatedLecturers : filteredAndSorted;
+    const targets = source.filter(lecturer => getLecturerStudentRows(lecturer).length > 0);
+    if (targets.length === 0) return alert('Không có giảng viên nào có sinh viên để tạo link Drive.');
+    try {
+      setDriveBusy(true);
+      const accessToken = await getGoogleDriveAccessToken();
+      const folder = await pickDriveFolder(accessToken);
+      let ok = 0;
+      for (const lecturer of targets) {
+        try {
+          await createDriveLinkForLecturer(accessToken, folder.id, lecturer);
+          ok += 1;
+        } catch (err) {
+          console.warn('[lecturer-drive] skip', lecturer.name, err);
+        }
+      }
+      alert(`Đã tạo/cập nhật ${ok}/${targets.length} link Drive trong thư mục "${folder.name}".`);
+    } catch (e: any) {
+      alert(e.message || 'Không tạo được link Google Drive.');
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const exportLecturerMailMergeZip = async () => {
+    if (mailMergeItems.length === 0) return alert('Không có dữ liệu để xuất.');
+    const zip = new JSZip();
+    mailMergeItems.forEach(item => {
+      const { headers, rows } = lecturerStudentXlsxData(item.lecturer, item.students);
+      const safeName = (item.lecturer.name || 'giang_vien').replace(/[^a-z0-9]+/gi, '_');
+      zip.file(`sinh_vien_${safeName}.xlsx`, xlsxArrayBuffer(headers, rows, 'Sinh viên'));
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'danh_sach_sinh_vien_theo_giang_vien.zip');
+  };
+
+  const openAllLecturerMailMerge = async () => {
+    if (mailMergeItems.length === 0) return alert('Không có email nào để soạn.');
+    setMailMergeSending(true);
+    mailMergeItems.filter(item => item.emails.length > 0).forEach((item, idx) => {
+      setTimeout(() => openLecturerMailMergeComposer(item), idx * 350);
+    });
+    setTimeout(() => setMailMergeSending(false), Math.max(500, mailMergeItems.length * 350));
+  };
+
+  const sendBrevoLecturerMailMergeItem = async (item: any) => {
+    if (!item.emails.length) return alert('Giảng viên này chưa có email.');
+    if (!confirm(`Gửi email thật qua Brevo tới ${item.lecturer.name}?`)) return;
+    setMailMergeSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/lecturers/send-students-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          lecturer_name: item.lecturer.name,
+          recipient_email: item.emails[0],
+          cc_emails: mailMergeCcEmails,
+          subject: item.subject,
+          body: item.body,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Gửi email thật thất bại.');
+      alert(`Đã gửi email thật cho ${item.lecturer.name}.`);
+    } catch (e: any) {
+      alert(e?.message || 'Gửi email thật thất bại.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const sendAllBrevoLecturerMailMerge = async () => {
+    const sendable = mailMergeItems.filter(item => item.emails.length > 0);
+    if (sendable.length === 0) return alert('Không có giảng viên nào đủ điều kiện gửi Brevo.');
+    if (!confirm(`Gửi email thật qua Brevo cho ${sendable.length} giảng viên?`)) return;
+    setMailMergeSending(true);
+    try {
+      let sent = 0;
+      for (const item of sendable) {
+        const res = await fetch(`${API_BASE}/api/admin/lecturers/send-students-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            lecturer_name: item.lecturer.name,
+            recipient_email: item.emails[0],
+            cc_emails: mailMergeCcEmails,
+            subject: item.subject,
+            body: item.body,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Gửi email tới ${item.lecturer.name} thất bại.`);
+        sent += 1;
+      }
+      alert(`Đã gửi email thật cho ${sent} giảng viên.`);
+    } catch (e: any) {
+      alert(e?.message || 'Gửi email thật thất bại.');
+    } finally {
+      setMailMergeSending(false);
+    }
+  };
+
+  const toggleLecturerSelection = (id: number) => {
+    setSelectedLecturerIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const togglePageSelection = () => {
+    setSelectedLecturerIds(prev => {
+      const current = new Set(prev);
+      if (allPageSelected) pageLecturerIds.forEach(id => current.delete(id));
+      else pageLecturerIds.forEach(id => current.add(id));
+      return Array.from(current);
+    });
+  };
 
   const exportXlsx = () => {
-    const headers = ['STT', 'Họ và tên', 'Email', 'Đơn vị công tác'];
-    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '', l.work_unit || '']);
+    const headers = ['STT', 'Họ và tên', 'Email', 'Đơn vị công tác', 'Số sinh viên hướng dẫn', 'Link Drive'];
+    const rows = filteredAndSorted.map((l, idx) => [idx + 1, l.name, l.email || '', l.work_unit || '', getLecturerStudentRows(l).length, l.students_drive_link || '']);
     saveXlsx('danh_sach_giang_vien.xlsx', headers, rows, 'Giảng viên');
   };
 
@@ -5331,7 +5728,7 @@ function LecturerRegistry({ token }: { token: string }) {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserIcon className="text-teal-600" /> Quản lý Giảng viên</h2>
           <p className="text-sm text-slate-500 mt-1">Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 w-full sm:w-auto sm:justify-end">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -5350,6 +5747,15 @@ function LecturerRegistry({ token }: { token: string }) {
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
+          <button onClick={() => { setMailMergeScope('filtered'); setMailMergeOpen(true); }} disabled={importing} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <Send size={16} /> Mail merge
+          </button>
+          <button onClick={() => { setMailMergeScope('selected'); setMailMergeOpen(true); }} disabled={importing || selectedLecturerIds.length === 0} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <Send size={16} /> Mail merge đã chọn ({selectedLecturerIds.length})
+          </button>
+          <button onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')} disabled={importing || driveBusy} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            {driveBusy ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {selectedLecturerIds.length ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
+          </button>
           <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất XLSX
           </button>
@@ -5397,6 +5803,15 @@ function LecturerRegistry({ token }: { token: string }) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
+              <th className="p-4 font-semibold whitespace-nowrap w-10">
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  onChange={togglePageSelection}
+                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                  title="Chọn tất cả giảng viên trong trang hiện tại"
+                />
+              </th>
               <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
                 Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -5407,18 +5822,31 @@ function LecturerRegistry({ token }: { token: string }) {
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('work_unit')}>
                 Đơn vị công tác {sortConfig?.key === 'work_unit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="p-4 font-semibold whitespace-nowrap text-right w-40">Thao tác</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Sinh viên</th>
+              <th className="p-4 font-semibold whitespace-nowrap">Link Drive</th>
+              <th className="p-4 font-semibold whitespace-nowrap text-right w-52">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredAndSorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-10 text-center text-slate-500">
+                <td colSpan={8} className="p-10 text-center text-slate-500">
                   {lecturers.length === 0 ? 'Chưa có dữ liệu giảng viên.' : 'Không có giảng viên phù hợp.'}
                 </td>
               </tr>
-            ) : paginatedLecturers.map((l, idx) => (
+            ) : paginatedLecturers.map((l, idx) => {
+              const studentCount = getLecturerStudentRows(l).length;
+              return (
               <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-4 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={selectedLecturerIdSet.has(String(l.id))}
+                    onChange={() => toggleLecturerSelection(Number(l.id))}
+                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    aria-label={`Chọn ${l.name}`}
+                  />
+                </td>
                 <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
                 <td className="p-4 text-sm text-slate-800 font-medium">
                   {editingId === l.id ? (
@@ -5471,6 +5899,12 @@ function LecturerRegistry({ token }: { token: string }) {
                     l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
                   )}
                 </td>
+                <td className="p-4 text-sm text-slate-700 whitespace-nowrap">
+                  {studentCount > 0 ? <span className="font-semibold">{studentCount}</span> : <span className="text-slate-400">0</span>}
+                </td>
+                <td className="p-4 text-sm whitespace-nowrap">
+                  {l.students_drive_link ? <a href={l.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                </td>
                 <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
                   {editingId === l.id ? (
                     <>
@@ -5479,13 +5913,39 @@ function LecturerRegistry({ token }: { token: string }) {
                     </>
                   ) : (
                     <>
+                      <button
+                        onClick={() => { setMailMergeScope('selected'); setSelectedLecturerIds([Number(l.id)]); setMailMergeOpen(true); }}
+                        className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
+                        title="Mail merge giảng viên này"
+                      >
+                        <Send size={18} />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setDriveBusy(true);
+                          try {
+                            const accessToken = await getGoogleDriveAccessToken();
+                            const folder = await pickDriveFolder(accessToken);
+                            await createDriveLinkForLecturer(accessToken, folder.id, l);
+                            alert(`Đã tạo/cập nhật link Drive cho ${l.name}.`);
+                          } catch (e: any) {
+                            alert(e.message || 'Không tạo được link Google Drive.');
+                          } finally {
+                            setDriveBusy(false);
+                          }
+                        }}
+                        className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
+                        title="Tạo link Drive"
+                      >
+                        <Upload size={18} />
+                      </button>
                       <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
                       <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
                     </>
                   )}
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
@@ -5496,6 +5956,128 @@ function LecturerRegistry({ token }: { token: string }) {
         onPageChange={setCurrentPage}
         label="giảng viên"
       />
+
+      {mailMergeOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+        <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Mail merge giảng viên</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Soạn email theo từng giảng viên từ danh sách sinh viên đã được phân công hướng dẫn.
+              </p>
+            </div>
+            <button onClick={() => setMailMergeOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-5 p-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Phạm vi</label>
+                <select value={mailMergeScope} onChange={e => setMailMergeScope(e.target.value as any)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500">
+                  <option value="filtered">Danh sách đang lọc ({filteredAndSorted.length})</option>
+                  <option value="page">Trang hiện tại ({paginatedLecturers.length})</option>
+                  <option value="selected">Đã chọn ({selectedLecturerIds.length})</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Cách mở email</label>
+                <select value={mailMergeUseGmail ? 'gmail' : 'mailto'} onChange={e => setMailMergeUseGmail(e.target.value === 'gmail')} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500">
+                  <option value="gmail">Gmail trên trình duyệt</option>
+                  <option value="mailto">Ứng dụng Mail mặc định</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Hạn phản hồi</label>
+                <input value={mailMergeReplyDeadline} onChange={e => setMailMergeReplyDeadline(e.target.value)} placeholder="Ví dụ: trước 17h ngày 10/06/2026" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500" />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">CC email</label>
+              <input value={mailMergeCc} onChange={e => setMailMergeCc(e.target.value)} placeholder="email1@vnu.edu.vn; email2@vnu.edu.vn" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500" />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Tiêu đề</label>
+              <input value={mailMergeSubject} onChange={e => setMailMergeSubject(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500" />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Nội dung</label>
+              <textarea value={mailMergeBody} onChange={e => setMailMergeBody(e.target.value)} rows={11} className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-teal-500" />
+              <p className="mt-2 text-xs text-slate-500">
+                Biến hỗ trợ: <code>{'{{lecturer_name}}'}</code>, <code>{'{{lecturer_email}}'}</code>, <code>{'{{student_count}}'}</code>, <code>{'{{reply_deadline}}'}</code>, <code>{'{{reply_deadline_line}}'}</code>, <code>{'{{students_drive_link}}'}</code>, <code>{'{{students_drive_link_line}}'}</code>, <code>{'{{student_list_text}}'}</code>.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm text-slate-700">
+                Có <strong>{mailMergeItems.length}</strong> giảng viên có sinh viên trong phạm vi này.
+                {mailMergeItems.some(item => item.emails.length === 0) && <span className="ml-1 text-amber-700">Một số giảng viên chưa có email.</span>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => createDriveLinksForLecturers(mailMergeScope)} disabled={driveBusy || mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {driveBusy ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Tạo link Drive
+                </button>
+                <button onClick={exportLecturerMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  <Download size={16} /> Xuất ZIP XLSX
+                </button>
+                <button onClick={sendAllBrevoLecturerMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi Brevo
+                </button>
+                <button onClick={openAllLecturerMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Mở tất cả email
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Giảng viên</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Sinh viên</th>
+                    <th className="px-4 py-3">Drive</th>
+                    <th className="px-4 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {mailMergeItems.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Không có giảng viên có sinh viên trong phạm vi đã chọn.</td></tr>
+                  ) : mailMergeItems.map(item => (
+                    <tr key={item.lecturer.id} className="align-top hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-slate-900">{item.lecturer.name}</div>
+                        <div className="text-xs text-slate-500">{item.lecturer.work_unit || 'Chưa có đơn vị công tác'}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.emails.length ? item.emails.join(', ') : <span className="text-amber-700">Chưa có email</span>}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{item.students.length}</td>
+                      <td className="px-4 py-3">
+                        {item.lecturer.students_drive_link ? <a href={item.lecturer.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button onClick={() => sendBrevoLecturerMailMergeItem(item)} disabled={item.emails.length === 0 || mailMergeSending} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                            Brevo
+                          </button>
+                          <button onClick={() => openLecturerMailMergeComposer(item)} disabled={item.emails.length === 0} className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                            Soạn
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>}
     </div>
   );
 }
