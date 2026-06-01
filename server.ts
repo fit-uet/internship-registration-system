@@ -3033,6 +3033,7 @@ async function startServer() {
           GROUP BY r.user_id
         )
         SELECT p.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
+               ar.id as advisor_request_id, ar.request_type as advisor_request_type, ar.status as advisor_request_status, ar.quota_status as advisor_request_quota_status,
                u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
                CASE
                  WHEN f.id IS NULL THEN COALESCE(rp.registered_places, 'Chưa xác nhận nơi thực tập')
@@ -3040,15 +3041,24 @@ async function startServer() {
                  ELSE c.name
                END as internship_place,
                GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
-               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments,
+               CASE WHEN ar.status IN ('pending', 'approved') AND ar.lecturer_id IS NOT NULL
+                    THEN ar.id || '|' || COALESCE(rl.name, ar.lecturer_name_text, '') || '|' || COALESCE(rl.email, '')
+               END as primary_requests,
+               CASE WHEN ar.status IN ('pending', 'approved') AND ar.co_lecturer_id IS NOT NULL
+                    THEN ar.id || '|' || COALESCE(rcl.name, ar.co_lecturer_name_text, '') || '|' || COALESCE(rcl.email, '')
+               END as co_requests
         FROM participants p
         JOIN users u ON u.id = p.user_id
         LEFT JOIN final_internships f ON f.user_id = p.user_id
+        LEFT JOIN advisor_requests ar ON ar.user_id = p.user_id
         LEFT JOIN registration_places rp ON rp.user_id = p.user_id
         LEFT JOIN companies c ON c.id = f.company_id
         LEFT JOIN registrations r ON r.id = f.registration_id
         LEFT JOIN advisor_assignments aa ON aa.user_id = p.user_id
         LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+        LEFT JOIN lecturers rl ON rl.id = ar.lecturer_id
+        LEFT JOIN lecturers rcl ON rcl.id = ar.co_lecturer_id
         GROUP BY p.user_id
         ORDER BY u.student_id ASC
       `)).rows;

@@ -5281,6 +5281,16 @@ Khoa Công nghệ Thông tin`);
     }
     setSortConfig({ key, direction });
   };
+  const SortIndicator = ({ col }: { col: string }) => (
+    <span className="ml-1 inline-flex align-middle text-xs">
+      {sortConfig?.key === col ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <ArrowUpDown size={12} className="text-slate-400" />}
+    </span>
+  );
+  const lecturerSortValue = (lecturer: any, key: string) => {
+    if (key === 'student_count') return getLecturerStudentRows(lecturer).length;
+    if (key === 'students_drive_link') return lecturer.students_drive_link ? 1 : 0;
+    return lecturer[key] ?? '';
+  };
 
   const filteredAndSorted = useMemo(() => {
     let result = [...lecturers];
@@ -5294,15 +5304,19 @@ Khoa Công nghệ Thông tin`);
     }
     if (sortConfig) {
       result.sort((a, b) => {
-        const aVal = a[sortConfig.key] || '';
-        const bVal = b[sortConfig.key] || '';
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
+        const aVal = lecturerSortValue(a, sortConfig.key);
+        const bVal = lecturerSortValue(b, sortConfig.key);
+        const direction = sortConfig.direction === 'asc' ? 1 : -1;
+        const aNumber = Number(aVal);
+        const bNumber = Number(bVal);
+        if (Number.isFinite(aNumber) && Number.isFinite(bNumber) && String(aVal).trim() !== '' && String(bVal).trim() !== '') {
+          return (aNumber - bNumber) * direction;
+        }
+        return String(aVal).localeCompare(String(bVal), 'vi', { numeric: true, sensitivity: 'base' }) * direction;
       });
     }
     return result;
-  }, [lecturers, searchTerm, sortConfig]);
+  }, [lecturers, searchTerm, sortConfig, assignmentRows]);
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, sortConfig, lecturers.length]);
@@ -5316,35 +5330,53 @@ Khoa Công nghệ Thông tin`);
   const pageLecturerIds = paginatedLecturers.map(l => Number(l.id)).filter(Boolean);
   const allPageSelected = pageLecturerIds.length > 0 && pageLecturerIds.every(id => selectedLecturerIdSet.has(String(id)));
 
-  const parseAssignmentList = (value: string) => String(value || '')
-    .split(',')
-    .map(item => {
+  function parseAssignmentList(value: string) {
+    return String(value || '').split(',')
+    .map((item: string) => {
       const [id, name, email] = item.split('|');
       return { id: Number(id), name: (name || '').trim(), email: (email || '').trim() };
     })
     .filter(item => Number.isFinite(item.id) && item.id > 0 && item.name);
+  }
 
-  const getLecturerStudentRows = (lecturer: any) => {
+  function getLecturerStudentRows(lecturer: any) {
     const lecturerId = Number(lecturer?.id);
     const rows: any[] = [];
     assignmentRows.forEach(row => {
       const primary = parseAssignmentList(row.primary_assignments);
       const co = parseAssignmentList(row.co_assignments);
+      const primaryRequests = String(row.advisor_request_status || '') === 'rejected' ? [] : parseAssignmentList(row.primary_requests);
+      const coRequests = String(row.advisor_request_status || '') === 'rejected' ? [] : parseAssignmentList(row.co_requests);
       const matchedPrimary = primary.some(item => item.id === lecturerId);
       const matchedCo = co.some(item => item.id === lecturerId);
-      if (!matchedPrimary && !matchedCo) return;
+      const matchedPrimaryRequest = primaryRequests.some(item => item.id === lecturerId);
+      const matchedCoRequest = coRequests.some(item => item.id === lecturerId);
+      if (!matchedPrimary && !matchedCo && !matchedPrimaryRequest && !matchedCoRequest) return;
+      const roleParts = [
+        matchedPrimary ? 'GVHD chính' : '',
+        matchedCo ? 'Đồng hướng dẫn' : '',
+        !matchedPrimary && matchedPrimaryRequest ? 'Đăng ký GVHD chính' : '',
+        !matchedCo && matchedCoRequest ? 'Đăng ký đồng hướng dẫn' : '',
+      ].filter(Boolean);
+      const statusParts = [
+        matchedPrimary || matchedCo ? 'Đã phân công' : '',
+        (!matchedPrimary && matchedPrimaryRequest) || (!matchedCo && matchedCoRequest)
+          ? String(row.advisor_request_status || '') === 'approved' ? 'Đăng ký đã duyệt' : 'Đăng ký chờ duyệt'
+          : '',
+      ].filter(Boolean);
       rows.push({
         ...row,
-        lecturer_role: matchedPrimary && matchedCo ? 'GVHD chính; Đồng hướng dẫn' : matchedPrimary ? 'GVHD chính' : 'Đồng hướng dẫn',
-        primary_names: primary.map(item => item.name).join('; '),
-        co_names: co.map(item => item.name).join('; '),
+        lecturer_role: roleParts.join('; '),
+        lecturer_assignment_status: statusParts.join('; '),
+        primary_names: primary.length ? primary.map(item => item.name).join('; ') : primaryRequests.map(item => item.name).join('; '),
+        co_names: co.length ? co.map(item => item.name).join('; ') : coRequests.map(item => item.name).join('; '),
       });
     });
     return rows.sort((a, b) => String(a.student_id || '').localeCompare(String(b.student_id || ''), 'vi', { numeric: true }));
-  };
+  }
 
   const lecturerStudentXlsxData = (lecturer: any, rows = getLecturerStudentRows(lecturer)) => {
-    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email', 'Lớp khóa học', 'Học phần', 'Nơi thực tập', 'Vai trò hướng dẫn', 'GVHD chính', 'Đồng hướng dẫn'];
+    const headers = ['STT', 'Mã SV', 'Họ và tên', 'Email', 'Lớp khóa học', 'Học phần', 'Nơi thực tập', 'Vai trò hướng dẫn', 'Trạng thái', 'GVHD chính', 'Đồng hướng dẫn'];
     const data = rows.map((row, idx) => [
       idx + 1,
       row.student_id || '',
@@ -5354,6 +5386,7 @@ Khoa Công nghệ Thông tin`);
       row.course_code || '',
       row.internship_place || '',
       row.lecturer_role || '',
+      row.lecturer_assignment_status || '',
       row.primary_names || '',
       row.co_names || '',
     ]);
@@ -5814,16 +5847,20 @@ Khoa Công nghệ Thông tin`);
               </th>
               <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
-                Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                Họ và tên <SortIndicator col="name" />
               </th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
-                Email {sortConfig?.key === 'email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                Email <SortIndicator col="email" />
               </th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('work_unit')}>
-                Đơn vị công tác {sortConfig?.key === 'work_unit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                Đơn vị công tác <SortIndicator col="work_unit" />
               </th>
-              <th className="p-4 font-semibold whitespace-nowrap">Sinh viên</th>
-              <th className="p-4 font-semibold whitespace-nowrap">Link Drive</th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('student_count')}>
+                Sinh viên <SortIndicator col="student_count" />
+              </th>
+              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('students_drive_link')}>
+                Link Drive <SortIndicator col="students_drive_link" />
+              </th>
               <th className="p-4 font-semibold whitespace-nowrap text-right w-52">Thao tác</th>
             </tr>
           </thead>
