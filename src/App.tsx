@@ -1895,7 +1895,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
                         disabled={!advisorRequestForm.request_type}
                         list="advisor-co-lecturers"
-                        placeholder="Nhập/chọn đồng hướng dẫn"
+                        placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
                       />
                       <datalist id="advisor-primary-lecturers">
@@ -2464,7 +2464,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
                     disabled={!advisorRequestForm.request_type}
                     list="registration-advisor-co-lecturers"
-                    placeholder="Nhập/chọn đồng hướng dẫn"
+                    placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
                     className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-emerald-50 disabled:text-emerald-400"
                   />
                   <datalist id="registration-advisor-primary-lecturers">
