@@ -757,7 +757,6 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
   const [showConfirmationDetails, setShowConfirmationDetails] = useState(false);
   const [editingPreferences, setEditingPreferences] = useState(false);
-  const [preferenceEdits, setPreferenceEdits] = useState<any[]>([]);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<Set<number>>(() => {
     try {
@@ -899,56 +898,39 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   });
   const selectedWishCount = selectedPreferencePreview.length;
 
-  const registrationToPreferenceEdit = (reg: any) => ({
-    local_id: `reg-${reg.id}`,
-    id: reg.id,
-    type: reg.company_name === 'Công ty khác' ? 'other' : 'company',
-    company_id: reg.company_id ? String(reg.company_id) : '',
-    name: reg.other_company_name || '',
-    role: reg.other_company_role || '',
-    contact: reg.other_company_contact || '',
-    note: reg.note || '',
-    status: reg.status,
-    review_comment: reg.review_comment || '',
-    sent_to_company_at: reg.sent_to_company_at || null,
-  });
-
-  const resetPreferenceEdits = (rows = myRegs) => {
-    setPreferenceEdits(rows.map(registrationToPreferenceEdit));
-  };
-
-  const updatePreferenceEdit = (index: number, patch: any) => {
-    setPreferenceEdits(prev => prev.map((item, idx) => idx === index ? { ...item, ...patch } : item));
-  };
-
-  const movePreferenceEdit = (index: number, direction: -1 | 1) => {
-    setPreferenceEdits(prev => {
-      const next = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
-
-  const removePreferenceEdit = (index: number) => {
-    setPreferenceEdits(prev => prev.filter((_, idx) => idx !== index));
-  };
-
-  const addPreferenceEdit = () => {
-    setPreferenceEdits(prev => {
-      if (prev.length >= 5) return prev;
-      return [...prev, { local_id: `new-${Date.now()}`, id: null, type: 'company', company_id: '', name: '', role: '', contact: '', note: '', status: 'pending' }];
-    });
-  };
-
   const startEditingPreferences = () => {
-    resetPreferenceEdits();
+    const selectedIds = new Set<number>();
+    const existingOtherCompanies: any[] = [];
+    myRegs.forEach((reg: any) => {
+      if (reg.company_name === 'Công ty khác' && khacCompany) {
+        selectedIds.add(khacCompany.id);
+        const contactParts = String(reg.other_company_contact || '').split(' - ');
+        existingOtherCompanies.push({
+          id: reg.id,
+          name: reg.other_company_name || '',
+          role: reg.other_company_role || '',
+          contact_name: contactParts[0] || '',
+          contact_phone: contactParts[1] || '',
+          contact_email: contactParts.slice(2).join(' - ') || '',
+          note: reg.note || ''
+        });
+      } else if (reg.company_id) {
+        selectedIds.add(Number(reg.company_id));
+      }
+    });
+    setSelectedCompanies(selectedIds);
+    if (existingOtherCompanies.length > 0) {
+      setOtherCompanies(existingOtherCompanies);
+    } else {
+      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+    }
+    setRegisterForm((prev: any) => ({ ...prev, note: '' }));
     setEditingPreferences(true);
   };
 
   const cancelEditingPreferences = () => {
-    resetPreferenceEdits();
+    setSelectedCompanies(new Set());
+    setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
     setEditingPreferences(false);
   };
 
@@ -958,11 +940,11 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       alert('Chỉ được sửa nguyện vọng trong thời gian Khoa mở đăng ký.');
       return;
     }
-    if (preferenceEdits.length === 0) {
+    if (selectedWishCount === 0) {
       alert('Vui lòng giữ ít nhất 1 nguyện vọng.');
       return;
     }
-    if (preferenceEdits.length > 5) {
+    if (selectedWishCount > 5) {
       alert('Sinh viên chỉ được chọn tối đa 5 nơi thực tập.');
       return;
     }
@@ -970,47 +952,53 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     const seenCompanyIds = new Set<string>();
     const seenOtherNames = new Set<string>();
     const seenAllNames = new Set<string>();
-    for (const item of preferenceEdits) {
-      if (item.type === 'other') {
-        const name = String(item.name || '').trim();
-        const role = String(item.role || '').trim();
-        const contact = String(item.contact || '').trim();
-        if (!name || !role || !contact) {
-          alert('Vui lòng nhập đầy đủ tên công ty, vị trí và thông tin liên hệ cho các nguyện vọng tự liên hệ.');
-          return;
+    for (const companyId of Array.from(selectedCompanies)) {
+      if (khacCompany && companyId === khacCompany.id) {
+        for (const item of otherCompanies) {
+          const name = String(item.name || '').trim();
+          const role = String(item.role || '').trim();
+          const contactName = String(item.contact_name || '').trim();
+          const contactPhone = String(item.contact_phone || '').trim();
+          const contactEmail = String(item.contact_email || '').trim();
+          const contact = [item.contact_name, item.contact_phone, item.contact_email].map(v => String(v || '').trim()).filter(Boolean).join(' - ');
+          if (!name || !role || !contactName || !contactPhone || !contactEmail || !contact) {
+            alert('Vui lòng nhập đầy đủ tên công ty, vị trí và thông tin liên hệ cho các nguyện vọng tự liên hệ.');
+            return;
+          }
+          const normalizedName = compactName(name);
+          if (seenAllNames.has(normalizedName)) {
+            alert(`Danh sách nguyện vọng bị trùng nơi thực tập "${name}".`);
+            return;
+          }
+          seenAllNames.add(normalizedName);
+          if (seenOtherNames.has(normalizedName)) {
+            alert(`Nguyện vọng tự liên hệ bị trùng công ty "${name}".`);
+            return;
+          }
+          seenOtherNames.add(normalizedName);
         }
-        const normalizedName = compactName(name);
-        if (seenAllNames.has(normalizedName)) {
-          alert(`Danh sách nguyện vọng bị trùng nơi thực tập "${name}".`);
-          return;
-        }
-        seenAllNames.add(normalizedName);
-        if (seenOtherNames.has(normalizedName)) {
-          alert(`Nguyện vọng tự liên hệ bị trùng công ty "${name}".`);
-          return;
-        }
-        seenOtherNames.add(normalizedName);
       } else {
-        if (!item.company_id) {
-          alert('Vui lòng chọn công ty cho tất cả nguyện vọng.');
+        const company = companies.find(c => Number(c.id) === Number(companyId));
+        const companyName = company?.name || '';
+        const companyIdText = String(companyId);
+        if (!companyIdText || !company) {
+          alert('Vui lòng chọn công ty hợp lệ cho tất cả nguyện vọng.');
           return;
         }
-        const companyId = String(item.company_id);
-        if (seenCompanyIds.has(companyId)) {
+        if (seenCompanyIds.has(companyIdText)) {
           alert('Danh sách nguyện vọng có công ty bị chọn trùng.');
           return;
         }
-        seenCompanyIds.add(companyId);
-        const companyName = companies.find(c => Number(c.id) === Number(item.company_id))?.name || '';
+        seenCompanyIds.add(companyIdText);
         const normalizedName = compactName(companyName);
-        if (normalizedName && seenAllNames.has(normalizedName)) {
+        if (seenAllNames.has(normalizedName)) {
           alert(`Danh sách nguyện vọng bị trùng nơi thực tập "${companyName}".`);
           return;
         }
-        if (normalizedName) seenAllNames.add(normalizedName);
+        seenAllNames.add(normalizedName);
       }
     }
-    if (schoolCompany && preferenceEdits.some(item => item.type !== 'other' && Number(item.company_id) === Number(schoolCompany.id)) && preferenceEdits.length > 1) {
+    if (schoolCompany && selectedCompanies.has(schoolCompany.id) && selectedWishCount > 1) {
       alert('Nếu chọn Trường Đại học Công nghệ, sinh viên không được chọn thêm nơi thực tập khác.');
       return;
     }
@@ -1019,15 +1007,30 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
     setSavingPreferences(true);
     try {
-      const payload = preferenceEdits.map(item => ({
-        id: item.id || null,
-        type: item.type,
-        company_id: item.type === 'other' ? null : Number(item.company_id),
-        name: item.type === 'other' ? item.name : '',
-        role: item.type === 'other' ? item.role : '',
-        contact: item.type === 'other' ? item.contact : '',
-        note: item.note || '',
-      }));
+      const existingByCompanyId = new Map(myRegs.filter((reg: any) => reg.company_name !== 'Công ty khác').map((reg: any) => [Number(reg.company_id), reg]));
+      const payload = Array.from(selectedCompanies).flatMap((companyId) => {
+        if (khacCompany && companyId === khacCompany.id) {
+          return otherCompanies.map((c: any) => ({
+            id: c.id || null,
+            type: 'other',
+            company_id: null,
+            name: c.name,
+            role: c.role,
+            contact: [c.contact_name, c.contact_phone, c.contact_email].map(v => String(v || '').trim()).filter(Boolean).join(' - '),
+            note: c.note || registerForm.note || '',
+          }));
+        }
+        const existing = existingByCompanyId.get(Number(companyId));
+        return [{
+          id: existing?.id || null,
+          type: 'company',
+          company_id: Number(companyId),
+          name: '',
+          role: '',
+          contact: '',
+          note: existing?.note || registerForm.note || '',
+        }];
+      });
       const res = await fetch(`${API_BASE}/api/registrations/my/preferences`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1040,8 +1043,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       }
       const rows = data.registrations || [];
       setMyRegs(rows);
-      setPreferenceEdits(rows.map(registrationToPreferenceEdit));
       setEditingPreferences(false);
+      setSelectedCompanies(new Set());
+      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
       await fetchData();
       alert('Đã cập nhật nguyện vọng.');
     } catch (err) {
@@ -1515,7 +1519,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
   const showAdvisorTask = advisorRequestWindowStatus === 'open' && hasRegistered;
   const showFinalReportTask = false;
-  const showCompanyList = registrationWindowStatus === 'open' && !hasRegistered;
+  const showCompanyList = registrationWindowStatus === 'open' && (!hasRegistered || editingPreferences);
   const showConfirmationBlock = hasRegistered && showConfirmationDetails;
   const registrationSummary = hasRegistered
     ? `Đã đăng ký ${myRegs.length} nơi`
@@ -1711,15 +1715,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       <Edit2 className="text-blue-600" size={20} />
                       <h3 className="text-base font-bold text-slate-900">Chỉnh sửa nguyện vọng thực tập</h3>
                     </div>
-                    <p className="text-sm text-slate-600">Kéo thứ tự bằng nút lên/xuống; hệ thống sẽ lưu lại NV1 đến NV5 theo thứ tự đang hiển thị.</p>
+                    <p className="text-sm text-slate-600">Danh sách nơi thực tập đã được mở lại ở bên dưới. Các nơi đã đăng ký được tích sẵn; sinh viên có thể bỏ chọn hoặc chọn thêm nơi khác, tối đa 5 nguyện vọng.</p>
                   </div>
-                  <button
-                    onClick={addPreferenceEdit}
-                    disabled={preferenceEdits.length >= 5 || savingPreferences}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                  >
-                    <Plus size={16} /> Thêm nguyện vọng
-                  </button>
+                  <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Đang chọn {selectedWishCount}/5</div>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <div className="flex items-start gap-2">
@@ -1727,76 +1725,16 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <div><strong>Lưu ý:</strong> Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.</div>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  {preferenceEdits.map((item: any, idx: number) => (
-                    <div key={item.local_id || item.id || idx} className="rounded-xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-start gap-3">
-                        <div className="flex items-center justify-between lg:w-24">
-                          <span className="text-sm font-bold text-slate-800">NV{idx + 1}</span>
-                          <div className="flex items-center gap-1">
-                            <button type="button" onClick={() => movePreferenceEdit(idx, -1)} disabled={idx === 0 || savingPreferences} className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" title="Đưa lên">↑</button>
-                            <button type="button" onClick={() => movePreferenceEdit(idx, 1)} disabled={idx === preferenceEdits.length - 1 || savingPreferences} className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" title="Đưa xuống">↓</button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
-                          <div className={item.type === 'other' ? 'md:col-span-2 xl:col-span-1' : 'md:col-span-2 xl:col-span-2'}>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Nơi thực tập</label>
-                            <select
-                              value={item.type === 'other' ? 'other' : item.company_id}
-                              onChange={e => {
-                                const value = e.target.value;
-                                if (value === 'other') updatePreferenceEdit(idx, { type: 'other', company_id: '', name: '', role: '', contact: '' });
-                                else updatePreferenceEdit(idx, { type: 'company', company_id: value, name: '', role: '', contact: '' });
-                              }}
-                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              <option value="">-- Chọn nơi thực tập --</option>
-                              {companies.filter(c => c.name !== 'Công ty khác').map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                              ))}
-                              {khacCompany && <option value="other">Công ty tự liên hệ</option>}
-                            </select>
-                          </div>
-                          {item.type === 'other' && (
-                            <>
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">Tên công ty *</label>
-                                <input value={item.name || ''} onChange={e => updatePreferenceEdit(idx, { name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên công ty tự liên hệ" />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">Vị trí *</label>
-                                <input value={item.role || ''} onChange={e => updatePreferenceEdit(idx, { role: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="VD: Backend Intern" />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-1">Liên hệ *</label>
-                                <input value={item.contact || ''} onChange={e => updatePreferenceEdit(idx, { contact: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên/email/số điện thoại" />
-                              </div>
-                            </>
-                          )}
-                          <div className={item.type === 'other' ? 'md:col-span-2 xl:col-span-4' : 'md:col-span-2'}>
-                            <label className="block text-xs font-bold text-slate-600 mb-1">Ghi chú</label>
-                            <input value={item.note || ''} onChange={e => updatePreferenceEdit(idx, { note: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Thông tin bổ sung nếu có" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removePreferenceEdit(idx)}
-                          disabled={preferenceEdits.length <= 1 || savingPreferences}
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 disabled:text-slate-300 disabled:border-slate-200 disabled:cursor-not-allowed"
-                          title="Xóa nguyện vọng này"
-                        >
-                          <Trash2 size={16} /> Xóa
-                        </button>
-                      </div>
-                      {(item.status || item.review_comment) && (
-                        <div className="mt-3 flex flex-col sm:flex-row gap-2 text-xs">
-                          {item.status && <span className={`font-semibold px-2 py-1 rounded w-fit ${item.status === 'approved' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{item.status === 'pending' ? 'Chờ Duyệt' : item.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span>}
-                          {item.review_comment && <span className="text-slate-600">Nhận xét của Khoa: {item.review_comment}</span>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                {selectedPreferencePreview.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Nguyện vọng sau khi chỉnh sửa</div>
+                    <ol className="space-y-1 text-sm text-slate-800">
+                      {selectedPreferencePreview.map((item, idx) => (
+                        <li key={item.key}><span className="font-bold text-blue-700">NV{idx + 1}:</span> {item.name}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
                   <button onClick={cancelEditingPreferences} disabled={savingPreferences} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60">Hủy chỉnh sửa</button>
                   <button onClick={savePreferenceEdits} disabled={savingPreferences} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
@@ -2047,7 +1985,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
-              {!hasRegistered && selectedWishCount > 0 && (
+              {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedWishCount}/5</span>
               )}
             </div>
@@ -2059,7 +1997,24 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 placeholder="Tìm nơi thực tập..."
                 className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
               />
-              {!hasRegistered && (
+              {editingPreferences ? (
+                <>
+                  <button
+                    onClick={cancelEditingPreferences}
+                    disabled={savingPreferences}
+                    className="px-4 py-1.5 rounded-md text-sm font-bold border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60 whitespace-nowrap"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={savePreferenceEdits}
+                    disabled={savingPreferences || selectedWishCount === 0}
+                    className="px-5 py-1.5 rounded-md text-sm font-bold bg-green-600 text-white hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </>
+              ) : !hasRegistered && (
                 <>
                   {registrationWindowStatus !== 'open' ? (
                     <button
@@ -2142,8 +2097,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       <td className="px-4 py-4 text-center">
                         <input
                           type="checkbox"
-                          checked={isSelected || isRegistered}
-                          disabled={hasRegistered || (!isSelected && selectedWishCount >= 5)}
+                          checked={isSelected || (!editingPreferences && isRegistered)}
+                          disabled={(!editingPreferences && hasRegistered) || (!isSelected && selectedWishCount >= 5)}
                           onChange={() => toggleCompanySelection(company.id)}
                           className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
@@ -2187,6 +2142,68 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               </tbody>
             </table>
           </div>
+          {editingPreferences && hasSelectedKhac && (
+            <div className="border-t border-orange-100 bg-orange-50/60 px-6 py-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-orange-900">Thông tin công ty tự liên hệ</h3>
+                  <p className="mt-1 text-xs text-orange-800">Mỗi công ty tự liên hệ được tính là một nguyện vọng riêng trong giới hạn 5 nơi thực tập.</p>
+                </div>
+                {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }])}
+                    className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100"
+                  >
+                    <Plus size={14} /> Thêm công ty
+                  </button>
+                )}
+              </div>
+              <div className="space-y-4">
+                {otherCompanies.map((otherCompany: any, index) => (
+                  <div key={otherCompany.id || index} className="rounded-xl border border-orange-200 bg-white p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h4 className="text-xs font-bold text-orange-800">Công ty tự liên hệ {index + 1}</h4>
+                      {otherCompanies.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
+                          className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={13} /> Xóa
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
+                        <input list="edit-it-companies-datalist" value={otherCompany.name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên công ty" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí *</label>
+                        <input value={otherCompany.role || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, role: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Vị trí thực tập" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ *</label>
+                        <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên người liên hệ" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Điện thoại *</label>
+                        <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Số điện thoại" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
+                        <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="email@company.com" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <datalist id="edit-it-companies-datalist">
+                {itCompanyList.map((name, i) => <option key={i} value={name} />)}
+              </datalist>
+            </div>
+          )}
           {sortedCompanies.length > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
               <span>
