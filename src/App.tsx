@@ -1204,6 +1204,29 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     }
   };
 
+  const cancelAdvisorRequest = async () => {
+    if (advisorRequestSaving) return;
+    if (advisorRequestWindowStatus !== 'open') return alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
+    if (!confirm('Hủy đăng ký giảng viên hướng dẫn hiện tại?')) return;
+    setAdvisorRequestSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/advisor/request/my`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không hủy được đăng ký GVHD.');
+      setAdvisorRequest(null);
+      setMyAdvisors([]);
+      setAdvisorRequestForm({ request_type: 'agreed', lecturer_name: '', co_lecturer_name: '', student_note: '' });
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi hủy đăng ký GVHD.');
+    } finally {
+      setAdvisorRequestSaving(false);
+    }
+  };
+
   const approvedFinalOptions = myRegs.filter((reg: any) => reg.status === 'approved' && reg.company_name !== 'Trường Đại học Công nghệ');
 
   const openFinalConfirm = (mode: 'company' | 'school') => {
@@ -1428,10 +1451,17 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
                 </div>
               )}
-              {myAdvisors.length > 0 ? (
-                <p className="text-sm text-slate-600">Bạn đã có phân công GVHD chính thức, không cần gửi đề xuất thêm.</p>
+              {myAdvisors.length > 0 && advisorRequestWindowStatus !== 'open' ? (
+                <p className="text-sm text-slate-600">Bạn đã có phân công GVHD chính thức.</p>
               ) : (
                 <form onSubmit={submitAdvisorRequest} className="space-y-3">
+                  {myAdvisors.length > 0 && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                      <div className="font-semibold">Phân công hiện tại</div>
+                      <div className="mt-1">{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</div>
+                      {advisorRequestWindowStatus === 'open' && <div className="mt-1">Trong thời gian đăng ký GVHD, em có thể cập nhật hoặc hủy để đăng ký lại.</div>}
+                    </div>
+                  )}
                   {advisorRequest && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                       <div className="font-semibold">
@@ -1446,7 +1476,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       {advisorRequest.admin_note && <div className="mt-1">Nhận xét của Khoa: {advisorRequest.admin_note}</div>}
                     </div>
                   )}
-                  {(!advisorRequest || advisorRequest.status === 'pending' || advisorRequest.status === 'rejected') && (
+                  {advisorRequestWindowStatus === 'open' && (
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <select
@@ -1497,8 +1527,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         rows={2}
                       />
                       <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
-                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi đề xuất GVHD
+                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {advisorRequest || myAdvisors.length > 0 ? 'Cập nhật GVHD' : 'Gửi đề xuất GVHD'}
                       </button>
+                      {(advisorRequest || myAdvisors.length > 0) && (
+                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="ml-2 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60">
+                          <Trash2 size={16} /> Hủy đăng ký GVHD
+                        </button>
+                      )}
                     </>
                   )}
                 </form>

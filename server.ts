@@ -1842,6 +1842,10 @@ async function startServer() {
         if (!coLecturer) return res.status(400).json({ error: 'Giảng viên đồng hướng dẫn không hợp lệ.' });
       }
       const quotaStatus = requestType === 'faculty_assign' ? 'unknown' : await advisorQuotaStatus(lecturerId);
+      await executeBatch([
+        { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
+        { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
+      ]);
       await db.execute({
         sql: `INSERT INTO advisor_requests (user_id, lecturer_id, co_lecturer_id, lecturer_name_text, co_lecturer_name_text, request_type, status, quota_status, student_note, source_registration_id, created_at, updated_at)
               VALUES (?, ?, ?, NULL, NULL, ?, 'pending', ?, ?, NULL, datetime('now', '+7 hours'), datetime('now', '+7 hours'))
@@ -1896,6 +1900,22 @@ async function startServer() {
         });
       }
       res.json({ success: true, request: await advisorRequestWithNames(req.user.id) });
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.delete('/api/advisor/request/my', requireAuth, requireStudent, async (req: any, res: any) => {
+    try {
+      const advisorWindow = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_request_open_at', 'advisor_request_close_at')")).rows as any[]);
+      const windowStatus = isWithinLocalWindow(advisorWindow, 'advisor_request_open_at', 'advisor_request_close_at');
+      if (!windowStatus.ok) return res.status(403).json({ error: `Ngoài thời gian đăng ký GVHD: ${windowStatus.error}` });
+      await executeBatch([
+        { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
+        { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
+        { sql: 'DELETE FROM advisor_requests WHERE user_id = ?', args: [req.user.id] },
+      ]);
+      res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
     }
@@ -2092,24 +2112,18 @@ async function startServer() {
   app.get('/api/grades/my', requireAuth, requireStudent, async (req: any, res: any) => {
     try {
       const row = (await db.execute({
-        sql: `WITH registration_places AS (
+        sql: `WITH school_registration AS (
                 SELECT r.user_id,
-                       GROUP_CONCAT(
-                         CASE
-                           WHEN c.name = 'Công ty khác' THEN COALESCE(NULLIF(trim(r.other_company_name), ''), c.name)
-                           ELSE c.name
-                         END,
-                         '; '
-                       ) as registered_places
+                       'Trường Đại học Công nghệ' as school_place
                 FROM registrations r
                 JOIN companies c ON c.id = r.company_id
-                WHERE r.status != 'rejected'
+                WHERE r.status != 'rejected' AND c.name = 'Trường Đại học Công nghệ'
                 GROUP BY r.user_id
               )
               SELECT u.id as user_id, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
                      f.internship_type, f.confirmed_at,
                      CASE
-                       WHEN f.id IS NULL THEN rp.registered_places
+                       WHEN f.id IS NULL THEN sr.school_place
                        WHEN c.name = 'Công ty khác' THEN r.other_company_name
                        ELSE c.name
                      END as internship_place,
@@ -2121,7 +2135,7 @@ async function startServer() {
                      gl.name as grading_lecturer_name
               FROM users u
               LEFT JOIN final_internships f ON f.user_id = u.id
-              LEFT JOIN registration_places rp ON rp.user_id = u.id
+              LEFT JOIN school_registration sr ON sr.user_id = u.id
               LEFT JOIN companies c ON c.id = f.company_id
               LEFT JOIN registrations r ON r.id = f.registration_id
               LEFT JOIN advisor_assignments aa ON aa.user_id = u.id
