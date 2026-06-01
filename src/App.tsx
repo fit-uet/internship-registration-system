@@ -3277,49 +3277,49 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const isRequestsView = view === 'requests';
   const isQuotasView = view === 'quotas';
   const pageTitle = isRequestsView ? 'Phê duyệt đề xuất GVHD' : isQuotasView ? 'Chỉ tiêu giảng viên' : 'Phân công giảng viên hướng dẫn';
-  const pageDescription = isRequestsView
-    ? 'Xem và xử lý các đề xuất giảng viên hướng dẫn từ sinh viên.'
-    : isQuotasView
-      ? 'Theo dõi số lượng đang hướng dẫn và điều chỉnh chỉ tiêu từng giảng viên.'
-      : 'Phân công trên danh sách sinh viên đã xác nhận nơi thực tập hoặc đã gửi đề xuất GVHD.';
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải dữ liệu GVHD...</div>;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
+      <div className="space-y-4">
+        <div className="min-w-0">
           <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> {pageTitle}</h2>
-          <p className="text-sm text-slate-500 mt-1">{pageDescription}</p>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 leading-tight">
+            <Users className="text-emerald-600 shrink-0" size={26} /> {pageTitle}
+          </h2>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          {isAssignmentsView && (
-            <>
-              <button onClick={() => navigate('/admin/advisors/requests')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                <CheckCircle2 size={16} /> Phê duyệt đề xuất
-                {advisorRequests.filter(item => item.status === 'pending').length > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{advisorRequests.filter(item => item.status === 'pending').length}</span>}
-              </button>
-              <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                <Settings size={16} /> Chỉ tiêu GV
-              </button>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full sm:w-80 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+        {isAssignmentsView && (
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex flex-col xl:flex-row xl:items-center gap-3">
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => navigate('/admin/advisors/requests')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <CheckCircle2 size={16} /> Phê duyệt đề xuất
+                  {advisorRequests.filter(item => item.status === 'pending').length > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{advisorRequests.filter(item => item.status === 'pending').length}</span>}
+                </button>
+                <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <Settings size={16} /> Chỉ tiêu GV
+                </button>
               </div>
-              <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-                {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
-                <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
-              </label>
-              <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-                {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
-              </button>
-              <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                <Download size={16} /> Xuất XLSX
-              </button>
-            </>
-          )}
-        </div>
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
+                  {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
+                  <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+                </label>
+                <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+                  {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
+                </button>
+                <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <Download size={16} /> Xuất XLSX
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {isRequestsView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

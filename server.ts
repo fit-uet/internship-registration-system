@@ -3374,25 +3374,26 @@ async function startServer() {
       const coLecturer = await findLecturerByNameText(request.co_lecturer_name_text);
       coLecturerId = coLecturer?.id ? Number(coLecturer.id) : 0;
     }
-    if (!lecturerId) return false;
-    const primaryResult = await createAdvisorAssignment({
-      user_id: Number(request.user_id),
-      lecturer_id: lecturerId,
-      role: 'primary',
-      note: 'Tự duyệt do sinh viên khai báo đã được GV đồng ý hướng dẫn',
-      allow_over_quota: true,
-      allow_without_final: true,
-    }, actorId);
-    if (primaryResult.error) return false;
-    if (coLecturerId) {
-      await createAdvisorAssignment({
+    if (lecturerId) {
+      const primaryResult = await createAdvisorAssignment({
         user_id: Number(request.user_id),
-        lecturer_id: coLecturerId,
-        role: 'co',
-        note: 'Tự duyệt đồng hướng dẫn do sinh viên khai báo',
+        lecturer_id: lecturerId,
+        role: 'primary',
+        note: 'Tự duyệt do sinh viên khai báo đã được GV đồng ý hướng dẫn',
         allow_over_quota: true,
         allow_without_final: true,
       }, actorId);
+      if (primaryResult.error) return false;
+      if (coLecturerId) {
+        await createAdvisorAssignment({
+          user_id: Number(request.user_id),
+          lecturer_id: coLecturerId,
+          role: 'co',
+          note: 'Tự duyệt đồng hướng dẫn do sinh viên khai báo',
+          allow_over_quota: true,
+          allow_without_final: true,
+        }, actorId);
+      }
     }
     await db.execute({
       sql: `UPDATE advisor_requests
@@ -3511,15 +3512,6 @@ async function startServer() {
         subject: 'Bạn đã được phân công giảng viên hướng dẫn',
         body: `Bạn đã được phân công ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}: ${lecturer.name}.`,
       });
-      if (lecturer.email) {
-        await createNotification({
-          user_id: userId,
-          recipient_email: lecturer.email,
-          type: 'advisor_assigned',
-          subject: `Bạn được phân công hướng dẫn sinh viên ${student?.name || ''}`,
-          body: `Bạn đã được phân công ${role === 'primary' ? 'hướng dẫn chính' : 'đồng hướng dẫn'} sinh viên ${student?.name || userId}.`,
-        });
-      }
       return { row: (await db.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
     } catch (e) {
       const existing = (await db.execute({
@@ -3599,15 +3591,6 @@ async function startServer() {
         subject: 'Bạn đã được phân công giảng viên hướng dẫn',
         body: `Bạn đã được phân công GVHD chính: ${lecturer.name}.`,
       });
-      if (lecturer.email) {
-        await createNotification({
-          user_id: Number(student.user_id),
-          recipient_email: lecturer.email,
-          type: 'advisor_assigned',
-          subject: `Bạn được phân công hướng dẫn sinh viên ${student.name || ''}`,
-          body: `Bạn đã được phân công hướng dẫn chính sinh viên ${student.name || student.user_id}.`,
-        });
-      }
       lecturer.assignment_count += 1;
       count++;
     }
@@ -3634,12 +3617,33 @@ async function startServer() {
           SELECT user_id FROM final_internships
           UNION
           SELECT user_id FROM advisor_requests
+          UNION
+          SELECT user_id FROM registrations WHERE status != 'rejected'
+        ),
+        registration_places AS (
+          SELECT r.user_id,
+                 GROUP_CONCAT(
+                   CASE
+                     WHEN c.name = 'Công ty khác' THEN COALESCE(NULLIF(trim(r.other_company_name), ''), c.name)
+                     ELSE c.name
+                   END,
+                   '; '
+                 ) as registered_places
+          FROM registrations r
+          JOIN companies c ON c.id = r.company_id
+          WHERE r.status != 'rejected'
+          GROUP BY r.user_id
         )
         SELECT p.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
                ar.request_type as advisor_request_type, ar.status as advisor_request_status,
                u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
                CASE
                  WHEN f.id IS NULL THEN 'Chưa xác nhận nơi thực tập'
+                 WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                 ELSE c.name
+               END as final_internship_place,
+               CASE
+                 WHEN f.id IS NULL THEN COALESCE(rp.registered_places, 'Chưa xác nhận nơi thực tập')
                  WHEN c.name = 'Công ty khác' THEN r.other_company_name
                  ELSE c.name
                END as internship_place,
@@ -3649,6 +3653,7 @@ async function startServer() {
         JOIN users u ON u.id = p.user_id
         LEFT JOIN final_internships f ON f.user_id = p.user_id
         LEFT JOIN advisor_requests ar ON ar.user_id = p.user_id
+        LEFT JOIN registration_places rp ON rp.user_id = p.user_id
         LEFT JOIN companies c ON c.id = f.company_id
         LEFT JOIN registrations r ON r.id = f.registration_id
         LEFT JOIN advisor_assignments aa ON aa.user_id = p.user_id
@@ -3736,6 +3741,7 @@ async function startServer() {
         LEFT JOIN final_internships f ON f.user_id = ar.user_id
         LEFT JOIN companies c ON c.id = f.company_id
         LEFT JOIN registrations r ON r.id = f.registration_id
+        WHERE NOT (ar.request_type = 'agreed' AND ar.status = 'approved')
         ORDER BY CASE ar.status WHEN 'pending' THEN 0 ELSE 1 END, ar.updated_at DESC
       `)).rows;
       res.json(rows);
