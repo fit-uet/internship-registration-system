@@ -730,6 +730,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [myRegsError, setMyRegsError] = useState('');
   const [finalInternship, setFinalInternship] = useState<any>(null);
   const [myAdvisors, setMyAdvisors] = useState<any[]>([]);
+  const [advisorRequest, setAdvisorRequest] = useState<any>(null);
   const [finalReport, setFinalReport] = useState<any>(null);
   const [uploadingReport, setUploadingReport] = useState(false);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
@@ -755,6 +756,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [finalAttested, setFinalAttested] = useState(false);
   const [finalNote, setFinalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [advisorRequestSaving, setAdvisorRequestSaving] = useState(false);
   const [isConfirmingFinal, setIsConfirmingFinal] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const [lecturers, setLecturers] = useState<string[]>([]);
@@ -777,6 +779,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     contact_phone: '',
     contact_email: ''
   }]);
+  const [advisorRequestForm, setAdvisorRequestForm] = useState({
+    request_type: 'agreed',
+    lecturer_name: '',
+    co_lecturer_name: '',
+    student_note: ''
+  });
   const navigate = useNavigate();
 
   const hasRegistered = myRegs.length > 0;
@@ -799,6 +807,19 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const confirmationWindowStatus = useMemo(() => {
     const openStr = campaign?.confirmation_open_at;
     const closeStr = campaign?.confirmation_close_at;
+    if (!openStr && !closeStr) return 'open';
+    const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
+    const now = new Date();
+    const openUTC = openStr ? toUTC(openStr) : null;
+    const closeUTC = closeStr ? toUTC(closeStr) : null;
+    if (openUTC && now < openUTC) return 'not_open_yet';
+    if (closeUTC && now > closeUTC) return 'closed';
+    return 'open';
+  }, [campaign]);
+
+  const advisorRequestWindowStatus = useMemo(() => {
+    const openStr = campaign?.advisor_request_open_at;
+    const closeStr = campaign?.advisor_request_close_at;
     if (!openStr && !closeStr) return 'open';
     const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
     const now = new Date();
@@ -908,11 +929,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     setLoading(true);
     try {
       const isStudent = user?.role === 'student';
-      const [compRes, regRes, finalRes, advisorRes, reportRes, campRes, itListRes, lecRes] = await Promise.all([
+      const [compRes, regRes, finalRes, advisorRes, advisorReqRes, reportRes, campRes, itListRes, lecRes] = await Promise.all([
         fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
         isStudent ? fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
+        isStudent ? fetch(`${API_BASE}/api/advisor/request/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -939,6 +961,17 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
       const advisorData = advisorRes ? await advisorRes.json() : [];
       setMyAdvisors(Array.isArray(advisorData) ? advisorData : []);
+
+      const advisorReqData = advisorReqRes ? await advisorReqRes.json().catch(() => null) : null;
+      setAdvisorRequest(advisorReqData && !advisorReqData.error ? advisorReqData : null);
+      if (advisorReqData && !advisorReqData.error) {
+        setAdvisorRequestForm({
+          request_type: advisorReqData.request_type || 'agreed',
+          lecturer_name: advisorReqData.lecturer_name || advisorReqData.lecturer_name_text || '',
+          co_lecturer_name: advisorReqData.co_lecturer_name || advisorReqData.co_lecturer_name_text || '',
+          student_note: advisorReqData.student_note || ''
+        });
+      }
 
       const reportData = reportRes ? await reportRes.json() : null;
       setFinalReport(reportData && !reportData.error ? reportData : null);
@@ -1128,6 +1161,38 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       }
     } catch (e) {
       alert("Hủy lỗi!");
+    }
+  };
+
+  const submitAdvisorRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (advisorRequestSaving) return;
+    if (advisorRequestWindowStatus !== 'open') {
+      alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
+      return;
+    }
+    setAdvisorRequestSaving(true);
+    try {
+      const payload = {
+        request_type: advisorRequestForm.request_type,
+        lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
+        co_lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name,
+        student_note: advisorRequestForm.student_note,
+      };
+      const res = await fetch(`${API_BASE}/api/advisor/request/my`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không gửi được đề xuất GVHD.');
+      setAdvisorRequest(data.request || null);
+      alert('Đã ghi nhận đề xuất GVHD.');
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi gửi đề xuất GVHD.');
+    } finally {
+      setAdvisorRequestSaving(false);
     }
   };
 
@@ -1344,6 +1409,79 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     Thực tập tại trường
                   </button>
                 </div>
+              )}
+            </div>
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-2">Đề xuất giảng viên hướng dẫn</h4>
+              {advisorRequestWindowStatus !== 'open' && (
+                <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                  {advisorRequestWindowStatus === 'not_open_yet'
+                    ? `Chưa mở đăng ký GVHD${campaign.advisor_request_open_at ? `: ${formatGMT7(campaign.advisor_request_open_at)} (GMT+7)` : ''}.`
+                    : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
+                </div>
+              )}
+              {myAdvisors.length > 0 ? (
+                <p className="text-sm text-slate-600">Bạn đã có phân công GVHD chính thức, không cần gửi đề xuất thêm.</p>
+              ) : (
+                <form onSubmit={submitAdvisorRequest} className="space-y-3">
+                  {advisorRequest && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <div className="font-semibold">
+                        Trạng thái đề xuất: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                        {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, cần Khoa duyệt thủ công' : ''}
+                      </div>
+                      <div className="mt-1">
+                        GVHD: {advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Nhờ Khoa phân công'}
+                        {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
+                      </div>
+                      {advisorRequest.source_registration_id && <div className="mt-1">Nguồn: Từ đăng ký thực tập tại Trường Đại học Công nghệ.</div>}
+                      {advisorRequest.admin_note && <div className="mt-1">Nhận xét của Khoa: {advisorRequest.admin_note}</div>}
+                    </div>
+                  )}
+                  {(!advisorRequest || advisorRequest.status === 'pending' || advisorRequest.status === 'rejected') && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <select
+                          value={advisorRequestForm.request_type}
+                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, request_type: e.target.value })}
+                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                        >
+                          <option value="agreed">Tôi đã được GV đồng ý hướng dẫn</option>
+                          <option value="proposed">Tôi tự đề xuất GVHD</option>
+                          <option value="faculty_assign">Nhờ Khoa phân công</option>
+                        </select>
+                        <select
+                          value={advisorRequestForm.lecturer_name}
+                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
+                          disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value="">-- Chọn GVHD chính --</option>
+                          {lecturers.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                        <select
+                          value={advisorRequestForm.co_lecturer_name}
+                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
+                          disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value="">-- Đồng hướng dẫn (không bắt buộc) --</option>
+                          {lecturers.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </div>
+                      <textarea
+                        value={advisorRequestForm.student_note}
+                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
+                        placeholder="Ghi chú cho Khoa, ví dụ: đã trao đổi qua email/ngày được GV đồng ý..."
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
+                        rows={2}
+                      />
+                      <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi đề xuất GVHD
+                      </button>
+                    </>
+                  )}
+                </form>
               )}
             </div>
           </div>
@@ -2936,6 +3074,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [lecturers, setLecturers] = useState<any[]>([]);
+  const [advisorRequests, setAdvisorRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLecturers, setSelectedLecturers] = useState<Record<string, string>>({});
@@ -2950,10 +3089,15 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      const [res, reqRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/advisor-assignments`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/admin/advisor-requests`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
       const data = await res.json();
+      const requestData = await reqRes.json();
       setRows(Array.isArray(data.rows) ? data.rows : []);
       setLecturers(Array.isArray(data.lecturers) ? data.lecturers : []);
+      setAdvisorRequests(Array.isArray(requestData) ? requestData : []);
     } catch (e) {
       alert('Không tải được danh sách phân công.');
     } finally {
@@ -3088,6 +3232,20 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
     }
   };
 
+  const reviewAdvisorRequest = async (request: any, action: 'approve' | 'reject') => {
+    const adminNote = action === 'reject' ? prompt('Nhập nhận xét gửi sinh viên:') : (request.quota_status === 'over_quota' ? prompt('GV đã đủ/vượt quota. Nhập ghi chú duyệt thủ công (có thể để trống):') : '');
+    if (adminNote === null) return;
+    if (action === 'reject' && !adminNote) return;
+    const res = await fetch(`${API_BASE}/api/admin/advisor-requests/${request.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, admin_note: adminNote || '' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data.error || 'Không xử lý được đề xuất.');
+    fetchData();
+  };
+
   const exportXlsx = () => {
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
     const data = filteredRows.map((row, idx) => [
@@ -3129,6 +3287,72 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-800">Đề xuất GVHD từ sinh viên</h3>
+            <p className="text-xs text-slate-500 mt-1">Sinh viên đã được GV đồng ý, tự đề xuất, hoặc nhờ Khoa phân công.</p>
+          </div>
+          <span className="text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100 px-3 py-1">
+            {advisorRequests.filter(item => item.status === 'pending').length} chờ xử lý
+          </span>
+        </div>
+        {advisorRequests.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-slate-500">Chưa có đề xuất GVHD.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Sinh viên</th>
+                  <th className="px-4 py-3">Nguồn / Trạng thái</th>
+                  <th className="px-4 py-3">GV đề xuất</th>
+                  <th className="px-4 py-3">Ghi chú</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {advisorRequests.slice(0, 12).map(request => (
+                  <tr key={request.id} className="hover:bg-slate-50 align-top">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-900">{request.student_name}</div>
+                      <div className="text-xs text-slate-500 font-mono">{request.student_id || '-'}</div>
+                      <div className="text-xs text-slate-500">{request.class_name || '-'} · {request.course_code || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-semibold text-slate-700">
+                        {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Nhờ Khoa phân công' : 'Tự đề xuất'}
+                      </div>
+                      <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-bold ${request.status === 'pending' ? 'bg-amber-100 text-amber-700' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {request.status === 'pending' ? 'Chờ xử lý' : request.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}
+                      </div>
+                      {request.source_registration_id && <div className="text-[11px] text-blue-700 mt-1">Từ đăng ký tại trường</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div>{request.lecturer_name || request.lecturer_name_text || '-'}</div>
+                      {(request.co_lecturer_name || request.co_lecturer_name_text) && <div className="text-xs text-slate-500 mt-1">Đồng HD: {request.co_lecturer_name || request.co_lecturer_name_text}</div>}
+                      {request.quota_status === 'over_quota' && <div className="text-xs text-red-700 font-semibold mt-1">Vượt quota - duyệt thủ công</div>}
+                    </td>
+                    <td className="px-4 py-3 max-w-xs">
+                      <div className="text-xs text-slate-600 whitespace-pre-wrap">{request.student_note || '-'}</div>
+                      {request.admin_note && <div className="text-xs text-red-700 mt-1">Khoa: {request.admin_note}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {request.status === 'pending' ? (
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => reviewAdvisorRequest(request, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Duyệt</button>
+                          <button onClick={() => reviewAdvisorRequest(request, 'reject')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">Từ chối</button>
+                        </div>
+                      ) : <span className="text-xs text-slate-400">Đã xử lý</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -6017,9 +6241,63 @@ function AdminSettings({ token }: { token: string }) {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mở đăng ký GVHD <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).advisor_request_open_at || ''}
+              onChange={e => setCampaign({ ...campaign, advisor_request_open_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đóng đăng ký GVHD <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <input
+              type="datetime-local"
+              value={(campaign as any).advisor_request_close_at || ''}
+              onChange={e => setCampaign({ ...campaign, advisor_request_close_at: e.target.value } as any)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+            />
+          </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Danh sách lớp khóa học <span className="text-slate-400 font-normal">(mỗi lớp cách nhau bởi dấu phẩy)</span></label>
             <textarea value={campaign.classes_list || ''} onChange={e => setCampaign({ ...campaign, classes_list: e.target.value })} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" rows={2} />
+          </div>
+          <div className="md:col-span-2 border-t border-slate-100 pt-4">
+            <h4 className="text-sm font-bold text-slate-800 mb-3">Quota mặc định GVHD</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">GS/PGS</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={(campaign as any).advisor_quota_pgs || '5'}
+                  onChange={e => setCampaign({ ...campaign, advisor_quota_pgs: e.target.value } as any)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">TS</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={(campaign as any).advisor_quota_ts || '8'}
+                  onChange={e => setCampaign({ ...campaign, advisor_quota_ts: e.target.value } as any)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">ThS/Khác</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={(campaign as any).advisor_quota_ths || '10'}
+                  onChange={e => setCampaign({ ...campaign, advisor_quota_ths: e.target.value } as any)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Quota riêng của từng giảng viên trong site Phân công GVHD vẫn được ưu tiên nếu đã thiết lập.</p>
           </div>
           <p className="md:col-span-2 text-xs text-slate-500">Sinh viên chỉ có thể đăng ký trong khoảng thời gian trên. Để trống nếu không giới hạn thời gian.</p>
           {((campaign as any).registration_open_at || (campaign as any).registration_close_at) && (

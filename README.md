@@ -587,7 +587,7 @@ Thiết kế API:
 - `DELETE /api/admin/approved-companies/:id`: xóa công ty thẩm định.
 - `PUT /api/admin/registrations/mark-sent`: đánh dấu đã gửi danh sách sang doanh nghiệp theo công ty hoặc theo đăng ký.
 - `GET /api/admin/companies`: danh sách công ty vận hành cho admin, gồm công ty chính thức và công ty tự liên hệ đã phát sinh đăng ký.
-- `PUT /api/settings/campaign`: bổ sung `confirmation_open_at`, `confirmation_close_at`, `final_report_open_at`, `final_report_close_at`.
+- `PUT /api/settings/campaign`: bổ sung `confirmation_open_at`, `confirmation_close_at`, `final_report_open_at`, `final_report_close_at`, `advisor_request_open_at`, `advisor_request_close_at`.
 
 Tiêu chí nghiệm thu:
 
@@ -969,10 +969,94 @@ Tiêu chí nghiệm thu:
 - Quyền tải báo cáo PDF phải kiểm tra chặt: sinh viên chỉ xem file của mình, giảng viên chỉ xem sinh viên được phân công, admin xem tất cả.
 - Nếu số lượng file hoặc dung lượng vượt free tier R2, cần chính sách dọn dữ liệu sau khi kết thúc đợt hoặc chuyển lưu trữ dài hạn.
 
+### 9.10. Đề xuất giảng viên hướng dẫn từ phía sinh viên
+
+Mục tiêu: sinh viên đã có tên trong hệ thống có thể chủ động chọn/đề xuất giảng viên hướng dẫn, nhưng Khoa vẫn là bên duyệt hoặc phân công chính thức cuối cùng.
+
+Quy tắc nghiệp vụ đã chốt:
+
+- Sinh viên có thể chọn GVHD theo một trong các trường hợp:
+  - `Tôi đã được GV đồng ý hướng dẫn`.
+  - `Tôi tự đề xuất GVHD, chờ Khoa/GV xác nhận`.
+  - `Nhờ Khoa phân công`.
+- Với các sinh viên trước đó đã đăng ký nơi thực tập là `Trường Đại học Công nghệ` và đã điền tên GVHD khi đăng ký, hệ thống tự hiểu đây là trạng thái `Tôi đã được GV đồng ý hướng dẫn`. Sinh viên không cần nhập lại.
+- Nếu sinh viên đã khai báo GVHD trong đăng ký cũ, hệ thống cần hiển thị lại GVHD đó trong phần đề xuất GVHD và chuyển thành đề xuất chờ Khoa xác nhận nếu chưa có phân công chính thức.
+- Nếu GV đã đủ hoặc vượt quota, hệ thống vẫn cho sinh viên chọn/gửi đề xuất, nhưng đánh dấu `Vượt quota - cần Khoa duyệt thủ công`.
+- Giảng viên có tên chứa `CN` không được làm GVHD chính, nhưng có thể là đồng hướng dẫn nếu Khoa cho phép trong luồng phân công.
+- Khoa/Admin có quyền duyệt, từ chối, hoặc đổi sang giảng viên khác khi xử lý đề xuất.
+- Khi Khoa duyệt đề xuất, hệ thống mới ghi phân công chính thức vào `advisor_assignments`.
+- Có campaign riêng `Đăng ký Giảng viên hướng dẫn` với thời gian bắt đầu/kết thúc trong `Cài đặt hệ thống`.
+- Sau khi campaign này kết thúc, nếu sinh viên chưa chọn/đề xuất GVHD thì hệ thống tự phân công GVHD theo quota còn lại. Các đề xuất `agreed/proposed` đang chờ xử lý không bị auto-assign đè lên.
+
+Quota mặc định đưa vào `Cài đặt hệ thống`:
+
+- `PGS/GS`: mặc định `5`.
+- `TS`: mặc định `8`.
+- `ThS`: mặc định `10`.
+- Các quota riêng theo từng giảng viên trong trang `Phân công GVHD` vẫn được xem là cấu hình ghi đè nếu có.
+- Quota tính tổng cả hướng dẫn chính và đồng hướng dẫn.
+
+Thiết kế dữ liệu bổ sung:
+
+```sql
+CREATE TABLE IF NOT EXISTS advisor_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL UNIQUE,
+  lecturer_id INTEGER,
+  co_lecturer_id INTEGER,
+  lecturer_name_text TEXT,
+  co_lecturer_name_text TEXT,
+  request_type TEXT NOT NULL DEFAULT 'proposed',
+  status TEXT NOT NULL DEFAULT 'pending',
+  quota_status TEXT NOT NULL DEFAULT 'unknown',
+  student_note TEXT,
+  admin_note TEXT,
+  source_registration_id INTEGER,
+  reviewed_by INTEGER,
+  reviewed_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Các trạng thái chính:
+
+- `request_type`:
+  - `agreed`: sinh viên xác nhận đã được GV đồng ý.
+  - `proposed`: sinh viên tự đề xuất, chờ Khoa/GV xác nhận.
+  - `faculty_assign`: sinh viên nhờ Khoa phân công.
+- `status`:
+  - `pending`: chờ Khoa xử lý.
+  - `approved`: Khoa đã duyệt và đã ghi phân công chính thức.
+  - `rejected`: Khoa từ chối, kèm nhận xét.
+  - `assigned_by_faculty`: Khoa chọn giảng viên khác để phân công.
+- `quota_status`:
+  - `within_quota`: GV còn quota tại thời điểm gửi.
+  - `over_quota`: GV đã đủ/vượt quota, cần Khoa duyệt thủ công.
+  - `unknown`: chưa xác định được GV hoặc nhờ Khoa phân công.
+
+Thiết kế UI sinh viên:
+
+- Trong khu vực `Nơi thực tập chính thức/GVHD`, hiển thị trạng thái phân công hiện tại nếu đã có.
+- Nếu chưa có phân công chính thức, hiển thị form `Đề xuất GVHD`.
+- Nếu hệ thống phát hiện đăng ký cũ `Trường Đại học Công nghệ` có tên GVHD, tự điền GVHD và hiển thị nguồn `Từ đăng ký thực tập tại trường`.
+- Sinh viên có thể gửi đề xuất, sửa đề xuất khi trạng thái còn `pending`, hoặc chọn `Nhờ Khoa phân công`.
+- Nếu GV đã đủ quota, UI cảnh báo nhưng vẫn cho gửi.
+
+Thiết kế UI admin:
+
+- Trong site `Phân công GVHD`, thêm khu vực/tab `Đề xuất từ sinh viên`.
+- Mỗi đề xuất hiển thị: MSSV, họ tên, nơi thực tập, nguồn đề xuất, GVHD đề xuất, GV đồng hướng dẫn nếu có, trạng thái quota, ghi chú sinh viên.
+- Admin có thể:
+  - Duyệt đề xuất.
+  - Từ chối kèm nhận xét.
+  - Chọn GV khác và phân công.
+- Khi duyệt đề xuất vượt quota, UI nên cảnh báo để admin xác nhận nhưng không chặn.
+
 ## 10. Các điểm đã chốt thêm
 
 - Không có ngoại lệ dung lượng báo cáo final trong giai đoạn hiện tại. File PDF lớn hơn 10 MB bị từ chối và sinh viên phải nén lại.
-- Không có ngoại lệ chỉ tiêu theo từng giảng viên trong giai đoạn hiện tại. Hệ thống dùng mặc định `GS`/`PGS` tối đa 10 sinh viên và `TS`/`ThS` tối đa 15 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
+- Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn cho sinh viên gửi đề xuất vượt quota để Khoa duyệt thủ công.
 
 ## 11. Nhận xét tổng quan
 
