@@ -1443,36 +1443,48 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <select
                           value={advisorRequestForm.request_type}
-                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, request_type: e.target.value })}
+                          onChange={e => {
+                            const requestType = e.target.value;
+                            setAdvisorRequestForm({
+                              ...advisorRequestForm,
+                              request_type: requestType,
+                              lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
+                              co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
+                            });
+                          }}
                           className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
                         >
-                          <option value="agreed">Tôi đã được GV đồng ý hướng dẫn</option>
-                          <option value="proposed">Tôi tự đề xuất GVHD</option>
+                          <option value="agreed">Em đã được GV đồng ý hướng dẫn</option>
+                          <option value="proposed">Em tự đề xuất GVHD</option>
                           <option value="faculty_assign">Nhờ Khoa phân công</option>
                         </select>
-                        <select
+                        <input
                           value={advisorRequestForm.lecturer_name}
                           onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
                           disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                          list="advisor-primary-lecturers"
+                          placeholder="Nhập/chọn GVHD chính"
                           className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          <option value="">-- Chọn GVHD chính --</option>
-                          {lecturers.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                        <select
+                        />
+                        <input
                           value={advisorRequestForm.co_lecturer_name}
                           onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
                           disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                          list="advisor-co-lecturers"
+                          placeholder="Nhập/chọn đồng hướng dẫn"
                           className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          <option value="">-- Đồng hướng dẫn (không bắt buộc) --</option>
-                          {lecturers.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>
+                        />
+                        <datalist id="advisor-primary-lecturers">
+                          {lecturers.map(name => <option key={name} value={name} />)}
+                        </datalist>
+                        <datalist id="advisor-co-lecturers">
+                          {lecturers.map(name => <option key={name} value={name} />)}
+                        </datalist>
                       </div>
                       <textarea
                         value={advisorRequestForm.student_note}
                         onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                        placeholder="Ghi chú cho Khoa, ví dụ: đã trao đổi qua email/ngày được GV đồng ý..."
+                        placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
                         rows={2}
                       />
