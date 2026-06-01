@@ -760,7 +760,6 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [finalConfirmMode, setFinalConfirmMode] = useState<'company' | 'school'>('company');
   const [selectedFinalRegId, setSelectedFinalRegId] = useState('');
   const [finalSchoolLecturer, setFinalSchoolLecturer] = useState('');
-  const [finalSchoolMode, setFinalSchoolMode] = useState<'lecturer' | 'assignment'>('lecturer');
   const [finalAttested, setFinalAttested] = useState(false);
   const [finalNote, setFinalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -789,7 +788,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     contact_email: ''
   }]);
   const [advisorRequestForm, setAdvisorRequestForm] = useState({
-    request_type: 'faculty_assign',
+    request_type: '',
     lecturer_name: '',
     co_lecturer_name: '',
     student_note: ''
@@ -975,7 +974,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       setAdvisorRequest(advisorReqData && !advisorReqData.error ? advisorReqData : null);
       if (advisorReqData && !advisorReqData.error) {
         setAdvisorRequestForm({
-          request_type: advisorReqData.request_type || 'agreed',
+          request_type: advisorReqData.request_type === 'faculty_assign' ? '' : advisorReqData.request_type || '',
           lecturer_name: advisorReqData.lecturer_name || advisorReqData.lecturer_name_text || '',
           co_lecturer_name: advisorReqData.co_lecturer_name || advisorReqData.co_lecturer_name_text || '',
           student_note: advisorReqData.student_note || ''
@@ -1078,12 +1077,14 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           personal_email: registerForm.personal_email,
           school_lecturer: registerForm.school_lecturer,
           school_co_lecturer: registerForm.school_co_lecturer,
-          advisor_request: {
-            request_type: advisorRequestForm.request_type,
-            lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
-            co_lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name,
-            student_note: advisorRequestForm.student_note
-          },
+          ...(advisorRequestForm.request_type ? {
+            advisor_request: {
+              request_type: advisorRequestForm.request_type,
+              lecturer_name: advisorRequestForm.lecturer_name,
+              co_lecturer_name: advisorRequestForm.co_lecturer_name,
+              student_note: advisorRequestForm.student_note
+            }
+          } : {}),
           note: registerForm.note,
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
@@ -1101,7 +1102,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         setRegisterModalOpen(false);
         setSelectedCompanies(new Set());
         setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', school_co_lecturer: '', note: '' });
-        setAdvisorRequestForm({ request_type: 'faculty_assign', lecturer_name: '', co_lecturer_name: '', student_note: '' });
+        setAdvisorRequestForm({ request_type: '', lecturer_name: '', co_lecturer_name: '', student_note: '' });
         setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
         fetchData();
       } else {
@@ -1187,12 +1188,16 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
       return;
     }
+    if (!['agreed', 'proposed'].includes(advisorRequestForm.request_type)) {
+      alert('Vui lòng chọn phương án đăng ký giảng viên hướng dẫn.');
+      return;
+    }
     setAdvisorRequestSaving(true);
     try {
       const payload = {
         request_type: advisorRequestForm.request_type,
-        lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
-        co_lecturer_name: advisorRequestForm.request_type === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name,
+        lecturer_name: advisorRequestForm.lecturer_name,
+        co_lecturer_name: advisorRequestForm.co_lecturer_name,
         student_note: advisorRequestForm.student_note,
       };
       const res = await fetch(`${API_BASE}/api/advisor/request/my`, {
@@ -1227,7 +1232,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       if (!res.ok) return alert(data.error || 'Không hủy được đăng ký GVHD.');
       setAdvisorRequest(null);
       setMyAdvisors([]);
-      setAdvisorRequestForm({ request_type: 'faculty_assign', lecturer_name: '', co_lecturer_name: '', student_note: '' });
+      setAdvisorRequestForm({ request_type: '', lecturer_name: '', co_lecturer_name: '', student_note: '' });
       setIsAdvisorEditOpen(true);
       fetchData();
     } catch (e) {
@@ -1243,7 +1248,6 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     setFinalConfirmMode(mode);
     setSelectedFinalRegId(mode === 'company' ? String(approvedFinalOptions[0]?.id || '') : '');
     setFinalSchoolLecturer('');
-    setFinalSchoolMode('lecturer');
     setFinalAttested(false);
     setFinalNote('');
     setConfirmFinalOpen(true);
@@ -1257,8 +1261,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       const payload = finalConfirmMode === 'school'
         ? {
           internship_type: 'school',
-          school_lecturer: finalSchoolMode === 'lecturer' ? finalSchoolLecturer : '',
-          school_assignment_request: finalSchoolMode === 'assignment',
+          school_lecturer: finalSchoolLecturer.trim(),
+          school_assignment_request: !finalSchoolLecturer.trim(),
           note: finalNote
         }
         : { internship_type: 'company', registration_id: Number(selectedFinalRegId), attested: finalAttested, note: finalNote };
@@ -1323,9 +1327,15 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         ? 'bg-slate-50 text-slate-700 border-slate-200'
         : 'bg-red-50 text-red-700 border-red-100';
   const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-red-500';
-  const openCampaign = campaignStatusItems
-    .filter(item => item.status === 'open')
-    .sort((a, b) => String(b.openAt || '').localeCompare(String(a.openAt || '')))[0];
+  const openCampaigns = campaignStatusItems.filter(item => item.status === 'open');
+  const advisorCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký GVHD');
+  const registrationCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký thực tập');
+  const openCampaign = (advisorCampaign?.status === 'open' && hasRegistered && !hasAdvisorSelection)
+    ? advisorCampaign
+    : (registrationCampaign?.status === 'open' && !hasRegistered)
+      ? registrationCampaign
+      : openCampaigns
+        .sort((a, b) => String(b.openAt || '').localeCompare(String(a.openAt || '')))[0];
   const activeCampaignKey = openCampaign?.label === 'Đăng ký thực tập'
     ? 'registration'
     : openCampaign?.label === 'Xác nhận nơi thực tập'
@@ -1355,7 +1365,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
     : advisorRequest
       ? advisorRequest.request_type === 'faculty_assign'
-        ? 'Nhờ Khoa phân công'
+        ? 'Khoa sẽ phân công'
         : advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Đã gửi đề xuất'
       : 'Chưa có GVHD';
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
@@ -1521,7 +1531,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       Đã xác nhận: <strong>{finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}</strong>
                     </p>
                     {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
-                    {finalInternship.school_assignment_request ? <p>GVHD: <strong>Nhờ Khoa phân công</strong></p> : null}
+                    {finalInternship.school_assignment_request ? <p>GVHD: <strong>Khoa sẽ phân công</strong></p> : null}
                     {myAdvisors.length > 0 && (
                       <p>
                         GVHD đã phân công:{' '}
@@ -1583,7 +1593,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           {myAdvisors.length > 0
                             ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
                             : advisorRequest?.request_type === 'faculty_assign'
-                              ? 'Nhờ Khoa phân công'
+                              ? 'Khoa sẽ phân công'
                               : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
                         </div>
                         {advisorRequest && (
@@ -1617,20 +1627,21 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           setAdvisorRequestForm({
                             ...advisorRequestForm,
                             request_type: requestType,
-                            lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
-                            co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
+                            lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
+                            co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
                           });
                         }}
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
                       >
+                        <option value="">-- Chọn phương án GVHD --</option>
                         <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
                         <option value="proposed">Sinh viên tự đề xuất GVHD</option>
-                        <option value="faculty_assign">Nhờ Khoa phân công</option>
                       </select>
                       <input
                         value={advisorRequestForm.lecturer_name}
                         onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
-                        disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                        disabled={!advisorRequestForm.request_type}
+                        required={!!advisorRequestForm.request_type}
                         list="advisor-primary-lecturers"
                         placeholder="Nhập/chọn GVHD chính"
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
@@ -1638,7 +1649,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       <input
                         value={advisorRequestForm.co_lecturer_name}
                         onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
-                        disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                        disabled={!advisorRequestForm.request_type}
                         list="advisor-co-lecturers"
                         placeholder="Nhập/chọn đồng hướng dẫn"
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
@@ -1989,44 +2000,21 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 </>
               ) : (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFinalSchoolMode('lecturer')}
-                      className={`px-3 py-2 rounded-lg text-sm font-bold border ${finalSchoolMode === 'lecturer' ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600'}`}
-                    >
-                      Đã có GV đồng ý
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setFinalSchoolMode('assignment'); setFinalSchoolLecturer(''); }}
-                      className={`px-3 py-2 rounded-lg text-sm font-bold border ${finalSchoolMode === 'assignment' ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600'}`}
-                    >
-                      Nhờ Khoa phân công
-                    </button>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên đã đồng ý hướng dẫn <span className="text-slate-400 font-normal">(nếu có)</span></label>
+                    <input
+                      type="text"
+                      list="final-lecturers-list"
+                      value={finalSchoolLecturer}
+                      onChange={e => setFinalSchoolLecturer(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                      placeholder="Để trống nếu Khoa phân công sau..."
+                    />
+                    <datalist id="final-lecturers-list">
+                      {lecturers.map(lec => <option key={lec} value={lec} />)}
+                    </datalist>
                   </div>
-                  {finalSchoolMode === 'lecturer' ? (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Giảng viên đã đồng ý hướng dẫn *</label>
-                      <input
-                        type="text"
-                        list="final-lecturers-list"
-                        required
-                        value={finalSchoolLecturer}
-                        onChange={e => setFinalSchoolLecturer(e.target.value)}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                        placeholder="Gõ để tìm kiếm giảng viên..."
-                      />
-                      <datalist id="final-lecturers-list">
-                        {lecturers.map(lec => <option key={lec} value={lec} />)}
-                      </datalist>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-orange-100 bg-orange-50 p-3 text-sm text-orange-900">
-                      Hệ thống sẽ ghi nhận nhu cầu thực tập tại trường để Khoa tổng hợp và phân công giảng viên hướng dẫn sau.
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-500">Chỉ chọn thực tập tại trường khi bạn không trúng tuyển công ty nào hoặc thực hiện theo sắp xếp của Khoa.</p>
+                  <p className="text-xs text-slate-500">Chỉ chọn thực tập tại trường khi bạn không trúng tuyển công ty nào hoặc thực hiện theo sắp xếp của Khoa. Nếu để trống GVHD, Khoa sẽ phân công sau.</p>
                 </div>
               )}
 
@@ -2047,7 +2035,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 </button>
                 <button
                   type="submit"
-                  disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId) || (finalConfirmMode === 'school' && finalSchoolMode === 'lecturer' && !finalSchoolLecturer.trim())}
+                  disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId)}
                   className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isConfirmingFinal ? 'Đang xác nhận...' : 'Xác nhận'}
@@ -2120,7 +2108,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-lg space-y-3">
                 <div>
                   <h4 className="text-sm font-bold text-emerald-900">Đăng ký giảng viên hướng dẫn</h4>
-                  <p className="text-xs text-emerald-800 mt-1">Có thể gửi cùng lúc với đăng ký thực tập để không phải thao tác thêm ở đợt đăng ký GVHD.</p>
+                  <p className="text-xs text-emerald-800 mt-1">Nếu chưa chọn trong bước này, Khoa sẽ phân công sau theo quota còn lại.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <select
@@ -2130,21 +2118,21 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       setAdvisorRequestForm({
                         ...advisorRequestForm,
                         request_type: requestType,
-                        lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
-                        co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
+                        lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
+                        co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
                       });
                     }}
                     className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   >
-                    <option value="faculty_assign">Nhờ Khoa phân công</option>
+                    <option value="">Không đăng ký GVHD trong bước này</option>
                     <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
                     <option value="proposed">Sinh viên tự đề xuất GVHD</option>
                   </select>
                   <input
                     value={advisorRequestForm.lecturer_name}
                     onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
-                    disabled={advisorRequestForm.request_type === 'faculty_assign'}
-                    required={advisorRequestForm.request_type !== 'faculty_assign'}
+                    disabled={!advisorRequestForm.request_type}
+                    required={!!advisorRequestForm.request_type}
                     list="registration-advisor-primary-lecturers"
                     placeholder="Nhập/chọn GVHD chính"
                     className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-emerald-50 disabled:text-emerald-400"
@@ -2152,7 +2140,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   <input
                     value={advisorRequestForm.co_lecturer_name}
                     onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
-                    disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                    disabled={!advisorRequestForm.request_type}
                     list="registration-advisor-co-lecturers"
                     placeholder="Nhập/chọn đồng hướng dẫn"
                     className="border border-emerald-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-emerald-50 disabled:text-emerald-400"
@@ -2176,7 +2164,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               {hasSelectedSchool && (
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-sm text-blue-900">
                   <h4 className="text-sm font-bold text-blue-900">Thực tập tại Trường</h4>
-                  <p className="mt-1">Thông tin GVHD được lấy từ phần “Đăng ký giảng viên hướng dẫn” ở trên. Nếu chưa có giảng viên đồng ý, chọn “Nhờ Khoa phân công”.</p>
+                  <p className="mt-1">Thông tin GVHD được lấy từ phần “Đăng ký giảng viên hướng dẫn” ở trên. Nếu chưa chọn trong bước này, Khoa sẽ phân công sau.</p>
                 </div>
               )}
 
@@ -2992,7 +2980,7 @@ function AdminPanel({ token }: { token: string }) {
                         value={editRegistrationForm.other_company_contact}
                         onChange={e => setEditRegistrationForm({ ...editRegistrationForm, other_company_contact: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tên GVHD hoặc Nhờ Khoa phân công"
+                        placeholder="Tên GVHD nếu đã có"
                       />
                     </div>
                     <div>
@@ -3160,7 +3148,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
       typeLabel(item.internship_type),
       internshipPlace(item),
       item.school_lecturer || '',
-      item.school_assignment_request ? 'Nhờ Khoa phân công' : '',
+      item.school_assignment_request ? 'Khoa sẽ phân công' : '',
       item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '',
       item.note || '',
     ]);
@@ -3261,7 +3249,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
                       </span>
                     </td>
                     <td className="px-6 py-4 min-w-[220px]">{internshipPlace(item)}</td>
-                    <td className="px-6 py-4">{item.school_assignment_request ? 'Nhờ Khoa phân công' : (item.school_lecturer || '-')}</td>
+                    <td className="px-6 py-4">{item.school_assignment_request ? 'Khoa sẽ phân công' : (item.school_lecturer || '-')}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{item.course_code?.split(' ').pop() || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
                   </tr>
@@ -3554,7 +3542,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-xs font-semibold text-slate-700">
-                        {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Nhờ Khoa phân công' : 'Tự đề xuất'}
+                        {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Khoa sẽ phân công' : 'Tự đề xuất'}
                       </div>
                       <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-bold ${request.status === 'pending' ? 'bg-amber-100 text-amber-700' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {request.status === 'pending' ? 'Chờ xử lý' : request.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}

@@ -1891,16 +1891,6 @@ async function startServer() {
           args: [req.user.id],
         });
       }
-      const admins = (await db.execute("SELECT id, email FROM users WHERE role = 'admin' AND COALESCE(email, '') != ''")).rows as any[];
-      for (const admin of admins) {
-        await createNotification({
-          user_id: Number(admin.id),
-          recipient_email: admin.email,
-          type: 'advisor_request_submitted',
-          subject: 'Sinh viên gửi đề xuất GVHD',
-          body: `${req.user.name} (${req.user.student_id || req.user.email}) đã gửi đề xuất GVHD.`,
-        });
-      }
       res.json({ success: true, request: await advisorRequestWithNames(req.user.id) });
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
@@ -2216,10 +2206,10 @@ async function startServer() {
         const lecturerName = String(req.body.school_lecturer || '').trim();
         let validLecturer: any = null;
         if (!requestAssignment) {
-          if (!lecturerName) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn hoặc chọn Nhờ Khoa phân công.' });
+          if (!lecturerName) return res.status(400).json({ error: 'Vui lòng chọn giảng viên hướng dẫn hoặc để trống để Khoa phân công.' });
           validLecturer = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0] as any;
           if (!validLecturer) return res.status(400).json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' });
-          if (isBachelorLecturer(validLecturer.name)) return res.status(400).json({ error: 'Giảng viên CN không được làm hướng dẫn chính. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.' });
+          if (isBachelorLecturer(validLecturer.name)) return res.status(400).json({ error: 'Giảng viên CN không được làm hướng dẫn chính. Vui lòng chọn giảng viên khác hoặc để trống để Khoa phân công.' });
         }
         await db.execute({
           sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
@@ -2231,7 +2221,7 @@ async function startServer() {
             req.user.id,
             school?.id || null,
             requestAssignment
-              ? 'Tôi xác nhận chưa trúng tuyển công ty nào và nhờ Khoa phân công giảng viên hướng dẫn thực tập tại trường.'
+              ? 'Tôi xác nhận chưa trúng tuyển công ty nào và để Khoa phân công giảng viên hướng dẫn thực tập tại trường.'
               : 'Tôi xác nhận đã được giảng viên đồng ý hướng dẫn thực tập tại trường.',
             requestAssignment ? null : lecturerName,
             requestAssignment ? 1 : 0,
@@ -2596,6 +2586,9 @@ async function startServer() {
     }
     await executeBatch([
       { sql: 'DELETE FROM final_internships WHERE user_id = ? AND locked_at IS NULL', args: [req.user.id] },
+      { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
+      { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
+      { sql: 'DELETE FROM advisor_requests WHERE user_id = ?', args: [req.user.id] },
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] },
     ]);
     res.json({ success: true });
