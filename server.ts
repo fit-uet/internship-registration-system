@@ -3362,9 +3362,54 @@ async function startServer() {
     })).rows[0] as any || null;
   }
 
+  async function approveAgreedAdvisorRequest(request: any, actorId: number) {
+    if (!request || request.request_type !== 'agreed' || request.status === 'approved') return false;
+    let lecturerId = request.lecturer_id ? Number(request.lecturer_id) : 0;
+    let coLecturerId = request.co_lecturer_id ? Number(request.co_lecturer_id) : 0;
+    if (!lecturerId && request.lecturer_name_text) {
+      const lecturer = await findLecturerByNameText(request.lecturer_name_text);
+      lecturerId = lecturer?.id ? Number(lecturer.id) : 0;
+    }
+    if (!coLecturerId && request.co_lecturer_name_text) {
+      const coLecturer = await findLecturerByNameText(request.co_lecturer_name_text);
+      coLecturerId = coLecturer?.id ? Number(coLecturer.id) : 0;
+    }
+    if (!lecturerId) return false;
+    const primaryResult = await createAdvisorAssignment({
+      user_id: Number(request.user_id),
+      lecturer_id: lecturerId,
+      role: 'primary',
+      note: 'Tự duyệt do sinh viên khai báo đã được GV đồng ý hướng dẫn',
+      allow_over_quota: true,
+      allow_without_final: true,
+    }, actorId);
+    if (primaryResult.error) return false;
+    if (coLecturerId) {
+      await createAdvisorAssignment({
+        user_id: Number(request.user_id),
+        lecturer_id: coLecturerId,
+        role: 'co',
+        note: 'Tự duyệt đồng hướng dẫn do sinh viên khai báo',
+        allow_over_quota: true,
+        allow_without_final: true,
+      }, actorId);
+    }
+    await db.execute({
+      sql: `UPDATE advisor_requests
+            SET lecturer_id = ?, co_lecturer_id = ?, status = 'approved', reviewed_by = ?,
+                reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours')
+            WHERE id = ?`,
+      args: [lecturerId, coLecturerId || null, actorId, Number(request.id)],
+    });
+    return true;
+  }
+
   async function ensureAdvisorRequestFromSchoolRegistration(userId: number) {
     const existing = (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE user_id = ?', args: [userId] })).rows[0] as any;
-    if (existing) return existing;
+    if (existing) {
+      await approveAgreedAdvisorRequest(existing, userId);
+      return (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    }
     const assigned = (await db.execute({ sql: "SELECT id FROM advisor_assignments WHERE user_id = ? AND role = 'primary' LIMIT 1", args: [userId] })).rows[0];
     if (assigned) return null;
     const reg = (await db.execute({
@@ -3387,30 +3432,8 @@ async function startServer() {
             VALUES (?, ?, ?, ?, ?, 'agreed', 'pending', ?, 'Sinh viên đã khai báo GVHD khi đăng ký thực tập tại trường.', ?, datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
       args: [userId, lecturer?.id || null, coLecturer?.id || null, reg.other_company_contact || null, reg.other_company_role || null, quotaStatus, Number(reg.id)],
     });
-    if (lecturer?.id) {
-      await createAdvisorAssignment({
-        user_id: userId,
-        lecturer_id: Number(lecturer.id),
-        role: 'primary',
-        note: 'Tự duyệt từ khai báo đã được GV đồng ý hướng dẫn',
-        allow_over_quota: true,
-        allow_without_final: true,
-      }, userId);
-      if (coLecturer?.id) {
-        await createAdvisorAssignment({
-          user_id: userId,
-          lecturer_id: Number(coLecturer.id),
-          role: 'co',
-          note: 'Tự duyệt đồng hướng dẫn từ khai báo của sinh viên',
-          allow_over_quota: true,
-          allow_without_final: true,
-        }, userId);
-      }
-      await db.execute({
-        sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
-        args: [userId],
-      });
-    }
+    const created = (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    await approveAgreedAdvisorRequest(created, userId);
     return (await db.execute({ sql: 'SELECT * FROM advisor_requests WHERE user_id = ?', args: [userId] })).rows[0] as any;
   }
 
@@ -3437,6 +3460,17 @@ async function startServer() {
     `)).rows as any[];
     for (const row of rows) {
       await ensureAdvisorRequestFromSchoolRegistration(Number(row.user_id));
+    }
+  }
+
+  async function approvePendingAgreedAdvisorRequests(actorId: number) {
+    const rows = (await db.execute(`
+      SELECT *
+      FROM advisor_requests
+      WHERE request_type = 'agreed' AND status = 'pending'
+    `)).rows as any[];
+    for (const row of rows) {
+      await approveAgreedAdvisorRequest(row, actorId);
     }
   }
 
@@ -3689,6 +3723,7 @@ async function startServer() {
 
   app.get('/api/admin/advisor-requests', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
+      await approvePendingAgreedAdvisorRequests(req.user.id);
       const rows = (await db.execute(`
         SELECT ar.*, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
                l.name as lecturer_name, l.email as lecturer_email,

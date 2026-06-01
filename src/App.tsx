@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -666,7 +666,9 @@ function App() {
                 <Route path="/admin/final-internships" element={user.role === 'admin' ? <FinalInternshipListAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
-                <Route path="/admin/advisors" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} /> : <Navigate to="/" />} />
+                <Route path="/admin/advisors" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} view="assignments" /> : <Navigate to="/" />} />
+                <Route path="/admin/advisors/requests" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} view="requests" /> : <Navigate to="/" />} />
+                <Route path="/admin/advisors/quotas" element={user.role === 'admin' ? <AdvisorAssignmentAdmin token={token} view="quotas" /> : <Navigate to="/" />} />
                 <Route path="/admin/reports" element={user.role === 'admin' ? <FinalReportAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/grades" element={user.role === 'admin' ? <GradeAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/notifications" element={user.role === 'admin' ? <NotificationAdmin token={token} /> : <Navigate to="/" />} />
@@ -3082,7 +3084,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
   );
 }
 
-function AdvisorAssignmentAdmin({ token }: { token: string }) {
+function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string, view?: 'assignments' | 'requests' | 'quotas' }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [lecturers, setLecturers] = useState<any[]>([]);
@@ -3101,12 +3103,10 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, reqRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/advisor-assignments`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/admin/advisor-requests`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      const data = await res.json();
+      const reqRes = await fetch(`${API_BASE}/api/admin/advisor-requests`, { headers: { Authorization: `Bearer ${token}` } });
       const requestData = await reqRes.json();
+      const res = await fetch(`${API_BASE}/api/admin/advisor-assignments`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
       setRows(Array.isArray(data.rows) ? data.rows : []);
       setLecturers(Array.isArray(data.lecturers) ? data.lecturers : []);
       setAdvisorRequests(Array.isArray(requestData) ? requestData : []);
@@ -3273,35 +3273,56 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
     saveXlsx('phan_cong_gvhd.xlsx', headers, data, 'Phân công GVHD');
   };
 
-  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải phân công...</div>;
+  const isAssignmentsView = view === 'assignments';
+  const isRequestsView = view === 'requests';
+  const isQuotasView = view === 'quotas';
+  const pageTitle = isRequestsView ? 'Phê duyệt đề xuất GVHD' : isQuotasView ? 'Chỉ tiêu giảng viên' : 'Phân công giảng viên hướng dẫn';
+  const pageDescription = isRequestsView
+    ? 'Xem và xử lý các đề xuất giảng viên hướng dẫn từ sinh viên.'
+    : isQuotasView
+      ? 'Theo dõi số lượng đang hướng dẫn và điều chỉnh chỉ tiêu từng giảng viên.'
+      : 'Phân công trên danh sách sinh viên đã xác nhận nơi thực tập hoặc đã gửi đề xuất GVHD.';
+
+  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải dữ liệu GVHD...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> Phân công giảng viên hướng dẫn</h2>
-          <p className="text-sm text-slate-500 mt-1">Phân công trên danh sách sinh viên đã xác nhận nơi thực tập hoặc đã gửi đề xuất GVHD.</p>
+          <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> {pageTitle}</h2>
+          <p className="text-sm text-slate-500 mt-1">{pageDescription}</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full sm:w-80 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
-          </div>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
-            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
-          </label>
-          <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
-          </button>
-          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất XLSX
-          </button>
+          {isAssignmentsView && (
+            <>
+              <button onClick={() => navigate('/admin/advisors/requests')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <CheckCircle2 size={16} /> Phê duyệt đề xuất
+                {advisorRequests.filter(item => item.status === 'pending').length > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{advisorRequests.filter(item => item.status === 'pending').length}</span>}
+              </button>
+              <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <Settings size={16} /> Chỉ tiêu GV
+              </button>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập..." className="w-full sm:w-80 pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
+                {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
+                <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
+              </label>
+              <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+                {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
+              </button>
+              <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <Download size={16} /> Xuất XLSX
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {isRequestsView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-slate-800">Đề xuất GVHD từ sinh viên</h3>
@@ -3365,9 +3386,9 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {isAssignmentsView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
@@ -3441,9 +3462,9 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
           onPageChange={setCurrentPage}
           label="sinh viên"
         />
-      </div>
+      </div>}
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+      {isQuotasView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
         <h3 className="font-bold text-slate-800 mb-3">Chỉ tiêu giảng viên</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {lecturers.map(lecturer => (
@@ -3459,7 +3480,7 @@ function AdvisorAssignmentAdmin({ token }: { token: string }) {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
