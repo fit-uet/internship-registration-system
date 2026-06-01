@@ -490,6 +490,7 @@ async function createNotification(data: {
   body: string;
   status?: 'queued' | 'website_only';
   send_now?: boolean;
+  no_queue_on_send_skip?: boolean;
 }) {
   try {
     if (!data.recipient_email) return;
@@ -500,7 +501,19 @@ async function createNotification(data: {
       args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
     });
     if (status === 'queued' && (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true')) {
-      return await sendNotificationEmail(Number(result.lastInsertRowid), data);
+      const notificationId = Number(result.lastInsertRowid);
+      const sendStatus = await sendNotificationEmail(notificationId, data);
+      if (data.no_queue_on_send_skip && sendStatus === 'queued') {
+        await db.execute({
+          sql: `UPDATE notifications
+                SET status = 'website_only',
+                    error = COALESCE(error, 'Email chưa gửi do hết quota hoặc chưa cấu hình provider; thông báo chỉ hiển thị trên website.')
+                WHERE id = ?`,
+          args: [notificationId],
+        });
+        return 'website_only';
+      }
+      return sendStatus;
     }
     return status;
   } catch (e) {
@@ -4146,6 +4159,19 @@ async function startServer() {
       sql: `UPDATE advisor_requests SET status = 'approved', admin_note = ?, reviewed_by = ?, reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE id = ?`,
       args: [req.body.admin_note || null, req.user.id, id],
     });
+    const adminNote = String(req.body.admin_note || '').trim();
+    if (adminNote) {
+      const student = (await db.execute({ sql: 'SELECT email, personal_email FROM users WHERE id = ?', args: [Number(request.user_id)] })).rows[0] as any;
+      await createNotification({
+        user_id: Number(request.user_id),
+        recipient_email: student?.personal_email || student?.email,
+        type: 'advisor_request_approved_comment',
+        subject: 'Nhận xét về đăng ký GVHD',
+        body: `Khoa đã duyệt đăng ký GVHD của bạn.\nNhận xét: ${adminNote}`,
+        send_now: true,
+        no_queue_on_send_skip: true,
+      });
+    }
     res.json({ success: true });
   });
 
