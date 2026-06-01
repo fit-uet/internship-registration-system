@@ -1276,39 +1276,41 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const campaignStatusItems = [
     {
       label: 'Đăng ký thực tập',
-      status: registrationWindowStatus,
       openAt: campaign.registration_open_at,
       closeAt: campaign.registration_close_at,
+      status: (!campaign.registration_open_at && !campaign.registration_close_at) ? 'unconfigured' : registrationWindowStatus,
     },
     {
       label: 'Xác nhận nơi thực tập',
-      status: confirmationWindowStatus,
       openAt: campaign.confirmation_open_at,
       closeAt: campaign.confirmation_close_at,
+      status: (!campaign.confirmation_open_at && !campaign.confirmation_close_at) ? 'unconfigured' : confirmationWindowStatus,
     },
     {
       label: 'Đăng ký GVHD',
-      status: advisorRequestWindowStatus,
       openAt: campaign.advisor_request_open_at,
       closeAt: campaign.advisor_request_close_at,
+      status: (!campaign.advisor_request_open_at && !campaign.advisor_request_close_at) ? 'unconfigured' : advisorRequestWindowStatus,
     },
     {
       label: 'Nộp báo cáo final',
-      status: finalReportWindowStatus,
       openAt: campaign.final_report_open_at,
       closeAt: campaign.final_report_close_at,
+      status: (!campaign.final_report_open_at && !campaign.final_report_close_at) ? 'unconfigured' : finalReportWindowStatus,
     },
   ];
   const visibleCampaignStatusItems = campaignStatusItems.some(item => item.status === 'open')
     ? campaignStatusItems.filter(item => item.status === 'open')
     : campaignStatusItems.slice(0, 1);
-  const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : 'Đã đóng';
+  const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
     ? 'bg-green-50 text-green-700 border-green-100'
     : status === 'not_open_yet'
       ? 'bg-orange-50 text-orange-700 border-orange-100'
-      : 'bg-red-50 text-red-700 border-red-100';
-  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : 'bg-red-500';
+      : status === 'unconfigured'
+        ? 'bg-slate-50 text-slate-700 border-slate-200'
+        : 'bg-red-50 text-red-700 border-red-100';
+  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-red-500';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
