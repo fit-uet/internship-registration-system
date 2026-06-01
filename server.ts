@@ -3040,13 +3040,13 @@ async function startServer() {
                  WHEN c.name = 'Công ty khác' THEN r.other_company_name
                  ELSE c.name
                END as internship_place,
-               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
-               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments,
+               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.lecturer_id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
+               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.lecturer_id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments,
                CASE WHEN ar.status IN ('pending', 'approved') AND ar.lecturer_id IS NOT NULL
-                    THEN ar.id || '|' || COALESCE(rl.name, ar.lecturer_name_text, '') || '|' || COALESCE(rl.email, '')
+                    THEN ar.lecturer_id || '|' || COALESCE(rl.name, ar.lecturer_name_text, '') || '|' || COALESCE(rl.email, '')
                END as primary_requests,
                CASE WHEN ar.status IN ('pending', 'approved') AND ar.co_lecturer_id IS NOT NULL
-                    THEN ar.id || '|' || COALESCE(rcl.name, ar.co_lecturer_name_text, '') || '|' || COALESCE(rcl.email, '')
+                    THEN ar.co_lecturer_id || '|' || COALESCE(rcl.name, ar.co_lecturer_name_text, '') || '|' || COALESCE(rcl.email, '')
                END as co_requests
         FROM participants p
         JOIN users u ON u.id = p.user_id
