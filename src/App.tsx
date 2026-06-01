@@ -1273,6 +1273,42 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
   if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
   const registrationRulesMarkdown = String(campaign.registration_rules_md || DEFAULT_REGISTRATION_RULES);
+  const campaignStatusItems = [
+    {
+      label: 'Đăng ký thực tập',
+      status: registrationWindowStatus,
+      openAt: campaign.registration_open_at,
+      closeAt: campaign.registration_close_at,
+    },
+    {
+      label: 'Xác nhận nơi thực tập',
+      status: confirmationWindowStatus,
+      openAt: campaign.confirmation_open_at,
+      closeAt: campaign.confirmation_close_at,
+    },
+    {
+      label: 'Đăng ký GVHD',
+      status: advisorRequestWindowStatus,
+      openAt: campaign.advisor_request_open_at,
+      closeAt: campaign.advisor_request_close_at,
+    },
+    {
+      label: 'Nộp báo cáo final',
+      status: finalReportWindowStatus,
+      openAt: campaign.final_report_open_at,
+      closeAt: campaign.final_report_close_at,
+    },
+  ];
+  const visibleCampaignStatusItems = campaignStatusItems.some(item => item.status === 'open')
+    ? campaignStatusItems.filter(item => item.status === 'open')
+    : campaignStatusItems.slice(0, 1);
+  const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : 'Đã đóng';
+  const campaignStatusColor = (status: string) => status === 'open'
+    ? 'bg-green-50 text-green-700 border-green-100'
+    : status === 'not_open_yet'
+      ? 'bg-orange-50 text-orange-700 border-orange-100'
+      : 'bg-red-50 text-red-700 border-red-100';
+  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : 'bg-red-500';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
@@ -1280,24 +1316,31 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trạng thái Hệ thống</h2>
-          <div className="flex items-center gap-3 mb-4">
-            <span className="relative flex h-3 w-3">
-              {registrationWindowStatus === 'open' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-              <span className={`relative inline-flex rounded-full h-3 w-3 ${registrationWindowStatus === 'open' ? 'bg-green-500' : registrationWindowStatus === 'not_open_yet' ? 'bg-orange-500' : 'bg-red-500'}`}></span>
-            </span>
-            <span className={`text-sm font-semibold ${registrationWindowStatus === 'open' ? 'text-green-700' : registrationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
-              {registrationWindowStatus === 'open' ? 'Đang mở đăng ký' : registrationWindowStatus === 'not_open_yet' ? 'Chưa mở đăng ký' : 'Đã đóng đăng ký'}
-            </span>
-          </div>
-          <div className="space-y-3 border-t border-slate-100 pt-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Bắt đầu:</span>
-              <span className="font-medium">{campaign.registration_open_at ? formatGMT7(campaign.registration_open_at) + ' (GMT+7)' : '—'}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Kết thúc:</span>
-              <span className="font-medium">{campaign.registration_close_at ? formatGMT7(campaign.registration_close_at) + ' (GMT+7)' : '—'}</span>
-            </div>
+          <div className="space-y-3">
+            {visibleCampaignStatusItems.map(item => (
+              <div key={item.label} className={`rounded-xl border px-3 py-3 ${campaignStatusColor(item.status)}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      {item.status === 'open' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${campaignStatusDot(item.status)}`}></span>
+                    </span>
+                    <span className="text-sm font-semibold truncate">{item.label}</span>
+                  </div>
+                  <span className="text-xs font-bold whitespace-nowrap">{campaignStatusText(item.status)}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] opacity-90">
+                  <div>
+                    <div className="font-semibold">Mở</div>
+                    <div>{item.openAt ? formatGMT7(item.openAt) : '—'}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold">Đóng</div>
+                    <div>{item.closeAt ? formatGMT7(item.closeAt) : '—'}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1459,7 +1502,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
                       <div className="font-semibold">Phân công hiện tại</div>
                       <div className="mt-1">{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</div>
-                      {advisorRequestWindowStatus === 'open' && <div className="mt-1">Trong thời gian đăng ký GVHD, em có thể cập nhật hoặc hủy để đăng ký lại.</div>}
+                      {advisorRequestWindowStatus === 'open' && <div className="mt-1">Trong thời gian đăng ký GVHD, sinh viên có thể cập nhật hoặc hủy để đăng ký lại.</div>}
                     </div>
                   )}
                   {advisorRequest && (
@@ -1492,8 +1535,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           }}
                           className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
                         >
-                          <option value="agreed">Em đã được GV đồng ý hướng dẫn</option>
-                          <option value="proposed">Em tự đề xuất GVHD</option>
+                          <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
+                          <option value="proposed">Sinh viên tự đề xuất GVHD</option>
                           <option value="faculty_assign">Nhờ Khoa phân công</option>
                         </select>
                         <input

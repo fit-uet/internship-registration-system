@@ -1872,6 +1872,7 @@ async function startServer() {
           note: 'Sinh viên khai báo đã được GV đồng ý hướng dẫn',
           allow_over_quota: true,
           allow_without_final: true,
+          suppress_student_notification: true,
         }, req.user.id);
         if (primaryResult.error) return res.status(primaryResult.status || 400).json({ error: primaryResult.error });
         if (coLecturerId) {
@@ -1882,6 +1883,7 @@ async function startServer() {
             note: 'Sinh viên khai báo đồng hướng dẫn',
             allow_over_quota: true,
             allow_without_final: true,
+            suppress_student_notification: true,
           }, req.user.id);
         }
         await db.execute({
@@ -2254,6 +2256,7 @@ async function startServer() {
             note: 'Sinh viên xác nhận GVHD thực tập tại trường',
             allow_over_quota: true,
             allow_without_final: true,
+            suppress_student_notification: true,
           }, req.user.id);
         }
         await createNotification({
@@ -3445,6 +3448,7 @@ async function startServer() {
         note: 'Tự duyệt do sinh viên khai báo đã được GV đồng ý hướng dẫn',
         allow_over_quota: true,
         allow_without_final: true,
+        suppress_student_notification: true,
       }, actorId);
       if (primaryResult.error) return false;
       if (coLecturerId) {
@@ -3455,6 +3459,7 @@ async function startServer() {
           note: 'Tự duyệt đồng hướng dẫn do sinh viên khai báo',
           allow_over_quota: true,
           allow_without_final: true,
+          suppress_student_notification: true,
         }, actorId);
       }
     }
@@ -3568,13 +3573,15 @@ async function startServer() {
         args: [Number(result.lastInsertRowid), userId, lecturerId, role, adminUserId, body.note || null],
       });
       const student = (await db.execute({ sql: 'SELECT email, personal_email, name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
-      await createNotification({
-        user_id: userId,
-        recipient_email: student?.personal_email || student?.email,
-        type: 'advisor_assigned',
-        subject: 'Bạn đã được phân công giảng viên hướng dẫn',
-        body: `Bạn đã được phân công ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}: ${lecturer.name}.`,
-      });
+      if (!body.suppress_student_notification) {
+        await createNotification({
+          user_id: userId,
+          recipient_email: student?.personal_email || student?.email,
+          type: 'advisor_assigned',
+          subject: 'Bạn đã được phân công giảng viên hướng dẫn',
+          body: `Bạn đã được phân công ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}: ${lecturer.name}.`,
+        });
+      }
       return { row: (await db.execute({ sql: 'SELECT * FROM advisor_assignments WHERE id = ?', args: [Number(result.lastInsertRowid)] })).rows[0] };
     } catch (e) {
       const existing = (await db.execute({
@@ -3856,6 +3863,7 @@ async function startServer() {
       note: req.body.admin_note || 'Duyệt đề xuất GVHD từ sinh viên',
       allow_over_quota: true,
       allow_without_final: true,
+      suppress_student_notification: request.request_type === 'agreed',
     }, req.user.id);
     if (primaryResult.error) return res.status(primaryResult.status || 400).json({ error: primaryResult.error });
     if (coLecturerId) {
@@ -3866,6 +3874,7 @@ async function startServer() {
         note: req.body.admin_note || 'Duyệt đề xuất đồng hướng dẫn từ sinh viên',
         allow_over_quota: true,
         allow_without_final: true,
+        suppress_student_notification: request.request_type === 'agreed',
       }, req.user.id);
     }
     await db.execute({
