@@ -765,6 +765,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const [finalNote, setFinalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [advisorRequestSaving, setAdvisorRequestSaving] = useState(false);
+  const [isAdvisorEditOpen, setIsAdvisorEditOpen] = useState(false);
   const [isConfirmingFinal, setIsConfirmingFinal] = useState(false);
   const [itCompanyList, setItCompanyList] = useState<string[]>([]);
   const [lecturers, setLecturers] = useState<string[]>([]);
@@ -1195,6 +1196,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Không gửi được đề xuất GVHD.');
       setAdvisorRequest(data.request || null);
+      setIsAdvisorEditOpen(false);
       alert('Đã ghi nhận đề xuất GVHD.');
       fetchData();
     } catch (e) {
@@ -1219,6 +1221,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       setAdvisorRequest(null);
       setMyAdvisors([]);
       setAdvisorRequestForm({ request_type: 'agreed', lecturer_name: '', co_lecturer_name: '', student_note: '' });
+      setIsAdvisorEditOpen(true);
       fetchData();
     } catch (e) {
       alert('Lỗi kết nối khi hủy đăng ký GVHD.');
@@ -1273,6 +1276,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
   if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
   const registrationRulesMarkdown = String(campaign.registration_rules_md || DEFAULT_REGISTRATION_RULES);
+  const hasAdvisorSelection = myAdvisors.length > 0 || !!advisorRequest;
+  const showAdvisorForm = advisorRequestWindowStatus === 'open' && (!hasAdvisorSelection || isAdvisorEditOpen);
   const campaignStatusItems = [
     {
       label: 'Đăng ký thực tập',
@@ -1496,93 +1501,103 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
                 </div>
               )}
-              {myAdvisors.length > 0 && advisorRequestWindowStatus !== 'open' ? (
-                <p className="text-sm text-slate-600">Bạn đã có phân công GVHD chính thức.</p>
-              ) : (
-                <form onSubmit={submitAdvisorRequest} className="space-y-3">
-                  {myAdvisors.length > 0 && (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-                      <div className="font-semibold">Phân công hiện tại</div>
-                      <div className="mt-1">{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</div>
-                      {advisorRequestWindowStatus === 'open' && <div className="mt-1">Trong thời gian đăng ký GVHD, sinh viên có thể cập nhật hoặc hủy để đăng ký lại.</div>}
+              <form onSubmit={submitAdvisorRequest} className="space-y-3">
+                {hasAdvisorSelection && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                      <div>
+                        <div className="font-bold">GVHD hiện tại</div>
+                        <div className="mt-1">
+                          {myAdvisors.length > 0
+                            ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
+                            : advisorRequest?.request_type === 'faculty_assign'
+                              ? 'Nhờ Khoa phân công'
+                              : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
+                        </div>
+                        {advisorRequest && (
+                          <div className="mt-1 text-xs text-emerald-800">
+                            Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                            {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
+                            {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
+                          </div>
+                        )}
+                      </div>
+                      {advisorRequestWindowStatus === 'open' && (
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                            {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
+                          </button>
+                          <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">
+                            Hủy đăng ký
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {advisorRequest && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                      <div className="font-semibold">
-                        Trạng thái đề xuất: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
-                        {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, cần Khoa duyệt thủ công' : ''}
-                      </div>
-                      <div className="mt-1">
-                        GVHD: {advisorRequest.lecturer_name || advisorRequest.lecturer_name_text || 'Nhờ Khoa phân công'}
-                        {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
-                      </div>
-                      {advisorRequest.source_registration_id && <div className="mt-1">Nguồn: Từ đăng ký thực tập tại Trường Đại học Công nghệ.</div>}
-                      {advisorRequest.admin_note && <div className="mt-1">Nhận xét của Khoa: {advisorRequest.admin_note}</div>}
-                    </div>
-                  )}
-                  {advisorRequestWindowStatus === 'open' && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <select
-                          value={advisorRequestForm.request_type}
-                          onChange={e => {
-                            const requestType = e.target.value;
-                            setAdvisorRequestForm({
-                              ...advisorRequestForm,
-                              request_type: requestType,
-                              lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
-                              co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
-                            });
-                          }}
-                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
-                        >
-                          <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
-                          <option value="proposed">Sinh viên tự đề xuất GVHD</option>
-                          <option value="faculty_assign">Nhờ Khoa phân công</option>
-                        </select>
-                        <input
-                          value={advisorRequestForm.lecturer_name}
-                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
-                          disabled={advisorRequestForm.request_type === 'faculty_assign'}
-                          list="advisor-primary-lecturers"
-                          placeholder="Nhập/chọn GVHD chính"
-                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                        />
-                        <input
-                          value={advisorRequestForm.co_lecturer_name}
-                          onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
-                          disabled={advisorRequestForm.request_type === 'faculty_assign'}
-                          list="advisor-co-lecturers"
-                          placeholder="Nhập/chọn đồng hướng dẫn"
-                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                        />
-                        <datalist id="advisor-primary-lecturers">
-                          {lecturers.map(name => <option key={name} value={name} />)}
-                        </datalist>
-                        <datalist id="advisor-co-lecturers">
-                          {lecturers.map(name => <option key={name} value={name} />)}
-                        </datalist>
-                      </div>
-                      <textarea
-                        value={advisorRequestForm.student_note}
-                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                        placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
-                        rows={2}
+                  </div>
+                )}
+                {showAdvisorForm && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <select
+                        value={advisorRequestForm.request_type}
+                        onChange={e => {
+                          const requestType = e.target.value;
+                          setAdvisorRequestForm({
+                            ...advisorRequestForm,
+                            request_type: requestType,
+                            lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.lecturer_name,
+                            co_lecturer_name: requestType === 'faculty_assign' ? '' : advisorRequestForm.co_lecturer_name
+                          });
+                        }}
+                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
+                        <option value="proposed">Sinh viên tự đề xuất GVHD</option>
+                        <option value="faculty_assign">Nhờ Khoa phân công</option>
+                      </select>
+                      <input
+                        value={advisorRequestForm.lecturer_name}
+                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
+                        disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                        list="advisor-primary-lecturers"
+                        placeholder="Nhập/chọn GVHD chính"
+                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
                       />
+                      <input
+                        value={advisorRequestForm.co_lecturer_name}
+                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
+                        disabled={advisorRequestForm.request_type === 'faculty_assign'}
+                        list="advisor-co-lecturers"
+                        placeholder="Nhập/chọn đồng hướng dẫn"
+                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                      />
+                      <datalist id="advisor-primary-lecturers">
+                        {lecturers.map(name => <option key={name} value={name} />)}
+                      </datalist>
+                      <datalist id="advisor-co-lecturers">
+                        {lecturers.map(name => <option key={name} value={name} />)}
+                      </datalist>
+                    </div>
+                    <textarea
+                      value={advisorRequestForm.student_note}
+                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
+                      placeholder="Ghi chú cho Khoa nếu tự đề xuất, ví dụ: lý do đề xuất, lĩnh vực phù hợp, hoặc thông tin đã trao đổi với GV..."
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
+                      rows={2}
+                    />
+                    <div className="flex flex-wrap gap-2">
                       <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
-                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {advisorRequest || myAdvisors.length > 0 ? 'Cập nhật GVHD' : 'Gửi đề xuất GVHD'}
+                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Gửi đề xuất GVHD'}
                       </button>
-                      {(advisorRequest || myAdvisors.length > 0) && (
-                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="ml-2 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60">
-                          <Trash2 size={16} /> Hủy đăng ký GVHD
+                      {hasAdvisorSelection && (
+                        <button type="button" onClick={() => setIsAdvisorEditOpen(false)} disabled={advisorRequestSaving} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                          Hủy chỉnh sửa
                         </button>
                       )}
-                    </>
-                  )}
-                </form>
-              )}
+                    </div>
+                  </div>
+                )}
+              </form>
             </div>
           </div>
         )}
@@ -3800,7 +3815,7 @@ function StudentGradeView({ token }: { token: string }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">
           <div className="p-5">
             <div className="text-xs uppercase font-semibold text-slate-500">Nơi thực tập</div>
-            <div className="mt-2 text-base font-semibold text-slate-900">{grade?.internship_place || 'Chưa có thông tin'}</div>
+            <div className="mt-2 text-base font-semibold text-slate-900">{grade?.internship_place || 'Chưa xác nhận'}</div>
             {grade?.confirmed_at && <div className="mt-1 text-xs text-slate-500">Xác nhận: {new Date(grade.confirmed_at).toLocaleString('vi-VN')}</div>}
           </div>
           <div className="p-5">
