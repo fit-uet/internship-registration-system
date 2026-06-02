@@ -602,6 +602,11 @@ function App() {
                               </Link>
                             </>
                           )}
+                          {user.role === 'lecturer' && (
+                            <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                              <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
+                            </Link>
+                          )}
                           {user.role === 'admin' && (
                             <>
                               <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
@@ -697,6 +702,7 @@ function App() {
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
                 <Route path="/reports/final" element={user.role === 'student' ? <StudentFinalReportView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
+                <Route path="/lecturer/grades" element={user.role === 'lecturer' ? <LecturerGradeView token={token} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -8716,10 +8722,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
 function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
-  const [grades, setGrades] = useState<any[]>([]);
-  const [gradeEdits, setGradeEdits] = useState<Record<string, any>>({});
   const [loadingStudents, setLoadingStudents] = useState(true);
-  const [loadingGrades, setLoadingGrades] = useState(true);
 
   const fetchStudents = () => {
     setLoadingStudents(true);
@@ -8730,27 +8733,8 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
       .finally(() => setLoadingStudents(false));
   };
 
-  const fetchGrades = () => {
-    setLoadingGrades(true);
-    fetch(`${API_BASE}/api/lecturer/grades`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
-        const list = Array.isArray(data) ? data : [];
-        setGrades(list);
-        setGradeEdits(Object.fromEntries(list.map((row: any) => [String(row.user_id), {
-          progress_score: row.progress_score ?? '',
-          report_score: row.report_score ?? '',
-          company_score: row.company_score ?? '',
-          comment: row.comment || ''
-        }])));
-      })
-      .catch(() => setGrades([]))
-      .finally(() => setLoadingGrades(false));
-  };
-
   useEffect(() => {
     fetchStudents();
-    fetchGrades();
   }, [token]);
 
   const formatBytes = (bytes: number) => {
@@ -8759,14 +8743,6 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
-  const gradeStatusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có';
-  const previewFinalScore = (edit: any) => {
-    const p = edit?.progress_score === '' ? null : Number(edit?.progress_score);
-    const r = edit?.report_score === '' ? null : Number(edit?.report_score);
-    const c = edit?.company_score === '' ? null : Number(edit?.company_score);
-    if (![p, r, c].every(v => v !== null && Number.isFinite(v))) return '-';
-    return ((p as number) * 0.2 + (r as number) * 0.2 + (c as number) * 0.6).toFixed(2);
-  };
 
   const downloadReport = async (student: any) => {
     const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
@@ -8783,23 +8759,6 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
     });
     if (res.ok) fetchStudents();
     else alert('Cập nhật trạng thái báo cáo thất bại.');
-  };
-
-  const updateGradeEdit = (userId: number, key: string, value: string) => {
-    setGradeEdits(prev => ({ ...prev, [userId]: { ...(prev[String(userId)] || {}), [key]: value } }));
-  };
-
-  const saveGrade = async (row: any, submit = false) => {
-    const edit = gradeEdits[String(row.user_id)] || {};
-    const endpoint = `${API_BASE}/api/lecturer/grades/${row.user_id}${submit ? '/submit' : ''}`;
-    const res = await fetch(endpoint, {
-      method: submit ? 'POST' : 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(edit)
-    });
-    const data = await res.json();
-    if (!res.ok) return alert(data.error || 'Lưu điểm thất bại.');
-    fetchGrades();
   };
 
   return (
@@ -8837,6 +8796,12 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-200 shadow-sm transition-colors"
           >
             <Bell size={18} /> Thông báo
+          </button>
+          <button
+            onClick={() => navigate('/lecturer/grades')}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-colors"
+          >
+            <CheckCircle2 size={18} /> Chấm điểm thực tập
           </button>
         </div>
       </div>
@@ -8899,29 +8864,138 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           </table>
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-green-50/60">
-          <h3 className="font-bold text-slate-800">Chấm điểm thực tập</h3>
-          <p className="text-xs text-slate-500 mt-1">Chỉ GVHD chính nhập điểm. Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
+    </div>
+  );
+}
+
+function LecturerGradeView({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [grades, setGrades] = useState<any[]>([]);
+  const [gradeEdits, setGradeEdits] = useState<Record<string, any>>({});
+  const [loadingGrades, setLoadingGrades] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  const fetchGrades = () => {
+    setLoadingGrades(true);
+    fetch(`${API_BASE}/api/lecturer/grades`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : [];
+        setGrades(list);
+        setGradeEdits(Object.fromEntries(list.map((row: any) => [String(row.user_id), {
+          progress_score: row.progress_score ?? '',
+          report_score: row.report_score ?? '',
+          company_score: row.company_score ?? '',
+          comment: row.comment || ''
+        }])));
+      })
+      .catch(() => setGrades([]))
+      .finally(() => setLoadingGrades(false));
+  };
+
+  useEffect(() => {
+    fetchGrades();
+  }, [token]);
+
+  const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
+  const gradeStatusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có';
+  const previewFinalScore = (edit: any) => {
+    const p = edit?.progress_score === '' ? null : Number(edit?.progress_score);
+    const r = edit?.report_score === '' ? null : Number(edit?.report_score);
+    const c = edit?.company_score === '' ? null : Number(edit?.company_score);
+    if (![p, r, c].every(v => v !== null && Number.isFinite(v))) return '-';
+    return ((p as number) * 0.2 + (r as number) * 0.2 + (c as number) * 0.6).toFixed(2);
+  };
+
+  const updateGradeEdit = (userId: number, key: string, value: string) => {
+    setGradeEdits(prev => ({ ...prev, [userId]: { ...(prev[String(userId)] || {}), [key]: value } }));
+  };
+
+  const saveGrade = async (row: any, submit = false) => {
+    const edit = gradeEdits[String(row.user_id)] || {};
+    const key = `${row.user_id}:${submit ? 'submit' : 'draft'}`;
+    setSavingKey(key);
+    try {
+      const endpoint = `${API_BASE}/api/lecturer/grades/${row.user_id}${submit ? '/submit' : ''}`;
+      const res = await fetch(endpoint, {
+        method: submit ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(edit)
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Lưu điểm thất bại.');
+      fetchGrades();
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const downloadReport = async (row: any) => {
+    const res = await fetch(`${API_BASE}/api/reports/final/${row.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return alert('Không tải được báo cáo.');
+    saveAs(await res.blob(), `${row.student_id || 'final'}-final-report.pdf`);
+  };
+
+  const stats = {
+    total: grades.length,
+    missing: grades.filter(row => !row.grade_status || row.grade_status === 'missing').length,
+    draft: grades.filter(row => row.grade_status === 'draft').length,
+    submitted: grades.filter(row => row.grade_status === 'submitted').length,
+    locked: grades.filter(row => row.locked_at).length,
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
+            ← Quay lại trang chủ
+          </button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <CheckCircle2 className="text-green-600" /> Chấm điểm thực tập
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Chỉ GVHD chính nhập và nộp điểm. Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
         </div>
+        <button onClick={fetchGrades} disabled={loadingGrades} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60">
+          <RefreshCw size={16} className={loadingGrades ? 'animate-spin' : ''} /> Tải lại
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          ['Tổng sinh viên', stats.total, 'text-slate-900'],
+          ['Chưa có điểm', stats.missing, 'text-slate-600'],
+          ['Nháp', stats.draft, 'text-orange-700'],
+          ['Đã nộp', stats.submitted, 'text-emerald-700'],
+          ['Đã khóa', stats.locked, 'text-red-700'],
+        ].map(([label, value, color]) => (
+          <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</div>
+            <div className={`mt-2 text-2xl font-bold ${color}`}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
               <tr>
                 <th className="px-4 py-3">Sinh viên</th>
+                <th className="px-4 py-3">Nơi thực tập</th>
                 <th className="px-4 py-3">Báo cáo</th>
                 <th className="px-4 py-3">20% định kỳ</th>
                 <th className="px-4 py-3">20% final</th>
                 <th className="px-4 py-3">60% đánh giá</th>
                 <th className="px-4 py-3">Tổng</th>
-                <th className="px-4 py-3">Thao tác</th>
+                <th className="px-4 py-3">Ghi chú / Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingGrades ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Đang tải bảng điểm...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Đang tải bảng điểm...</td></tr>
               ) : grades.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên hướng dẫn chính.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên hướng dẫn chính.</td></tr>
               ) : grades.map((row: any) => {
                 const edit = gradeEdits[String(row.user_id)] || {};
                 const disabled = !!row.locked_at;
@@ -8930,12 +9004,18 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                     <td className="px-4 py-3">
                       <div className="font-semibold text-slate-900">{row.student_name}</div>
                       <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
-                      <div className="text-xs text-slate-500">{row.internship_place || '-'}</div>
+                      <div className="text-xs text-slate-500">{row.class_name || '-'}</div>
                     </td>
+                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[220px]">{row.internship_place || '-'}</td>
                     <td className="px-4 py-3 text-xs">
                       <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>{statusLabel(row.report_status)}</div>
                       <div className={`mt-1 ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{gradeStatusLabel(row.grade_status)}</div>
                       {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
+                      {row.report_status && (
+                        <button onClick={() => downloadReport(row)} className="mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                          Tải báo cáo
+                        </button>
+                      )}
                     </td>
                     {['progress_score', 'report_score', 'company_score'].map(key => (
                       <td key={key} className="px-4 py-3">
@@ -8953,11 +9033,15 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                     ))}
                     <td className="px-4 py-3 font-bold text-green-700">{previewFinalScore(edit)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-col gap-2 min-w-[160px]">
-                        <input disabled={disabled} value={edit.comment ?? ''} onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)} placeholder="Ghi chú" className="border border-slate-300 rounded px-2 py-1 text-xs disabled:bg-slate-100" />
-                        <div className="flex gap-2">
-                          <button disabled={disabled} onClick={() => saveGrade(row, false)} className="text-blue-700 hover:bg-blue-50 px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">Lưu</button>
-                          <button disabled={disabled} onClick={() => saveGrade(row, true)} className="text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">Nộp</button>
+                      <div className="flex flex-col gap-2 min-w-[180px]">
+                        <input disabled={disabled} value={edit.comment ?? ''} onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)} placeholder="Nhận xét / ghi chú" className="border border-slate-300 rounded px-2 py-1.5 text-xs disabled:bg-slate-100" />
+                        <div className="flex flex-wrap gap-2">
+                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                            {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
+                          </button>
+                          <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                            {savingKey === `${row.user_id}:submit` ? 'Đang nộp...' : 'Nộp điểm'}
+                          </button>
                         </div>
                       </div>
                     </td>
