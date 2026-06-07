@@ -602,10 +602,17 @@ function App() {
                               </Link>
                             </>
                           )}
-                          {user.role === 'lecturer' && (
-                            <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                              <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
-                            </Link>
+                          {(user.role === 'lecturer' || user.is_lecturer) && (
+                            <>
+                              {user.role === 'admin' && (
+                                <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                  <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
+                                </Link>
+                              )}
+                              <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
+                              </Link>
+                            </>
                           )}
                           {user.role === 'admin' && (
                             <>
@@ -678,6 +685,7 @@ function App() {
             ) : (
               <Routes>
                 <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : <Dashboard user={user} setUser={setUser} token={token} onAuthExpired={handleAuthExpired} />} />
+                <Route path="/lecturer" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerHome user={user} token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/final-internships" element={user.role === 'admin' ? <FinalInternshipListAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
@@ -702,7 +710,7 @@ function App() {
                 <Route path="/profile" element={<Profile user={user} setUser={setUser} token={token} />} />
                 <Route path="/reports/final" element={user.role === 'student' ? <StudentFinalReportView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
-                <Route path="/lecturer/grades" element={user.role === 'lecturer' ? <LecturerGradeView token={token} /> : <Navigate to="/" />} />
+                <Route path="/lecturer/grades" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerGradeView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -8868,7 +8876,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
   );
 }
 
-function LecturerGradeView({ token }: { token: string }) {
+function LecturerGradeView({ token, user }: { token: string, user: any }) {
   const navigate = useNavigate();
   const [grades, setGrades] = useState<any[]>([]);
   const [gradeEdits, setGradeEdits] = useState<Record<string, any>>({});
@@ -8948,13 +8956,14 @@ function LecturerGradeView({ token }: { token: string }) {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
+          <button onClick={() => navigate(user.role === 'admin' ? '/lecturer' : '/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
             ← Quay lại trang chủ
           </button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <CheckCircle2 className="text-green-600" /> Chấm điểm thực tập
           </h2>
-          <p className="text-sm text-slate-500 mt-1">Chỉ GVHD chính nhập và nộp điểm. Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
+          <p className="text-sm text-slate-500 mt-1">Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
+          <p className="text-xs text-slate-500 mt-1">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
         </div>
         <button onClick={fetchGrades} disabled={loadingGrades} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60">
           <RefreshCw size={16} className={loadingGrades ? 'animate-spin' : ''} /> Tải lại
@@ -8995,7 +9004,7 @@ function LecturerGradeView({ token }: { token: string }) {
               {loadingGrades ? (
                 <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Đang tải bảng điểm...</td></tr>
               ) : grades.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên hướng dẫn chính.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên mà Thầy/Cô là giảng viên hướng dẫn chính. Nếu chỉ là đồng hướng dẫn, Thầy/Cô không nhập điểm trên hệ thống.</td></tr>
               ) : grades.map((row: any) => {
                 const edit = gradeEdits[String(row.user_id)] || {};
                 const disabled = !!row.locked_at;
