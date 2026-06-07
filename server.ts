@@ -1880,7 +1880,7 @@ async function startServer() {
                 updated_at = datetime('now', '+7 hours')`,
         args: [req.user.id, lecturerId, coLecturerId, requestType, quotaStatus, req.body.student_note || null],
       });
-      if (requestType === 'agreed' && lecturerId && quotaStatus !== 'over_quota') {
+      if (requestType === 'agreed' && lecturerId) {
         const primaryResult = await createAdvisorAssignment({
           user_id: req.user.id,
           lecturer_id: lecturerId,
@@ -1906,12 +1906,15 @@ async function startServer() {
           sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
           args: [req.user.id],
         });
+        if (quotaStatus === 'over_quota') {
+          await notifyAdvisorQuotaExceeded(Number(req.user.id), [lecturerId, coLecturerId]);
+        }
       }
       res.json({
         success: true,
         request: await advisorRequestWithNames(req.user.id),
         warning: quotaStatus === 'over_quota'
-          ? 'Giảng viên đã đủ chỉ tiêu. Đăng ký của bạn đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.'
+          ? 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.'
           : null,
       });
     } catch (e: any) {
@@ -2261,21 +2264,21 @@ async function startServer() {
                     request_type = 'agreed', status = excluded.status, quota_status = excluded.quota_status, student_note = excluded.student_note,
                     reviewed_at = CASE WHEN excluded.status = 'approved' THEN datetime('now', '+7 hours') ELSE NULL END,
                     updated_at = datetime('now', '+7 hours')`,
-            args: [req.user.id, Number(validLecturer.id), lecturerName, quotaStatus === 'over_quota' ? 'pending' : 'approved', quotaStatus],
+            args: [req.user.id, Number(validLecturer.id), lecturerName, 'approved', quotaStatus],
           });
           if (quotaStatus === 'over_quota') {
-            advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đăng ký GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
-          } else {
-            await createAdvisorAssignment({
-              user_id: req.user.id,
-              lecturer_id: Number(validLecturer.id),
-              role: 'primary',
-              note: 'Sinh viên xác nhận GVHD thực tập tại trường',
-              allow_over_quota: true,
-              allow_without_final: true,
-              suppress_student_notification: true,
-            }, req.user.id);
+            advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.';
+            await notifyAdvisorQuotaExceeded(Number(req.user.id), [Number(validLecturer.id)]);
           }
+          await createAdvisorAssignment({
+            user_id: req.user.id,
+            lecturer_id: Number(validLecturer.id),
+            role: 'primary',
+            note: 'Sinh viên xác nhận GVHD thực tập tại trường',
+            allow_over_quota: true,
+            allow_without_final: true,
+            suppress_student_notification: true,
+          }, req.user.id);
         }
         await createNotification({
           user_id: req.user.id,
@@ -2570,9 +2573,9 @@ async function startServer() {
         });
         let advisorWarning: string | null = null;
         if (advisorRequestType === 'agreed' && advisorQuota === 'over_quota') {
-          advisorWarning = 'Giảng viên đã đủ chỉ tiêu. Đăng ký GVHD đã được ghi nhận ở trạng thái vượt quota và cần Khoa duyệt thủ công.';
+          advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.';
         }
-        if (advisorRequestType === 'agreed' && advisorLecturer && advisorQuota !== 'over_quota') {
+        if (advisorRequestType === 'agreed' && advisorLecturer) {
           const primaryResult = await createAdvisorAssignment({
             user_id: req.user.id,
             lecturer_id: Number(advisorLecturer.id),
@@ -2598,6 +2601,9 @@ async function startServer() {
             sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
             args: [req.user.id],
           });
+          if (advisorQuota === 'over_quota') {
+            await notifyAdvisorQuotaExceeded(Number(req.user.id), [Number(advisorLecturer.id), advisorCoLecturer ? Number(advisorCoLecturer.id) : 0]);
+          }
         }
         (req as any).advisorWarning = advisorWarning;
       }
@@ -3803,6 +3809,34 @@ async function startServer() {
     })).rows[0] as any || null;
   }
 
+  async function notifyAdvisorQuotaExceeded(userId: number, lecturerIds: number[]) {
+    const ids = Array.from(new Set(lecturerIds.map(Number).filter(Boolean)));
+    if (ids.length === 0) return;
+    const student = (await db.execute({ sql: 'SELECT email, personal_email, name, student_id FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
+    const lecturers: any[] = [];
+    for (const id of ids) {
+      const lecturer = (await db.execute({ sql: 'SELECT id, name, email FROM lecturers WHERE id = ?', args: [id] })).rows[0] as any;
+      if (lecturer) lecturers.push(lecturer);
+    }
+    const lecturerNames = lecturers.map(item => item.name).filter(Boolean).join('; ');
+    await createNotification({
+      user_id: userId,
+      recipient_email: student?.personal_email || student?.email,
+      type: 'advisor_quota_exceeded',
+      subject: 'Đăng ký GVHD vượt chỉ tiêu đã được ghi nhận',
+      body: `Đăng ký GVHD của bạn với ${lecturerNames || 'giảng viên đã chọn'} đã được ghi nhận dù giảng viên đã đủ/vượt chỉ tiêu. Khoa và giảng viên đã được thông báo.`,
+    });
+    for (const lecturer of lecturers) {
+      if (!lecturer.email) continue;
+      await createNotification({
+        recipient_email: lecturer.email,
+        type: 'advisor_quota_exceeded',
+        subject: 'Có sinh viên đăng ký GVHD vượt chỉ tiêu',
+        body: `Sinh viên ${student?.name || userId}${student?.student_id ? ` (${student.student_id})` : ''} đã đăng ký ${lecturer.name} làm GVHD trong trạng thái vượt chỉ tiêu. Hệ thống vẫn ghi nhận phân công theo chính sách hiện tại.`,
+      });
+    }
+  }
+
   async function approveAgreedAdvisorRequest(request: any, actorId: number) {
     if (!request || request.request_type !== 'agreed' || request.status === 'approved') return false;
     let lecturerId = request.lecturer_id ? Number(request.lecturer_id) : 0;
@@ -3818,16 +3852,6 @@ async function startServer() {
     const primaryQuotaStatus = await advisorQuotaStatus(lecturerId || null);
     const coQuotaStatus = coLecturerId ? await advisorQuotaStatus(coLecturerId) : 'within_quota';
     const quotaStatus = primaryQuotaStatus === 'over_quota' || coQuotaStatus === 'over_quota' ? 'over_quota' : primaryQuotaStatus;
-    if (quotaStatus === 'over_quota') {
-      await db.execute({
-        sql: `UPDATE advisor_requests
-              SET lecturer_id = ?, co_lecturer_id = ?, quota_status = 'over_quota', status = 'pending',
-                  reviewed_by = NULL, reviewed_at = NULL, updated_at = datetime('now', '+7 hours')
-              WHERE id = ?`,
-        args: [lecturerId || null, coLecturerId || null, Number(request.id)],
-      });
-      return false;
-    }
     if (lecturerId) {
       const primaryResult = await createAdvisorAssignment({
         user_id: Number(request.user_id),
@@ -3851,12 +3875,15 @@ async function startServer() {
         }, actorId);
       }
     }
+    if (quotaStatus === 'over_quota') {
+      await notifyAdvisorQuotaExceeded(Number(request.user_id), [lecturerId, coLecturerId]);
+    }
     await db.execute({
       sql: `UPDATE advisor_requests
-            SET lecturer_id = ?, co_lecturer_id = ?, status = 'approved', reviewed_by = ?,
+            SET lecturer_id = ?, co_lecturer_id = ?, quota_status = ?, status = 'approved', reviewed_by = ?,
                 reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours')
             WHERE id = ?`,
-      args: [lecturerId, coLecturerId || null, actorId, Number(request.id)],
+      args: [lecturerId, coLecturerId || null, quotaStatus, actorId, Number(request.id)],
     });
     return true;
   }
@@ -3982,6 +4009,8 @@ async function startServer() {
   }
 
   async function autoAssignPrimaryAdvisors(adminUserId: number) {
+    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
+    await approvePendingAgreedAdvisorRequests(adminUserId);
     const quotaSettings = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_quota_pgs', 'advisor_quota_ts', 'advisor_quota_ths')")).rows as any[]);
     const candidates = (await db.execute(`
       SELECT l.id, l.name, l.email,
@@ -4003,19 +4032,21 @@ async function startServer() {
       })
       .filter((row: any) => !isBachelorLecturer(row.name) && row.assignment_count < row.max_total_students);
     const students = (await db.execute(`
-      SELECT f.user_id, u.student_id, u.email, u.personal_email, u.name
-      FROM final_internships f
-      JOIN users u ON u.id = f.user_id
-      WHERE NOT EXISTS (
+      SELECT r.user_id, u.student_id, u.email, u.personal_email, u.name
+      FROM registrations r
+      JOIN users u ON u.id = r.user_id
+      WHERE r.status != 'rejected'
+      AND NOT EXISTS (
         SELECT 1 FROM advisor_assignments aa
-        WHERE aa.user_id = f.user_id AND aa.role = 'primary'
+        WHERE aa.user_id = r.user_id AND aa.role = 'primary'
       )
       AND NOT EXISTS (
         SELECT 1 FROM advisor_requests ar
-        WHERE ar.user_id = f.user_id
+        WHERE ar.user_id = r.user_id
           AND ar.status IN ('pending', 'approved')
           AND ar.request_type = 'agreed'
       )
+      GROUP BY r.user_id
       ORDER BY u.student_id ASC
     `)).rows as any[];
 
@@ -4269,6 +4300,9 @@ async function startServer() {
       sql: `UPDATE advisor_requests SET status = 'approved', admin_note = ?, reviewed_by = ?, reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE id = ?`,
       args: [req.body.admin_note || null, req.user.id, id],
     });
+    if (request.quota_status === 'over_quota') {
+      await notifyAdvisorQuotaExceeded(Number(request.user_id), [lecturerId, coLecturerId]);
+    }
     const adminNote = String(req.body.admin_note || '').trim();
     if (adminNote) {
       const student = (await db.execute({ sql: 'SELECT email, personal_email FROM users WHERE id = ?', args: [Number(request.user_id)] })).rows[0] as any;

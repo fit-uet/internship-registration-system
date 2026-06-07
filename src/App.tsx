@@ -391,6 +391,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
   const typeLabel = (type: string) => {
     if (type === 'registration_status_changed') return 'Đăng ký';
     if (type === 'advisor_assigned') return 'GVHD';
+    if (type === 'advisor_quota_exceeded') return 'Vượt quota GVHD';
     if (type === 'final_report_status_changed') return 'Báo cáo';
     if (type === 'grade_locked') return 'Bảng điểm';
     if (type === 'faq_answered') return 'FAQ';
@@ -1857,7 +1858,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         {advisorRequest && (
                           <div className="mt-1 text-xs text-emerald-800">
                             Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
-                            {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, cần Khoa duyệt thủ công' : ''}
+                            {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, đã cảnh báo' : ''}
                             {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
                             {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
                           </div>
@@ -3786,7 +3787,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const autoAssignPrimary = async () => {
-    if (!confirm('Tự phân công GVHD chính cho tất cả sinh viên đã xác nhận nhưng chưa có GVHD chính?')) return;
+    if (!confirm('Tự phân công GVHD chính cho tất cả sinh viên đã có nguyện vọng đăng ký thực tập nhưng chưa đăng ký/chưa có GVHD chính?')) return;
     setAutoAssigning(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/auto-primary`, {
@@ -4005,7 +4006,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                     <td className="px-4 py-3">
                       <div>{request.lecturer_name || request.lecturer_name_text || '-'}</div>
                       {(request.co_lecturer_name || request.co_lecturer_name_text) && <div className="text-xs text-slate-500 mt-1">Đồng HD: {request.co_lecturer_name || request.co_lecturer_name_text}</div>}
-                      {request.quota_status === 'over_quota' && <div className="text-xs text-red-700 font-semibold mt-1">Vượt quota - duyệt thủ công</div>}
+                      {request.quota_status === 'over_quota' && <div className="text-xs text-red-700 font-semibold mt-1">Vượt quota - đã cảnh báo</div>}
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       <div className="text-xs text-slate-600 whitespace-pre-wrap">{request.student_note || '-'}</div>
@@ -4945,6 +4946,7 @@ function NotificationAdmin({ token }: { token: string }) {
     const labels: Record<string, string> = {
       advisor_request_approved_comment: 'Nhận xét đăng ký GVHD',
       advisor_assigned: 'Phân công giảng viên hướng dẫn',
+      advisor_quota_exceeded: 'Cảnh báo vượt quota GVHD',
       company_applicants_sent: 'Đã gửi danh sách cho doanh nghiệp',
       faq_answered: 'Trả lời FAQ',
       faq_question_created: 'Câu hỏi FAQ mới',

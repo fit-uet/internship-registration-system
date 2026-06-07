@@ -737,7 +737,7 @@ Thiết kế UI:
   - Chặn khi chọn giảng viên vượt chỉ tiêu.
   - Chặn khi chọn `CN` làm hướng dẫn chính.
   - Import XLSX: `student_id, lecturer_email_or_name, role, note`.
-  - Tự phân công GVHD chính cho sinh viên chưa có GVHD theo quota còn trống.
+  - Tự phân công GVHD chính cho sinh viên đã có nguyện vọng đăng ký thực tập nhưng chưa đăng ký/chưa có GVHD theo quota còn trống.
   - Cập nhật chỉ tiêu giảng viên ngay trên màn phân công.
   - Ghi lịch sử tạo/xóa phân công ở backend để truy vết.
 - Giảng viên:
@@ -979,7 +979,7 @@ Quy tắc nghiệp vụ đã chốt:
 - Nếu sinh viên chưa có GVHD đồng ý hướng dẫn, sinh viên để trống phần đăng ký GVHD; Khoa sẽ phân công sau theo quota còn lại.
 - Với các sinh viên trước đó đã đăng ký nơi thực tập là `Trường Đại học Công nghệ` và đã điền tên GVHD khi đăng ký, hệ thống tự hiểu đây là trạng thái `Tôi đã được GV đồng ý hướng dẫn`. Sinh viên không cần nhập lại.
 - Nếu sinh viên đã khai báo GVHD trong đăng ký cũ, hệ thống cần hiển thị lại GVHD đó trong phần đăng ký GVHD và chuyển thành yêu cầu chờ Khoa xác nhận nếu chưa có phân công chính thức.
-- Nếu GV đã đủ hoặc vượt quota, hệ thống vẫn cho sinh viên gửi đăng ký đã được GV đồng ý, nhưng đánh dấu `Vượt quota - cần Khoa duyệt thủ công`.
+- Nếu GV đã đủ hoặc vượt quota, hệ thống vẫn ghi nhận đăng ký/phân công GVHD đã được GV đồng ý, đánh dấu `over_quota` và gửi cảnh báo cho sinh viên, giảng viên.
 - Giảng viên có tên chứa `CN` không được làm GVHD chính, nhưng có thể là đồng hướng dẫn nếu Khoa cho phép trong luồng phân công.
 - Khoa/Admin có quyền duyệt, từ chối, hoặc đổi sang giảng viên khác khi xử lý đăng ký GVHD.
 - Khi Khoa duyệt đăng ký GVHD, hệ thống mới ghi phân công chính thức vào `advisor_assignments`.
@@ -1029,7 +1029,7 @@ Các trạng thái chính:
   - `assigned_by_faculty`: Khoa chọn giảng viên khác để phân công.
 - `quota_status`:
   - `within_quota`: GV còn quota tại thời điểm gửi.
-  - `over_quota`: GV đã đủ/vượt quota, cần Khoa duyệt thủ công.
+  - `over_quota`: GV đã đủ/vượt quota, hệ thống vẫn ghi nhận phân công nhưng gửi cảnh báo cho sinh viên, giảng viên.
   - `unknown`: chưa xác định được GV hoặc nhờ Khoa phân công.
 
 Thiết kế UI sinh viên:
@@ -1048,12 +1048,12 @@ Thiết kế UI admin:
   - Duyệt đăng ký.
   - Từ chối kèm nhận xét.
   - Chọn GV khác và phân công.
-- Khi duyệt đăng ký vượt quota, UI nên cảnh báo để admin xác nhận nhưng không chặn.
+- Khi đăng ký/phân công vượt quota, UI chỉ hiển thị cảnh báo; không yêu cầu quản trị viên duyệt thủ công riêng.
 
 ## 10. Các điểm đã chốt thêm
 
 - Không có ngoại lệ dung lượng báo cáo final trong giai đoạn hiện tại. File PDF lớn hơn 10 MB bị từ chối và sinh viên phải nén lại.
-- Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn cho sinh viên gửi đăng ký GVHD đã được đồng ý vượt quota để Khoa duyệt thủ công.
+- Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn ghi nhận đăng ký GVHD đã được đồng ý khi vượt quota và gửi cảnh báo cho sinh viên, giảng viên.
 
 ## 11. Nhận xét tổng quan
 
