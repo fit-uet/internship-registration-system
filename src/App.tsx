@@ -3804,7 +3804,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const reviewAdvisorRequest = async (request: any, action: 'approve' | 'reject') => {
-    const adminNote = action === 'reject' ? prompt('Nhập nhận xét gửi sinh viên:') : (request.quota_status === 'over_quota' ? prompt('GV đã đủ/vượt quota. Nhập ghi chú duyệt thủ công (có thể để trống):') : '');
+    const adminNote = action === 'reject' ? prompt('Nhập nhận xét gửi sinh viên:') : '';
     if (adminNote === null) return;
     if (action === 'reject' && !adminNote) return;
     const res = await fetch(`${API_BASE}/api/admin/advisor-requests/${request.id}`, {
