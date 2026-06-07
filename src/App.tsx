@@ -3618,6 +3618,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const [quotaEdits, setQuotaEdits] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [advisorSortConfig, setAdvisorSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'student_id', direction: 'asc' });
   const pageSize = 25;
@@ -3807,14 +3808,23 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     const adminNote = action === 'reject' ? prompt('Nhập nhận xét gửi sinh viên:') : '';
     if (adminNote === null) return;
     if (action === 'reject' && !adminNote) return;
-    const res = await fetch(`${API_BASE}/api/admin/advisor-requests/${request.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ action, admin_note: adminNote || '' })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return alert(data.error || 'Không xử lý được đăng ký.');
-    fetchData();
+    setReviewingRequestId(Number(request.id));
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/advisor-requests/${request.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, admin_note: adminNote || '' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không xử lý được đăng ký.');
+      setAdvisorRequests(prev => action === 'approve'
+        ? prev.filter(item => Number(item.id) !== Number(request.id))
+        : prev.map(item => Number(item.id) === Number(request.id)
+          ? { ...item, status: 'rejected', admin_note: adminNote || '' }
+          : item));
+    } finally {
+      setReviewingRequestId(null);
+    }
   };
 
   const exportXlsx = () => {
@@ -4004,8 +4014,20 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                     <td className="px-4 py-3 text-right">
                       {request.status === 'pending' ? (
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => reviewAdvisorRequest(request, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Duyệt</button>
-                          <button onClick={() => reviewAdvisorRequest(request, 'reject')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">Từ chối</button>
+                          <button
+                            onClick={() => reviewAdvisorRequest(request, 'approve')}
+                            disabled={reviewingRequestId === Number(request.id)}
+                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {reviewingRequestId === Number(request.id) ? 'Đang duyệt...' : 'Duyệt'}
+                          </button>
+                          <button
+                            onClick={() => reviewAdvisorRequest(request, 'reject')}
+                            disabled={reviewingRequestId === Number(request.id)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            Từ chối
+                          </button>
                         </div>
                       ) : <span className="text-xs text-slate-400">Đã xử lý</span>}
                     </td>
