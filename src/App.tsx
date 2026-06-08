@@ -3741,18 +3741,13 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const deleteSelectedAssignments = async () => {
-    // Determine target rows: checked rows, or all filtered rows if none checked
-    const targetUserIds = selectedRows.size > 0
-      ? sortedRows.filter(r => selectedRows.has(String(r.user_id))).map((r: any) => r.user_id)
-      : sortedRows.map((r: any) => r.user_id);
-    if (targetUserIds.length === 0) return alert('Không có dòng nào để xóa phân công.');
-    const label = selectedRows.size > 0
-      ? `${targetUserIds.length} dòng đang chọn`
-      : `tất cả ${targetUserIds.length} dòng đang lọc`;
-    if (!confirm(`Xóa toàn bộ phân công GVHD của ${label}?`)) return;
+    if (selectedRows.size === 0) return alert('Vui lòng chọn ít nhất một dòng để xóa phân công.');
+    const targetUserIds = sortedRows
+      .filter(r => selectedRows.has(String(r.user_id)))
+      .map((r: any) => r.user_id);
+    if (!confirm(`Xóa toàn bộ phân công GVHD của ${targetUserIds.length} dòng đang chọn?`)) return;
     setDeletingSelected(true);
     try {
-      // Collect all assignment ids from the target rows
       const allAssignmentIds: number[] = [];
       for (const row of sortedRows) {
         if (!targetUserIds.includes(row.user_id)) continue;
@@ -3977,7 +3972,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
                 >
                   {deletingSelected ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  Xóa lọc{selectedRows.size > 0 ? ` (${selectedRows.size})` : sortedRows.length > 0 ? ` (${sortedRows.length})` : ''}
+                  Xóa chọn{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
                 </button>
                 <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
                   <Settings size={16} /> Chỉ tiêu GV
