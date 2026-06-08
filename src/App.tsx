@@ -563,7 +563,7 @@ function App() {
 
               {user ? (
                 <div className="flex items-center gap-3">
-                  {(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) && (
+                  {!!(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) && (
                     <Link
                       to="/chat"
                       onClick={() => { setIsMenuOpen(false); setIsNotificationOpen(false); }}
@@ -636,7 +636,7 @@ function App() {
                               </Link>
                             </>
                           )}
-                          {(user.role === 'lecturer' || user.is_lecturer) && (
+                          {!!(user.role === 'lecturer' || user.is_lecturer) && (
                             <>
                               {user.role === 'admin' && (
                                 <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
@@ -1692,10 +1692,15 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{finalInternshipSummary}</div>
             {hasRegistered && <div className="mt-2 text-xs font-semibold text-emerald-700">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
           </button>
-          <div className={`rounded-xl border p-4 ${showAdvisorTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+          <button
+            type="button"
+            onClick={() => navigate('/grades')}
+            className={`rounded-xl border p-4 text-left transition-colors ${showAdvisorTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'} hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer`}
+          >
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Giảng viên hướng dẫn</div>
             <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{advisorSummary}</div>
-          </div>
+            <div className="mt-2 text-xs font-semibold text-blue-700">Xem chi tiết & điểm số</div>
+          </button>
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
@@ -9663,7 +9668,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             <div className="space-y-5">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
                 Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
-                {(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
+                {!!(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
