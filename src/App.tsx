@@ -9459,12 +9459,6 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           >
             <CheckCircle2 size={14} /> Chấm điểm thực tập
           </button>
-          <button
-            onClick={() => navigate('/admin/registrations')}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <LayoutDashboard size={14} className="text-slate-500" /> Danh sách đăng ký thực tập
-          </button>
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
