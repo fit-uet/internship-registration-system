@@ -412,7 +412,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Bell className="text-amber-600" /> Thông báo của tôi</h2>
             <p className="text-sm text-slate-500 mt-1">{unread} thông báo chưa đọc.</p>
           </div>
-          <button onClick={markAllRead} disabled={!unread} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium disabled:opacity-50">
+          <button onClick={markAllRead} disabled={!unread} className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
             Đánh dấu đã đọc tất cả
           </button>
         </div>
@@ -420,12 +420,12 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
       {compact && rows.length > 0 && (
         <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500">{unread} chưa đọc</span>
-          <button onClick={markAllRead} disabled={!unread} className="text-xs font-semibold text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline">
+          <button onClick={markAllRead} disabled={!unread} className="text-xs font-semibold text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline cursor-pointer">
             Đã đọc tất cả
           </button>
         </div>
       )}
-      <div className={compact ? 'divide-y divide-slate-100' : 'bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100 overflow-hidden'}>
+      <div className={compact ? 'divide-y divide-slate-100' : 'bg-white border border-slate-200 rounded-2xl shadow-sm divide-y divide-slate-100 overflow-hidden'}>
         {visibleRows.length === 0 ? (
           <div className="p-6 text-center text-sm text-slate-500">Chưa có thông báo.</div>
         ) : visibleRows.map(row => (
@@ -433,15 +433,15 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-2 py-0.5 rounded">{typeLabel(row.type)}</span>
-                  {!row.read_at && <span className="w-2 h-2 rounded-full bg-blue-600" title="Chưa đọc"></span>}
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">{typeLabel(row.type)}</span>
+                  {!row.read_at && <span className="w-2 h-2 rounded-full bg-blue-600 animate-none" title="Chưa đọc"></span>}
                 </div>
                 <div className="font-semibold text-slate-900">{row.subject}</div>
                 <div className="text-sm text-slate-600 whitespace-pre-wrap mt-1">{row.body}</div>
                 <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
               </div>
               {!row.read_at && (
-                <button onClick={() => markRead(row)} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
+                <button onClick={() => markRead(row)} className="bg-white text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap">
                   Đã đọc
                 </button>
               )}
@@ -1647,23 +1647,23 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/plan')}
-              className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-blue-200 shadow-sm transition-colors"
+              className="bg-blue-50 text-blue-700 border border-blue-100 px-4 py-2 rounded-xl hover:bg-blue-100/70 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              KẾ HOẠCH TRIỂN KHAI
+              Kế hoạch triển khai
             </button>
             {user.role === 'admin' && (
               <>
                 <button
                   onClick={() => navigate('/admin')}
-                  className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-800 shadow-sm transition-colors"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <LayoutDashboard size={14} /> DANH SÁCH ĐĂNG KÝ
+                  <LayoutDashboard size={14} /> Danh sách đăng ký
                 </button>
                 <button
                   onClick={() => navigate('/admin/final-internships')}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <CheckCircle2 size={14} /> DANH SÁCH XÁC NHẬN THỰC TẬP
+                  <CheckCircle2 size={14} /> Danh sách xác nhận thực tập
                 </button>
               </>
             )}
@@ -4454,17 +4454,17 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại trang chủ</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final PDF</h2>
+          <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final PDF</h2>
           <p className="text-sm text-slate-500 mt-1">Nộp bản báo cáo thực tập final để giảng viên hướng dẫn đánh giá và chấm điểm.</p>
         </div>
-        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-100 text-red-800'}`}>
-          <div className="font-bold">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
+        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-150 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-150 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-150 text-red-800'}`}>
+          <div className="font-bold text-xs uppercase tracking-wider">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
           {finalReportWindowStatus === 'unconfigured'
-            ? <div className="text-xs mt-1">Khoa chưa cấu hình thời gian nộp báo cáo final.</div>
-            : <div className="text-xs mt-1">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>}
+            ? <div className="text-xs mt-1 font-normal text-slate-500">Khoa chưa cấu hình thời gian nộp báo cáo final.</div>
+            : <div className="text-xs mt-1 font-normal">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>}
         </div>
       </div>
 
@@ -4506,19 +4506,19 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-2.5">
           {finalReport && (
-            <button onClick={downloadMyFinalReport} className="px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 bg-slate-100 text-slate-800 hover:bg-slate-200">
-              <Download size={16} /> Tải PDF đã nộp
+            <button onClick={downloadMyFinalReport} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:shadow">
+              <Download size={14} /> Tải PDF đã nộp
             </button>
           )}
-          <label className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${finalInternship && finalReportWindowStatus === 'open' && !uploading ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
-            {uploading ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+          <label className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${finalInternship && finalReportWindowStatus === 'open' && !uploading ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-250'}`}>
+            {uploading ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
             {finalReport ? 'Nộp lại PDF' : 'Nộp PDF'}
             <input type="file" accept="application/pdf,.pdf" disabled={!finalInternship || finalReportWindowStatus !== 'open' || uploading} className="hidden" onChange={uploadFinalReport} />
           </label>
         </div>
-        <p className="text-xs text-slate-500">Chỉ nhận PDF tối đa 10 MB. Nếu file lớn hơn, vui lòng nén lại trước khi nộp.</p>
+        <p className="text-xs text-slate-400 font-medium">Chỉ nhận file PDF tối đa 10 MB. Nếu file lớn hơn, vui lòng nén lại trước khi nộp.</p>
       </div>
     </div>
   );
@@ -4754,13 +4754,13 @@ function StudentGradeView({ token }: { token: string }) {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại</button>
+        <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <CheckCircle2 className="text-green-600" /> Điểm thực tập
         </h2>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">
           <div className="p-5">
             <div className="text-xs uppercase font-semibold text-slate-500">Nơi thực tập</div>
@@ -4784,7 +4784,7 @@ function StudentGradeView({ token }: { token: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {scoreCards.map(card => (
-          <div key={card.label} className={`rounded-xl border p-5 shadow-sm ${card.highlight ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+          <div key={card.label} className={`rounded-2xl border p-5 shadow-sm ${card.highlight ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-slate-700">{card.label}</div>
               <div className="text-xs rounded-full bg-slate-100 text-slate-600 px-2 py-1">{card.note}</div>
@@ -4794,7 +4794,7 @@ function StudentGradeView({ token }: { token: string }) {
         ))}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
         <h3 className="font-bold text-slate-800 mb-3">Thông tin bổ sung</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
@@ -4806,7 +4806,7 @@ function StudentGradeView({ token }: { token: string }) {
             <div className="mt-1 whitespace-pre-wrap text-slate-700">{grade?.comment || '-'}</div>
           </div>
         </div>
-        {grade?.locked_at && <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-800">Điểm đã được Khoa khóa.</div>}
+        {grade?.locked_at && <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-800">Điểm đã được Khoa khóa.</div>}
       </div>
     </div>
   );
@@ -8349,15 +8349,15 @@ function PlanView({ user }: { user: any }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-        <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
         {user?.role === 'admin' && (
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => navigate('/admin/registration-rules')} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-              <Shield size={16} /> Cài đặt quy định
+            <button onClick={() => navigate('/admin/registration-rules')} className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+              <Shield size={14} /> Cài đặt quy định
             </button>
-            <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-              <Edit2 size={16} /> Cài đặt kế hoạch
+            <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+              <Edit2 size={14} /> Cài đặt kế hoạch
             </button>
           </div>
         )}
@@ -8640,21 +8640,21 @@ function FAQView({ user, token }: { user: any, token: string }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+      <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CircleHelp className="text-amber-600" /> FAQ</h2>
               <p className="text-sm text-slate-500 mt-1">Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</p>
             </div>
             {user?.role === 'admin' && (
               <div className="flex flex-wrap items-center gap-2">
-                <button onClick={() => navigate('/admin/faq-questions')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <Send size={16} /> Trả lời câu hỏi
+                <button onClick={() => navigate('/admin/faq-questions')} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                  <Send size={14} /> Trả lời câu hỏi
                 </button>
-                <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <Edit2 size={16} /> Cài đặt FAQ
+                <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                  <Edit2 size={14} /> Cài đặt FAQ
                 </button>
               </div>
             )}
@@ -8693,7 +8693,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
       {user?.role !== 'admin' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</h3>
+            <h3 className="font-bold text-slate-800 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</h3>
             <p className="text-xs text-slate-500 mt-1">Câu hỏi sẽ được quản trị viên trả lời trong mục FAQ; câu trả lời cũng hiển thị trong thông báo của bạn.</p>
           </div>
           <div className="p-6 space-y-4">
@@ -8703,32 +8703,32 @@ function FAQView({ user, token }: { user: any, token: string }) {
               rows={4}
               maxLength={2000}
               placeholder="Nhập câu hỏi của bạn..."
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-y"
             />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">{newQuestion.length}/2000 ký tự</span>
-              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 disabled:opacity-60">
-                {submittingQuestion ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi câu hỏi
+              <span className="text-xs text-slate-400 font-medium">{newQuestion.length}/2000 ký tự</span>
+              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                {submittingQuestion ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Gửi câu hỏi
               </button>
             </div>
             <div className="border-t border-slate-100 pt-4">
               <h4 className="text-sm font-bold text-slate-800 mb-3">Câu hỏi của tôi</h4>
               {questions.length === 0 ? (
-                <div className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4">Bạn chưa gửi câu hỏi nào.</div>
+                <div className="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-xl p-4">Bạn chưa gửi câu hỏi nào.</div>
               ) : (
                 <div className="space-y-3">
                   {questions.map(q => (
-                    <div key={q.id} className="border border-slate-200 rounded-lg p-4">
+                    <div key={q.id} className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                        <span className={`text-xs font-bold px-2 py-1 rounded w-fit ${q.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${q.status === 'answered' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-amber-50 border border-amber-100 text-amber-700'}`}>
                           {q.status === 'answered' ? 'Đã trả lời' : 'Chờ trả lời'}
                         </span>
-                        <span className="text-xs text-slate-400">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
+                        <span className="text-xs text-slate-400 font-medium">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
                       </div>
-                      <div className="text-sm font-semibold text-slate-900 whitespace-pre-wrap">{q.question}</div>
+                      <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap">{q.question}</div>
                       {q.answer && (
-                        <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
-                          <div className="text-xs font-bold text-blue-700 uppercase mb-1">Trả lời</div>
+                        <div className="mt-3 bg-blue-50/50 border border-blue-100 rounded-xl p-3 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                          <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wider mb-1">Trả lời</div>
                           {q.answer}
                         </div>
                       )}
@@ -9112,8 +9112,8 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
           </h2>
           <p className="text-sm text-slate-500 mt-1">Tin nhắn chỉ mở giữa sinh viên và giảng viên đã được phân công trong hệ thống.</p>
         </div>
-        <button onClick={fetchThreads} disabled={loadingThreads} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60">
-          <RefreshCw size={16} className={loadingThreads ? 'animate-spin' : ''} /> Tải lại
+        <button onClick={fetchThreads} disabled={loadingThreads} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50">
+          <RefreshCw size={14} className={loadingThreads ? 'animate-spin' : ''} /> Tải lại
         </button>
       </div>
 
@@ -9193,14 +9193,14 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                     onChange={e => setDraft(e.target.value)}
                     maxLength={2000}
                     rows={2}
-                    className="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                    className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-sky-100 focus:border-sky-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-none placeholder-slate-400"
                     placeholder="Nhập tin nhắn..."
                   />
-                  <button disabled={sending || !draft.trim()} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Send size={16} /> Gửi
+                  <button disabled={sending || !draft.trim()} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
+                    <Send size={14} /> Gửi
                   </button>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-2 text-right">{draft.length}/2000</div>
+                <div className="text-[10px] text-slate-400 mt-2 text-right font-medium">{draft.length}/2000</div>
               </form>
             </>
           ) : (
@@ -9273,30 +9273,30 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
           </div>
         </div>
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap gap-2.5">
           <button
             onClick={() => navigate('/profile')}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
-            <UserIcon size={18} /> Cập nhật hồ sơ
+            <UserIcon size={14} /> Cập nhật hồ sơ
           </button>
           <button
             onClick={() => navigate('/plan')}
-            className="flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-200 shadow-sm transition-colors"
+            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
-            <FileText size={18} /> Kế hoạch triển khai
+            <FileText size={14} /> Kế hoạch triển khai
           </button>
           <button
             onClick={() => navigate('/notifications')}
-            className="flex items-center gap-2 bg-amber-100 text-amber-800 px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-200 shadow-sm transition-colors"
+            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
-            <Bell size={18} /> Thông báo
+            <Bell size={14} /> Thông báo
           </button>
           <button
             onClick={() => navigate('/lecturer/grades')}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-colors"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
-            <CheckCircle2 size={18} /> Chấm điểm thực tập
+            <CheckCircle2 size={14} /> Chấm điểm thực tập
           </button>
         </div>
       </div>
@@ -9306,58 +9306,58 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           <p className="text-xs text-slate-500 mt-1">Danh sách sinh viên đã được Khoa phân công cho giảng viên.</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Mã SV</th>
-                <th className="px-4 py-3">Họ tên</th>
-                <th className="px-4 py-3">Vai trò</th>
-                <th className="px-4 py-3">Nơi thực tập</th>
-                <th className="px-4 py-3">Báo cáo final</th>
-                <th className="px-4 py-3">Liên hệ</th>
-                <th className="px-4 py-3">Môn học</th>
-                <th className="px-4 py-3">Trao đổi</th>
+          <table className="w-full text-left border-collapse text-xs text-slate-600">
+            <thead>
+              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                <th className="p-4">Mã SV</th>
+                <th className="p-4">Họ tên</th>
+                <th className="p-4">Vai trò</th>
+                <th className="p-4">Nơi thực tập</th>
+                <th className="p-4">Báo cáo final</th>
+                <th className="p-4">Liên hệ</th>
+                <th className="p-4">Môn học</th>
+                <th className="p-4">Trao đổi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingStudents ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
+                <tr><td colSpan={8} className="p-10 text-center text-slate-500">Đang tải danh sách...</td></tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
+                <tr><td colSpan={8} className="p-10 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
               ) : students.map((student: any) => (
-                <tr key={student.assignment_id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono">{student.student_id || '-'}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{student.student_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${student.advisor_role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                <tr key={student.assignment_id} className="hover:bg-slate-50/50 transition-colors align-top">
+                  <td className="p-4 font-mono font-semibold text-slate-800">{student.student_id || '-'}</td>
+                  <td className="p-4 font-semibold text-slate-800">{student.student_name}</td>
+                  <td className="p-4">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${student.advisor_role === 'primary' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-blue-50 border border-blue-100 text-blue-700'}`}>
                       {student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{student.internship_place || '-'}</td>
-                  <td className="px-4 py-3">
-                    <div className={`text-xs font-bold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
+                  <td className="p-4 font-medium text-slate-700">{student.internship_place || '-'}</td>
+                  <td className="p-4">
+                    <div className={`text-xs font-semibold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
                       {statusLabel(student.report_status)}
                     </div>
                     {student.report_filename && (
                       <div className="mt-1 space-y-1">
-                        <div className="text-xs text-slate-500">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
+                        <div className="text-[10px] text-slate-500 line-clamp-1">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
                         <div className="flex flex-wrap gap-1">
-                          <button onClick={() => downloadReport(student)} className="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-xs font-semibold">Tải</button>
-                          <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-semibold">OK</button>
-                          <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-xs font-semibold">Nộp lại</button>
+                          <button onClick={() => downloadReport(student)} className="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Tải</button>
+                          <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">OK</button>
+                          <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Nộp lại</button>
                         </div>
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs leading-relaxed">
+                  <td className="p-4 text-xs leading-relaxed text-slate-600">
                     <div>{student.phone || '-'}</div>
                     <div>{student.personal_email || student.email || '-'}</div>
                   </td>
-                  <td className="px-4 py-3 text-xs">{student.course_code || '-'}</td>
-                  <td className="px-4 py-3">
+                  <td className="p-4 text-xs font-semibold text-slate-700">{student.course_code || '-'}</td>
+                  <td className="p-4">
                     <button
                       onClick={() => navigate(`/chat/${student.user_id}/${student.lecturer_id}`)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                      className="inline-flex items-center gap-1 rounded-xl bg-sky-50 border border-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100/70 transition-colors cursor-pointer shadow-sm"
                     >
                       <MessageCircle size={14} /> Chat
                     </button>
@@ -9450,19 +9450,19 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate(user.role === 'admin' ? '/lecturer' : '/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
-            ← Quay lại trang chủ
+          <button onClick={() => navigate(user.role === 'admin' ? '/lecturer' : '/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-3">
+            &larr; Quay lại trang chủ
           </button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <CheckCircle2 className="text-green-600" /> Chấm điểm thực tập
           </h2>
           <p className="text-sm text-slate-500 mt-1">Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
           <p className="text-xs text-slate-500 mt-1">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
         </div>
-        <button onClick={fetchGrades} disabled={loadingGrades} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60">
-          <RefreshCw size={16} className={loadingGrades ? 'animate-spin' : ''} /> Tải lại
+        <button onClick={fetchGrades} disabled={loadingGrades} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+          <RefreshCw size={14} className={loadingGrades ? 'animate-spin' : ''} /> Tải lại
         </button>
       </div>
 
@@ -9474,8 +9474,8 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
           ['Đã nộp', stats.submitted, 'text-emerald-700'],
           ['Đã khóa', stats.locked, 'text-red-700'],
         ].map(([label, value, color]) => (
-          <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</div>
+          <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
             <div className={`mt-2 text-2xl font-bold ${color}`}>{value}</div>
           </div>
         ))}
@@ -9483,17 +9483,17 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Sinh viên</th>
-                <th className="px-4 py-3">Nơi thực tập</th>
-                <th className="px-4 py-3">Báo cáo</th>
-                <th className="px-4 py-3">20% định kỳ</th>
-                <th className="px-4 py-3">20% final</th>
-                <th className="px-4 py-3">60% đánh giá</th>
-                <th className="px-4 py-3">Tổng</th>
-                <th className="px-4 py-3">Ghi chú / Thao tác</th>
+          <table className="w-full text-left border-collapse text-xs text-slate-600">
+            <thead>
+              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                <th className="p-4">Sinh viên</th>
+                <th className="p-4">Nơi thực tập</th>
+                <th className="p-4">Báo cáo</th>
+                <th className="p-4">20% định kỳ</th>
+                <th className="p-4">20% final</th>
+                <th className="p-4">60% đánh giá</th>
+                <th className="p-4">Tổng</th>
+                <th className="p-4">Ghi chú / Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -9505,25 +9505,25 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
                 const edit = gradeEdits[String(row.user_id)] || {};
                 const disabled = !!row.locked_at;
                 return (
-                  <tr key={row.user_id} className="hover:bg-slate-50 align-top">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{row.student_name}</div>
-                      <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
-                      <div className="text-xs text-slate-500">{row.class_name || '-'}</div>
+                  <tr key={row.user_id} className="hover:bg-slate-50/50 transition-colors align-top">
+                    <td className="p-4">
+                      <div className="font-semibold text-slate-800">{row.student_name}</div>
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">{row.student_id || '-'}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{row.class_name || '-'}</div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-700 max-w-[220px]">{row.internship_place || '-'}</td>
-                    <td className="px-4 py-3 text-xs">
+                    <td className="p-4 text-xs text-slate-600 max-w-[220px]">{row.internship_place || '-'}</td>
+                    <td className="p-4 text-xs">
                       <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>{statusLabel(row.report_status)}</div>
-                      <div className={`mt-1 ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{gradeStatusLabel(row.grade_status)}</div>
+                      <div className={`mt-1 font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{gradeStatusLabel(row.grade_status)}</div>
                       {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
                       {row.report_status && (
-                        <button onClick={() => downloadReport(row)} className="mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                        <button onClick={() => downloadReport(row)} className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer shadow-sm">
                           Tải báo cáo
                         </button>
                       )}
                     </td>
                     {['progress_score', 'report_score', 'company_score'].map(key => (
-                      <td key={key} className="px-4 py-3">
+                      <td key={key} className="p-4">
                         <input
                           type="number"
                           min="0"
@@ -9532,19 +9532,25 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
                           disabled={disabled}
                           value={edit[key] ?? ''}
                           onChange={e => updateGradeEdit(row.user_id, key, e.target.value)}
-                          className="w-20 border border-slate-300 rounded px-2 py-1 text-sm disabled:bg-slate-100"
+                          className="w-20 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
                         />
                       </td>
                     ))}
-                    <td className="px-4 py-3 font-bold text-green-700">{previewFinalScore(edit)}</td>
-                    <td className="px-4 py-3">
+                    <td className="p-4 font-bold text-green-700">{previewFinalScore(edit)}</td>
+                    <td className="p-4">
                       <div className="flex flex-col gap-2 min-w-[180px]">
-                        <input disabled={disabled} value={edit.comment ?? ''} onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)} placeholder="Nhận xét / ghi chú" className="border border-slate-300 rounded px-2 py-1.5 text-xs disabled:bg-slate-100" />
+                        <input
+                          disabled={disabled}
+                          value={edit.comment ?? ''}
+                          onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)}
+                          placeholder="Nhận xét / ghi chú"
+                          className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
+                        />
                         <div className="flex flex-wrap gap-2">
-                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                             {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
                           </button>
-                          <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                          <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
                             {savingKey === `${row.user_id}:submit` ? 'Đang nộp...' : 'Nộp điểm'}
                           </button>
                         </div>
@@ -9637,7 +9643,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm flex items-center gap-1">&larr; Quay lại</button>
+        <button onClick={() => navigate(-1)} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại</button>
       </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -9646,18 +9652,18 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
 
         <form onSubmit={handleSave} className="space-y-5">
           {/* Avatar + info banner */}
-          <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
             {user.picture ? (
               <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
             ) : (
               <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[#004a99] font-bold shadow-sm"><UserIcon size={24} /></div>
             )}
             <div>
-              <p className="font-semibold text-slate-800 text-lg">{user.email}</p>
+              <p className="font-semibold text-slate-800 text-base">{user.email}</p>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-xs text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full uppercase tracking-wider font-medium">{user.role}</p>
+                <p className="text-[10px] text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">{user.role}</p>
                 {user.is_lecturer ? (
-                  <p className="text-xs text-teal-700 bg-teal-50 border border-teal-100 inline-block px-2 py-0.5 rounded-full font-semibold">Giảng viên</p>
+                  <p className="text-[10px] text-teal-700 bg-teal-50 border border-teal-100 inline-block px-2 py-0.5 rounded-full font-semibold">Giảng viên</p>
                 ) : null}
               </div>
             </div>
@@ -9666,27 +9672,27 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
           {isStaff ? (
             /* ── ADMIN / LECTURER VIEW ── */
             <div className="space-y-5">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800">
                 Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
                 {!!(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
                 <input
                   type="text"
                   value={user.email}
                   disabled
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-400 cursor-not-allowed font-medium"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                 />
               </div>
             </div>
@@ -9695,65 +9701,65 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Mã sinh viên <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mã sinh viên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     required
                     value={formData.student_id}
                     onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-mono"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-mono font-semibold text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày sinh <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ngày sinh <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     max={new Date().toISOString().split('T')[0]}
                     required
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Số điện thoại</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Số điện thoại</label>
                   <input
                     type="tel"
                     pattern="^(0|\+84)[35789][0-9]{8}$"
                     title="Vui lòng nhập số điện thoại hợp lệ (10 số, VD: 0912345678)"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                     placeholder="VD: 0912345678"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email cá nhân (khác VNU)</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email cá nhân (khác VNU)</label>
                   <input
                     type="email"
                     value={formData.personal_email}
                     onChange={(e) => setFormData({ ...formData, personal_email: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                     placeholder="VD: abc@gmail.com"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Lớp khóa học <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lớp khóa học <span className="text-red-500">*</span></label>
                   <select
                     required
                     value={formData.class_name}
                     onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                   >
                     <option value="">-- Chọn lớp khóa học --</option>
                     {classesList.map(c => (
@@ -9762,12 +9768,12 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Học phần thực tập <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Học phần thực tập <span className="text-red-500">*</span></label>
                   <select
                     required
                     value={formData.course_code}
                     onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
                   >
                     <option value="">-- Chọn học phần --</option>
                     <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
@@ -9783,9 +9789,9 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-70"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save size={18} /> {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
+              <Save size={14} /> {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
             </button>
           </div>
         </form>
