@@ -7393,6 +7393,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
             ))}
           </tbody>
         </table>
+      </div>
         {filteredAndSorted.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
             <span>
