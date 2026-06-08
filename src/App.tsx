@@ -729,9 +729,10 @@ function App() {
               </div>
             ) : (
               <Routes>
-                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : user.role === 'admin' ? <AdminPanel token={token} user={user} /> : <Dashboard user={user} setUser={setUser} token={token} onAuthExpired={handleAuthExpired} />} />
+                <Route path="/" element={user.role === 'lecturer' ? <LecturerHome user={user} token={token} /> : user.role === 'admin' ? <AdminDashboard token={token} user={user} /> : <Dashboard user={user} setUser={setUser} token={token} onAuthExpired={handleAuthExpired} />} />
                 <Route path="/lecturer" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerHome user={user} token={token} /> : <Navigate to="/" />} />
-                <Route path="/admin" element={user.role === 'admin' ? <AdminPanel token={token} user={user} /> : <Navigate to="/" />} />
+                <Route path="/admin" element={user.role === 'admin' ? <AdminDashboard token={token} user={user} /> : <Navigate to="/" />} />
+                <Route path="/admin/registrations" element={(user.role === 'admin' || user.role === 'lecturer' || user.is_lecturer) ? <AdminPanel token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/admin/final-internships" element={user.role === 'admin' ? <FinalInternshipListAdmin token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/students" element={user.role === 'admin' ? <StudentRegistry token={token} /> : <Navigate to="/" />} />
                 <Route path="/admin/lecturers" element={user.role === 'admin' ? <LecturerRegistry token={token} /> : <Navigate to="/" />} />
@@ -2637,6 +2638,157 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   );
 }
 
+function AdminDashboard({ token, user: propUser }: { token: string; user?: any }) {
+  const navigate = useNavigate();
+  const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {user && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              {user.picture ? (
+                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-700">
+                  <Shield size={26} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-purple-700 mb-1 flex items-center gap-1.5">
+                  <Shield size={12} className="text-purple-600" /> Quản trị viên hệ thống
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+                <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                onClick={() => navigate('/profile')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <UserIcon size={14} /> Cập nhật hồ sơ
+              </button>
+              <button
+                onClick={() => navigate('/plan')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+              </button>
+              <button
+                onClick={() => navigate('/faq')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
+              </button>
+            </div>
+          </div>
+
+          {/* Quick navigation modules grid */}
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Các chức năng quản trị chính</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {[
+                {
+                  title: 'Quản lý Đăng ký',
+                  desc: 'Xem, lọc, duyệt danh sách nguyện vọng đăng ký thực tập của sinh viên.',
+                  path: '/admin/registrations',
+                  icon: <LayoutDashboard className="text-sky-600" size={20} />,
+                  color: 'hover:border-sky-300 hover:bg-sky-50/30'
+                },
+                {
+                  title: 'Quản lý Sinh viên',
+                  desc: 'Import, xuất dữ liệu và cập nhật thông tin sinh viên.',
+                  path: '/admin/students',
+                  icon: <Users className="text-blue-600" size={20} />,
+                  color: 'hover:border-blue-300 hover:bg-blue-50/30'
+                },
+                {
+                  title: 'Quản lý Giảng viên',
+                  desc: 'Danh sách và thông tin các giảng viên hướng dẫn.',
+                  path: '/admin/lecturers',
+                  icon: <UserIcon className="text-teal-600" size={20} />,
+                  color: 'hover:border-teal-300 hover:bg-teal-50/30'
+                },
+                {
+                  title: 'Quản lý Công ty',
+                  desc: 'Danh sách doanh nghiệp tiếp nhận thực tập.',
+                  path: '/admin/companies',
+                  icon: <Building2 className="text-orange-600" size={20} />,
+                  color: 'hover:border-orange-300 hover:bg-orange-50/30'
+                },
+                {
+                  title: 'Phân công GVHD',
+                  desc: 'Phân giảng viên hướng dẫn chính & đồng hướng dẫn.',
+                  path: '/admin/advisors',
+                  icon: <Settings className="text-emerald-600" size={20} />,
+                  color: 'hover:border-emerald-300 hover:bg-emerald-50/30'
+                },
+                {
+                  title: 'Báo cáo Final',
+                  desc: 'Theo dõi, duyệt báo cáo thực tập final của sinh viên.',
+                  path: '/admin/reports',
+                  icon: <FileText className="text-indigo-600" size={20} />,
+                  color: 'hover:border-indigo-300 hover:bg-indigo-50/30'
+                },
+                {
+                  title: 'Bảng điểm',
+                  desc: 'Tổng hợp điểm định kỳ, final và đánh giá công ty.',
+                  path: '/admin/grades',
+                  icon: <CheckCircle2 className="text-green-600" size={20} />,
+                  color: 'hover:border-green-300 hover:bg-green-50/30'
+                },
+                {
+                  title: 'CSDL Thẩm định',
+                  desc: 'Duyệt tự động các công ty sinh viên tự liên hệ.',
+                  path: '/admin/approved-companies',
+                  icon: <Shield className="text-purple-600" size={20} />,
+                  color: 'hover:border-purple-300 hover:bg-purple-50/30'
+                },
+                {
+                  title: 'Mail merge & SMS',
+                  desc: 'Lịch sử thông báo, gửi email hàng loạt cho công ty.',
+                  path: '/admin/notifications',
+                  icon: <Clock className="text-amber-600" size={20} />,
+                  color: 'hover:border-amber-300 hover:bg-amber-50/30'
+                },
+                {
+                  title: 'Cài đặt hệ thống',
+                  desc: 'Đồng bộ Google Sheets, chỉnh năm học, các đợt đk.',
+                  path: '/admin/settings',
+                  icon: <Settings className="text-slate-600" size={20} />,
+                  color: 'hover:border-slate-400 hover:bg-slate-50/30'
+                },
+                {
+                  title: 'Quản trị viên',
+                  desc: 'Quản lý phân quyền tài khoản quản trị hệ thống.',
+                  path: '/admin/admins',
+                  icon: <Shield className="text-pink-600" size={20} />,
+                  color: 'hover:border-pink-300 hover:bg-pink-50/30'
+                }
+              ].map(item => (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className={`text-left p-4 rounded-xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow cursor-pointer flex flex-col justify-between min-h-[110px] ${item.color}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-xs text-slate-800">{item.title}</span>
+                    {item.icon}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2 line-clamp-2">{item.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
   const [registrations, setRegistrations] = useState<any[]>([]);
@@ -3031,147 +3183,14 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Admin Profile & Overview */}
-      {user && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              {user.picture ? (
-                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-700">
-                  <Shield size={26} />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-purple-700 mb-1 flex items-center gap-1.5">
-                  <Shield size={12} className="text-purple-600" /> Quản trị viên hệ thống
-                </p>
-                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
-                <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                onClick={() => navigate('/profile')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-              >
-                <UserIcon size={14} /> Cập nhật hồ sơ
-              </button>
-              <button
-                onClick={() => navigate('/plan')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-              >
-                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
-              </button>
-              <button
-                onClick={() => navigate('/faq')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-              >
-                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
-              </button>
-            </div>
-          </div>
-
-          {/* Quick navigation modules grid */}
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Các chức năng quản trị chính</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {[
-                {
-                  title: 'Quản lý Sinh viên',
-                  desc: 'Import, xuất dữ liệu và cập nhật thông tin sinh viên.',
-                  path: '/admin/students',
-                  icon: <Users className="text-blue-600" size={20} />,
-                  color: 'hover:border-blue-300 hover:bg-blue-50/30'
-                },
-                {
-                  title: 'Quản lý Giảng viên',
-                  desc: 'Danh sách và thông tin các giảng viên hướng dẫn.',
-                  path: '/admin/lecturers',
-                  icon: <UserIcon className="text-teal-600" size={20} />,
-                  color: 'hover:border-teal-300 hover:bg-teal-50/30'
-                },
-                {
-                  title: 'Quản lý Công ty',
-                  desc: 'Danh sách doanh nghiệp tiếp nhận thực tập.',
-                  path: '/admin/companies',
-                  icon: <Building2 className="text-orange-600" size={20} />,
-                  color: 'hover:border-orange-300 hover:bg-orange-50/30'
-                },
-                {
-                  title: 'Phân công GVHD',
-                  desc: 'Phân giảng viên hướng dẫn chính & đồng hướng dẫn.',
-                  path: '/admin/advisors',
-                  icon: <Settings className="text-emerald-600" size={20} />,
-                  color: 'hover:border-emerald-300 hover:bg-emerald-50/30'
-                },
-                {
-                  title: 'Báo cáo Final',
-                  desc: 'Theo dõi, duyệt báo cáo thực tập final của sinh viên.',
-                  path: '/admin/reports',
-                  icon: <FileText className="text-indigo-600" size={20} />,
-                  color: 'hover:border-indigo-300 hover:bg-indigo-50/30'
-                },
-                {
-                  title: 'Bảng điểm',
-                  desc: 'Tổng hợp điểm định kỳ, final và đánh giá công ty.',
-                  path: '/admin/grades',
-                  icon: <CheckCircle2 className="text-green-600" size={20} />,
-                  color: 'hover:border-green-300 hover:bg-green-50/30'
-                },
-                {
-                  title: 'CSDL Thẩm định',
-                  desc: 'Duyệt tự động các công ty sinh viên tự liên hệ.',
-                  path: '/admin/approved-companies',
-                  icon: <Shield className="text-purple-600" size={20} />,
-                  color: 'hover:border-purple-300 hover:bg-purple-50/30'
-                },
-                {
-                  title: 'Mail merge & SMS',
-                  desc: 'Lịch sử thông báo, gửi email hàng loạt cho công ty.',
-                  path: '/admin/notifications',
-                  icon: <Clock className="text-amber-600" size={20} />,
-                  color: 'hover:border-amber-300 hover:bg-amber-50/30'
-                },
-                {
-                  title: 'Cài đặt hệ thống',
-                  desc: 'Đồng bộ Google Sheets, chỉnh năm học, các đợt đk.',
-                  path: '/admin/settings',
-                  icon: <Settings className="text-slate-600" size={20} />,
-                  color: 'hover:border-slate-400 hover:bg-slate-50/30'
-                },
-                {
-                  title: 'Quản trị viên',
-                  desc: 'Quản lý phân quyền tài khoản quản trị hệ thống.',
-                  path: '/admin/admins',
-                  icon: <Shield className="text-pink-600" size={20} />,
-                  color: 'hover:border-pink-300 hover:bg-pink-50/30'
-                }
-              ].map(item => (
-                <button
-                  key={item.path}
-                  type="button"
-                  onClick={() => navigate(item.path)}
-                  className={`text-left p-4 rounded-xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow cursor-pointer flex flex-col justify-between min-h-[110px] ${item.color}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-xs text-slate-800">{item.title}</span>
-                    {item.icon}
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-2 line-clamp-2">{item.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm space-y-4">
         {/* Row 1: Operations */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-extrabold text-slate-800 ml-2">Danh sách Đăng ký Thực tập</h2>
+            <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/')} className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer mr-2">
+              &larr; {user?.role === 'admin' ? 'Quay lại Quản trị' : 'Quay lại trang chủ'}
+            </button>
+            <h2 className="text-sm font-extrabold text-slate-800 ml-2 hidden md:block">Danh sách Đăng ký Thực tập</h2>
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
@@ -9469,6 +9488,12 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           >
             <CheckCircle2 size={14} /> Chấm điểm thực tập
           </button>
+          <button
+            onClick={() => navigate('/admin/registrations')}
+            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+          >
+            <LayoutDashboard size={14} className="text-slate-500" /> Danh sách đăng ký thực tập
+          </button>
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -9823,6 +9848,16 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân
+          {isStaff && (
+            <PageDescriptionTooltip
+              description={
+                <>
+                  Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
+                  {!!(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
+                </>
+              }
+            />
+          )}
         </h2>
 
         <form onSubmit={handleSave} className="space-y-5">
@@ -9847,10 +9882,6 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
           {isStaff ? (
             /* ── ADMIN / LECTURER VIEW ── */
             <div className="space-y-5">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800">
-                Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
-                {!!(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
-              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
                 <input
