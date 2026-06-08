@@ -2574,7 +2574,10 @@ async function route(request: Request, env: Env) {
   async function autoAssignPrimaryAdvisors() {
     const candidates = (await database.execute(`
       SELECT l.id, l.name, l.email,
-             COALESCE(q.max_total_students, CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END) as max_total_students,
+             CASE
+               WHEN q.max_total_students IS NOT NULL THEN q.max_total_students
+               ELSE (CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END)
+             END as max_total_students,
              COALESCE(ac.assignment_count, 0) as assignment_count
       FROM lecturers l
       LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
@@ -2663,7 +2666,11 @@ async function route(request: Request, env: Env) {
       ORDER BY u.student_id ASC
     `)).rows;
     const lecturers = (await database.execute(`
-      SELECT l.*, COALESCE(q.max_total_students, CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END) as max_total_students,
+      SELECT l.*,
+             CASE
+               WHEN q.max_total_students IS NOT NULL THEN q.max_total_students
+               ELSE (CASE WHEN upper(l.name) LIKE '%PGS%' OR upper(l.name) LIKE '%GS%' THEN 10 ELSE 15 END)
+             END as max_total_students,
              COALESCE(ac.assignment_count, 0) as assignment_count
       FROM lecturers l
       LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id

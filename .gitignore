@@ -20,3 +20,8 @@ internship-db.db-shm
 internship-db.db-wal
 internship-db.db.before-users-consolidation.bak
 log.txt
+scratch/test_quota.js
+scratch/test_quota.py
+scratch/upgrade_colors.py
+scratch/upgrade_ui.py
+scratch/upgrade_ui2.py
