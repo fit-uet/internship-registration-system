@@ -3622,6 +3622,8 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [advisorSortConfig, setAdvisorSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'student_id', direction: 'asc' });
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const pageSize = 25;
 
   const fetchData = async () => {
@@ -3730,13 +3732,48 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const removeAssignment = async (id: number) => {
-    if (!confirm('Xóa phân công này?')) return;
     const res = await fetch(`${API_BASE}/api/admin/advisor-assignments/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) fetchData();
     else alert('Xóa phân công thất bại.');
+  };
+
+  const deleteSelectedAssignments = async () => {
+    // Determine target rows: checked rows, or all filtered rows if none checked
+    const targetUserIds = selectedRows.size > 0
+      ? sortedRows.filter(r => selectedRows.has(String(r.user_id))).map((r: any) => r.user_id)
+      : sortedRows.map((r: any) => r.user_id);
+    if (targetUserIds.length === 0) return alert('Không có dòng nào để xóa phân công.');
+    const label = selectedRows.size > 0
+      ? `${targetUserIds.length} dòng đang chọn`
+      : `tất cả ${targetUserIds.length} dòng đang lọc`;
+    if (!confirm(`Xóa toàn bộ phân công GVHD của ${label}?`)) return;
+    setDeletingSelected(true);
+    try {
+      // Collect all assignment ids from the target rows
+      const allAssignmentIds: number[] = [];
+      for (const row of sortedRows) {
+        if (!targetUserIds.includes(row.user_id)) continue;
+        const primary = parseAssignments(row.primary_assignments);
+        const co = parseAssignments(row.co_assignments);
+        [...primary, ...co].forEach((a: any) => { if (a.id) allAssignmentIds.push(a.id); });
+      }
+      if (allAssignmentIds.length === 0) return alert('Các dòng đã chọn chưa có phân công nào.');
+      await Promise.all(allAssignmentIds.map(id =>
+        fetch(`${API_BASE}/api/admin/advisor-assignments/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ));
+      setSelectedRows(new Set());
+      fetchData();
+    } catch (e) {
+      alert('Xóa phân công thất bại.');
+    } finally {
+      setDeletingSelected(false);
+    }
   };
 
   const saveQuota = async (lecturer: any) => {
@@ -3934,9 +3971,13 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => navigate('/admin/advisors/requests')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <CheckCircle2 size={16} /> Phê duyệt đăng ký
-                  {advisorRequests.filter(item => item.status === 'pending').length > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{advisorRequests.filter(item => item.status === 'pending').length}</span>}
+                <button
+                  onClick={deleteSelectedAssignments}
+                  disabled={deletingSelected}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
+                >
+                  {deletingSelected ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  Xóa lọc{selectedRows.size > 0 ? ` (${selectedRows.size})` : sortedRows.length > 0 ? ` (${sortedRows.length})` : ''}
                 </button>
                 <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
                   <Settings size={16} /> Chỉ tiêu GV
@@ -4046,6 +4087,23 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
               <tr>
+                <th className="px-3 py-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="accent-emerald-600 w-4 h-4 cursor-pointer"
+                    title="Chọn tất cả trang hiện tại"
+                    checked={paginatedRows.length > 0 && paginatedRows.every(r => selectedRows.has(String(r.user_id)))}
+                    onChange={e => {
+                      const ids = paginatedRows.map((r: any) => String(r.user_id));
+                      setSelectedRows(prev => {
+                        const next = new Set(prev);
+                        if (e.target.checked) ids.forEach(id => next.add(id));
+                        else ids.forEach(id => next.delete(id));
+                        return next;
+                      });
+                    }}
+                  />
+                </th>
                 <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('student')}>Sinh viên <AdvisorSortIcon col="student" /></th>
                 <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('internship_place')}>Nơi thực tập <AdvisorSortIcon col="internship_place" /></th>
                 <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => requestAdvisorSort('primary_assignments')}>GVHD hiện tại <AdvisorSortIcon col="primary_assignments" /></th>
@@ -4054,13 +4112,28 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sortedRows.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên cần phân công.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên cần phân công.</td></tr>
               ) : paginatedRows.map(row => {
                 const key = String(row.user_id);
                 const primary = parseAssignments(row.primary_assignments);
                 const co = parseAssignments(row.co_assignments);
                 return (
-                  <tr key={key} className="hover:bg-slate-50 align-top">
+                  <tr key={key} className={`hover:bg-slate-50 align-top transition-colors ${selectedRows.has(key) ? 'bg-emerald-50' : ''}`}>
+                    <td className="px-3 py-4 text-center align-middle">
+                      <input
+                        type="checkbox"
+                        className="accent-emerald-600 w-4 h-4 cursor-pointer"
+                        checked={selectedRows.has(key)}
+                        onChange={e => {
+                          setSelectedRows(prev => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(key);
+                            else next.delete(key);
+                            return next;
+                          });
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-4">
                       <div className="font-semibold text-slate-900">{row.student_name}</div>
                       <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
@@ -4078,7 +4151,6 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                           <div key={a.id} className="flex items-center gap-2">
                             <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
                             <span className="text-sm">{a.name}</span>
-                            <button onClick={() => removeAssignment(a.id)} className="text-red-500 hover:bg-red-50 p-1 rounded" title="Xóa"><Trash2 size={14} /></button>
                           </div>
                         ))
                       )}
