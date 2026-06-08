@@ -3216,8 +3216,13 @@ async function startServer() {
   // 18. Admin: Delete Single Lecturer
   app.delete('/api/admin/lecturers/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const lecturer = (await db.execute({ sql: "SELECT email FROM lecturers WHERE id = ?", args: [req.params.id] })).rows[0] as any;
-      await db.execute({ sql: "DELETE FROM lecturers WHERE id = ?", args: [req.params.id] });
+      const idVal = Number(req.params.id);
+      const lecturer = (await db.execute({ sql: "SELECT email FROM lecturers WHERE id = ?", args: [idVal] })).rows[0] as any;
+      await executeBatch([
+        { sql: 'DELETE FROM advisor_assignments WHERE lecturer_id = ?', args: [idVal] },
+        { sql: 'DELETE FROM lecturer_quotas WHERE lecturer_id = ?', args: [idVal] },
+        { sql: 'DELETE FROM lecturers WHERE id = ?', args: [idVal] }
+      ]);
       if (lecturer?.email) {
         await db.execute({
           sql: "UPDATE users SET is_lecturer = 0 WHERE email = ? AND role = 'admin'",
@@ -3783,7 +3788,7 @@ async function startServer() {
 
   async function advisorQuotaLimit(lecturer: any) {
     const quotaRow = (await db.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [Number(lecturer.id)] })).rows[0] as any;
-    if (quotaRow?.max_total_students) return Number(quotaRow.max_total_students);
+    if (quotaRow && quotaRow.max_total_students != null) return Number(quotaRow.max_total_students);
     const settings = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_quota_pgs', 'advisor_quota_ts', 'advisor_quota_ths')")).rows as any[]);
     const upper = String(lecturer.name || '').toUpperCase();
     if (/\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')) return Number(settings.advisor_quota_pgs || 5);
@@ -4136,8 +4141,8 @@ async function startServer() {
                  WHEN c.name = 'Công ty khác' THEN r.other_company_name
                  ELSE c.name
                END as internship_place,
-               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
-               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+               GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || COALESCE(l.name, 'Giảng viên đã bị xóa') || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as primary_assignments,
+               GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || COALESCE(l.name, 'Giảng viên đã bị xóa') || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as co_assignments
         FROM participants p
         JOIN users u ON u.id = p.user_id
         LEFT JOIN final_internships f ON f.user_id = p.user_id
@@ -4334,7 +4339,7 @@ async function startServer() {
 
   app.put('/api/admin/lecturer-quotas/:id', requireAuth, requireAdmin, async (req: any, res: any) => {
     const maxTotal = Number(req.body.max_total_students);
-    if (!maxTotal || maxTotal < 1) return res.status(400).json({ error: 'Chỉ tiêu không hợp lệ.' });
+    if (!Number.isInteger(maxTotal) || maxTotal < 0) return res.status(400).json({ error: 'Chỉ tiêu không hợp lệ.' });
     await db.execute({
       sql: `INSERT INTO lecturer_quotas (lecturer_id, max_total_students, note)
             VALUES (?, ?, ?)
@@ -4351,8 +4356,8 @@ async function startServer() {
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
              fr.id as report_id, fr.original_filename, fr.file_size, fr.status as report_status,
              fr.submitted_at as report_submitted_at, fr.updated_at as report_updated_at, fr.lecturer_comment,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -4374,9 +4379,9 @@ async function startServer() {
              fr.status as report_status,
              g.progress_score, g.report_score, g.company_score, g.final_score,
              COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
-             gl.name as grading_lecturer_name,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
+             COALESCE(gl.name, 'Giảng viên đã bị xóa') as grading_lecturer_name,
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -4419,8 +4424,8 @@ async function startServer() {
     const rows = (await db.execute(`
       SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp", u.course_code as "Mã học phần",
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as "Nơi thực tập",
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as "GVHD chính",
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as "Đồng hướng dẫn",
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "GVHD chính",
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "Đồng hướng dẫn",
              g.progress_score as "Điểm báo cáo định kỳ",
              g.report_score as "Điểm báo cáo final",
              g.company_score as "Điểm đánh giá công ty/GVHD",
