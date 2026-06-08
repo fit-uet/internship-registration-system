@@ -465,6 +465,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(0);
 
   const handleLoginSuccess = async (credentialResponse: any) => {
     setLoginError(null);
@@ -496,6 +497,7 @@ function App() {
     setToken(null);
     setUser(null);
     setUnreadNotifications(0);
+    setUnreadChats(0);
     setIsNotificationOpen(false);
     setIsMenuOpen(false);
     if (message) setLoginError(message);
@@ -519,10 +521,26 @@ function App() {
     } catch (e) { }
   };
 
+  const refreshUnreadChats = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/threads`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        const total = data.reduce((sum, t) => sum + Number(t.unread_count || 0), 0);
+        setUnreadChats(total);
+      }
+    } catch (e) { }
+  };
+
   useEffect(() => {
     if (!token || !user) return;
     refreshUnreadNotifications();
-    const timer = window.setInterval(refreshUnreadNotifications, 60000);
+    refreshUnreadChats();
+    const timer = window.setInterval(() => {
+      refreshUnreadNotifications();
+      refreshUnreadChats();
+    }, 60000);
     return () => window.clearInterval(timer);
   }, [token, user?.id]);
 
@@ -549,10 +567,15 @@ function App() {
                     <Link
                       to="/chat"
                       onClick={() => { setIsMenuOpen(false); setIsNotificationOpen(false); }}
-                      className="inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-white/10 transition-colors text-white"
+                      className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-white/10 transition-colors text-white"
                       title={user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}
                     >
                       <MessageCircle size={18} />
+                      {unreadChats > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center border border-[#004a99]">
+                          {unreadChats > 99 ? '99+' : unreadChats}
+                        </span>
+                      )}
                     </Link>
                   )}
                   <div className="relative">
@@ -722,8 +745,8 @@ function App() {
                 <Route path="/reports/final" element={user.role === 'student' ? <StudentFinalReportView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
                 <Route path="/lecturer/grades" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerGradeView token={token} user={user} /> : <Navigate to="/" />} />
-                <Route path="/chat" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} /> : <Navigate to="/" />} />
-                <Route path="/chat/:studentUserId/:lecturerId" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} /> : <Navigate to="/" />} />
+                <Route path="/chat" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} onUnreadChanged={setUnreadChats} /> : <Navigate to="/" />} />
+                <Route path="/chat/:studentUserId/:lecturerId" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} onUnreadChanged={setUnreadChats} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -8966,7 +8989,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   );
 }
 
-function ChatView({ token, user }: { token: string; user: any }) {
+function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; onUnreadChanged?: (unread: number) => void }) {
   const navigate = useNavigate();
   const params = useParams();
   const [threads, setThreads] = useState<any[]>([]);
@@ -8991,6 +9014,8 @@ function ChatView({ token, user }: { token: string; user: any }) {
       }
       const list = Array.isArray(data) ? data : [];
       setThreads(list);
+      const total = list.reduce((sum, t) => sum + Number(t.unread_count || 0), 0);
+      onUnreadChanged?.(total);
       if (!selectedKey && list.length > 0) {
         navigate(`/chat/${list[0].student_user_id}/${list[0].lecturer_id}`, { replace: true });
       }
@@ -10257,6 +10282,7 @@ function StudentRegistry({ token }: { token: string }) {
           label="sinh viên"
         />
       </div>
+    </div>
   );
 }
 
