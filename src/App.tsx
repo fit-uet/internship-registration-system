@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings, MessageCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -595,6 +595,9 @@ function App() {
                           </Link>
                           {user.role === 'student' && (
                             <>
+                              <Link to="/chat" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <MessageCircle size={16} className="text-sky-600" /> Trao đổi GVHD
+                              </Link>
                               <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <FileText size={16} className="text-indigo-600" /> Báo cáo final
                               </Link>
@@ -610,6 +613,9 @@ function App() {
                                   <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
                                 </Link>
                               )}
+                              <Link to="/chat" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <MessageCircle size={16} className="text-sky-600" /> Trao đổi sinh viên
+                              </Link>
                               <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
                               </Link>
@@ -712,6 +718,8 @@ function App() {
                 <Route path="/reports/final" element={user.role === 'student' ? <StudentFinalReportView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
                 <Route path="/lecturer/grades" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerGradeView token={token} user={user} /> : <Navigate to="/" />} />
+                <Route path="/chat" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} /> : <Navigate to="/" />} />
+                <Route path="/chat/:studentUserId/:lecturerId" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -8841,6 +8849,224 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   );
 }
 
+function ChatView({ token, user }: { token: string; user: any }) {
+  const navigate = useNavigate();
+  const params = useParams();
+  const [threads, setThreads] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [draft, setDraft] = useState('');
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const selectedKey = params.studentUserId && params.lecturerId ? `${params.studentUserId}:${params.lecturerId}` : '';
+  const selectedThread = threads.find((thread: any) => `${thread.student_user_id}:${thread.lecturer_id}` === selectedKey) || null;
+
+  const fetchThreads = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/threads`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Không tải được danh sách trao đổi.');
+        setThreads([]);
+        return;
+      }
+      const list = Array.isArray(data) ? data : [];
+      setThreads(list);
+      if (!selectedKey && list.length > 0) {
+        navigate(`/chat/${list[0].student_user_id}/${list[0].lecturer_id}`, { replace: true });
+      }
+    } catch (e) {
+      setError('Không tải được danh sách trao đổi.');
+      setThreads([]);
+    } finally {
+      setLoadingThreads(false);
+    }
+  };
+
+  const fetchMessages = async (showLoading = false) => {
+    if (!params.studentUserId || !params.lecturerId) {
+      setMessages([]);
+      return;
+    }
+    if (showLoading) setLoadingMessages(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/threads/${params.studentUserId}/${params.lecturerId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Không tải được tin nhắn.');
+        setMessages([]);
+        return;
+      }
+      setMessages(Array.isArray(data) ? data : []);
+      setError('');
+      fetchThreads();
+    } catch (e) {
+      setError('Không tải được tin nhắn.');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoadingThreads(true);
+    fetchThreads();
+  }, [token]);
+
+  useEffect(() => {
+    fetchMessages(true);
+    if (!params.studentUserId || !params.lecturerId) return;
+    const timer = window.setInterval(() => fetchMessages(false), 10000);
+    return () => window.clearInterval(timer);
+  }, [token, params.studentUserId, params.lecturerId]);
+
+  const openThread = (thread: any) => {
+    navigate(`/chat/${thread.student_user_id}/${thread.lecturer_id}`);
+  };
+
+  const sendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!selectedThread || sending) return;
+    const body = draft.trim();
+    if (!body) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ body }),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || 'Gửi tin nhắn thất bại.');
+      setDraft('');
+      setMessages(prev => [...prev, data]);
+      fetchThreads();
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const threadTitle = (thread: any) => user.role === 'student'
+    ? thread.lecturer_name
+    : thread.student_name;
+  const threadSubtitle = (thread: any) => user.role === 'student'
+    ? (thread.advisor_role === 'primary' ? 'GVHD chính' : 'Đồng hướng dẫn')
+    : [thread.student_id, thread.class_name, thread.course_code].filter(Boolean).join(' · ');
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <MessageCircle className="text-sky-600" /> Trao đổi với {user.role === 'student' ? 'giảng viên hướng dẫn' : 'sinh viên'}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Tin nhắn chỉ mở giữa sinh viên và giảng viên đã được phân công trong hệ thống.</p>
+        </div>
+        <button onClick={fetchThreads} disabled={loadingThreads} className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60">
+          <RefreshCw size={16} className={loadingThreads ? 'animate-spin' : ''} /> Tải lại
+        </button>
+      </div>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[620px]">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+            <div className="font-bold text-slate-800">Cuộc trò chuyện</div>
+            <div className="text-xs text-slate-500 mt-1">{threads.length} thread</div>
+          </div>
+          <div className="divide-y divide-slate-100 max-h-[560px] overflow-y-auto">
+            {loadingThreads ? (
+              <div className="p-6 text-sm text-slate-500 text-center">Đang tải...</div>
+            ) : threads.length === 0 ? (
+              <div className="p-6 text-sm text-slate-500 text-center">Chưa có giảng viên/sinh viên được phân công để trao đổi.</div>
+            ) : threads.map((thread: any) => {
+              const key = `${thread.student_user_id}:${thread.lecturer_id}`;
+              const active = key === selectedKey;
+              return (
+                <button
+                  key={key}
+                  onClick={() => openThread(thread)}
+                  className={`w-full text-left p-4 transition-colors ${active ? 'bg-sky-50' : 'hover:bg-slate-50'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
+                      <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
+                      <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || 'Chưa có tin nhắn.'}</div>
+                    </div>
+                    {Number(thread.unread_count || 0) > 0 && (
+                      <span className="min-w-5 h-5 px-1 rounded-full bg-sky-600 text-white text-[11px] font-bold flex items-center justify-center">
+                        {Number(thread.unread_count) > 99 ? '99+' : thread.unread_count}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[620px]">
+          {selectedThread ? (
+            <>
+              <div className="px-5 py-4 border-b border-slate-100 bg-sky-50/70">
+                <div className="font-bold text-slate-900">{threadTitle(selectedThread)}</div>
+                <div className="text-xs text-slate-500 mt-1">{threadSubtitle(selectedThread) || '-'}</div>
+              </div>
+              <div className="flex-1 p-5 overflow-y-auto bg-slate-50/50 space-y-3">
+                {loadingMessages ? (
+                  <div className="text-sm text-slate-500 text-center py-10">Đang tải tin nhắn...</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-sm text-slate-500 text-center py-10">Chưa có tin nhắn. Bạn có thể bắt đầu trao đổi ở ô bên dưới.</div>
+                ) : messages.map((message: any) => {
+                  const mine = Number(message.sender_user_id) === Number(user.id);
+                  return (
+                    <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${mine ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
+                        <div className={`text-[11px] font-semibold mb-1 ${mine ? 'text-sky-100' : 'text-slate-500'}`}>
+                          {mine ? 'Bạn' : message.sender_name}
+                        </div>
+                        <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</div>
+                        <div className={`text-[10px] mt-2 ${mine ? 'text-sky-100' : 'text-slate-400'}`}>
+                          {message.created_at ? new Date(message.created_at).toLocaleString('vi-VN') : '-'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 bg-white">
+                <div className="flex items-end gap-3">
+                  <textarea
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    maxLength={2000}
+                    rows={2}
+                    className="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                    placeholder="Nhập tin nhắn..."
+                  />
+                  <button disabled={sending || !draft.trim()} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Send size={16} /> Gửi
+                  </button>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-2 text-right">{draft.length}/2000</div>
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-slate-500">
+              Chọn một cuộc trò chuyện để bắt đầu.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
@@ -8943,13 +9169,14 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                 <th className="px-4 py-3">Báo cáo final</th>
                 <th className="px-4 py-3">Liên hệ</th>
                 <th className="px-4 py-3">Môn học</th>
+                <th className="px-4 py-3">Trao đổi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingStudents ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">Đang tải danh sách...</td></tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
               ) : students.map((student: any) => (
                 <tr key={student.assignment_id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono">{student.student_id || '-'}</td>
@@ -8980,6 +9207,14 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                     <div>{student.personal_email || student.email || '-'}</div>
                   </td>
                   <td className="px-4 py-3 text-xs">{student.course_code || '-'}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => navigate(`/chat/${student.user_id}/${student.lecturer_id}`)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                    >
+                      <MessageCircle size={14} /> Chat
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1116,6 +1116,18 @@ async function initDb() {
       last_attempt_at DATETIME,
       read_at DATETIME
     );
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_user_id INTEGER NOT NULL,
+      lecturer_id INTEGER NOT NULL,
+      sender_user_id INTEGER NOT NULL,
+      body TEXT NOT NULL,
+      created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
+      read_at DATETIME,
+      FOREIGN KEY (student_user_id) REFERENCES users (id),
+      FOREIGN KEY (lecturer_id) REFERENCES lecturers (id),
+      FOREIGN KEY (sender_user_id) REFERENCES users (id)
+    );
     CREATE TABLE IF NOT EXISTS system_notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL DEFAULT 'system_announcement',
@@ -1300,6 +1312,22 @@ async function initDb() {
   } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE final_reports ADD COLUMN lecturer_comment TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE grades ADD COLUMN locked_at DATETIME'); } catch (e) { }
+  try {
+    await db.executeMultiple(`CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_user_id INTEGER NOT NULL,
+      lecturer_id INTEGER NOT NULL,
+      sender_user_id INTEGER NOT NULL,
+      body TEXT NOT NULL,
+      created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
+      read_at DATETIME,
+      FOREIGN KEY (student_user_id) REFERENCES users (id),
+      FOREIGN KEY (lecturer_id) REFERENCES lecturers (id),
+      FOREIGN KEY (sender_user_id) REFERENCES users (id)
+    )`);
+  } catch (e) { }
+  try { await db.executeMultiple('CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(student_user_id, lecturer_id, created_at)'); } catch (e) { }
+  try { await db.executeMultiple('CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON chat_messages(student_user_id, lecturer_id, sender_user_id, read_at)'); } catch (e) { }
 
   await consolidateLegacyPeopleTables();
   await ensureDbIndexes();
@@ -1476,6 +1504,36 @@ async function startServer() {
     }
     next();
   };
+
+  const getActorLecturer = async (actor: any) => {
+    if (actor.role !== 'lecturer' && actor.role !== 'admin' && !actor.is_lecturer) return null;
+    return (await db.execute({
+      sql: 'SELECT id, name, email FROM lecturers WHERE email = ? OR name = ? LIMIT 1',
+      args: [actor.email || '', actor.name || ''],
+    })).rows[0] as any || null;
+  };
+
+  const canAccessChatThread = async (actor: any, studentUserId: number, lecturerId: number) => {
+    if (!Number.isFinite(studentUserId) || !Number.isFinite(lecturerId)) return false;
+    if (actor.role === 'student') {
+      if (Number(actor.id) !== studentUserId) return false;
+    } else {
+      const lecturer = await getActorLecturer(actor);
+      if (!lecturer || Number(lecturer.id) !== lecturerId) return false;
+    }
+    const assignment = (await db.execute({
+      sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? LIMIT 1',
+      args: [studentUserId, lecturerId],
+    })).rows[0];
+    return !!assignment;
+  };
+
+  const chatMessageSelect = `
+    SELECT cm.id, cm.student_user_id, cm.lecturer_id, cm.sender_user_id, cm.body, cm.created_at, cm.read_at,
+           u.name as sender_name, u.role as sender_role, u.email as sender_email
+    FROM chat_messages cm
+    JOIN users u ON u.id = cm.sender_user_id
+  `;
 
   // 1. Google Login endpoint
   app.post('/api/auth/google', async (req, res) => {
@@ -1796,6 +1854,126 @@ async function startServer() {
     }
   });
 
+  app.get('/api/chat/threads', requireAuth, async (req: any, res: any) => {
+    try {
+      if (req.user.role === 'student') {
+        const rows = (await db.execute({
+          sql: `
+            SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
+                   l.name as lecturer_name, l.email as lecturer_email,
+                   u.name as student_name, u.student_id,
+                   last_msg.body as last_message, last_msg.created_at as last_message_at,
+                   COALESCE(unread.unread_count, 0) as unread_count
+            FROM advisor_assignments aa
+            JOIN lecturers l ON l.id = aa.lecturer_id
+            JOIN users u ON u.id = aa.user_id
+            LEFT JOIN (
+              SELECT student_user_id, lecturer_id, body, created_at
+              FROM chat_messages cm
+              WHERE id IN (
+                SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
+              )
+            ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
+            LEFT JOIN (
+              SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
+              FROM chat_messages
+              WHERE sender_user_id != ? AND read_at IS NULL
+              GROUP BY student_user_id, lecturer_id
+            ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
+            WHERE aa.user_id = ?
+            ORDER BY CASE aa.role WHEN 'primary' THEN 0 ELSE 1 END, l.name ASC
+          `,
+          args: [req.user.id, req.user.id],
+        })).rows;
+        return res.json(rows);
+      }
+      const lecturer = await getActorLecturer(req.user);
+      if (!lecturer) return res.json([]);
+      const rows = (await db.execute({
+        sql: `
+          SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
+                 l.name as lecturer_name, l.email as lecturer_email,
+                 u.name as student_name, u.student_id, u.email as student_email, u.class_name, u.course_code,
+                 last_msg.body as last_message, last_msg.created_at as last_message_at,
+                 COALESCE(unread.unread_count, 0) as unread_count
+          FROM advisor_assignments aa
+          JOIN lecturers l ON l.id = aa.lecturer_id
+          JOIN users u ON u.id = aa.user_id
+          LEFT JOIN (
+            SELECT student_user_id, lecturer_id, body, created_at
+            FROM chat_messages cm
+            WHERE id IN (
+              SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
+            )
+          ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
+          LEFT JOIN (
+            SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
+            FROM chat_messages
+            WHERE sender_user_id != ? AND read_at IS NULL
+            GROUP BY student_user_id, lecturer_id
+          ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
+          WHERE aa.lecturer_id = ?
+          ORDER BY COALESCE(last_msg.created_at, aa.assigned_at) DESC, u.student_id ASC
+        `,
+        args: [req.user.id, Number(lecturer.id)],
+      })).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.get('/api/chat/threads/:studentUserId/:lecturerId/messages', requireAuth, async (req: any, res: any) => {
+    try {
+      const studentUserId = Number(req.params.studentUserId);
+      const lecturerId = Number(req.params.lecturerId);
+      if (!(await canAccessChatThread(req.user, studentUserId, lecturerId))) {
+        return res.status(403).json({ error: 'Bạn không có quyền xem cuộc trò chuyện này.' });
+      }
+      await db.execute({
+        sql: `UPDATE chat_messages
+              SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
+              WHERE student_user_id = ? AND lecturer_id = ? AND sender_user_id != ? AND read_at IS NULL`,
+        args: [studentUserId, lecturerId, req.user.id],
+      });
+      const rows = (await db.execute({
+        sql: `${chatMessageSelect}
+              WHERE cm.student_user_id = ? AND cm.lecturer_id = ?
+              ORDER BY cm.created_at ASC, cm.id ASC
+              LIMIT 300`,
+        args: [studentUserId, lecturerId],
+      })).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.post('/api/chat/threads/:studentUserId/:lecturerId/messages', requireAuth, async (req: any, res: any) => {
+    try {
+      const studentUserId = Number(req.params.studentUserId);
+      const lecturerId = Number(req.params.lecturerId);
+      if (!(await canAccessChatThread(req.user, studentUserId, lecturerId))) {
+        return res.status(403).json({ error: 'Bạn không có quyền gửi tin nhắn trong cuộc trò chuyện này.' });
+      }
+      const body = String(req.body?.body || '').trim();
+      if (!body) return res.status(400).json({ error: 'Vui lòng nhập nội dung tin nhắn.' });
+      if (body.length > 2000) return res.status(400).json({ error: 'Tin nhắn tối đa 2000 ký tự.' });
+      const result = await db.execute({
+        sql: `INSERT INTO chat_messages (student_user_id, lecturer_id, sender_user_id, body, created_at)
+              VALUES (?, ?, ?, ?, datetime('now', '+7 hours'))`,
+        args: [studentUserId, lecturerId, req.user.id, body],
+      });
+      const message = (await db.execute({
+        sql: `${chatMessageSelect} WHERE cm.id = ?`,
+        args: [Number(result.lastInsertRowid)],
+      })).rows[0];
+      res.json(message);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
   // 3. Get Registration (Student)
   app.get('/api/registrations/my', requireAuth, requireStudent, async (req: any, res: any) => {
     const regs = (await db.execute({
@@ -1950,7 +2128,7 @@ async function startServer() {
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
-      sql: `SELECT aa.id as assignment_id, aa.user_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
+      sql: `SELECT aa.id as assignment_id, aa.user_id, aa.lecturer_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
                    u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
                    f.internship_type, f.confirmed_at,
                    CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
@@ -2994,6 +3172,7 @@ async function startServer() {
           { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM final_reports WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM grades WHERE user_id = ?', args: [user.id] },
+          { sql: 'DELETE FROM chat_messages WHERE student_user_id = ? OR sender_user_id = ?', args: [user.id, user.id] },
           { sql: 'DELETE FROM notifications WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM final_internships WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [user.id] },
@@ -3228,6 +3407,7 @@ async function startServer() {
       await executeBatch([
         { sql: 'DELETE FROM advisor_assignments WHERE lecturer_id = ?', args: [idVal] },
         { sql: 'DELETE FROM lecturer_quotas WHERE lecturer_id = ?', args: [idVal] },
+        { sql: 'DELETE FROM chat_messages WHERE lecturer_id = ?', args: [idVal] },
         { sql: 'DELETE FROM lecturers WHERE id = ?', args: [idVal] }
       ]);
       if (lecturer?.email) {
