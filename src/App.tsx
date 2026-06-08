@@ -64,10 +64,10 @@ const RegistrationRulesMarkdown = ({ content }: { content: string }) => (
         em: ({ node, ...props }) => <em className="text-blue-100" {...props} />,
         a: ({ node, ...props }) => <a className="text-cyan-200 underline hover:text-white" target="_blank" rel="noreferrer" {...props} />,
         code: ({ node, ...props }) => <code className="bg-blue-950/40 text-cyan-100 px-1 py-0.5 rounded" {...props} />,
-        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-indigo-200 pl-3 italic text-blue-100 my-3" {...props} />,
-        table: ({ node, ...props }) => <div className="overflow-x-auto my-3"><table className="min-w-full border border-indigo-200/40 text-xs" {...props} /></div>,
-        th: ({ node, ...props }) => <th className="border border-indigo-200/40 px-2 py-1 text-left text-white" {...props} />,
-        td: ({ node, ...props }) => <td className="border border-indigo-200/30 px-2 py-1 text-blue-50" {...props} />,
+        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-300 pl-3 italic text-blue-100 my-3" {...props} />,
+        table: ({ node, ...props }) => <div className="overflow-x-auto my-3"><table className="min-w-full border border-blue-300/40 text-xs" {...props} /></div>,
+        th: ({ node, ...props }) => <th className="border border-blue-300/40 px-2 py-1 text-left text-white" {...props} />,
+        td: ({ node, ...props }) => <td className="border border-blue-300/30 px-2 py-1 text-blue-50" {...props} />,
       }}
     >
       {normalizeRegistrationRulesMarkdown(content)}
@@ -420,7 +420,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
       {compact && rows.length > 0 && (
         <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500">{unread} chưa đọc</span>
-          <button onClick={markAllRead} disabled={!unread} className="text-xs font-semibold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline">
+          <button onClick={markAllRead} disabled={!unread} className="text-xs font-semibold text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline">
             Đã đọc tất cả
           </button>
         </div>
@@ -434,14 +434,14 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
               <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-2 py-0.5 rounded">{typeLabel(row.type)}</span>
-                  {!row.read_at && <span className="w-2 h-2 rounded-full bg-indigo-600" title="Chưa đọc"></span>}
+                  {!row.read_at && <span className="w-2 h-2 rounded-full bg-blue-600" title="Chưa đọc"></span>}
                 </div>
                 <div className="font-semibold text-slate-900">{row.subject}</div>
                 <div className="text-sm text-slate-600 whitespace-pre-wrap mt-1">{row.body}</div>
                 <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
               </div>
               {!row.read_at && (
-                <button onClick={() => markRead(row)} className="text-xs font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded whitespace-nowrap">
+                <button onClick={() => markRead(row)} className="text-xs font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
                   Đã đọc
                 </button>
               )}
@@ -450,7 +450,7 @@ function MyNotifications({ token, compact = false, onChanged }: { token: string;
         ))}
       </div>
       {compact && rows.length > visibleRows.length && (
-        <Link to="/notifications" className="block px-4 py-3 text-sm text-center font-semibold text-indigo-600 hover:bg-indigo-50">
+        <Link to="/notifications" className="block px-4 py-3 text-sm text-center font-semibold text-blue-600 hover:bg-blue-50">
           Xem tất cả thông báo
         </Link>
       )}
@@ -531,15 +531,15 @@ function App() {
       <HashRouter>
         <div className="w-full h-full min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans overflow-x-hidden">
           {/* Header */}
-          <header className="h-16 bg-white/80 backdrop-blur-md text-slate-800 px-6 flex items-center justify-between border-b border-slate-200 shadow-sm z-10 sticky top-0 w-full">
+          <header className="h-20 bg-[#004a99] text-white px-8 flex items-center justify-between shadow-lg z-10 sticky top-0 w-full">
             <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-              <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
-                <div className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center hidden sm:flex overflow-hidden">
+              <Link to="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity cursor-pointer">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center hidden sm:flex overflow-hidden">
                   <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FIT UET 30 Years" className="w-full h-full object-contain p-0.5" />
                 </div>
                 <div>
-                  <h1 className="text-sm md:text-base font-extrabold leading-tight uppercase text-slate-900 tracking-tight">Khoa Công nghệ Thông tin</h1>
-                  <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-wider">Trường Đại học Công nghệ - ĐHQGHN</p>
+                  <h1 className="text-lg font-bold leading-tight uppercase">Khoa Công nghệ Thông tin</h1>
+                  <p className="text-xs opacity-80 uppercase tracking-wider">Trường Đại học Công nghệ - ĐHQGHN</p>
                 </div>
               </Link>
 
@@ -549,22 +549,22 @@ function App() {
                     <Link
                       to="/chat"
                       onClick={() => { setIsMenuOpen(false); setIsNotificationOpen(false); }}
-                      className="inline-flex items-center gap-2 h-9 rounded-xl px-3 hover:bg-slate-100 text-slate-650 transition-colors text-xs font-semibold"
+                      className="inline-flex items-center gap-2 h-10 rounded-full px-3 hover:bg-white/10 transition-colors text-sm font-semibold"
                       title={user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}
                     >
-                      <MessageCircle size={18} />
+                      <MessageCircle size={20} />
                       <span className="hidden md:inline">{user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}</span>
                     </Link>
                   )}
                   <div className="relative">
                     <button
                       onClick={() => { setIsNotificationOpen(!isNotificationOpen); setIsMenuOpen(false); }}
-                      className="relative w-9 h-9 rounded-xl hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-colors focus:outline-none cursor-pointer"
+                      className="relative w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors focus:outline-none"
                       title="Thông báo"
                     >
-                      <Bell size={18} />
+                      <Bell size={20} />
                       {unreadNotifications > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center border border-white">
+                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border border-[#004a99]">
                           {unreadNotifications > 99 ? '99+' : unreadNotifications}
                         </span>
                       )}
@@ -575,7 +575,7 @@ function App() {
                         <div className="absolute right-0 mt-2 w-[min(92vw,420px)] bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden text-slate-800 origin-top-right">
                           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                             <div className="font-bold text-slate-900 flex items-center gap-2"><Bell size={16} className="text-amber-600" /> Thông báo</div>
-                            <Link to="/notifications" onClick={() => setIsNotificationOpen(false)} className="text-xs font-semibold text-indigo-600 hover:underline">Xem tất cả</Link>
+                            <Link to="/notifications" onClick={() => setIsNotificationOpen(false)} className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</Link>
                           </div>
                           <div className="max-h-[70vh] overflow-y-auto">
                             <MyNotifications token={token} compact onChanged={setUnreadNotifications} />
@@ -585,15 +585,15 @@ function App() {
                     )}
                   </div>
                   <div className="relative">
-                    <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsNotificationOpen(false); }} className="flex items-center gap-2 hover:bg-slate-100 text-slate-700 p-1 pr-2 rounded-xl transition-all cursor-pointer group focus:outline-none">
+                    <button onClick={() => { setIsMenuOpen(!isMenuOpen); setIsNotificationOpen(false); }} className="flex items-center gap-3 hover:bg-white/10 p-1.5 pr-3 rounded-full transition-colors cursor-pointer group focus:outline-none">
                       <div className="text-right hidden sm:block">
-                        <p className="text-xs font-semibold group-hover:text-slate-900 transition-colors leading-normal">{user.name}</p>
-                        <p className="text-[10px] text-slate-400 group-hover:text-slate-500 transition-colors">{user.email}</p>
+                        <p className="text-sm font-medium group-hover:text-blue-100 transition-colors">{user.name}</p>
+                        <p className="text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">{user.email}</p>
                       </div>
                       {user.picture ? (
-                        <img src={user.picture} alt="Avatar" className="w-8 h-8 rounded-full border-2 border-emerald-400 shadow-inner group-hover:border-emerald-300 transition-colors" />
+                        <img src={user.picture} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-green-400 shadow-inner group-hover:border-green-300 transition-colors" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-emerald-400 flex items-center justify-center text-slate-600 font-bold shadow-inner group-hover:border-emerald-300 transition-colors"><UserIcon size={14} /></div>
+                        <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-green-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-green-300 transition-colors"><UserIcon size={18} /></div>
                       )}
                     </button>
 
@@ -602,7 +602,7 @@ function App() {
                         <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
                           <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                            <UserIcon size={16} className="text-indigo-600" /> Cập nhật hồ sơ
+                            <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
                           </Link>
                           {user.role === 'student' && (
                             <>
@@ -610,7 +610,7 @@ function App() {
                                 <FileText size={16} className="text-indigo-600" /> Báo cáo final
                               </Link>
                               <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CheckCircle2 size={16} className="text-emerald-600" /> Điểm thực tập
+                                <CheckCircle2 size={16} className="text-green-600" /> Điểm thực tập
                               </Link>
                             </>
                           )}
@@ -622,7 +622,7 @@ function App() {
                                 </Link>
                               )}
                               <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CheckCircle2 size={16} className="text-emerald-600" /> Chấm điểm thực tập
+                                <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
                               </Link>
                             </>
                           )}
@@ -660,7 +660,7 @@ function App() {
                           <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                             <CircleHelp size={16} className="text-amber-600" /> FAQ
                           </Link>
-                          <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-rose-50 text-sm font-medium text-rose-600 w-full text-left transition-colors">
+                          <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
                             <LogOut size={16} /> Đăng xuất
                           </button>
                         </div>
@@ -675,17 +675,17 @@ function App() {
           {/* Main Content */}
           <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
             {!token ? (
-              <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center">
-                <div className="w-16 h-16 bg-indigo-50 text-indigo-605 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-indigo-100 shadow-sm">
-                  <LogIn className="text-indigo-600" size={28} />
+              <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-2xl shadow border border-gray-100 text-center">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <LogIn className="text-blue-600" size={32} />
                 </div>
-                <h2 className="text-2xl font-extrabold text-slate-800 mb-2 tracking-tight">Đăng nhập</h2>
-                <p className="text-slate-500 text-sm mb-8 leading-relaxed">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập</h2>
+                <p className="text-gray-500 text-sm mb-8">
                   Hệ thống đăng ký Thực tập.<br />
-                  Yêu cầu đăng nhập bằng VNU mail <strong className="text-slate-800 font-semibold">@vnu.edu.vn</strong>
+                  Yêu cầu đăng nhập bằng VNU mail <strong className="text-gray-900">@vnu.edu.vn</strong>
                 </p>
 
-                <div className="flex justify-center border border-slate-200 p-4 bg-slate-50/50 rounded-2xl shadow-inner">
+                <div className="flex justify-center border p-4 bg-gray-50 rounded-xl">
                   <GoogleLogin
                     onSuccess={handleLoginSuccess}
                     onError={() => setLoginError('Lỗi đăng nhập từ Google.')}
@@ -743,7 +743,7 @@ function App() {
           {loginError && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
               <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
-                <div className="flex items-center gap-3 text-rose-600 mb-4">
+                <div className="flex items-center gap-3 text-red-600 mb-4">
                   <AlertTriangle size={24} />
                   <h3 className="text-lg font-bold">Lỗi Đăng Nhập</h3>
                 </div>
@@ -753,7 +753,7 @@ function App() {
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => setLoginError(null)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
                   >
                     Đã hiểu
                   </button>
@@ -1214,8 +1214,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       return <ArrowUpDown size={14} className="text-gray-400" />;
     }
     return sortConfig.direction === 'asc' ?
-      <span className="text-indigo-600 font-bold">↑</span> :
-      <span className="text-indigo-600 font-bold">↓</span>;
+      <span className="text-blue-600 font-bold">↑</span> :
+      <span className="text-blue-600 font-bold">↓</span>;
   };
 
   const sortedCompanies = useMemo(() => [...filteredCompanies].sort((a, b) => {
@@ -1518,13 +1518,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     : campaignStatusItems.slice(0, 1);
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    ? 'bg-green-50 text-green-700 border-green-100'
     : status === 'not_open_yet'
       ? 'bg-orange-50 text-orange-700 border-orange-100'
       : status === 'unconfigured'
         ? 'bg-slate-50 text-slate-700 border-slate-200'
-        : 'bg-rose-50 text-rose-700 border-rose-100';
-  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-emerald-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-rose-500';
+        : 'bg-red-50 text-red-700 border-red-100';
+  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-red-500';
   const openCampaigns = campaignStatusItems.filter(item => item.status === 'open');
   const advisorCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký GVHD');
   const registrationCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký thực tập');
@@ -1603,15 +1603,15 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         </div>
 
-        <details className="group bg-white border border-slate-200 text-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all duration-300">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 hover:bg-slate-50/50">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Quy định Đăng ký</span>
-            <ChevronDown size={16} className="text-slate-400 transition-transform group-open:rotate-180" />
+        <details className="group bg-[#004a99] text-white rounded-2xl shadow-md overflow-hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
+            <span className="text-xs font-bold text-blue-200 uppercase tracking-widest">Quy định Đăng ký</span>
+            <ChevronDown size={18} className="text-blue-200 transition-transform group-open:rotate-180" />
           </summary>
-          <div className="px-4 pb-4 border-t border-slate-100/50 pt-3">
+          <div className="px-5 pb-5">
             {registrationRulesMarkdown.trim()
               ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-              : <p className="text-xs text-slate-400">Chưa có quy định nào.</p>}
+              : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
           </div>
         </details>
       </div>
@@ -1625,7 +1625,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/plan')}
-              className="flex items-center gap-2 bg-blue-100 text-indigo-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-blue-200 shadow-sm transition-colors"
+              className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-md text-xs font-bold hover:bg-blue-200 shadow-sm transition-colors"
             >
               KẾ HOẠCH TRIỂN KHAI
             </button>
@@ -1653,12 +1653,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`rounded-xl border p-4 text-left transition-colors ${showRegistrationTask || showRegistrationDetails ? 'border-indigo-100 bg-indigo-50' : 'border-slate-200 bg-white'} ${hasRegistered ? 'hover:border-indigo-200 hover:bg-indigo-50/70 cursor-pointer' : 'cursor-default'}`}
+            className={`rounded-xl border p-4 text-left transition-colors ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'} ${hasRegistered ? 'hover:border-blue-300 hover:bg-blue-50/70 cursor-pointer' : 'cursor-default'}`}
           >
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Đăng ký thực tập</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{registrationSummary}</div>
             {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-2 text-xs font-semibold text-indigo-700">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
+            {hasRegistered && <div className="mt-2 text-xs font-semibold text-blue-700">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
           </button>
           <button
             type="button"
@@ -1692,27 +1692,27 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
           </div>
         ) : (showRegistrationTask || (hasRegistered && showRegistrationDetails)) ? (hasRegistered ? (showRegistrationDetails ? (
-          <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
             {!editingPreferences ? (
               <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="text-emerald-600" size={20} />
+                    <CheckCircle2 className="text-green-600" size={20} />
                     <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} công ty</h3>
                   </div>
                   <ul className="text-sm text-green-800 mb-4 space-y-2">
                     {myRegs.map((reg: any, idx: number) => (
                       <li key={reg.id}>
-                        <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-emerald-700' : reg.status === 'rejected' ? 'bg-red-100 text-rose-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
+                        <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
                         {reg.review_comment && <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">Nhận xét của Khoa: {reg.review_comment}</div>}
                       </li>
                     ))}
                   </ul>
-                  <div className="flex items-center gap-3 text-xs text-emerald-700 font-medium">
+                  <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
                     <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
                   </div>
                   {canWithdrawRegistration && (
-                    <p className="mt-3 text-xs text-emerald-700">
+                    <p className="mt-3 text-xs text-green-700">
                       Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.
                     </p>
                   )}
@@ -1722,7 +1722,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     onClick={startEditingPreferences}
                     disabled={!canWithdrawRegistration}
                     title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-blue-500 text-indigo-700 bg-white hover:bg-indigo-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-blue-500 text-blue-700 bg-white hover:bg-blue-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
                   >
                     <Edit2 size={14} /> Chỉnh sửa nguyện vọng
                   </button>
@@ -1730,7 +1730,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
                     disabled={!canWithdrawRegistration}
                     title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-red-500 text-rose-600 bg-white hover:bg-rose-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-1.5 border rounded-md text-xs font-bold transition-colors whitespace-nowrap ${canWithdrawRegistration ? 'border-red-500 text-red-600 bg-white hover:bg-red-50' : 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'}`}
                   >
                     <Trash2 size={14} /> Hủy tất cả
                   </button>
@@ -1741,12 +1741,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <Edit2 className="text-indigo-600" size={20} />
+                      <Edit2 className="text-blue-600" size={20} />
                       <h3 className="text-base font-bold text-slate-900">Chỉnh sửa nguyện vọng thực tập</h3>
                     </div>
                     <p className="text-sm text-slate-600">Danh sách nơi thực tập đã được mở lại ở bên dưới. Các nơi đã đăng ký được tích sẵn; sinh viên có thể bỏ chọn hoặc chọn thêm nơi khác, tối đa 5 nguyện vọng.</p>
                   </div>
-                  <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-indigo-700">Đang chọn {selectedWishCount}/5</div>
+                  <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Đang chọn {selectedWishCount}/5</div>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <div className="flex items-start gap-2">
@@ -1759,14 +1759,14 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Nguyện vọng sau khi chỉnh sửa</div>
                     <ol className="space-y-1 text-sm text-slate-800">
                       {selectedPreferencePreview.map((item, idx) => (
-                        <li key={item.key}><span className="font-bold text-indigo-700">NV{idx + 1}:</span> {item.name}</li>
+                        <li key={item.key}><span className="font-bold text-blue-700">NV{idx + 1}:</span> {item.name}</li>
                       ))}
                     </ol>
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
                   <button onClick={cancelEditingPreferences} disabled={savingPreferences} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60">Hủy chỉnh sửa</button>
-                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
                     <Save size={16} /> {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
                 </div>
@@ -1774,7 +1774,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             )}
           </div>
         ) : null) : (
-          <div className={`${registrationWindowStatus === 'open' ? 'bg-indigo-50/30 border-blue-100 text-indigo-800' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-xl p-4 text-sm`}>
+          <div className={`${registrationWindowStatus === 'open' ? 'bg-blue-50/30 border-blue-100 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-xl p-4 text-sm`}>
             {registrationWindowStatus === 'open' ? (
               <>Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 nơi thực tập từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.</>
             ) : registrationWindowStatus === 'not_open_yet' ? (
@@ -1813,7 +1813,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   <div className="text-sm text-slate-600 space-y-2">
                     <p>Sau khi có kết quả từ doanh nghiệp, bạn cần xác nhận một nơi thực tập chính thức để Khoa phân công GVHD và tính điểm.</p>
                     {confirmationWindowStatus !== 'open' && (
-                      <p className={`text-xs font-semibold ${confirmationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-rose-700'}`}>
+                      <p className={`text-xs font-semibold ${confirmationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
                         {confirmationWindowStatus === 'not_open_yet'
                           ? `Chưa mở xác nhận${campaign.confirmation_open_at ? `: ${formatGMT7(campaign.confirmation_open_at)} (GMT+7)` : ''}.`
                           : `Đã hết hạn xác nhận${campaign.confirmation_close_at ? `: ${formatGMT7(campaign.confirmation_close_at)} (GMT+7)` : ''}.`}
@@ -1828,7 +1828,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   <button
                     onClick={() => openFinalConfirm('company')}
                     disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
                   >
                     Xác nhận công ty
                   </button>
@@ -1882,7 +1882,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
                           {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
                         </button>
-                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60">
+                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">
                           Hủy đăng ký
                         </button>
                       </div>
@@ -1983,7 +1983,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <p>Chưa nộp báo cáo final.</p>
                   )}
                   {finalReportWindowStatus !== 'open' && (
-                    <p className={`text-xs font-semibold ${finalReportWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-rose-700'}`}>
+                    <p className={`text-xs font-semibold ${finalReportWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
                       {finalReportWindowStatus === 'not_open_yet'
                         ? `Chưa mở nộp báo cáo${campaign.final_report_open_at ? `: ${formatGMT7(campaign.final_report_open_at)} (GMT+7)` : ''}.`
                         : `Đã hết hạn nộp báo cáo${campaign.final_report_close_at ? `: ${formatGMT7(campaign.final_report_close_at)} (GMT+7)` : ''}.`}
@@ -2014,7 +2014,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
               {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
-                <span className="text-xs bg-blue-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedWishCount}/5</span>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedWishCount}/5</span>
               )}
             </div>
             <div className="flex gap-2 items-center">
@@ -2037,7 +2037,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   <button
                     onClick={savePreferenceEdits}
                     disabled={savingPreferences || selectedWishCount === 0}
-                    className="px-5 py-1.5 rounded-md text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-5 py-1.5 rounded-md text-sm font-bold bg-green-600 text-white hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
@@ -2059,7 +2059,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <button
                       disabled={selectedWishCount === 0}
                       onClick={() => setRegisterModalOpen(true)}
-                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedWishCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedWishCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                     >
                       Đăng ký ({selectedWishCount})
                     </button>
@@ -2072,10 +2072,10 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           {/* Registration time window banner */}
           {!hasRegistered && (campaign?.registration_open_at || campaign?.registration_close_at) && (
             <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${registrationWindowStatus === 'open'
-              ? 'bg-emerald-50 border-emerald-100 text-green-800'
+              ? 'bg-green-50 border-green-100 text-green-800'
               : registrationWindowStatus === 'not_open_yet'
                 ? 'bg-orange-50 border-orange-100 text-orange-800'
-                : 'bg-rose-50 border-rose-100 text-rose-800'
+                : 'bg-red-50 border-red-100 text-red-800'
               }`}>
               <Clock size={16} className="shrink-0" />
               {registrationWindowStatus === 'open' && (
@@ -2121,20 +2121,20 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   const isSelected = selectedCompanies.has(company.id);
                   const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
                   return (
-                    <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''} ${isRegistered ? 'bg-emerald-50/30' : ''}`}>
+                    <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''} ${isRegistered ? 'bg-green-50/30' : ''}`}>
                       <td className="px-4 py-4 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected || (!editingPreferences && isRegistered)}
                           disabled={(!editingPreferences && hasRegistered) || (!isSelected && selectedWishCount >= 5)}
                           onChange={() => toggleCompanySelection(company.id)}
-                          className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
                       </td>
-                      <td className="px-6 py-4 font-bold text-indigo-700">
+                      <td className="px-6 py-4 font-bold text-blue-700">
                         <button
                           onClick={() => navigate(`/company/${company.id}`)}
-                          className="text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 text-left"
+                          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
                         >
                           {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
                         </button>
@@ -2196,7 +2196,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         <button
                           type="button"
                           onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
-                          className="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
                         >
                           <Trash2 size={13} /> Xóa
                         </button>
@@ -2265,7 +2265,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       {isWithdrawModalOpen && canWithdrawRegistration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
-            <div className="flex items-center gap-3 text-rose-600 mb-4">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
               <AlertTriangle size={24} />
               <h3 className="text-lg font-bold">Xác nhận hủy đăng ký</h3>
             </div>
@@ -2283,7 +2283,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               </button>
               <button
                 onClick={handleWithdraw}
-                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition-colors shadow-sm"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm"
               >
                 Vẫn hủy Đăng ký
               </button>
@@ -2306,14 +2306,14 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <button
                   type="button"
                   onClick={() => setFinalConfirmMode('company')}
-                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'company' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'}`}
+                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'company' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
                 >
                   Công ty
                 </button>
                 <button
                   type="button"
                   onClick={() => setFinalConfirmMode('school')}
-                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'school' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'}`}
+                  className={`px-3 py-2 rounded-md text-sm font-bold ${finalConfirmMode === 'school' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'}`}
                 >
                   Tại trường
                 </button>
@@ -2337,13 +2337,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       ))}
                     </select>
                   </div>
-                  <label className="flex items-start gap-3 bg-indigo-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-900">
+                  <label className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-900">
                     <input
                       type="checkbox"
                       required
                       checked={finalAttested}
                       onChange={e => setFinalAttested(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-indigo-600 rounded border-indigo-200"
+                      className="mt-1 w-4 h-4 text-blue-600 rounded border-blue-300"
                     />
                     <span>Tôi xác nhận đã được đơn vị này tiếp nhận thực tập và chịu trách nhiệm về thông tin khai báo.</span>
                   </label>
@@ -2386,7 +2386,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <button
                   type="submit"
                   disabled={isConfirmingFinal || (finalConfirmMode === 'company' && !selectedFinalRegId)}
-                  className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isConfirmingFinal ? 'Đang xác nhận...' : 'Xác nhận'}
                 </button>
@@ -2410,7 +2410,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               <p className="text-sm text-slate-600 mb-2">Bạn đang đăng ký <strong>{selectedWishCount}</strong> nguyện vọng:</p>
               <ul className="text-sm text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
                 {selectedPreferencePreview.map((item, idx) => (
-                  <li key={item.key} className="flex items-center gap-2"><span className="text-indigo-600 font-bold text-xs">NV{idx + 1}</span> {item.name}</li>
+                  <li key={item.key} className="flex items-center gap-2"><span className="text-blue-600 font-bold text-xs">NV{idx + 1}</span> {item.name}</li>
                 ))}
               </ul>
             </div>
@@ -2511,7 +2511,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               </div>
 
               {hasSelectedSchool && (
-                <div className="bg-indigo-50 border border-blue-100 p-4 rounded-lg text-sm text-blue-900">
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-sm text-blue-900">
                   <h4 className="text-sm font-bold text-blue-900">Thực tập tại Trường</h4>
                   <p className="mt-1">Thông tin GVHD được lấy từ phần “Đăng ký giảng viên hướng dẫn” ở trên. Nếu chưa chọn trong bước này, Khoa sẽ phân công sau.</p>
                 </div>
@@ -2528,7 +2528,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         <button
                           type="button"
                           onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
-                          className="absolute -top-1 -right-1 text-red-500 hover:text-rose-700 bg-rose-50 p-1 rounded-full"
+                          className="absolute -top-1 -right-1 text-red-500 hover:text-red-700 bg-red-50 p-1 rounded-full"
                         >
                           <X size={16} />
                         </button>
@@ -2563,7 +2563,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     <button
                       type="button"
                       onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }])}
-                      className="mt-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                      className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
                     >
                       + Thêm công ty tự liên hệ
                     </button>
@@ -2581,7 +2581,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
@@ -2773,8 +2773,8 @@ function AdminPanel({ token }: { token: string }) {
       return <ArrowUpDown size={14} className="text-gray-400" />;
     }
     return sortConfig.direction === 'asc' ?
-      <span className="text-indigo-600 font-bold">↑</span> :
-      <span className="text-indigo-600 font-bold">↓</span>;
+      <span className="text-blue-600 font-bold">↑</span> :
+      <span className="text-blue-600 font-bold">↓</span>;
   };
 
   const handleUpdateStatus = async (id: number, status: string) => {
@@ -2988,213 +2988,152 @@ function AdminPanel({ token }: { token: string }) {
   const editingIsOtherCompany = editingCompany?.name === 'Công ty khác';
   const editingIsSchoolInternship = editingCompany?.name === 'Trường Đại học Công nghệ';
 
-  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải dữ liệu...</div>;
+  if (loading) return <div className="text-center py-20 text-gray-500">Đang tải dữ liệu...</div>;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1 whitespace-nowrap transition-colors">&larr; Quay lại</button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm whitespace-nowrap font-medium">&larr; Quay lại</button>
           <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
             <button
               onClick={handleSendFilteredRegistrationComment}
               disabled={filteredRegistrations.length === 0}
-              className="bg-amber-50 text-amber-600 border border-amber-200 px-3.5 py-2 rounded-xl hover:bg-amber-100/80 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 transition-colors"
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 shadow-sm transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send size={14} /> Gửi nhận xét
+              <Send size={16} /> Gửi nhận xét
             </button>
           </span>
-          <button
-            onClick={handleApproveAll}
-            className="bg-indigo-650 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-750 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors"
-          >
-            <CheckCircle2 size={14} /> Duyệt tất cả
-          </button>
         </div>
-
-        <div className="flex flex-col md:flex-row md:items-center gap-2 flex-1 xl:justify-end">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+        <div className="flex flex-wrap items-center gap-3 flex-1 lg:justify-end">
+          <div className="relative flex-1 min-w-[250px] max-w-lg">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
-              placeholder="Tìm sinh viên, lớp, công ty..."
+              placeholder="Tìm kiếm sinh viên, công ty..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all bg-slate-50/50"
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full shadow-sm"
             />
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={filterCourse}
-              onChange={(e) => setFilterCourse(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer"
-            >
-              <option value="">Tất cả học phần</option>
-              {uniqueCourses.map(course => (
-                <option key={course} value={course}>{course}</option>
-              ))}
-            </select>
-            
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
-            </select>
-
-            <div className="relative">
-              <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors"
-              >
-                <Download size={14} /> Xuất dữ liệu <ChevronDown size={12} />
-              </button>
-              {isExportMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                    <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
-                      <FileText size={16} className="text-emerald-600" /> Xuất danh sách đang lọc (XLSX)
-                    </button>
-                    <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
-                      <Download size={16} className="text-indigo-600" /> Xuất theo môn học (ZIP)
-                    </button>
-                    <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left">
-                      <Download size={16} className="text-indigo-600" /> Xuất theo công ty (ZIP)
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
+          <button
+            onClick={handleApproveAll}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors whitespace-nowrap"
+          >
+            <CheckCircle2 size={18} /> Duyệt tất cả
+          </button>
+          <div className="relative">
             <button
-              onClick={handleSaveToGoogleSheets}
-              disabled={savingToSheet}
-              className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70 disabled:cursor-wait transition-colors"
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 shadow-sm transition-colors whitespace-nowrap"
             >
-              {savingToSheet ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-              {savingToSheet ? 'Đang lưu...' : 'Lưu Google Sheets'}
+              <Download size={18} /> Xuất dữ liệu <ChevronDown size={14} />
             </button>
+            {isExportMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
+                  <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
+                    <FileText size={16} className="text-green-600" /> Xuất danh sách đang lọc (XLSX)
+                  </button>
+                  <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
+                    <Download size={16} className="text-blue-600" /> Xuất theo môn học (ZIP)
+                  </button>
+                  <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left">
+                    <Download size={16} className="text-blue-600" /> Xuất theo công ty (ZIP)
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+          <button
+            onClick={handleSaveToGoogleSheets}
+            disabled={savingToSheet}
+            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors whitespace-nowrap disabled:opacity-70 disabled:cursor-wait"
+          >
+            {savingToSheet ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+            {savingToSheet ? 'Đang lưu...' : 'Lưu vào Google Sheets'}
+          </button>
         </div>
       </div>
 
       {savingToSheet && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>Đang ghi danh sách đăng ký lên Google Sheets, vui lòng đợi...</span>
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <button
-          type="button"
-          onClick={clearRegistrationFilters}
-          className={`text-left bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:shadow-md ${!searchTerm && !filterCourse && !filterStatus ? 'border-indigo-500 ring-2 ring-indigo-55' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Tổng nguyện vọng</span>
-            <FileText size={16} className="text-slate-400" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{totalRegistrations}</span>
+        <button type="button" onClick={clearRegistrationFilters} className={`text-left bg-white p-5 rounded-xl border shadow-sm flex flex-col transition-all hover:-translate-y-0.5 hover:shadow-md ${!searchTerm && !filterCourse && !filterStatus ? 'border-slate-400 ring-2 ring-slate-100' : 'border-slate-200'}`}>
+          <span className="text-slate-500 text-sm font-medium mb-1">Tổng nguyện vọng</span>
+          <span className="text-3xl font-bold text-slate-800">{totalRegistrations}</span>
         </button>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Sinh viên đăng ký</span>
-            <Users size={16} className="text-indigo-500" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{totalStudents}</span>
+        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
+          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên đăng ký</span>
+          <span className="text-3xl font-bold text-blue-700">{totalStudents}</span>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Công ty</span>
-            <Building2 size={16} className="text-cyan-500" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{totalCompanies}</span>
+        <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
+          <span className="text-cyan-700 text-sm font-medium mb-1">Số công ty</span>
+          <span className="text-3xl font-bold text-cyan-800">{totalCompanies}</span>
         </div>
-        <button
-          type="button"
-          onClick={() => applyRegistrationStatusFilter('pending')}
-          className={`text-left bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:shadow-md ${filterStatus === 'pending' ? 'border-amber-500 ring-2 ring-amber-50' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Chờ duyệt</span>
-            <Clock size={16} className="text-amber-500" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{pendingRegistrations}</span>
+        <button type="button" onClick={() => applyRegistrationStatusFilter('pending')} className={`text-left bg-orange-50 p-5 rounded-xl border shadow-sm flex flex-col transition-all hover:-translate-y-0.5 hover:shadow-md ${filterStatus === 'pending' ? 'border-orange-400 ring-2 ring-orange-100' : 'border-orange-100'}`}>
+          <span className="text-orange-600 text-sm font-medium mb-1">Chờ duyệt</span>
+          <span className="text-3xl font-bold text-orange-700">{pendingRegistrations}</span>
         </button>
-        <button
-          type="button"
-          onClick={() => applyRegistrationStatusFilter('approved')}
-          className={`text-left bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:shadow-md ${filterStatus === 'approved' ? 'border-emerald-500 ring-2 ring-emerald-50' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Đã duyệt</span>
-            <CheckCircle2 size={16} className="text-emerald-500" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{approvedRegistrations}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => applyRegistrationStatusFilter('rejected')}
-          className={`text-left bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between transition-all hover:-translate-y-0.5 hover:shadow-md ${filterStatus === 'rejected' ? 'border-rose-500 ring-2 ring-rose-50' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between w-full mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Từ chối</span>
-            <X size={16} className="text-rose-500" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{rejectedRegistrations}</span>
-        </button>
+        <div className="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm flex flex-col">
+          <span className="text-green-600 text-sm font-medium mb-1">Đã duyệt</span>
+          <span className="text-3xl font-bold text-green-700">{approvedRegistrations}</span>
+        </div>
+        <div className="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col">
+          <span className="text-red-600 text-sm font-medium mb-1">Từ chối</span>
+          <span className="text-3xl font-bold text-red-700">{rejectedRegistrations}</span>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
+          <table className="w-full text-left text-sm text-gray-600">
+            <thead className="bg-gray-50 text-gray-700 uppercase font-medium border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('student_id')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('student_id')}>
                   <div className="flex items-center gap-1">Mã SV {getSortIcon('student_id')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('student_name')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('student_name')}>
                   <div className="flex items-center gap-1">Họ và tên {getSortIcon('student_name')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('dob')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('dob')}>
                   <div className="flex items-center gap-1">Ngày sinh {getSortIcon('dob')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('phone')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('phone')}>
                   <div className="flex items-center gap-1">SĐT {getSortIcon('phone')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('personal_email')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('personal_email')}>
                   <div className="flex items-center gap-1">Email cá nhân {getSortIcon('personal_email')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('class_name')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('class_name')}>
                   <div className="flex items-center gap-1">Lớp KH {getSortIcon('class_name')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('course_code')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('course_code')}>
                   <div className="flex items-center gap-1">Mã môn {getSortIcon('course_code')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('company_name')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('company_name')}>
                   <div className="flex items-center gap-1">Nơi thực tập {getSortIcon('company_name')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('note')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('note')}>
                   <div className="flex items-center gap-1">Ghi chú {getSortIcon('note')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('created_at')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('created_at')}>
                   <div className="flex items-center gap-1">Thời gian {getSortIcon('created_at')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('sent_to_company_at')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('sent_to_company_at')}>
                   <div className="flex items-center gap-1">Gửi DN {getSortIcon('sent_to_company_at')}</div>
                 </th>
-                <th className="px-4 py-3 text-center">Thao tác</th>
-                <th className="px-4 py-3 text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('status')}>
+                <th className="px-6 py-4 text-center">Thao tác</th>
+                <th className="px-6 py-4 text-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('status')}>
                   <div className="flex items-center justify-center gap-1">Trạng thái {getSortIcon('status')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('review_comment')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('review_comment')}>
                   <div className="flex items-center gap-1">Nhận xét {getSortIcon('review_comment')}</div>
                 </th>
               </tr>
@@ -3206,23 +3145,23 @@ function AdminPanel({ token }: { token: string }) {
                 </tr>
               ) : (
                 paginatedRegistrations.map(reg => (
-                  <tr key={reg.registration_id} className="border-b last:border-0 border-slate-100 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 font-mono">{reg.student_id || '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{reg.student_name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{reg.dob ? new Date(reg.dob).toLocaleDateString('vi-VN') : '-'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-mono">{reg.phone || '-'}</td>
-                    <td className="px-4 py-3">{reg.personal_email ? <a href={`mailto:${reg.personal_email}`} className="text-indigo-600 hover:underline font-mono">{reg.personal_email}</a> : '-'}</td>
-                    <td className="px-4 py-3 font-medium">{reg.class_name || '-'}</td>
-                    <td className="px-4 py-3 text-[11px] font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">
+                  <tr key={reg.registration_id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
+                    <td className="px-6 py-4">{reg.student_id || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{reg.student_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{reg.dob ? new Date(reg.dob).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{reg.phone || '-'}</td>
+                    <td className="px-6 py-4">{reg.personal_email ? <a href={`mailto:${reg.personal_email}`} className="text-blue-600 hover:underline">{reg.personal_email}</a> : '-'}</td>
+                    <td className="px-6 py-4">{reg.class_name || '-'}</td>
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-700">{reg.course_code?.split(' ').pop() || '-'}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">
                         {reg.company_name === 'Công ty khác' ? ('Công ty khác: ' + (reg.other_company_name || '')) : reg.company_name}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       {reg.company_name === 'Công ty khác' ? (
                         <div className="text-xs text-gray-600 font-normal leading-relaxed">
-                          <span className="inline-block font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded mb-1 border border-blue-100">Tự liên hệ</span><br />
+                          <span className="inline-block font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded mb-1 border border-blue-100">Tự liên hệ</span><br />
                           <span className="font-semibold text-gray-700">Vị trí:</span> {reg.other_company_role} <br />
                           <span className="font-semibold text-gray-700">Liên hệ:</span> {reg.other_company_contact}
                           {reg.note && <><br /><span className="font-semibold text-gray-700">Lưu ý thêm:</span> {reg.note}</>}
@@ -3237,45 +3176,45 @@ function AdminPanel({ token }: { token: string }) {
                         reg.note
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11px]">{new Date(reg.created_at).toLocaleString('vi-VN')}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px]">
+                    <td className="px-6 py-4">{new Date(reg.created_at).toLocaleString('vi-VN')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs">
                       {reg.sent_to_company_at ? (
-                        <span className="text-emerald-600 font-semibold">{new Date(reg.sent_to_company_at).toLocaleString('vi-VN')}</span>
+                        <span className="text-emerald-700 font-semibold">{new Date(reg.sent_to_company_at).toLocaleString('vi-VN')}</span>
                       ) : (
-                        <span className="text-slate-450">Chưa gửi</span>
+                        <span className="text-slate-400">Chưa gửi</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => startEditRegistration(reg)}
-                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         title="Sửa thông tin đăng ký"
                       >
-                        <Edit2 size={12} /> Sửa
+                        <Edit2 size={13} /> Sửa
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-6 py-4 text-center">
                       <select
                         value={reg.status}
                         onChange={(e) => handleUpdateStatus(reg.registration_id, e.target.value)}
-                        className={`text-[11px] font-bold px-2 py-1 rounded-xl outline-none cursor-pointer border border-transparent transition-all shadow-sm ${reg.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100/50 focus:ring-2 focus:ring-amber-100' :
-                          reg.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100/50 focus:ring-2 focus:ring-emerald-100' :
-                            'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100/50 focus:ring-2 focus:ring-rose-100'
+                        className={`text-xs font-semibold px-2 py-1 rounded-full outline-none cursor-pointer border-2 border-transparent transition-colors ${reg.status === 'pending' ? 'bg-orange-100 text-orange-800 hover:border-orange-200 focus:border-orange-400' :
+                          reg.status === 'approved' ? 'bg-green-100 text-green-800 hover:border-green-200 focus:border-green-400' :
+                            'bg-red-100 text-red-800 hover:border-red-200 focus:border-red-400'
                           }`}
                       >
-                        <option value="pending" className="bg-white text-slate-800">Chờ Duyệt</option>
-                        <option value="approved" className="bg-white text-slate-800">Đã Duyệt</option>
-                        <option value="rejected" className="bg-white text-slate-800">Từ Chối</option>
+                        <option value="pending" className="bg-white text-gray-900">Chờ Duyệt</option>
+                        <option value="approved" className="bg-white text-gray-900">Đã Duyệt</option>
+                        <option value="rejected" className="bg-white text-gray-900">Từ Chối</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 min-w-[220px] whitespace-pre-wrap leading-relaxed">
-                      <div className="space-y-1.5">
-                        <div className="text-[11px]">{reg.review_comment || '-'}</div>
+                    <td className="px-6 py-4 text-xs text-slate-600 min-w-[220px] whitespace-pre-wrap">
+                      <div className="space-y-2">
+                        <div>{reg.review_comment || '-'}</div>
                         <button
                           onClick={() => handleSendRegistrationComment(reg)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
                         >
-                          <Send size={10} /> Gửi nhận xét
+                          <Send size={12} /> Gửi nhận xét
                         </button>
                       </div>
                     </td>
@@ -3442,7 +3381,7 @@ function AdminPanel({ token }: { token: string }) {
                 <button type="button" onClick={closeEditRegistration} disabled={savingRegistration} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
                   Huỷ
                 </button>
-                <button type="submit" disabled={savingRegistration} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
+                <button type="submit" disabled={savingRegistration} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
                   {savingRegistration ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                   {savingRegistration ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
@@ -3571,7 +3510,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Trang chủ</button>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Trang chủ</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-emerald-600" /> Danh sách xác nhận thực tập</h2>
           <p className="text-sm text-slate-500 mt-1">Sinh viên đã xác nhận nơi thực tập chính thức để lấy điểm học phần.</p>
         </div>
@@ -3590,9 +3529,9 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
           <span className="text-slate-500 text-sm font-medium mb-1">Tổng xác nhận</span>
           <span className="text-3xl font-bold text-slate-800">{rows.length}</span>
         </div>
-        <div className="bg-indigo-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
-          <span className="text-indigo-600 text-sm font-medium mb-1">Số sinh viên</span>
-          <span className="text-3xl font-bold text-indigo-700">{uniqueStudents}</span>
+        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
+          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên</span>
+          <span className="text-3xl font-bold text-blue-700">{uniqueStudents}</span>
         </div>
         <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
           <span className="text-cyan-700 text-sm font-medium mb-1">Số nơi thực tập</span>
@@ -3626,10 +3565,10 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
         </select>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
+          <table className="w-full text-left text-sm text-gray-600">
+            <thead className="bg-gray-50 text-gray-700 uppercase font-medium border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_id')}>Mã SV<SortIcon col="student_id" /></th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_name')}>Họ và tên<SortIcon col="student_name" /></th>
@@ -3654,7 +3593,7 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
                       <div className="text-xs text-slate-500">{item.class_name || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${item.internship_type === 'school' ? 'bg-blue-100 text-indigo-700' : item.internship_type === 'partner' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${item.internship_type === 'school' ? 'bg-blue-100 text-blue-700' : item.internship_type === 'partner' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
                         {typeLabel(item.internship_type)}
                       </span>
                     </td>
@@ -4031,7 +3970,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="min-w-0">
-          <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
+          <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 leading-tight">
             <Users className="text-emerald-600 shrink-0" size={26} /> {pageTitle}
           </h2>
@@ -4043,7 +3982,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 <button
                   onClick={deleteSelectedAssignments}
                   disabled={deletingSelected}
-                  className="bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
                 >
                   {deletingSelected ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
                   Xóa chọn{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
@@ -4065,7 +4004,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                   {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
                 </button>
                 <div className="relative">
-                  <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
                     <Download size={16} /> Xuất XLSX
                   </button>
                   {isAssignExportMenuOpen && (
@@ -4124,19 +4063,19 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                       <div className="text-xs font-semibold text-slate-700">
                         {request.request_type === 'agreed' ? 'Đã được GV đồng ý' : request.request_type === 'faculty_assign' ? 'Khoa sẽ phân công' : 'Không còn hỗ trợ'}
                       </div>
-                      <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-bold ${request.status === 'pending' ? 'bg-amber-100 text-amber-700' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-rose-700'}`}>
+                      <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-bold ${request.status === 'pending' ? 'bg-amber-100 text-amber-700' : request.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {request.status === 'pending' ? 'Chờ xử lý' : request.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}
                       </div>
-                      {request.source_registration_id && <div className="text-[11px] text-indigo-700 mt-1">Từ đăng ký tại trường</div>}
+                      {request.source_registration_id && <div className="text-[11px] text-blue-700 mt-1">Từ đăng ký tại trường</div>}
                     </td>
                     <td className="px-4 py-3">
                       <div>{request.lecturer_name || request.lecturer_name_text || '-'}</div>
                       {(request.co_lecturer_name || request.co_lecturer_name_text) && <div className="text-xs text-slate-500 mt-1">Đồng HD: {request.co_lecturer_name || request.co_lecturer_name_text}</div>}
-                      {request.quota_status === 'over_quota' && <div className="text-xs text-rose-700 font-semibold mt-1">Vượt quota - đã cảnh báo</div>}
+                      {request.quota_status === 'over_quota' && <div className="text-xs text-red-700 font-semibold mt-1">Vượt quota - đã cảnh báo</div>}
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       <div className="text-xs text-slate-600 whitespace-pre-wrap">{request.student_note || '-'}</div>
-                      {request.admin_note && <div className="text-xs text-rose-700 mt-1">Khoa: {request.admin_note}</div>}
+                      {request.admin_note && <div className="text-xs text-red-700 mt-1">Khoa: {request.admin_note}</div>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {request.status === 'pending' ? (
@@ -4151,7 +4090,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                           <button
                             onClick={() => reviewAdvisorRequest(request, 'reject')}
                             disabled={reviewingRequestId === Number(request.id)}
-                            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
                           >
                             Từ chối
                           </button>
@@ -4233,10 +4172,10 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                       ) : (
                         [...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].map(a => (
                           <div key={a.id} className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-indigo-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
-                            <span className={`text-sm ${a.name === 'Giảng viên đã bị xóa' ? 'text-rose-600 font-medium' : ''}`}>{a.name}</span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
+                            <span className={`text-sm ${a.name === 'Giảng viên đã bị xóa' ? 'text-red-600 font-medium' : ''}`}>{a.name}</span>
                             {a.name === 'Giảng viên đã bị xóa' && (
-                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-rose-700 border border-rose-200" title="Giảng viên đã bị xóa khỏi hệ thống. Vui lòng tích chọn dòng sinh viên này và nhấn 'Xóa chọn' để hủy phân công rác và có thể phân công lại.">⚠️ Lỗi</span>
+                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200" title="Giảng viên đã bị xóa khỏi hệ thống. Vui lòng tích chọn dòng sinh viên này và nhấn 'Xóa chọn' để hủy phân công rác và có thể phân công lại.">⚠️ Lỗi</span>
                             )}
                             {a.note && a.note.includes('Tự phân công') && (
                               <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200" title="Được phân công tự động bởi hệ thống">Tự PC</span>
@@ -4297,7 +4236,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
               </div>
               <div className="flex items-center gap-2">
                 <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-16 border border-slate-300 rounded px-2 py-1 text-sm text-center" />
-                <button onClick={() => saveQuota(lecturer)} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded" title="Lưu chỉ tiêu"><Save size={16} /></button>
+                <button onClick={() => saveQuota(lecturer)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Lưu chỉ tiêu"><Save size={16} /></button>
               </div>
             </div>
           ))}
@@ -4419,11 +4358,11 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại trang chủ</button>
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại trang chủ</button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final PDF</h2>
           <p className="text-sm text-slate-500 mt-1">Nộp bản báo cáo thực tập final để giảng viên hướng dẫn đánh giá và chấm điểm.</p>
         </div>
-        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-emerald-50 border-emerald-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-rose-50 border-rose-100 text-rose-800'}`}>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-100 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-100 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-100 text-red-800'}`}>
           <div className="font-bold">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
           {finalReportWindowStatus === 'unconfigured'
             ? <div className="text-xs mt-1">Khoa chưa cấu hình thời gian nộp báo cáo final.</div>
@@ -4580,7 +4519,7 @@ function FinalReportAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final</h2>
           <p className="text-sm text-slate-500 mt-1">Theo dõi báo cáo PDF final của sinh viên đã xác nhận nơi thực tập.</p>
         </div>
@@ -4593,7 +4532,7 @@ function FinalReportAdmin({ token }: { token: string }) {
             <option value="accepted">Đã chấp nhận</option>
           </select>
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
-          <button onClick={exportXlsx} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
@@ -4603,7 +4542,7 @@ function FinalReportAdmin({ token }: { token: string }) {
           ['Chưa có', gradeStats.missing, 'text-slate-700'],
           ['Nháp', gradeStats.draft, 'text-orange-700'],
           ['Đã nộp', gradeStats.submitted, 'text-emerald-700'],
-          ['Đã khóa', gradeStats.locked, 'text-rose-700'],
+          ['Đã khóa', gradeStats.locked, 'text-red-700'],
         ].map(([label, value, color]) => (
           <div key={label as string} className="bg-white border border-slate-200 rounded-lg p-4">
             <div className="text-xs uppercase font-semibold text-slate-500">{label}</div>
@@ -4639,7 +4578,7 @@ function FinalReportAdmin({ token }: { token: string }) {
                     {row.co_advisors && <div className="text-xs text-slate-500 mt-1">Đồng HD: {row.co_advisors}</div>}
                   </td>
                   <td className="px-4 py-4">
-                    <div className={`font-semibold ${row.report_status === 'accepted' ? 'text-emerald-700' : row.report_status === 'needs_revision' ? 'text-orange-700' : row.report_status ? 'text-indigo-700' : 'text-slate-400'}`}>{statusLabel(row.report_status)}</div>
+                    <div className={`font-semibold ${row.report_status === 'accepted' ? 'text-emerald-700' : row.report_status === 'needs_revision' ? 'text-orange-700' : row.report_status ? 'text-blue-700' : 'text-slate-400'}`}>{statusLabel(row.report_status)}</div>
                     {row.original_filename && <div className="text-xs text-slate-500 mt-1">{row.original_filename} · {formatBytes(Number(row.file_size || 0))}</div>}
                     {row.report_submitted_at && <div className="text-xs text-slate-500">{new Date(row.report_submitted_at).toLocaleString('vi-VN')}</div>}
                     {row.lecturer_comment && <div className="text-xs text-orange-700 mt-1">{row.lecturer_comment}</div>}
@@ -4647,7 +4586,7 @@ function FinalReportAdmin({ token }: { token: string }) {
                   <td className="px-4 py-4">
                     {row.report_id ? (
                       <div className="flex flex-wrap gap-2">
-                        <button onClick={() => downloadReport(row.user_id, row.original_filename)} className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-xs font-semibold">Tải PDF</button>
+                        <button onClick={() => downloadReport(row.user_id, row.original_filename)} className="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-semibold">Tải PDF</button>
                         <button onClick={() => updateStatus(row.user_id, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-semibold">Chấp nhận</button>
                         <button onClick={() => updateStatus(row.user_id, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-2 py-1 rounded text-xs font-semibold">Nộp lại</button>
                       </div>
@@ -4706,9 +4645,9 @@ function StudentGradeView({ token }: { token: string }) {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
-        <button onClick={() => navigate('/')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại</button>
+        <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại</button>
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <CheckCircle2 className="text-emerald-600" /> Điểm thực tập
+          <CheckCircle2 className="text-green-600" /> Điểm thực tập
         </h2>
       </div>
 
@@ -4736,12 +4675,12 @@ function StudentGradeView({ token }: { token: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {scoreCards.map(card => (
-          <div key={card.label} className={`rounded-xl border p-5 shadow-sm ${card.highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+          <div key={card.label} className={`rounded-xl border p-5 shadow-sm ${card.highlight ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-slate-700">{card.label}</div>
               <div className="text-xs rounded-full bg-slate-100 text-slate-600 px-2 py-1">{card.note}</div>
             </div>
-            <div className={`mt-4 text-4xl font-bold ${card.highlight ? 'text-emerald-700' : 'text-slate-900'}`}>{scoreText(card.value)}</div>
+            <div className={`mt-4 text-4xl font-bold ${card.highlight ? 'text-green-700' : 'text-slate-900'}`}>{scoreText(card.value)}</div>
           </div>
         ))}
       </div>
@@ -4758,7 +4697,7 @@ function StudentGradeView({ token }: { token: string }) {
             <div className="mt-1 whitespace-pre-wrap text-slate-700">{grade?.comment || '-'}</div>
           </div>
         </div>
-        {grade?.locked_at && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-green-800">Điểm đã được Khoa khóa.</div>}
+        {grade?.locked_at && <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-800">Điểm đã được Khoa khóa.</div>}
       </div>
     </div>
   );
@@ -4843,8 +4782,8 @@ function GradeAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-emerald-600" /> Bảng điểm thực tập</h2>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-green-600" /> Bảng điểm thực tập</h2>
           <p className="text-sm text-slate-500 mt-1">Tổng hợp điểm 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -4855,7 +4794,7 @@ function GradeAdmin({ token }: { token: string }) {
             <option value="submitted">Đã nộp</option>
           </select>
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500" />
-          <button onClick={exportXlsx} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
@@ -4892,7 +4831,7 @@ function GradeAdmin({ token }: { token: string }) {
                     <div>Định kỳ: <strong>{row.progress_score ?? '-'}</strong></div>
                     <div>Final: <strong>{row.report_score ?? '-'}</strong></div>
                     <div>Đánh giá: <strong>{row.company_score ?? '-'}</strong></div>
-                    <div className="text-base text-emerald-700 font-bold mt-1">{row.final_score ?? '-'}</div>
+                    <div className="text-base text-green-700 font-bold mt-1">{row.final_score ?? '-'}</div>
                   </td>
                   <td className="px-4 py-4">
                     <div className={`font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{statusLabel(row.grade_status)}</div>
@@ -4901,7 +4840,7 @@ function GradeAdmin({ token }: { token: string }) {
                     {row.comment && <div className="text-xs text-slate-500 mt-1">{row.comment}</div>}
                   </td>
                   <td className="px-4 py-4">
-                    <button onClick={() => toggleLock(row)} disabled={row.grade_status === 'missing'} className={`px-3 py-1.5 rounded text-xs font-semibold disabled:opacity-50 ${row.locked_at ? 'bg-rose-50 text-rose-700 hover:bg-red-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                    <button onClick={() => toggleLock(row)} disabled={row.grade_status === 'missing'} className={`px-3 py-1.5 rounded text-xs font-semibold disabled:opacity-50 ${row.locked_at ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
                       {row.locked_at ? 'Mở khóa' : 'Khóa điểm'}
                     </button>
                   </td>
@@ -5187,7 +5126,7 @@ function NotificationAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Clock className="text-amber-600" /> Lịch sử thông báo</h2>
           {stats && (
             <p className="text-xs text-slate-500 mt-1">
@@ -5195,7 +5134,7 @@ function NotificationAdmin({ token }: { token: string }) {
             </p>
           )}
         </div>
-        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
           <Download size={16} /> Xuất XLSX
         </button>
       </div>
@@ -5204,7 +5143,7 @@ function NotificationAdmin({ token }: { token: string }) {
           <div className="space-y-2">
             <div className="text-xs font-bold text-slate-500 uppercase">Gửi email</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-emerald-700 text-white px-3 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-green-700 text-white px-3 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
                 <Send size={16} /> Gửi theo quota
               </button>
               <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
@@ -5215,7 +5154,7 @@ function NotificationAdmin({ token }: { token: string }) {
           <div className="space-y-2">
             <div className="text-xs font-bold text-slate-500 uppercase">Xoá thông báo</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
-              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
+              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
                 {deletingNotifications ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Đã chọn
               </button>
               <button onClick={() => deleteNotifications('filtered')} disabled={deletingNotifications || sortedFiltered.length === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
@@ -5331,7 +5270,7 @@ function NotificationAdmin({ token }: { token: string }) {
                     checked={pageSelected}
                     disabled={paginatedIds.length === 0}
                     onChange={e => toggleCurrentPageSelection(e.target.checked)}
-                    className="rounded border-slate-300 text-rose-600 focus:ring-red-500 disabled:opacity-40"
+                    className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
                     title="Chọn thông báo trong trang hiện tại"
                   />
                 </th>
@@ -5368,7 +5307,7 @@ function NotificationAdmin({ token }: { token: string }) {
                       type="checkbox"
                       checked={selectedNotificationIds.includes(Number(row.id))}
                       onChange={e => toggleNotificationSelection(Number(row.id), e.target.checked)}
-                      className="rounded border-slate-300 text-rose-600 focus:ring-red-500"
+                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
                       title="Chọn để xoá"
                     />
                   </td>
@@ -5383,14 +5322,14 @@ function NotificationAdmin({ token }: { token: string }) {
                     <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
                   </td>
                   <td className="px-4 py-4">
-                    <div className={`font-semibold ${row.status === 'sent' ? 'text-emerald-700' : row.status === 'failed' ? 'text-rose-700' : row.status === 'website_only' ? 'text-indigo-700' : 'text-orange-700'}`}>{row.status}</div>
-                    {row.error && <div className="text-xs text-rose-600 mt-1">{row.error}</div>}
+                    <div className={`font-semibold ${row.status === 'sent' ? 'text-emerald-700' : row.status === 'failed' ? 'text-red-700' : row.status === 'website_only' ? 'text-blue-700' : 'text-orange-700'}`}>{row.status}</div>
+                    {row.error && <div className="text-xs text-red-600 mt-1">{row.error}</div>}
                     {row.sent_at && <div className="text-xs text-slate-500">{new Date(row.sent_at).toLocaleString('vi-VN')}</div>}
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => markStatus(row.id, 'sent')} className="text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-semibold">Đã gửi</button>
-                      <button onClick={() => markStatus(row.id, 'failed')} className="text-rose-700 hover:bg-rose-50 px-2 py-1 rounded text-xs font-semibold">Lỗi</button>
+                      <button onClick={() => markStatus(row.id, 'failed')} className="text-red-700 hover:bg-red-50 px-2 py-1 rounded text-xs font-semibold">Lỗi</button>
                       <button onClick={() => markStatus(row.id, 'queued')} className="text-orange-700 hover:bg-orange-50 px-2 py-1 rounded text-xs font-semibold">Queue</button>
                     </div>
                   </td>
@@ -5977,7 +5916,7 @@ Khoa Công nghệ Thông tin`);
             <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
             Cập nhật dữ liệu trùng
           </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-emerald-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-emerald-600 text-white cursor-pointer hover:bg-emerald-700'}`}>
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
@@ -5990,14 +5929,14 @@ Khoa Công nghệ Thông tin`);
           <button onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')} disabled={importing || driveBusy} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             {driveBusy ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {selectedLecturerIds.length ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
       </div>
 
       {importing && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-green-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
@@ -6116,7 +6055,7 @@ Khoa Công nghệ Thông tin`);
                       />
                     ) : (
                       l.email
-                        ? <a href={`mailto:${l.email}`} className="text-indigo-600 hover:underline">{l.email}</a>
+                        ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
                         : <span className="text-slate-400 italic text-xs">Chưa có</span>
                     )}
                   </td>
@@ -6146,7 +6085,7 @@ Khoa Công nghệ Thông tin`);
                   <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
                     {editingId === l.id ? (
                       <>
-                        <button onClick={() => handleUpdate(l.id)} className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
+                        <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
                         <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
                       </>
                     ) : (
@@ -6177,8 +6116,8 @@ Khoa Công nghệ Thông tin`);
                         >
                           <Upload size={18} />
                         </button>
-                        <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-indigo-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
-                        <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-rose-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
+                        <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
+                        <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
                       </>
                     )}
                   </td>
@@ -6260,7 +6199,7 @@ Khoa Công nghệ Thông tin`);
                 <button onClick={() => createDriveLinksForLecturers(mailMergeScope)} disabled={driveBusy || mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
                   {driveBusy ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Tạo link Drive
                 </button>
-                <button onClick={exportLecturerMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+                <button onClick={exportLecturerMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                   <Download size={16} /> Xuất ZIP XLSX
                 </button>
                 <button onClick={sendAllBrevoLecturerMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -6980,7 +6919,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
           <div className="min-w-0">
-            <button onClick={() => navigate('/admin')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+            <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
@@ -7011,7 +6950,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
             >
               {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} {selectedCompanyKeys.length > 0 ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
             </button>
-            <button onClick={exportXlsx} disabled={importing} className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+            <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
               <Download size={16} /> Xuất XLSX
             </button>
           </div>
@@ -7032,13 +6971,13 @@ Trường Đại học Công nghệ, ĐHQGHN`;
               <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60" />
               Ghi đè khi import
             </label>
-            <label className={`px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-emerald-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-emerald-600 text-white cursor-pointer hover:bg-emerald-700'}`}>
+            <label className={`px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
               {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
               <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
             </label>
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
               <span>Đã chọn: <strong>{selectedCompanyKeys.length}</strong></span>
-              <button type="button" onClick={() => toggleCurrentPageSelection(!isPageSelected)} className="font-semibold text-indigo-600 hover:underline">
+              <button type="button" onClick={() => toggleCurrentPageSelection(!isPageSelected)} className="font-semibold text-blue-600 hover:underline">
                 {isPageSelected ? 'Bỏ chọn trang' : 'Chọn trang'}
               </button>
               {selectedCompanyKeys.length > 0 && (
@@ -7052,7 +6991,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       </div>
 
       {importing && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-green-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
@@ -7140,7 +7079,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                     <button onClick={createDriveLinksForMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-60 disabled:cursor-not-allowed">
                       {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} Tạo link Drive
                     </button>
-                    <button onClick={exportMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-green-100 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <button onClick={exportMailMergeZip} disabled={mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 disabled:opacity-60 disabled:cursor-not-allowed">
                       <Download size={16} /> Xuất ZIP XLSX
                     </button>
                     <button onClick={sendAllBrevoMailMerge} disabled={mailMergeSending || mailMergeItems.length === 0} className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed">
@@ -7166,7 +7105,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 shrink-0">
-                          <button onClick={() => exportApplicantsForCompany(item.company)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-green-100">XLSX</button>
+                          <button onClick={() => exportApplicantsForCompany(item.company)} className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">XLSX</button>
                           <button onClick={() => openMailMergeComposer(item)} disabled={item.emails.length === 0} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed">Soạn</button>
                           <button onClick={() => sendBrevoMailMergeItem(item)} disabled={item.emails.length === 0 || mailMergeSending} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed">Brevo</button>
                         </div>
@@ -7269,7 +7208,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                     <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
                     <td className="p-3 text-right flex items-center justify-end gap-1">
-                      <button onClick={() => handleUpdate(c.id)} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
+                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
                       <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
                     </td>
                   </>
@@ -7280,7 +7219,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                       {c.record_type === 'other' && <div className="text-[11px] text-slate-500 font-normal mt-1">Từ đăng ký “Công ty khác”</div>}
                     </td>
                     <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full font-semibold ${c.record_type === 'other' ? 'bg-indigo-50 text-indigo-700 border border-blue-100' : 'bg-slate-100 text-slate-600'}`}>
+                      <span className={`px-2 py-1 rounded-full font-semibold ${c.record_type === 'other' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-600'}`}>
                         {c.record_type === 'other' ? 'Tự liên hệ' : 'Chính thức'}
                       </span>
                     </td>
@@ -7298,7 +7237,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                     <td className="p-3 text-slate-600">
                       {c.applicants_drive_link ? <a href={c.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-indigo-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
+                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
                     <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
                     <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
@@ -7315,7 +7254,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                             <div className="fixed inset-0 z-20" onClick={() => setOpenCompanyActionKey(null)} />
                             <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
                               <button onClick={() => { exportApplicantsForCompany(c); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
-                                <Download size={14} className="text-emerald-600" /> Xuất danh sách XLSX
+                                <Download size={14} className="text-green-600" /> Xuất danh sách XLSX
                               </button>
                               {isOfficialBusinessCompany(c) && (
                                 <button onClick={() => { composeCompanyEmail(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
@@ -7328,9 +7267,9 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                               {c.record_type !== 'other' && (
                                 <>
                                   <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
-                                    <Edit2 size={14} className="text-indigo-600" /> Sửa công ty
+                                    <Edit2 size={14} className="text-blue-600" /> Sửa công ty
                                   </button>
-                                  <button onClick={() => { handleDelete(c.id, c.name); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50">
+                                  <button onClick={() => { handleDelete(c.id, c.name); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
                                     <Trash2 size={14} /> Xóa công ty
                                   </button>
                                 </>
@@ -7529,7 +7468,7 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div>
-          <button onClick={() => navigate('/admin/companies')} className="text-indigo-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản lý công ty</button>
+          <button onClick={() => navigate('/admin/companies')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản lý công ty</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-teal-600" /> Danh sách công ty thẩm định nội bộ</h2>
           <p className="text-sm text-slate-500 mt-1">Danh sách này dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên. Tổng: <strong>{companies.length}</strong></p>
         </div>
@@ -7546,7 +7485,7 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
           </label>
-          <button onClick={exportXlsx} disabled={loading || importing} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
+          <button onClick={exportXlsx} disabled={loading || importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
@@ -7592,13 +7531,13 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
                 <td className="p-3 text-right">
                   {editingId === c.id ? (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleUpdate(c.id)} className="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
+                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
                       <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
                     </div>
                   )}
                 </td>
@@ -7745,8 +7684,8 @@ function AdminSettings({ token }: { token: string }) {
     const open = toGMT7Date((campaign as any)[openKey]);
     const close = toGMT7Date((campaign as any)[closeKey]);
     if (open && now < open) return { label: 'Chưa mở', className: 'bg-orange-50 border-orange-200 text-orange-800' };
-    if (close && now > close) return { label: 'Đã đóng', className: 'bg-rose-50 border-rose-200 text-rose-800' };
-    if (open || close) return { label: 'Đang mở', className: 'bg-emerald-50 border-emerald-200 text-green-800' };
+    if (close && now > close) return { label: 'Đã đóng', className: 'bg-red-50 border-red-200 text-red-800' };
+    if (open || close) return { label: 'Đang mở', className: 'bg-green-50 border-green-200 text-green-800' };
     return { label: 'Chưa cấu hình', className: 'bg-slate-50 border-slate-200 text-slate-700' };
   };
 
@@ -7797,7 +7736,7 @@ function AdminSettings({ token }: { token: string }) {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
         </div>
       </div>
@@ -7821,14 +7760,14 @@ function AdminSettings({ token }: { token: string }) {
             <label className="block text-sm font-medium text-slate-700 mb-2">Khóa được phép đăng nhập/đăng ký học phần</label>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {cohortOptions.map(item => (
-                <label key={item.key} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${selectedCohorts.includes(item.key) ? 'border-indigo-200 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                <label key={item.key} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${selectedCohorts.includes(item.key) ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
                   <span className="font-semibold">{item.key}</span>
                   <span className="text-xs text-slate-500">{item.prefix}</span>
                   <input
                     type="checkbox"
                     checked={selectedCohorts.includes(item.key)}
                     onChange={() => toggleAllowedCohort(item.key)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-blue-500"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
                 </label>
               ))}
@@ -7996,7 +7935,7 @@ function AdminSettings({ token }: { token: string }) {
               <button
                 onClick={handleSaveImportUrl}
                 disabled={savingUrl}
-                className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-70 shadow-sm transition-colors"
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 shadow-sm transition-colors"
               >
                 <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
               </button>
@@ -8042,7 +7981,7 @@ function AdminSettings({ token }: { token: string }) {
       </div>
 
 
-      <div className="bg-indigo-50 text-indigo-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">
+      <div className="bg-blue-50 text-blue-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">
         <strong className="block mb-2 text-base">💡 Mẹo nhập dữ liệu vào Google Sheets:</strong>
         <ol className="list-decimal pl-5 space-y-1">
           <li>Từ danh sách Quản trị &gt; Bấm <strong>Lưu vào Google Sheets</strong> để đồng bộ dữ liệu lên bảng tính.</li>
@@ -8125,7 +8064,7 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <button onClick={() => navigate(-1)} className="text-indigo-600 hover:underline text-sm block flex items-center gap-1">
+        <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm block flex items-center gap-1">
           &larr; Quay lại
         </button>
         {user?.role === 'admin' && !editing && (
@@ -8186,7 +8125,7 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
           </div>
           <div className="flex justify-end gap-2 mt-5">
             <button onClick={() => { setEditing(false); setEditForm({ ...company, description: companyDescriptionText(company.description) || '' }); }} disabled={saving} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60">Hủy</button>
-            <button onClick={saveCompany} disabled={saving} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+            <button onClick={saveCompany} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
               {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu thay đổi
             </button>
           </div>
@@ -8224,7 +8163,7 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
                 </li>
                 <li className="flex flex-col">
                   <span className="text-xs text-slate-500 mb-1">Chi tiết tuyển dụng:</span>
-                  <span className="font-medium text-indigo-600">
+                  <span className="font-medium text-blue-600">
                     {company.recruitment_link ? (
                       <a href={company.recruitment_link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all">
                         {company.recruitment_link}
@@ -8246,7 +8185,7 @@ function CompanyDetail({ user, token }: { user: any, token: string }) {
 
           <div className="border-t border-slate-100 pt-8">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Yêu cầu & Tiêu chí</h3>
-            <p className="text-sm text-blue-900 leading-relaxed bg-indigo-50/50 p-5 rounded-xl border border-blue-100">{company.qualifications || 'Chưa cập nhật'}</p>
+            <p className="text-sm text-blue-900 leading-relaxed bg-blue-50/50 p-5 rounded-xl border border-blue-100">{company.qualifications || 'Chưa cập nhật'}</p>
           </div>
         </div>
       </div>
@@ -8271,13 +8210,13 @@ function PlanView({ user }: { user: any }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-        <button onClick={() => navigate('/')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+        <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
         {user?.role === 'admin' && (
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => navigate('/admin/registration-rules')} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
               <Shield size={16} /> Cài đặt quy định
             </button>
-            <button onClick={() => navigate('/admin/plan')} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+            <button onClick={() => navigate('/admin/plan')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
               <Edit2 size={16} /> Cài đặt kế hoạch
             </button>
           </div>
@@ -8303,7 +8242,7 @@ function PlanView({ user }: { user: any }) {
               ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
               li: ({ node, ...props }) => <li className="" {...props} />,
               strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900" {...props} />,
-              a: ({ node, ...props }) => <a className="text-indigo-600 hover:underline" {...props} />,
+              a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
               table: ({ node, ...props }) => <div className="overflow-x-auto mb-6"><table className="min-w-full divide-y divide-slate-200 border border-slate-200" {...props} /></div>,
               thead: ({ node, ...props }) => <thead className="bg-slate-50" {...props} />,
               tbody: ({ node, ...props }) => <tbody className="divide-y divide-slate-200 bg-white" {...props} />,
@@ -8376,11 +8315,11 @@ function PlanSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/plan')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-indigo-600" /> Cài đặt Kế hoạch triển khai</h2>
+          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-blue-600" /> Cài đặt Kế hoạch triển khai</h2>
           <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung kế hoạch hiển thị cho sinh viên bằng Markdown.</p>
         </div>
-        <button onClick={handleSavePlan} disabled={saving} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+        <button onClick={handleSavePlan} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
           {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu kế hoạch
         </button>
       </div>
@@ -8465,7 +8404,7 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/plan')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
+          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Shield className="text-slate-700" /> Cài đặt Quy định đăng ký</h2>
           <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung quy định hiển thị cho sinh viên bằng Markdown.</p>
         </div>
@@ -8495,11 +8434,11 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
           </div>
           <div className="p-5">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
-            <div className="bg-white border border-slate-200 text-slate-800 rounded-2xl p-5 shadow-sm">
-              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
+            <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md">
+              <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
               {String(rules || '').trim()
                 ? <RegistrationRulesMarkdown content={rules} />
-                : <p className="text-xs text-slate-400">Chưa có quy định nào.</p>}
+                : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
             </div>
           </div>
         </div>
@@ -8561,7 +8500,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <button onClick={() => navigate('/')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
+      <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại trang chủ</button>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -8571,7 +8510,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
             </div>
             {user?.role === 'admin' && (
               <div className="flex flex-wrap items-center gap-2">
-                <button onClick={() => navigate('/admin/faq-questions')} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <button onClick={() => navigate('/admin/faq-questions')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
                   <Send size={16} /> Trả lời câu hỏi
                 </button>
                 <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 whitespace-nowrap">
@@ -8600,7 +8539,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
                 ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
                 ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 text-slate-600 space-y-1" {...props} />,
                 strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900" {...props} />,
-                a: ({ node, ...props }) => <a className="text-indigo-600 hover:underline" {...props} />,
+                a: ({ node, ...props }) => <a className="text-blue-600 hover:underline" {...props} />,
                 table: ({ node, ...props }) => <div className="overflow-x-auto mb-6"><table className="min-w-full divide-y divide-slate-200 border border-slate-200" {...props} /></div>,
                 th: ({ node, ...props }) => <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900 border-x border-slate-200" {...props} />,
                 td: ({ node, ...props }) => <td className="px-4 py-3 text-sm text-slate-600 border-x border-slate-200" {...props} />,
@@ -8614,7 +8553,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
       {user?.role !== 'admin' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-indigo-600" /> Gửi câu hỏi cho Khoa</h3>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</h3>
             <p className="text-xs text-slate-500 mt-1">Câu hỏi sẽ được quản trị viên trả lời trong mục FAQ; câu trả lời cũng hiển thị trong thông báo của bạn.</p>
           </div>
           <div className="p-6 space-y-4">
@@ -8628,7 +8567,7 @@ function FAQView({ user, token }: { user: any, token: string }) {
             />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <span className="text-xs text-slate-500">{newQuestion.length}/2000 ký tự</span>
-              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center justify-center gap-2 disabled:opacity-60">
                 {submittingQuestion ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Gửi câu hỏi
               </button>
             </div>
@@ -8648,8 +8587,8 @@ function FAQView({ user, token }: { user: any, token: string }) {
                       </div>
                       <div className="text-sm font-semibold text-slate-900 whitespace-pre-wrap">{q.question}</div>
                       {q.answer && (
-                        <div className="mt-3 bg-indigo-50 border border-blue-100 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
-                          <div className="text-xs font-bold text-indigo-700 uppercase mb-1">Trả lời</div>
+                        <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
+                          <div className="text-xs font-bold text-blue-700 uppercase mb-1">Trả lời</div>
                           {q.answer}
                         </div>
                       )}
@@ -8715,19 +8654,19 @@ function FAQQuestionsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/faq')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Send className="text-indigo-600" /> Trả lời câu hỏi FAQ</h2>
+          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Send className="text-blue-600" /> Trả lời câu hỏi FAQ</h2>
           <p className="text-sm text-slate-500 mt-1">Xem và trả lời câu hỏi do sinh viên hoặc giảng viên gửi từ trang FAQ.</p>
         </div>
-        <button onClick={fetchFaqQuestions} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 text-sm font-semibold shadow-sm flex items-center gap-2">
+        <button onClick={fetchFaqQuestions} className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm font-semibold shadow-sm flex items-center gap-2">
           <RefreshCw size={16} /> Tải lại
         </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-indigo-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="p-4 border-b border-slate-100 bg-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-indigo-600" /> Câu hỏi gửi tới FAQ</h3>
+            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Câu hỏi gửi tới FAQ</h3>
             <p className="text-xs text-slate-500 mt-1">Còn <strong>{pendingQuestions}</strong> câu hỏi đang chờ trả lời.</p>
           </div>
         </div>
@@ -8762,7 +8701,7 @@ function FAQQuestionsAdmin({ token }: { token: string }) {
                   </div>
                 )}
                 <div className="flex justify-end">
-                  <button onClick={() => answerQuestion(Number(q.id))} disabled={answeringId === Number(q.id)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
+                  <button onClick={() => answerQuestion(Number(q.id))} disabled={answeringId === Number(q.id)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
                     {answeringId === Number(q.id) ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} {q.status === 'answered' ? 'Cập nhật trả lời' : 'Trả lời'}
                   </button>
                 </div>
@@ -8843,7 +8782,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/faq')} className="text-indigo-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
+          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
           <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng và chỉnh nội dung FAQ hiển thị cho sinh viên hoặc giảng viên.</p>
         </div>
@@ -8857,7 +8796,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 w-fit">
             <button
               onClick={() => setActiveTab('student')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               FAQ sinh viên
             </button>
@@ -9036,7 +8975,7 @@ function ChatView({ token, user }: { token: string; user: any }) {
         </button>
       </div>
 
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[620px]">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -9195,7 +9134,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
         <div className="mt-8 flex flex-wrap gap-3">
           <button
             onClick={() => navigate('/profile')}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-sm transition-colors"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors"
           >
             <UserIcon size={18} /> Cập nhật hồ sơ
           </button>
@@ -9213,7 +9152,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
           </button>
           <button
             onClick={() => navigate('/lecturer/grades')}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-emerald-700 shadow-sm transition-colors"
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-colors"
           >
             <CheckCircle2 size={18} /> Chấm điểm thực tập
           </button>
@@ -9248,20 +9187,20 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                   <td className="px-4 py-3 font-mono">{student.student_id || '-'}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">{student.student_name}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${student.advisor_role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-indigo-700'}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${student.advisor_role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                       {student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn'}
                     </span>
                   </td>
                   <td className="px-4 py-3">{student.internship_place || '-'}</td>
                   <td className="px-4 py-3">
-                    <div className={`text-xs font-bold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-indigo-700' : 'text-slate-400'}`}>
+                    <div className={`text-xs font-bold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
                       {statusLabel(student.report_status)}
                     </div>
                     {student.report_filename && (
                       <div className="mt-1 space-y-1">
                         <div className="text-xs text-slate-500">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
                         <div className="flex flex-wrap gap-1">
-                          <button onClick={() => downloadReport(student)} className="text-indigo-600 hover:bg-indigo-50 px-1.5 py-0.5 rounded text-xs font-semibold">Tải</button>
+                          <button onClick={() => downloadReport(student)} className="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-xs font-semibold">Tải</button>
                           <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-semibold">OK</button>
                           <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-xs font-semibold">Nộp lại</button>
                         </div>
@@ -9371,11 +9310,11 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <button onClick={() => navigate(user.role === 'admin' ? '/lecturer' : '/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700">
+          <button onClick={() => navigate(user.role === 'admin' ? '/lecturer' : '/')} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700">
             ← Quay lại trang chủ
           </button>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <CheckCircle2 className="text-emerald-600" /> Chấm điểm thực tập
+            <CheckCircle2 className="text-green-600" /> Chấm điểm thực tập
           </h2>
           <p className="text-sm text-slate-500 mt-1">Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
           <p className="text-xs text-slate-500 mt-1">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
@@ -9391,7 +9330,7 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
           ['Chưa có điểm', stats.missing, 'text-slate-600'],
           ['Nháp', stats.draft, 'text-orange-700'],
           ['Đã nộp', stats.submitted, 'text-emerald-700'],
-          ['Đã khóa', stats.locked, 'text-rose-700'],
+          ['Đã khóa', stats.locked, 'text-red-700'],
         ].map(([label, value, color]) => (
           <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</div>
@@ -9432,11 +9371,11 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-700 max-w-[220px]">{row.internship_place || '-'}</td>
                     <td className="px-4 py-3 text-xs">
-                      <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-indigo-700 font-semibold' : 'text-slate-400'}>{statusLabel(row.report_status)}</div>
+                      <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>{statusLabel(row.report_status)}</div>
                       <div className={`mt-1 ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{gradeStatusLabel(row.grade_status)}</div>
-                      {row.locked_at && <div className="text-rose-700 mt-1 font-semibold">Đã khóa</div>}
+                      {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
                       {row.report_status && (
-                        <button onClick={() => downloadReport(row)} className="mt-2 rounded border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                        <button onClick={() => downloadReport(row)} className="mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">
                           Tải báo cáo
                         </button>
                       )}
@@ -9455,12 +9394,12 @@ function LecturerGradeView({ token, user }: { token: string, user: any }) {
                         />
                       </td>
                     ))}
-                    <td className="px-4 py-3 font-bold text-emerald-700">{previewFinalScore(edit)}</td>
+                    <td className="px-4 py-3 font-bold text-green-700">{previewFinalScore(edit)}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-2 min-w-[180px]">
                         <input disabled={disabled} value={edit.comment ?? ''} onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)} placeholder="Nhận xét / ghi chú" className="border border-slate-300 rounded px-2 py-1.5 text-xs disabled:bg-slate-100" />
                         <div className="flex flex-wrap gap-2">
-                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
+                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">
                             {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
                           </button>
                           <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
@@ -9556,11 +9495,11 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="text-indigo-600 hover:underline text-sm flex items-center gap-1">&larr; Quay lại</button>
+        <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline text-sm flex items-center gap-1">&larr; Quay lại</button>
       </div>
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <UserIcon className="text-indigo-600" /> Cập nhật Hồ sơ cá nhân
+          <UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân
         </h2>
 
         <form onSubmit={handleSave} className="space-y-5">
@@ -9569,7 +9508,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             {user.picture ? (
               <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-indigo-600 font-bold shadow-sm"><UserIcon size={24} /></div>
+              <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[#004a99] font-bold shadow-sm"><UserIcon size={24} /></div>
             )}
             <div>
               <p className="font-semibold text-slate-800 text-lg">{user.email}</p>
@@ -9585,7 +9524,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
           {isStaff ? (
             /* ── ADMIN / LECTURER VIEW ── */
             <div className="space-y-5">
-              <div className="bg-indigo-50 border border-blue-100 rounded-xl p-4 text-sm text-indigo-800">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
                 Với tư cách <strong>{isLecturer ? 'Giảng viên' : `Quản trị viên${user.is_lecturer ? ' / Giảng viên' : ''}`}</strong>, hồ sơ của bạn chỉ cần cập nhật họ tên hiển thị.
                 {(isLecturer || user.is_lecturer) && <span> Tên này sẽ được <strong>đồng bộ tự động</strong> vào danh sách Giảng viên hướng dẫn.</span>}
               </div>
@@ -9702,7 +9641,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-sm transition-colors disabled:opacity-70"
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-70"
             >
               <Save size={18} /> {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
             </button>
@@ -9960,7 +9899,7 @@ function StudentRegistry({ token }: { token: string }) {
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-indigo-600" /> CSDL Sinh viên</h2>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
@@ -9974,17 +9913,17 @@ function StudentRegistry({ token }: { token: string }) {
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-indigo-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60" />
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60" />
             Ghi đè SV
           </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-emerald-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-emerald-600 text-white cursor-pointer hover:bg-emerald-700'}`}>
+          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
             {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
           <button onClick={() => setShowAddForm(prev => !prev)} disabled={importing} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             {showAddForm ? <X size={16} /> : <Plus size={16} />} {showAddForm ? 'Đóng' : 'Thêm sinh viên'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
             <Download size={16} /> Xuất XLSX
           </button>
         </div>
@@ -10051,7 +9990,7 @@ function StudentRegistry({ token }: { token: string }) {
               <button type="button" onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }} disabled={savingStudent} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-white disabled:opacity-60">
                 Huỷ
               </button>
-              <button type="submit" disabled={savingStudent} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">
+              <button type="submit" disabled={savingStudent} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2">
                 {savingStudent ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                 {savingStudent ? 'Đang lưu...' : 'Lưu sinh viên'}
               </button>
@@ -10061,7 +10000,7 @@ function StudentRegistry({ token }: { token: string }) {
         </form>
       )}
       {importing && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-green-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
@@ -10153,7 +10092,7 @@ function StudentRegistry({ token }: { token: string }) {
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-1">
-                          <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors disabled:opacity-50" title="Lưu">
+                          <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors disabled:opacity-50" title="Lưu">
                             {savingStudent ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
                           </button>
                           <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg transition-colors disabled:opacity-50" title="Huỷ">
@@ -10168,16 +10107,16 @@ function StudentRegistry({ token }: { token: string }) {
                       <td className="p-4 text-sm text-slate-800">{s.name}</td>
                       <td className="p-4 text-sm text-slate-600">{s.dob}</td>
                       <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
-                      <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-indigo-600 hover:underline">{s.personal_email}</a> : '-'}</td>
+                      <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
                       <td className="p-4 text-sm text-slate-600">
                         <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
                       </td>
                       <td className="p-4 text-sm text-right">
                         <div className="flex justify-end gap-1">
-                          <button onClick={() => startEditStudent(s)} className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
+                          <button onClick={() => startEditStudent(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
                             <Edit2 size={18} />
                           </button>
-                          <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-rose-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
+                          <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
                             <Trash2 size={18} />
                           </button>
                         </div>
@@ -10375,7 +10314,7 @@ function AdminRegistry({ token }: { token: string }) {
                   <td className="p-4 text-center">
                     <button
                       onClick={() => handleRemoveAdmin(admin.id)}
-                      className="text-red-500 hover:bg-rose-50 p-2 rounded-lg transition-colors"
+                      className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
                       title="Xóa quyền admin"
                     >
                       <Trash2 size={16} />
