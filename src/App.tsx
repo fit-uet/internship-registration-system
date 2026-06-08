@@ -2992,61 +2992,31 @@ function AdminPanel({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer">&larr; Quay lại</button>
-          <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
-            <button
-              onClick={handleSendFilteredRegistrationComment}
-              disabled={filteredRegistrations.length === 0}
-              className="bg-amber-600 text-white px-3.5 py-2 rounded-xl hover:bg-amber-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 transition-colors cursor-pointer"
-            >
-              <Send size={14} /> Gửi nhận xét
-            </button>
-          </span>
-          <button
-            onClick={handleApproveAll}
-            className="bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
-          >
-            <CheckCircle2 size={14} /> Duyệt tất cả
-          </button>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center gap-2 flex-1 xl:justify-end">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-            <input
-              type="text"
-              placeholder="Tìm sinh viên, lớp, công ty..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
-            />
+      <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+        {/* Row 1: Operations */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer">&larr; Quay lại</button>
+            <h2 className="text-sm font-extrabold text-slate-800 ml-2 hidden md:block">Danh sách Đăng ký Thực tập</h2>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={filterCourse}
-              onChange={(e) => setFilterCourse(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
+              <button
+                onClick={handleSendFilteredRegistrationComment}
+                disabled={filteredRegistrations.length === 0}
+                className="bg-amber-600 text-white px-3.5 py-2 rounded-xl hover:bg-amber-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 transition-colors cursor-pointer"
+              >
+                <Send size={14} /> Gửi nhận xét
+              </button>
+            </span>
+            <button
+              onClick={handleApproveAll}
+              className="bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
             >
-              <option value="">Tất cả học phần</option>
-              {uniqueCourses.map(course => (
-                <option key={course} value={course}>{course}</option>
-              ))}
-            </select>
+              <CheckCircle2 size={14} /> Duyệt tất cả
+            </button>
             
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
-            </select>
-
             <div className="relative">
               <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -3080,6 +3050,54 @@ function AdminPanel({ token }: { token: string }) {
               {savingToSheet ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
               {savingToSheet ? 'Đang lưu...' : 'Lưu Google Sheets'}
             </button>
+          </div>
+        </div>
+
+        {/* Row 2: Search & Filters */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-slate-150">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              placeholder="Tìm sinh viên, lớp, công ty..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterCourse}
+              onChange={(e) => setFilterCourse(e.target.value)}
+              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
+            >
+              <option value="">Tất cả học phần</option>
+              {uniqueCourses.map(course => (
+                <option key={course} value={course}>{course}</option>
+              ))}
+            </select>
+            
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">Chờ duyệt</option>
+              <option value="approved">Đã duyệt</option>
+              <option value="rejected">Từ chối</option>
+            </select>
+
+            {(searchTerm || filterCourse || filterStatus) && (
+              <button
+                type="button"
+                onClick={clearRegistrationFilters}
+                className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold px-3 py-2 rounded-xl transition-colors cursor-pointer"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -3563,54 +3581,54 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Trang chủ</button>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-emerald-600" /> Danh sách xác nhận thực tập</h2>
           <p className="text-sm text-slate-500 mt-1">Sinh viên đã xác nhận nơi thực tập chính thức để lấy điểm học phần.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={fetchRows} className="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-200 text-sm font-medium shadow-sm flex items-center gap-2">
-            <RefreshCw size={16} /> Tải lại
+          <button onClick={fetchRows} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer">
+            <RefreshCw size={14} /> Tải lại
           </button>
-          <button onClick={exportXlsx} disabled={filteredRows.length === 0} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-50">
-            <Download size={16} /> Xuất XLSX
+          <button onClick={exportXlsx} disabled={filteredRows.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <span className="text-slate-500 text-sm font-medium mb-1">Tổng xác nhận</span>
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Tổng xác nhận</span>
           <span className="text-3xl font-bold text-slate-800">{rows.length}</span>
         </div>
-        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-sm flex flex-col">
-          <span className="text-blue-600 text-sm font-medium mb-1">Số sinh viên</span>
+        <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col">
+          <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider mb-1">Số sinh viên</span>
           <span className="text-3xl font-bold text-blue-700">{uniqueStudents}</span>
         </div>
-        <div className="bg-cyan-50 p-5 rounded-xl border border-cyan-100 shadow-sm flex flex-col">
-          <span className="text-cyan-700 text-sm font-medium mb-1">Số nơi thực tập</span>
+        <div className="bg-cyan-50/50 p-5 rounded-2xl border border-cyan-100 shadow-sm flex flex-col">
+          <span className="text-cyan-700 text-xs font-semibold uppercase tracking-wider mb-1">Số nơi thực tập</span>
           <span className="text-3xl font-bold text-cyan-800">{uniquePlaces}</span>
         </div>
-        <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-100 shadow-sm flex flex-col">
-          <span className="text-emerald-600 text-sm font-medium mb-1">Thực tập công ty</span>
+        <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-sm flex flex-col">
+          <span className="text-emerald-600 text-xs font-semibold uppercase tracking-wider mb-1">Thực tập công ty</span>
           <span className="text-3xl font-bold text-emerald-700">{companyCount}</span>
         </div>
-        <div className="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col">
-          <span className="text-indigo-600 text-sm font-medium mb-1">TT ở trường</span>
+        <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col">
+          <span className="text-indigo-600 text-xs font-semibold uppercase tracking-wider mb-1">TT ở trường</span>
           <span className="text-3xl font-bold text-indigo-700">{schoolCount}</span>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Tìm mã SV, tên, nơi thực tập, GVHD..."
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all bg-slate-50/50 shadow-inner"
           />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none">
           <option value="">Tất cả loại</option>
           <option value="company">Công ty</option>
           <option value="school">Tại trường</option>
@@ -3621,39 +3639,39 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
+            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
               <tr>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_id')}>Mã SV<SortIcon col="student_id" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('student_name')}>Họ và tên<SortIcon col="student_name" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('internship_type')}>Loại<SortIcon col="internship_type" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('internship_place')}>Nơi thực tập<SortIcon col="internship_place" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('school_lecturer')}>GVHD tại trường<SortIcon col="school_lecturer" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('course_code')}>Môn học<SortIcon col="course_code" /></th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => requestSort('confirmed_at')}>Thời gian xác nhận<SortIcon col="confirmed_at" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('student_id')}>Mã SV<SortIcon col="student_id" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('student_name')}>Họ và tên<SortIcon col="student_name" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('internship_type')}>Loại<SortIcon col="internship_type" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('internship_place')}>Nơi thực tập<SortIcon col="internship_place" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('school_lecturer')}>GVHD tại trường<SortIcon col="school_lecturer" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('course_code')}>Môn học<SortIcon col="course_code" /></th>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('confirmed_at')}>Thời gian xác nhận<SortIcon col="confirmed_at" /></th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
                 </tr>
               ) : (
                 paginatedRows.map(item => (
-                  <tr key={item.id} className="border-b last:border-0 border-gray-100 hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono">{item.student_id || '-'}</td>
+                  <tr key={item.id} className="border-b last:border-0 border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-mono font-medium text-slate-800">{item.student_id || '-'}</td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{item.student_name}</div>
-                      <div className="text-xs text-slate-500">{item.class_name || '-'}</div>
+                      <div className="font-semibold text-slate-800">{item.student_name}</div>
+                      <div className="text-[10px] font-medium text-slate-400 mt-0.5">{item.class_name || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${item.internship_type === 'school' ? 'bg-blue-100 text-blue-700' : item.internship_type === 'partner' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.internship_type === 'school' ? 'bg-blue-50 text-blue-700 border border-blue-100' : item.internship_type === 'partner' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
                         {typeLabel(item.internship_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 min-w-[220px]">{internshipPlace(item)}</td>
-                    <td className="px-6 py-4">{item.school_assignment_request ? 'Khoa sẽ phân công' : (item.school_lecturer || '-')}</td>
+                    <td className="px-6 py-4 min-w-[220px] font-medium text-slate-700">{internshipPlace(item)}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">{item.school_assignment_request ? <span className="text-orange-600 font-semibold">Khoa sẽ phân công</span> : (item.school_lecturer || '-')}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{item.course_code?.split(' ').pop() || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-slate-500">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
                   </tr>
                 ))
               )}
@@ -4023,52 +4041,52 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="min-w-0">
-          <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
+          <button onClick={() => navigate(isAssignmentsView ? '/admin' : '/admin/advisors')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; {isAssignmentsView ? 'Quay lại Quản trị' : 'Quay lại Phân công GVHD'}</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 leading-tight">
             <Users className="text-emerald-600 shrink-0" size={26} /> {pageTitle}
           </h2>
         </div>
         {isAssignmentsView && (
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col xl:flex-row xl:items-center gap-3">
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={deleteSelectedAssignments}
                   disabled={deletingSelected}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {deletingSelected ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deletingSelected ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                   Xóa chọn{selectedRows.size > 0 ? ` (${selectedRows.size})` : ''}
                 </button>
-                <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <Settings size={16} /> Chỉ tiêu GV
+                <button onClick={() => navigate('/admin/advisors/quotas')} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+                  <Settings size={14} /> Chỉ tiêu GV
                 </button>
               </div>
               <div className="relative flex-1 min-w-[240px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập, giảng viên..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập, giảng viên..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none bg-slate-50/50 transition-all shadow-inner" />
               </div>
               <div className="flex flex-wrap gap-2">
-                <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-                  {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} Import XLSX
+                <label className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+                  {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} Import XLSX
                   <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
                 </label>
-                <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-                  {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
+                <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+                  {autoAssigning ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />} Tự phân công
                 </button>
                 <div className="relative">
-                  <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                    <Download size={16} /> Xuất XLSX
+                  <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+                    <Download size={14} /> Xuất XLSX
                   </button>
                   {isAssignExportMenuOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setIsAssignExportMenuOpen(false)}></div>
                       <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white border border-slate-100 shadow-xl z-50 overflow-hidden py-1">
-                        <button onClick={exportXlsxSummary} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
-                          <FileText size={16} className="text-slate-400" /> Xuất Tổng hợp
+                        <button onClick={exportXlsxSummary} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-xs font-semibold transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
+                          <FileText size={14} className="text-slate-400" /> Xuất Tổng hợp
                         </button>
-                        <button onClick={exportXlsxByLecturer} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left">
-                          <Users size={16} className="text-slate-400" /> Xuất từng GV (ZIP)
+                        <button onClick={exportXlsxByLecturer} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-xs font-semibold transition-colors w-full text-left cursor-pointer">
+                          <Users size={14} className="text-slate-400" /> Xuất từng GV (ZIP)
                         </button>
                       </div>
                     </>
@@ -4572,38 +4590,49 @@ function FinalReportAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-indigo-600" /> Báo cáo final</h2>
           <p className="text-sm text-slate-500 mt-1">Theo dõi báo cáo PDF final của sinh viên đã xác nhận nơi thực tập.</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="">Tất cả trạng thái</option>
-            <option value="missing">Chưa nộp</option>
-            <option value="submitted">Đã nộp</option>
-            <option value="needs_revision">Cần nộp lại</option>
-            <option value="accepted">Đã chấp nhận</option>
-          </select>
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
-          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất XLSX
-          </button>
-        </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Tìm sinh viên, nơi TT, GVHD..."
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+          />
+        </div>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none">
+          <option value="">Tất cả trạng thái</option>
+          <option value="missing">Chưa nộp</option>
+          <option value="submitted">Đã nộp</option>
+          <option value="needs_revision">Cần nộp lại</option>
+          <option value="accepted">Đã chấp nhận</option>
+        </select>
+        <button onClick={exportXlsx} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+          <Download size={14} /> Xuất XLSX
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          ['Chưa có', gradeStats.missing, 'text-slate-700'],
-          ['Nháp', gradeStats.draft, 'text-orange-700'],
-          ['Đã nộp', gradeStats.submitted, 'text-emerald-700'],
-          ['Đã khóa', gradeStats.locked, 'text-red-700'],
-        ].map(([label, value, color]) => (
-          <div key={label as string} className="bg-white border border-slate-200 rounded-lg p-4">
-            <div className="text-xs uppercase font-semibold text-slate-500">{label}</div>
-            <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
+          ['Chưa có', gradeStats.missing, 'text-slate-500 bg-slate-50/50 border-slate-200'],
+          ['Nháp', gradeStats.draft, 'text-orange-600 bg-orange-50/50 border-orange-100'],
+          ['Đã nộp', gradeStats.submitted, 'text-emerald-600 bg-emerald-50/50 border-emerald-100'],
+          ['Đã khóa', gradeStats.locked, 'text-rose-600 bg-rose-50/50 border-rose-100'],
+        ].map(([label, value, colors]) => (
+          <div key={label as string} className={`border rounded-2xl p-5 shadow-sm flex flex-col ${colors}`}>
+            <span className="text-xs font-semibold uppercase tracking-wider mb-1 opacity-85">{label}</span>
+            <span className="text-3xl font-bold">{value}</span>
           </div>
         ))}
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
@@ -4835,24 +4864,34 @@ function GradeAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CheckCircle2 className="text-green-600" /> Bảng điểm thực tập</h2>
           <p className="text-sm text-slate-500 mt-1">Tổng hợp điểm 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="">Tất cả trạng thái</option>
-            <option value="missing">Chưa có</option>
-            <option value="draft">Nháp</option>
-            <option value="submitted">Đã nộp</option>
-          </select>
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi TT, GVHD..." className="w-full sm:w-80 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500" />
-          <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-            <Download size={16} /> Xuất XLSX
-          </button>
-        </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Tìm sinh viên, nơi TT, GVHD..."
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+          />
+        </div>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none">
+          <option value="">Tất cả trạng thái</option>
+          <option value="missing">Chưa có</option>
+          <option value="draft">Nháp</option>
+          <option value="submitted">Đã nộp</option>
+        </select>
+        <button onClick={exportXlsx} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+          <Download size={14} /> Xuất XLSX
+        </button>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-600">
@@ -5179,65 +5218,68 @@ function NotificationAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Clock className="text-amber-600" /> Lịch sử thông báo</h2>
           {stats && (
-            <p className="text-xs text-slate-500 mt-1">
-              Provider: <strong>{stats.provider}</strong> · Đã gửi hôm nay: <strong>{stats.sent_today}/{stats.daily_cap}</strong> · Đang chờ: <strong>{stats.statuses?.queued || 0}</strong> · Batch: <strong>{stats.batch_size}</strong>
+            <p className="text-xs font-medium text-slate-500 mt-1.5">
+              Provider: <span className="text-slate-800 font-semibold">{stats.provider}</span> · Đã gửi hôm nay: <span className="text-slate-800 font-semibold">{stats.sent_today}/{stats.daily_cap}</span> · Đang chờ: <span className="text-amber-600 font-semibold">{stats.statuses?.queued || 0}</span> · Batch: <span className="text-slate-800 font-semibold">{stats.batch_size}</span>
             </p>
           )}
         </div>
-        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-          <Download size={16} /> Xuất XLSX
+        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+          <Download size={14} /> Xuất XLSX
         </button>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-500 uppercase">Gửi email</div>
+          <div className="space-y-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gửi email</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-green-700 text-white px-3 py-2 rounded-lg hover:bg-green-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <Send size={16} /> Gửi theo quota
+              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                <Send size={14} /> Gửi theo quota
               </button>
-              <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <Send size={16} /> Gửi lọc
+              <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                <Send size={14} /> Gửi lọc
               </button>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-500 uppercase">Xoá thông báo</div>
+          <div className="space-y-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xoá thông báo</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
-              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                {deletingNotifications ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />} Đã chọn
+              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                {deletingNotifications ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />} Đã chọn
               </button>
-              <button onClick={() => deleteNotifications('filtered')} disabled={deletingNotifications || sortedFiltered.length === 0} className="justify-center bg-rose-600 text-white px-3 py-2 rounded-lg hover:bg-rose-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <Trash2 size={16} /> Đang lọc
+              <button onClick={() => deleteNotifications('filtered')} disabled={deletingNotifications || sortedFiltered.length === 0} className="justify-center bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                <Trash2 size={14} /> Đang lọc
               </button>
-              <button onClick={() => deleteNotifications('queued')} disabled={deletingNotifications || !stats?.statuses?.queued} className="justify-center bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <Trash2 size={16} /> Hàng đợi
+              <button onClick={() => deleteNotifications('queued')} disabled={deletingNotifications || !stats?.statuses?.queued} className="justify-center bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                <Trash2 size={14} /> Hàng đợi
               </button>
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-slate-500 uppercase">Tạo thông báo hệ thống</div>
+          <div className="space-y-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tạo thông báo hệ thống</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-              <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="justify-center bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                <CheckCircle2 size={16} /> Mở xác nhận
+              <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="justify-center bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                <CheckCircle2 size={14} /> Mở xác nhận
               </button>
-              <button onClick={createFinalReportReminders} disabled={creatingReminders} className="justify-center bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-                {creatingReminders ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />} Nhắc báo cáo
+              <button onClick={createFinalReportReminders} disabled={creatingReminders} className="justify-center bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                {creatingReminders ? <RefreshCw size={14} className="animate-spin" /> : <Clock size={14} />} Nhắc báo cáo
               </button>
             </div>
           </div>
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
-        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm email, sinh viên, tiêu đề..." className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500" />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm email, sinh viên, tiêu đề..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none transition-all bg-slate-50/50 shadow-inner" />
+        </div>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none">
           <option value="">Tất cả loại</option>
           {types.map(type => <option key={type} value={type}>{notificationTypeLabel(type)}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none">
           <option value="">Tất cả trạng thái</option>
           <option value="queued">Queued</option>
           <option value="sent">Sent</option>
@@ -5948,42 +5990,46 @@ Khoa Công nghệ Thông tin`);
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><UserIcon className="text-teal-600" /> Quản lý Giảng viên</h2>
           <p className="text-sm text-slate-500 mt-1">Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có.</p>
         </div>
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 w-full sm:w-auto sm:justify-end">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Tìm tên, email, đơn vị..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Tìm tên, email, đơn vị..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
             Cập nhật dữ liệu trùng
           </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+            {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={() => { setMailMergeScope('filtered'); setMailMergeOpen(true); }} disabled={importing} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Send size={16} /> Mail merge
+          <button onClick={() => { setMailMergeScope('filtered'); setMailMergeOpen(true); }} disabled={importing} className="bg-slate-700 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Send size={14} /> Mail merge
           </button>
-          <button onClick={() => { setMailMergeScope('selected'); setMailMergeOpen(true); }} disabled={importing || selectedLecturerIds.length === 0} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Send size={16} /> Mail merge đã chọn ({selectedLecturerIds.length})
+          <button onClick={() => { setMailMergeScope('selected'); setMailMergeOpen(true); }} disabled={importing || selectedLecturerIds.length === 0} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Send size={14} /> Mail merge đã chọn ({selectedLecturerIds.length})
           </button>
-          <button onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')} disabled={importing || driveBusy} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            {driveBusy ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {selectedLecturerIds.length ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
+          <button onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')} disabled={importing || driveBusy} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            {driveBusy ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {selectedLecturerIds.length ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất XLSX
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -5995,13 +6041,13 @@ Khoa Công nghệ Thông tin`);
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-3 items-center">
+      <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-4 flex flex-wrap gap-3 items-center shadow-sm">
         <input
           type="text"
           placeholder="Họ và tên giảng viên..."
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
         <input
@@ -6009,7 +6055,7 @@ Khoa Công nghệ Thông tin`);
           placeholder="Email (tuỳ chọn)"
           value={newEmail}
           onChange={e => setNewEmail(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
         <input
@@ -6017,26 +6063,27 @@ Khoa Công nghệ Thông tin`);
           placeholder="Đơn vị công tác (tuỳ chọn)"
           value={newWorkUnit}
           onChange={e => setNewWorkUnit(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"
+          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
-        <button onClick={handleAdd} className="bg-teal-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap">
-          <Plus size={16} /> Thêm Giảng viên
+        <button onClick={handleAdd} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer">
+          <Plus size={14} /> Thêm Giảng viên
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
-              <th className="p-4 font-semibold whitespace-nowrap w-10">
-                <input
-                  type="checkbox"
-                  checked={allPageSelected}
-                  onChange={togglePageSelection}
-                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                  title="Chọn tất cả giảng viên trong trang hiện tại"
-                />
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                <th className="p-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={togglePageSelection}
+                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer w-4 h-4"
+                    title="Chọn tất cả giảng viên trong trang hiện tại"
+                  />
               </th>
               <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
               <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
@@ -6187,6 +6234,7 @@ Khoa Công nghệ Thông tin`);
         onPageChange={setCurrentPage}
         label="giảng viên"
       />
+    </div>
 
       {mailMergeOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
         <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
@@ -6968,80 +7016,83 @@ Trường Đại học Công nghệ, ĐHQGHN`;
   );
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-          <div className="min-w-0">
-            <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản trị</button>
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Building2 className="text-orange-600" /> Quản lý Công ty</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-            <button
-              onClick={() => navigate('/admin/approved-companies')}
-              className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
-            >
-              <Shield size={16} /> Công ty thẩm định
-            </button>
-            <button
-              onClick={() => setMailMergeOpen(true)}
-              className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
-            >
-              <Send size={16} /> Mail merge
-            </button>
-            <button
-              onClick={openSelectedMailMerge}
-              disabled={selectedCompanyKeys.length === 0}
-              className="bg-violet-600 text-white px-3 py-2 rounded-lg hover:bg-violet-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Tạo mail merge cho các công ty đang được chọn"
-            >
-              <Send size={16} /> Mail merge đã chọn ({selectedCompanyKeys.length})
-            </button>
-            <button
-              onClick={createDriveLinksForFilteredOfficial}
-              disabled={mailMergeSending}
-              className="bg-sky-600 text-white px-3 py-2 rounded-lg hover:bg-sky-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
-            >
-              {mailMergeSending ? <RefreshCw size={16} className="animate-spin" /> : <FileText size={16} />} {selectedCompanyKeys.length > 0 ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
-            </button>
-            <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-              <Download size={16} /> Xuất XLSX
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Tìm theo tên, địa chỉ, email..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
-              <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60" />
-              Ghi đè khi import
-            </label>
-            <label className={`px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
-              {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
-              <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
-            </label>
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              <span>Đã chọn: <strong>{selectedCompanyKeys.length}</strong></span>
-              <button type="button" onClick={() => toggleCurrentPageSelection(!isPageSelected)} className="font-semibold text-blue-600 hover:underline">
-                {isPageSelected ? 'Bỏ chọn trang' : 'Chọn trang'}
-              </button>
-              {selectedCompanyKeys.length > 0 && (
-                <button type="button" onClick={() => setSelectedCompanyKeys([])} className="font-semibold text-slate-500 hover:underline">
-                  Xóa chọn
-                </button>
-              )}
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Building2 className="text-orange-600" /> Quản lý Công ty
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách công ty đã đăng ký trên hệ thống thực tập.</p>
         </div>
       </div>
+
+      {/* Toolbar & Search */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Tìm theo tên, địa chỉ, email..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
+            Ghi đè
+          </label>
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'cursor-wait pointer-events-none' : ''}`}>
+            {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
+            <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
+          </label>
+          <button
+            onClick={() => navigate('/admin/approved-companies')}
+            className="bg-teal-600 text-white px-3.5 py-2 rounded-xl hover:bg-teal-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+          >
+            <Shield size={14} /> Công ty thẩm định
+          </button>
+          <button
+            onClick={() => setMailMergeOpen(true)}
+            className="bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+          >
+            <Send size={14} /> Mail merge
+          </button>
+          <button
+            onClick={openSelectedMailMerge}
+            disabled={selectedCompanyKeys.length === 0}
+            className="bg-violet-600 text-white px-3.5 py-2 rounded-xl hover:bg-violet-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title="Tạo mail merge cho các công ty đang được chọn"
+          >
+            <Send size={14} /> Mail merge đã chọn ({selectedCompanyKeys.length})
+          </button>
+          <button
+            onClick={createDriveLinksForFilteredOfficial}
+            disabled={mailMergeSending}
+            className="bg-sky-600 text-white px-3.5 py-2 rounded-xl hover:bg-sky-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait cursor-pointer"
+          >
+            {mailMergeSending ? <RefreshCw size={14} className="animate-spin" /> : <FileText size={14} />} {selectedCompanyKeys.length > 0 ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
+          </button>
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3.5 py-2 rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Download size={14} /> Xuất XLSX
+          </button>
+        </div>
+      </div>
+
+      {selectedCompanyKeys.length > 0 && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-150 rounded-2xl p-4 shadow-sm text-xs text-blue-800">
+          <span>Đã chọn: <strong>{selectedCompanyKeys.length}</strong> công ty.</span>
+          <button type="button" onClick={() => toggleCurrentPageSelection(!isPageSelected)} className="font-bold text-blue-600 hover:underline">
+            {isPageSelected ? 'Bỏ chọn trang' : 'Chọn trang'}
+          </button>
+          <button type="button" onClick={() => setSelectedCompanyKeys([])} className="font-bold text-slate-500 hover:underline ml-2">
+            Xóa chọn
+          </button>
+        </div>
+      )}
 
       {importing && (
         <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
@@ -7178,37 +7229,42 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       )}
 
       {/* Add company form */}
+      {/* Add company form */}
       {!showAddForm ? (
         <div className="mb-6">
-          <button onClick={() => setShowAddForm(true)} className="bg-orange-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
+          <button onClick={() => setShowAddForm(true)} className="bg-orange-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm cursor-pointer">
             <Plus size={16} /> Thêm Công ty
           </button>
         </div>
       ) : (
-        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+        <div className="mb-6 bg-orange-50 border border-orange-150 rounded-2xl p-5 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-orange-800">Thêm công ty mới</h3>
-            <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            <h3 className="font-bold text-sm text-orange-950 flex items-center gap-2"><Plus size={16} /> Thêm công ty mới</h3>
+            <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input type="number" min="1" placeholder="Chỉ tiêu tiếp nhận" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-            <input placeholder="Địa chỉ" value={newCompany.address} onChange={e => setNewCompany({ ...newCompany, address: e.target.value })} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
+            <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input type="number" min="1" placeholder="Chỉ tiêu tiếp nhận" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input placeholder="Địa chỉ" value={newCompany.address} onChange={e => setNewCompany({ ...newCompany, address: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
           </div>
-          <input placeholder="Link tuyển dụng" value={newCompany.recruitment_link} onChange={e => setNewCompany({ ...newCompany, recruitment_link: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500" />
-          <button onClick={handleAdd} className="bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
-            <Plus size={16} /> Lưu công ty
-          </button>
+          <input placeholder="Link tuyển dụng" value={newCompany.recruitment_link} onChange={e => setNewCompany({ ...newCompany, recruitment_link: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+          <div className="flex justify-end gap-2 pt-2 border-t border-orange-100">
+            <button onClick={() => setShowAddForm(false)} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer">Hủy</button>
+            <button onClick={handleAdd} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-700 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+              <Plus size={16} /> Lưu công ty
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs text-slate-600">
+            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
+              <tr>
               <th className="p-3 font-semibold w-10">
                 <input
                   type="checkbox"
@@ -7518,46 +7574,49 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <button onClick={() => navigate('/admin/companies')} className="text-blue-600 hover:underline text-sm mb-2 flex items-center gap-1">&larr; Quay lại Quản lý công ty</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-teal-600" /> Danh sách công ty thẩm định nội bộ</h2>
+          <button onClick={() => navigate('/admin/companies')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản lý công ty</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-teal-600" size={26} /> Danh sách công ty thẩm định nội bộ</h2>
           <p className="text-sm text-slate-500 mt-1">Danh sách này dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên. Tổng: <strong>{companies.length}</strong></p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm tên, nguồn..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm" />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none whitespace-nowrap">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60" />
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm tên, nguồn..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-slate-50/50 shadow-inner" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
             Ghi đè
           </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-slate-400 text-white cursor-wait pointer-events-none' : 'bg-teal-600 text-white cursor-pointer hover:bg-teal-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import XLSX'}
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+            {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
           </label>
-          <button onClick={exportXlsx} disabled={loading || importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
-            <Download size={16} /> Xuất XLSX
+          <button onClick={exportXlsx} disabled={loading || importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
 
-      <div className="mb-6 bg-teal-50 border border-teal-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+      <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 shadow-sm">
         <input
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
           placeholder="Tên công ty đã thẩm định"
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
+          className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
         />
-        <button onClick={handleAdd} className="bg-teal-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-          <Plus size={16} /> Thêm
+        <button onClick={handleAdd} className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+          <Plus size={14} /> Thêm công ty
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
@@ -7789,8 +7848,8 @@ function AdminSettings({ token }: { token: string }) {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <button onClick={() => navigate('/admin')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-gray-900">Cài đặt hệ thống</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800">Cài đặt hệ thống</h2>
         </div>
       </div>
 
@@ -8368,22 +8427,22 @@ function PlanSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><FileText className="text-blue-600" /> Cài đặt Kế hoạch triển khai</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><FileText className="text-blue-600" /> Cài đặt Kế hoạch triển khai</h2>
           <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung kế hoạch hiển thị cho sinh viên bằng Markdown.</p>
         </div>
-        <button onClick={handleSavePlan} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
-          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu kế hoạch
+        <button onClick={handleSavePlan} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap">
+          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu kế hoạch
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors shadow-sm border w-fit ${importingDocx
+          <label className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-sm border w-fit ${importingDocx
             ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
             : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
             }`}>
-            <Upload size={16} />
+            <Upload size={14} />
             {importingDocx ? 'Đang đọc file...' : 'Import từ Word (.docx)'}
             <input
               type="file"
@@ -8398,16 +8457,16 @@ function PlanSettingsAdmin({ token }: { token: string }) {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Nội dung Kế hoạch triển khai</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nội dung Kế hoạch triển khai</label>
             <textarea
-              className="w-full min-h-[560px] border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+              className="w-full min-h-[560px] border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-mono bg-slate-50/50 shadow-inner resize-y"
               value={planContent}
               onChange={(e) => setPlanContent(e.target.value)}
               placeholder="Nhập nội dung kế hoạch triển khai bằng Markdown..."
             />
           </div>
           <div className="p-5">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
             <div className="prose prose-blue prose-sm max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {planContent || ''}
@@ -8457,23 +8516,23 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/plan')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại Kế hoạch triển khai</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Shield className="text-slate-700" /> Cài đặt Quy định đăng ký</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-slate-700" size={26} /> Cài đặt Quy định đăng ký</h2>
           <p className="text-sm text-slate-500 mt-1">Chỉnh nội dung quy định hiển thị cho sinh viên bằng Markdown.</p>
         </div>
-        <button onClick={saveRules} disabled={saving} className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
-          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu quy định
+        <button onClick={saveRules} disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap">
+          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu quy định
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <label className="block text-sm font-semibold text-slate-700">Nội dung Quy định đăng ký</label>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Nội dung Quy định đăng ký</label>
               <button
                 onClick={() => setRules(DEFAULT_REGISTRATION_RULES)}
-                className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 px-3 py-2 rounded-lg"
+                className="text-xs font-semibold text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 shadow-sm transition-colors cursor-pointer whitespace-nowrap"
               >
                 Khôi phục mặc định
               </button>
@@ -8481,12 +8540,12 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
             <textarea
               value={rules}
               onChange={e => setRules(e.target.value)}
-              className="w-full min-h-[480px] px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+              className="w-full min-h-[480px] border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-slate-100 focus:border-slate-500 outline-none transition-all font-mono bg-slate-50/50 shadow-inner resize-y"
               placeholder="Nhập nội dung quy định bằng Markdown..."
             />
           </div>
-          <div className="p-5">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+          <div className="p-5 bg-slate-50/25">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
             <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md">
               <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
               {String(rules || '').trim()
@@ -8707,38 +8766,38 @@ function FAQQuestionsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Send className="text-blue-600" /> Trả lời câu hỏi FAQ</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Send className="text-blue-600" /> Trả lời câu hỏi FAQ</h2>
           <p className="text-sm text-slate-500 mt-1">Xem và trả lời câu hỏi do sinh viên hoặc giảng viên gửi từ trang FAQ.</p>
         </div>
-        <button onClick={fetchFaqQuestions} className="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm font-semibold shadow-sm flex items-center gap-2">
-          <RefreshCw size={16} /> Tải lại
+        <button onClick={fetchFaqQuestions} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer">
+          <RefreshCw size={14} /> Tải lại
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-blue-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-blue-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-bold text-slate-900 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Câu hỏi gửi tới FAQ</h3>
+            <h3 className="font-bold text-slate-800 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Câu hỏi gửi tới FAQ</h3>
             <p className="text-xs text-slate-500 mt-1">Còn <strong>{pendingQuestions}</strong> câu hỏi đang chờ trả lời.</p>
           </div>
         </div>
         <div className="divide-y divide-slate-100">
           {questions.length === 0 ? (
-            <div className="p-6 text-sm text-slate-500">Chưa có câu hỏi nào được gửi.</div>
+            <div className="p-6 text-sm text-slate-400 text-center">Chưa có câu hỏi nào được gửi.</div>
           ) : questions.map(q => (
             <div key={q.id} className="p-5 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${q.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${q.status === 'answered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
                     {q.status === 'answered' ? 'Đã trả lời' : 'Chờ trả lời'}
                   </span>
-                  <span className="text-xs text-slate-500">{q.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'}</span>
-                  <span className="text-xs text-slate-400">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">{q.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'}</span>
+                  <span className="text-xs text-slate-400 font-medium">{q.created_at ? new Date(q.created_at).toLocaleString('vi-VN') : ''}</span>
                 </div>
-                <div className="text-sm font-semibold text-slate-900">{q.user_name || q.user_email || 'Người dùng'}</div>
-                <div className="text-xs text-slate-500 mb-3">{q.student_id || q.user_email || ''}</div>
-                <div className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 border border-slate-100 rounded-lg p-3">{q.question}</div>
+                <div className="text-sm font-semibold text-slate-800">{q.user_name || q.user_email || 'Người dùng'}</div>
+                <div className="text-xs text-slate-500 font-mono mt-0.5 mb-3">{q.student_id || q.user_email || ''}</div>
+                <div className="text-xs font-medium text-slate-700 whitespace-pre-wrap bg-slate-50/50 border border-slate-200 rounded-xl p-3.5 shadow-inner">{q.question}</div>
               </div>
               <div className="space-y-3">
                 <textarea
@@ -8746,16 +8805,16 @@ function FAQQuestionsAdmin({ token }: { token: string }) {
                   onChange={e => setAnswerDrafts(prev => ({ ...prev, [Number(q.id)]: e.target.value }))}
                   rows={5}
                   placeholder="Nhập câu trả lời..."
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-y font-medium text-slate-700"
                 />
                 {q.answered_at && (
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-400 font-medium">
                     Trả lời lúc {new Date(q.answered_at).toLocaleString('vi-VN')}{q.answered_by_name ? ` bởi ${q.answered_by_name}` : ''}
                   </div>
                 )}
                 <div className="flex justify-end">
-                  <button onClick={() => answerQuestion(Number(q.id))} disabled={answeringId === Number(q.id)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
-                    {answeringId === Number(q.id) ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} {q.status === 'answered' ? 'Cập nhật trả lời' : 'Trả lời'}
+                  <button onClick={() => answerQuestion(Number(q.id))} disabled={answeringId === Number(q.id)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                    {answeringId === Number(q.id) ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} {q.status === 'answered' ? 'Cập nhật trả lời' : 'Trả lời'}
                   </button>
                 </div>
               </div>
@@ -8835,33 +8894,33 @@ function FAQSettingsAdmin({ token }: { token: string }) {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/faq')} className="text-blue-600 hover:underline text-sm mb-2 block flex items-center gap-1">&larr; Quay lại FAQ</button>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><CircleHelp className="text-amber-600" /> Cài đặt FAQ</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CircleHelp className="text-amber-600" size={26} /> Cài đặt FAQ</h2>
           <p className="text-sm text-slate-500 mt-1">Chọn nhóm người dùng và chỉnh nội dung FAQ hiển thị cho sinh viên hoặc giảng viên.</p>
         </div>
-        <button onClick={saveFaq} disabled={saving} className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold shadow-sm flex items-center gap-2 disabled:opacity-60">
-          {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />} Lưu FAQ
+        <button onClick={saveFaq} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap">
+          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu FAQ
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 w-fit">
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 w-fit shadow-inner">
             <button
               onClick={() => setActiveTab('student')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'student' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${activeTab === 'student' ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               FAQ sinh viên
             </button>
             <button
               onClick={() => setActiveTab('lecturer')}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${activeTab === 'lecturer' ? 'bg-teal-50 text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${activeTab === 'lecturer' ? 'bg-teal-50 text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
               FAQ giảng viên
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors border ${importingDocx
+            <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border ${importingDocx
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
               : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
               }`}>
@@ -8878,7 +8937,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
             </label>
             <button
               onClick={() => setFaq((prev: any) => ({ ...prev, [activeKey]: activeDefault }))}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-white px-3 py-2 rounded-lg"
+              className="text-xs font-semibold text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 shadow-sm transition-colors cursor-pointer whitespace-nowrap"
             >
               Khôi phục nội dung mặc định
             </button>
@@ -8886,15 +8945,15 @@ function FAQSettingsAdmin({ token }: { token: string }) {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
           <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">{activeTab === 'student' ? 'Nội dung FAQ sinh viên' : 'Nội dung FAQ giảng viên'}</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{activeTab === 'student' ? 'Nội dung FAQ sinh viên' : 'Nội dung FAQ giảng viên'}</label>
             <textarea
               value={faq[activeKey] || ''}
               onChange={e => setFaq((prev: any) => ({ ...prev, [activeKey]: e.target.value }))}
-              className="w-full min-h-[520px] px-4 py-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm font-mono"
+              className="w-full min-h-[520px] border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none transition-all font-mono bg-slate-50/50 shadow-inner resize-y"
             />
           </div>
-          <div className="p-5">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Xem trước</div>
+          <div className="p-5 bg-slate-50/25">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
             <div className="prose prose-blue prose-sm max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {faq[activeKey] || ''}
@@ -9949,35 +10008,42 @@ function StudentRegistry({ token }: { token: string }) {
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> CSDL Sinh viên</h2>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Users className="text-blue-600" /> CSDL Sinh viên
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Danh sách sinh viên và các thông tin cơ bản trong cơ sở dữ liệu hệ thống.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Tìm theo Mã SV, Tên, Lớp..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60" />
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Tìm theo Mã SV, Tên, Lớp..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60 cursor-pointer animate-none" />
             Ghi đè SV
           </label>
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap ${importing ? 'bg-green-500 text-white cursor-wait pointer-events-none opacity-80' : 'bg-green-600 text-white cursor-pointer hover:bg-green-700'}`}>
-            {importing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />} {importing ? 'Đang import...' : 'Import'}
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+            {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={() => setShowAddForm(prev => !prev)} disabled={importing} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            {showAddForm ? <X size={16} /> : <Plus size={16} />} {showAddForm ? 'Đóng' : 'Thêm sinh viên'}
+          <button onClick={() => setShowAddForm(prev => !prev)} disabled={importing} className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            {showAddForm ? <X size={14} /> : <Plus size={14} />} {showAddForm ? 'Đóng' : 'Thêm sinh viên'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
-            <Download size={16} /> Xuất XLSX
+          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
@@ -10058,144 +10124,146 @@ function StudentRegistry({ token }: { token: string }) {
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
-              <th className="p-4 font-semibold whitespace-nowrap">STT</th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('student_id')}>
-                Mã SV {sortConfig?.key === 'student_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
-                Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('dob')}>
-                Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
-                SĐT {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('personal_email')}>
-                Email cá nhân {sortConfig?.key === 'personal_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('class_name')}>
-                Lớp khoá học {sortConfig?.key === 'class_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap text-right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredAndSortedStudents.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-10 text-center text-slate-500">
-                  {students.length === 0 ? 'Chưa có dữ liệu sinh viên.' : 'Không có sinh viên phù hợp.'}
-                </td>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                <th className="p-4 whitespace-nowrap">STT</th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('student_id')}>
+                  Mã SV {sortConfig?.key === 'student_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                  Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('dob')}>
+                  Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('phone')}>
+                  SĐT {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('personal_email')}>
+                  Email cá nhân {sortConfig?.key === 'personal_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('class_name')}>
+                  Lớp khoá học {sortConfig?.key === 'class_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="p-4 whitespace-nowrap text-right">Thao tác</th>
               </tr>
-            ) : paginatedStudents.map((s, idx) => {
-              const selector = studentSelector(s);
-              const isEditing = editingStudentKey === selector;
-              return (
-                <tr key={selector} className="hover:bg-slate-50/50 transition-colors align-top">
-                  <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
-                  {isEditing ? (
-                    <>
-                      <td className="p-3">
-                        <input
-                          value={editStudent.student_id}
-                          onChange={e => setEditStudent({ ...editStudent, student_id: e.target.value })}
-                          className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          value={editStudent.name}
-                          onChange={e => setEditStudent({ ...editStudent, name: e.target.value })}
-                          className="w-48 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          type="date"
-                          value={editStudent.dob}
-                          onChange={e => setEditStudent({ ...editStudent, dob: e.target.value })}
-                          className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          value={editStudent.phone}
-                          onChange={e => setEditStudent({ ...editStudent, phone: e.target.value })}
-                          className="w-32 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          type="email"
-                          value={editStudent.personal_email}
-                          onChange={e => setEditStudent({ ...editStudent, personal_email: e.target.value })}
-                          className="w-52 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <input
-                          value={editStudent.class_name}
-                          onChange={e => setEditStudent({ ...editStudent, class_name: e.target.value })}
-                          className="w-44 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors disabled:opacity-50" title="Lưu">
-                            {savingStudent ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                          </button>
-                          <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg transition-colors disabled:opacity-50" title="Huỷ">
-                            <X size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="p-4 text-sm font-mono text-slate-800 font-medium">{s.student_id}</td>
-                      <td className="p-4 text-sm text-slate-800">{s.name}</td>
-                      <td className="p-4 text-sm text-slate-600">{s.dob}</td>
-                      <td className="p-4 text-sm text-slate-600">{s.phone || '-'}</td>
-                      <td className="p-4 text-sm text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
-                      <td className="p-4 text-sm text-slate-600">
-                        <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-xs font-medium">{s.class_name}</span>
-                      </td>
-                      <td className="p-4 text-sm text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => startEditStudent(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors tooltip" title="Sửa">
-                            <Edit2 size={18} />
-                          </button>
-                          <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors tooltip" title="Xóa">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  )}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredAndSortedStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-10 text-center text-slate-400">
+                    {students.length === 0 ? 'Chưa có dữ liệu sinh viên.' : 'Không có sinh viên phù hợp.'}
+                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : paginatedStudents.map((s, idx) => {
+                const selector = studentSelector(s);
+                const isEditing = editingStudentKey === selector;
+                return (
+                  <tr key={selector} className="hover:bg-slate-50/50 transition-colors align-top">
+                    <td className="p-4 text-xs font-medium text-slate-500">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
+                    {isEditing ? (
+                      <>
+                        <td className="p-3">
+                          <input
+                            value={editStudent.student_id}
+                            onChange={e => setEditStudent({ ...editStudent, student_id: e.target.value })}
+                            className="w-28 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            value={editStudent.name}
+                            onChange={e => setEditStudent({ ...editStudent, name: e.target.value })}
+                            className="w-48 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="date"
+                            value={editStudent.dob}
+                            onChange={e => setEditStudent({ ...editStudent, dob: e.target.value })}
+                            className="w-36 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            value={editStudent.phone}
+                            onChange={e => setEditStudent({ ...editStudent, phone: e.target.value })}
+                            className="w-32 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="email"
+                            value={editStudent.personal_email}
+                            onChange={e => setEditStudent({ ...editStudent, personal_email: e.target.value })}
+                            className="w-52 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            value={editStudent.class_name}
+                            onChange={e => setEditStudent({ ...editStudent, class_name: e.target.value })}
+                            className="w-44 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                          />
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-blue-600 hover:bg-blue-50 p-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer" title="Lưu">
+                              {savingStudent ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                            </button>
+                            <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-500 hover:bg-slate-100 p-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer" title="Huỷ">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="p-4 text-xs font-mono font-semibold text-slate-800">{s.student_id}</td>
+                        <td className="p-4 text-xs font-semibold text-slate-800">{s.name}</td>
+                        <td className="p-4 text-xs text-slate-600">{s.dob}</td>
+                        <td className="p-4 text-xs text-slate-600">{s.phone || '-'}</td>
+                        <td className="p-4 text-xs text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
+                        <td className="p-4 text-xs text-slate-600">
+                          <span className="bg-slate-50 border border-slate-150 text-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold">{s.class_name}</span>
+                        </td>
+                        <td className="p-4 text-xs text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => startEditStudent(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-xl transition-colors cursor-pointer" title="Sửa">
+                              <Edit2 size={16} />
+                            </button>
+                            <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors cursor-pointer" title="Xóa">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <PaginationControls
+          total={filteredAndSortedStudents.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="sinh viên"
+        />
       </div>
-      <PaginationControls
-        total={filteredAndSortedStudents.length}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        onPageChange={setCurrentPage}
-        label="sinh viên"
-      />
-    </div>
   );
 }
 
 export default App;
 
 function AdminRegistry({ token }: { token: string }) {
+  const navigate = useNavigate();
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -10280,19 +10348,22 @@ function AdminRegistry({ token }: { token: string }) {
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Shield className="text-purple-600" /> Quản lý Quản trị viên
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên.
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Shield className="text-purple-600" /> Quản lý Quản trị viên
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên.
+          </p>
+        </div>
       </div>
 
       {/* Add admin */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><Plus size={16} className="text-purple-500" /> Thêm Quản trị viên mới</h3>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><Plus size={16} className="text-purple-500" /> Thêm Quản trị viên mới</h3>
         <div className="flex gap-3">
           <input
             type="email"
@@ -10300,32 +10371,32 @@ function AdminRegistry({ token }: { token: string }) {
             value={newAdminEmail}
             onChange={(e) => setNewAdminEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddAdmin()}
-            className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm"
+            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-100 focus:border-purple-500 outline-none transition-all bg-slate-50/50 shadow-inner"
           />
           <button
             onClick={handleAddAdmin}
-            className="flex items-center gap-2 bg-purple-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-purple-800 shadow-sm transition-colors"
+            className="flex items-center gap-1.5 bg-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:bg-purple-800 shadow-sm transition-colors cursor-pointer whitespace-nowrap"
           >
-            <Plus size={18} /> Thêm Admin
+            <Plus size={14} /> Thêm Admin
           </button>
         </div>
-        <p className="text-xs text-slate-400 mt-2">Chỉ chấp nhận email có đuôi @vnu.edu.vn. Người dùng phải đăng nhập lại để quyền Admin có hiệu lực.</p>
+        <p className="text-xs text-slate-400">Chỉ chấp nhận email có đuôi @vnu.edu.vn. Người dùng phải đăng nhập lại để quyền Admin có hiệu lực.</p>
       </div>
 
-      <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800 leading-relaxed">
+      <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 text-xs font-medium text-purple-800 leading-relaxed shadow-sm">
         <strong>Lưu ý:</strong> Tích vào ô <strong>"Là Giảng viên"</strong> sẽ tự động đồng bộ tên của Admin đó vào danh sách Giảng viên để sinh viên có thể chọn khi đăng ký thực tập tại Trường.
       </div>
 
       {/* Admin list */}
-      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50 text-slate-700 text-sm border-b border-slate-200">
-              <th className="p-4 font-semibold w-12 text-center">STT</th>
-              <th className="p-4 font-semibold">Họ và Tên</th>
-              <th className="p-4 font-semibold">Email</th>
-              <th className="p-4 font-semibold text-center">Là Giảng viên</th>
-              <th className="p-4 font-semibold text-center w-24">Xóa</th>
+            <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+              <th className="p-4 w-12 text-center">STT</th>
+              <th className="p-4">Họ và Tên</th>
+              <th className="p-4">Email</th>
+              <th className="p-4 text-center">Là Giảng viên</th>
+              <th className="p-4 text-center w-24">Xóa</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
