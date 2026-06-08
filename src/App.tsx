@@ -4145,7 +4145,10 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                         [...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].map(a => (
                           <div key={a.id} className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
-                            <span className="text-sm">{a.name}</span>
+                            <span className={`text-sm ${a.name === 'Giảng viên đã bị xóa' ? 'text-red-600 font-medium' : ''}`}>{a.name}</span>
+                            {a.name === 'Giảng viên đã bị xóa' && (
+                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200" title="Giảng viên đã bị xóa khỏi hệ thống. Vui lòng tích chọn dòng sinh viên này và nhấn 'Xóa chọn' để hủy phân công rác và có thể phân công lại.">⚠️ Lỗi</span>
+                            )}
                             {a.note && a.note.includes('Tự phân công') && (
                               <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200" title="Được phân công tự động bởi hệ thống">⚡ Tự PC</span>
                             )}

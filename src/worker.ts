@@ -1955,7 +1955,12 @@ async function route(request: Request, env: Env) {
     return json({ success: true });
   }
   if (lecturerId && method === 'DELETE') {
-    await database.execute({ sql: 'DELETE FROM lecturers WHERE id = ?', args: [lecturerId[1]] });
+    const idVal = Number(lecturerId[1]);
+    await executeBatch(database, [
+      { sql: 'DELETE FROM advisor_assignments WHERE lecturer_id = ?', args: [idVal] },
+      { sql: 'DELETE FROM lecturer_quotas WHERE lecturer_id = ?', args: [idVal] },
+      { sql: 'DELETE FROM lecturers WHERE id = ?', args: [idVal] }
+    ]);
     await syncLecturerUsers(database);
     return json({ success: true });
   }
@@ -2479,8 +2484,8 @@ async function route(request: Request, env: Env) {
       SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
              u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as primary_assignments,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as co_assignments
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || COALESCE(l.name, 'Giảng viên đã bị xóa') || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as primary_assignments,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || COALESCE(l.name, 'Giảng viên đã bị xóa') || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as co_assignments
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -2567,8 +2572,8 @@ async function route(request: Request, env: Env) {
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
              fr.id as report_id, fr.original_filename, fr.file_size, fr.status as report_status,
              fr.submitted_at as report_submitted_at, fr.updated_at as report_updated_at, fr.lecturer_comment,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -2590,9 +2595,9 @@ async function route(request: Request, env: Env) {
              fr.status as report_status,
              g.progress_score, g.report_score, g.company_score, g.final_score,
              COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
-             gl.name as grading_lecturer_name,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors
+             COALESCE(gl.name, 'Giảng viên đã bị xóa') as grading_lecturer_name,
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
@@ -2637,8 +2642,8 @@ async function route(request: Request, env: Env) {
     const rows = (await database.execute(`
       SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp", u.course_code as "Mã học phần",
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as "Nơi thực tập",
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as "GVHD chính",
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as "Đồng hướng dẫn",
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "GVHD chính",
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "Đồng hướng dẫn",
              g.progress_score as "Điểm báo cáo định kỳ",
              g.report_score as "Điểm báo cáo final",
              g.company_score as "Điểm đánh giá công ty/GVHD",
