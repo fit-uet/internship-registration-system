@@ -655,9 +655,6 @@ function App() {
                               <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
                               </Link>
-                              <Link to="/admin/registrations" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <LayoutDashboard size={16} className="text-sky-600" /> Danh sách đăng ký thực tập
-                              </Link>
                             </>
                           )}
                           {user.role === 'admin' && (
@@ -9436,6 +9433,12 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
             <CheckCircle2 size={14} /> Chấm điểm thực tập
+          </button>
+          <button
+            onClick={() => navigate('/admin/registrations')}
+            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+          >
+            <LayoutDashboard size={14} className="text-slate-500" /> Danh sách đăng ký thực tập
           </button>
         </div>
       </div>
