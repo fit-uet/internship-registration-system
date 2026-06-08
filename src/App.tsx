@@ -549,11 +549,10 @@ function App() {
                     <Link
                       to="/chat"
                       onClick={() => { setIsMenuOpen(false); setIsNotificationOpen(false); }}
-                      className="inline-flex items-center gap-2 h-9 rounded-xl px-3 hover:bg-white/10 transition-colors text-xs font-semibold text-white"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-white/10 transition-colors text-white"
                       title={user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}
                     >
                       <MessageCircle size={18} />
-                      <span className="hidden md:inline">{user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}</span>
                     </Link>
                   )}
                   <div className="relative">
