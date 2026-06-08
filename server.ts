@@ -159,6 +159,13 @@ function isBachelorLecturer(name: string) {
   return /\bCN\b/.test(upper) || upper.includes('CN.');
 }
 
+function getLecturerDegreePriority(name: string): number {
+  const upper = String(name || '').toUpperCase();
+  if (/\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')) return 3;
+  if (/\bTS\b/.test(upper) || upper.includes('TS.')) return 2;
+  return 1;
+}
+
 function isWithinLocalWindow(settings: Record<string, string>, openKey: string, closeKey: string) {
   const now = new Date();
   const openAt = settings[openKey];
@@ -4033,7 +4040,7 @@ async function startServer() {
           : /\bTS\b/.test(upper) || upper.includes('TS.')
             ? Number(quotaSettings.advisor_quota_ts || 8)
             : Number(quotaSettings.advisor_quota_ths || 10);
-        return { ...row, id: Number(row.id), max_total_students: Number(row.quota_override || defaultQuota), assignment_count: Number(row.assignment_count || 0) };
+        return { ...row, id: Number(row.id), max_total_students: row.quota_override !== null && row.quota_override !== undefined ? Number(row.quota_override) : defaultQuota, assignment_count: Number(row.assignment_count || 0) };
       })
       .filter((row: any) => !isBachelorLecturer(row.name) && row.assignment_count < row.max_total_students);
     const students = (await db.execute(`
@@ -4058,7 +4065,14 @@ async function startServer() {
     let count = 0;
     const errors: string[] = [];
     for (const student of students) {
-      candidates.sort((a: any, b: any) => (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi'));
+      candidates.sort((a: any, b: any) => {
+        const priorityA = getLecturerDegreePriority(a.name);
+        const priorityB = getLecturerDegreePriority(b.name);
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi');
+      });
       const lecturer = candidates.find((item: any) => item.assignment_count < item.max_total_students);
       if (!lecturer) {
         errors.push(`${student.student_id || student.user_id}: không còn giảng viên đủ chỉ tiêu`);
@@ -4171,7 +4185,7 @@ async function startServer() {
           : /\bTS\b/.test(upper) || upper.includes('TS.')
             ? Number(quotaSettings.advisor_quota_ts || 8)
             : Number(quotaSettings.advisor_quota_ths || 10);
-        return { ...lecturer, max_total_students: Number(lecturer.quota_override || defaultQuota), assignment_count: Number(lecturer.assignment_count || 0) };
+        return { ...lecturer, max_total_students: lecturer.quota_override !== null && lecturer.quota_override !== undefined ? Number(lecturer.quota_override) : defaultQuota, assignment_count: Number(lecturer.assignment_count || 0) };
       });
       res.json({ rows, lecturers });
       setTimeout(() => {

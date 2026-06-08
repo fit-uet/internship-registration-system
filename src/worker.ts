@@ -483,6 +483,13 @@ function isBachelorLecturer(name: string) {
   return /\bCN\b/.test(upper) || upper.includes('CN.');
 }
 
+function getLecturerDegreePriority(name: string): number {
+  const upper = String(name || '').toUpperCase();
+  if (/\b(PGS|GS)\b/.test(upper) || upper.includes('PGS.') || upper.includes('GS.')) return 3;
+  if (/\bTS\b/.test(upper) || upper.includes('TS.')) return 2;
+  return 1;
+}
+
 function isWithinLocalWindow(settings: Record<string, string>, openKey: string, closeKey: string) {
   const now = new Date();
   const openAt = settings[openKey];
@@ -2437,7 +2444,14 @@ async function route(request: Request, env: Env) {
     let count = 0;
     const errors: string[] = [];
     for (const student of students) {
-      candidates.sort((a: any, b: any) => (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi'));
+      candidates.sort((a: any, b: any) => {
+        const priorityA = getLecturerDegreePriority(a.name);
+        const priorityB = getLecturerDegreePriority(b.name);
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi');
+      });
       const lecturer = candidates.find((item: any) => item.assignment_count < item.max_total_students);
       if (!lecturer) {
         errors.push(`${student.student_id || student.user_id}: không còn giảng viên đủ chỉ tiêu`);
