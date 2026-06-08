@@ -3650,8 +3650,8 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     .map(item => item.trim())
     .filter(Boolean)
     .map(item => {
-      const [id, name, email] = item.split('|');
-      return { id: Number(id), name, email };
+      const [id, name, email, note] = item.split('|');
+      return { id: Number(id), name, email, note: note || '' };
     })
     .filter(item => item.id && item.name);
 
@@ -4143,9 +4143,12 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                         <span className="text-slate-400 text-sm">Chưa phân công</span>
                       ) : (
                         [...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].map(a => (
-                          <div key={a.id} className="flex items-center gap-2">
+                          <div key={a.id} className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-bold px-2 py-1 rounded ${a.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{a.role === 'primary' ? 'Chính' : 'Đồng'}</span>
                             <span className="text-sm">{a.name}</span>
+                            {a.note && a.note.includes('Tự phân công') && (
+                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200" title="Được phân công tự động bởi hệ thống">⚡ Tự PC</span>
+                            )}
                           </div>
                         ))
                       )}

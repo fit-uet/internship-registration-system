@@ -2479,8 +2479,8 @@ async function route(request: Request, env: Env) {
       SELECT f.user_id, f.internship_type, f.school_assignment_request, f.confirmed_at,
              u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
-             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as primary_assignments,
-             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') END) as co_assignments
+             GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as primary_assignments,
+             GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN aa.id || '|' || l.name || '|' || COALESCE(l.email, '') || '|' || COALESCE(aa.note, '') END) as co_assignments
       FROM final_internships f
       JOIN users u ON u.id = f.user_id
       LEFT JOIN companies c ON c.id = f.company_id
