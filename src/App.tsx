@@ -647,13 +647,11 @@ function App() {
                               </Link>
                             </>
                           )}
-                          {!!(user.role === 'lecturer' || user.is_lecturer) && (
+                          {user.role === 'lecturer' && (
                             <>
-                              {user.role === 'admin' && (
-                                <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                  <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
-                                </Link>
-                              )}
+                              <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
+                              </Link>
                               <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
                               </Link>
@@ -664,39 +662,19 @@ function App() {
                           )}
                           {user.role === 'admin' && (
                             <>
-                              <Link to="/admin/registrations" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <LayoutDashboard size={16} className="text-sky-500" /> Quản lý Đăng ký
+                              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                <LayoutDashboard size={16} className="text-sky-500" /> Trang quản trị
                               </Link>
-                              <Link to="/admin/students" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Users size={16} className="text-indigo-500" /> Quản lý Sinh viên
-                              </Link>
-                              <Link to="/admin/lecturers" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <UserIcon size={16} className="text-teal-500" /> Quản lý Giảng viên
-                              </Link>
-                              <Link to="/admin/companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Building2 size={16} className="text-orange-500" /> Quản lý Công ty
-                              </Link>
-                              <Link to="/admin/approved-companies" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Shield size={16} className="text-purple-500" /> CSDL Thẩm định
-                              </Link>
-                              <Link to="/admin/advisors" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Users size={16} className="text-emerald-500" /> Phân công GVHD
-                              </Link>
-                              <Link to="/admin/reports" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <FileText size={16} className="text-indigo-500" /> Báo cáo final
-                              </Link>
-                              <Link to="/admin/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CheckCircle2 size={16} className="text-green-500" /> Bảng điểm
-                              </Link>
-                              <Link to="/admin/notifications" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Clock size={16} className="text-amber-500" /> Thông báo
-                              </Link>
-                              <Link to="/admin/admins" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <Shield size={16} className="text-purple-500" /> Quản lý Quản trị viên
-                              </Link>
-                              <Link to="/admin/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <AlertTriangle size={16} className="text-orange-500" /> Cài đặt hệ thống
-                              </Link>
+                              {user.is_lecturer && (
+                                <>
+                                  <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                    <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
+                                  </Link>
+                                  <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
+                                    <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
+                                  </Link>
+                                </>
+                              )}
                             </>
                           )}
                           <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
