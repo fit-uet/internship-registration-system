@@ -545,6 +545,17 @@ function App() {
 
               {user ? (
                 <div className="flex items-center gap-3">
+                  {(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) && (
+                    <Link
+                      to="/chat"
+                      onClick={() => { setIsMenuOpen(false); setIsNotificationOpen(false); }}
+                      className="inline-flex items-center gap-2 h-10 rounded-full px-3 hover:bg-white/10 transition-colors text-sm font-semibold"
+                      title={user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}
+                    >
+                      <MessageCircle size={20} />
+                      <span className="hidden md:inline">{user.role === 'student' ? 'Trao đổi GVHD' : 'Trao đổi sinh viên'}</span>
+                    </Link>
+                  )}
                   <div className="relative">
                     <button
                       onClick={() => { setIsNotificationOpen(!isNotificationOpen); setIsMenuOpen(false); }}
@@ -595,9 +606,6 @@ function App() {
                           </Link>
                           {user.role === 'student' && (
                             <>
-                              <Link to="/chat" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <MessageCircle size={16} className="text-sky-600" /> Trao đổi GVHD
-                              </Link>
                               <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <FileText size={16} className="text-indigo-600" /> Báo cáo final
                               </Link>
@@ -613,9 +621,6 @@ function App() {
                                   <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
                                 </Link>
                               )}
-                              <Link to="/chat" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <MessageCircle size={16} className="text-sky-600" /> Trao đổi sinh viên
-                              </Link>
                               <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
                               </Link>
