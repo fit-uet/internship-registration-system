@@ -5647,6 +5647,7 @@ function NotificationAdmin({ token }: { token: string }) {
 }
 
 function LecturerRegistry({ token }: { token: string }) {
+  const navigate = useNavigate();
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [assignmentRows, setAssignmentRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -10007,6 +10008,7 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
 }
 
 function StudentRegistry({ token }: { token: string }) {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
