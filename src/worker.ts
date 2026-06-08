@@ -1251,7 +1251,7 @@ async function route(request: Request, env: Env) {
         if (!validLecturer) return json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' }, 400);
         if (isBachelorLecturer(validLecturer.name)) return json({ error: 'Giảng viên CN không được làm hướng dẫn chính. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.' }, 400);
         const quotaRow = (await database.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [Number(validLecturer.id)] })).rows[0] as any;
-        const maxTotal = Number(quotaRow?.max_total_students || lecturerDefaultQuota(validLecturer.name));
+        const maxTotal = quotaRow != null && quotaRow.max_total_students != null ? Number(quotaRow.max_total_students) : lecturerDefaultQuota(validLecturer.name);
         const current = (await database.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [Number(validLecturer.id)] })).rows[0] as any;
         const already = (await database.execute({ sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?', args: [user.id, Number(validLecturer.id), 'primary'] })).rows[0];
         if (!already && Number(current?.count || 0) >= maxTotal) return json({ error: `Giảng viên đã đủ chỉ tiêu ${maxTotal} sinh viên. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.` }, 400);
@@ -2365,7 +2365,7 @@ async function route(request: Request, env: Env) {
     if (!lecturer) return { error: 'Không tìm thấy giảng viên.', status: 404 };
     if (role === 'primary' && isBachelorLecturer(lecturer.name)) return { error: 'Giảng viên CN không được làm hướng dẫn chính.', status: 400 };
     const quotaRow = (await database.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
-    const maxTotal = Number(quotaRow?.max_total_students || lecturerDefaultQuota(lecturer.name));
+    const maxTotal = quotaRow != null && quotaRow.max_total_students != null ? Number(quotaRow.max_total_students) : lecturerDefaultQuota(lecturer.name);
     const current = (await database.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
     const alreadyAssigned = (await database.execute({
       sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?',
@@ -2416,7 +2416,7 @@ async function route(request: Request, env: Env) {
       LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
       ORDER BY assignment_count ASC, l.name ASC
     `)).rows
-      .map((row: any) => ({ ...row, id: Number(row.id), max_total_students: Number(row.max_total_students || lecturerDefaultQuota(row.name)), assignment_count: Number(row.assignment_count || 0) }))
+      .map((row: any) => ({ ...row, id: Number(row.id), max_total_students: row.max_total_students != null ? Number(row.max_total_students) : lecturerDefaultQuota(row.name), assignment_count: Number(row.assignment_count || 0) }))
       .filter((row: any) => !isBachelorLecturer(row.name) && row.assignment_count < row.max_total_students);
     const students = (await database.execute(`
       SELECT f.user_id, u.student_id, u.email, u.personal_email, u.name
@@ -2550,7 +2550,7 @@ async function route(request: Request, env: Env) {
   if (quotaMatch && method === 'PUT') {
     const body = await readBody(request);
     const maxTotal = Number(body.max_total_students);
-    if (!maxTotal || maxTotal < 1) return json({ error: 'Chỉ tiêu không hợp lệ.' }, 400);
+    if (!Number.isFinite(maxTotal) || maxTotal < 0) return json({ error: 'Chỉ tiêu không hợp lệ.' }, 400);
     await database.execute({
       sql: `INSERT INTO lecturer_quotas (lecturer_id, max_total_students, note)
             VALUES (?, ?, ?)

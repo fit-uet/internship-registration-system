@@ -3740,8 +3740,9 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   };
 
   const saveQuota = async (lecturer: any) => {
-    const value = Number(quotaEdits[String(lecturer.id)] || lecturer.max_total_students);
-    if (!value || value < 1) return alert('Chỉ tiêu không hợp lệ.');
+    const editValue = quotaEdits[String(lecturer.id)];
+    const value = editValue !== undefined ? Number(editValue) : lecturer.max_total_students;
+    if (!Number.isFinite(value) || value < 0) return alert('Chỉ tiêu không hợp lệ.');
     const res = await fetch(`${API_BASE}/api/admin/lecturer-quotas/${lecturer.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -4133,7 +4134,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 <div className="text-xs text-slate-500">{lecturer.assignment_count}/{lecturer.max_total_students} sinh viên</div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" min="1" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-16 border border-slate-300 rounded px-2 py-1 text-sm text-center" />
+                <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-16 border border-slate-300 rounded px-2 py-1 text-sm text-center" />
                 <button onClick={() => saveQuota(lecturer)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Lưu chỉ tiêu"><Save size={16} /></button>
               </div>
             </div>
