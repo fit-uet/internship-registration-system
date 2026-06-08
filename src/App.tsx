@@ -1824,9 +1824,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     disabled={confirmationWindowStatus !== 'open'}
                     className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
                   >
-                  Thực tập tại trường
-                </button>
-              </div>
+                    Thực tập tại trường
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1835,110 +1835,110 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         {showAdvisorTask && (
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <h4 className="text-sm font-bold text-slate-800 mb-2">Đăng ký giảng viên hướng dẫn</h4>
-              {advisorRequestWindowStatus !== 'open' && (
-                <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  {advisorRequestWindowStatus === 'not_open_yet'
-                    ? `Chưa mở đăng ký GVHD${campaign.advisor_request_open_at ? `: ${formatGMT7(campaign.advisor_request_open_at)} (GMT+7)` : ''}.`
-                    : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
+            {advisorRequestWindowStatus !== 'open' && (
+              <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                {advisorRequestWindowStatus === 'not_open_yet'
+                  ? `Chưa mở đăng ký GVHD${campaign.advisor_request_open_at ? `: ${formatGMT7(campaign.advisor_request_open_at)} (GMT+7)` : ''}.`
+                  : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
+              </div>
+            )}
+            <form onSubmit={submitAdvisorRequest} className="space-y-3">
+              {hasAdvisorSelection && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <div>
+                      <div className="font-bold">GVHD hiện tại</div>
+                      <div className="mt-1">
+                        {myAdvisors.length > 0
+                          ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
+                          : advisorRequest?.request_type === 'faculty_assign'
+                            ? 'Khoa sẽ phân công'
+                            : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
+                      </div>
+                      {advisorRequest && (
+                        <div className="mt-1 text-xs text-emerald-800">
+                          Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                          {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, đã cảnh báo' : ''}
+                          {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
+                          {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    {advisorRequestWindowStatus === 'open' && (
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
+                          {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
+                        </button>
+                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">
+                          Hủy đăng ký
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            <form onSubmit={submitAdvisorRequest} className="space-y-3">
-                {hasAdvisorSelection && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                      <div>
-                        <div className="font-bold">GVHD hiện tại</div>
-                        <div className="mt-1">
-                          {myAdvisors.length > 0
-                            ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
-                            : advisorRequest?.request_type === 'faculty_assign'
-                              ? 'Khoa sẽ phân công'
-                              : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
-                        </div>
-                        {advisorRequest && (
-                          <div className="mt-1 text-xs text-emerald-800">
-                            Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
-                            {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, đã cảnh báo' : ''}
-                            {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
-                            {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
-                          </div>
-                        )}
-                      </div>
-                      {advisorRequestWindowStatus === 'open' && (
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
-                            {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
-                          </button>
-                          <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">
-                            Hủy đăng ký
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {showAdvisorForm && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <select
-                        value={advisorRequestForm.request_type}
-                        onChange={e => {
-                          const requestType = e.target.value;
-                          setAdvisorRequestForm({
-                            ...advisorRequestForm,
-                            request_type: requestType,
-                            lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
-                            co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
-                          });
-                        }}
-                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
-                      >
-                        <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
-                        <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
-                      </select>
-                      <input
-                        value={advisorRequestForm.lecturer_name}
-                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
-                        disabled={!advisorRequestForm.request_type}
-                        required={!!advisorRequestForm.request_type}
-                        list="advisor-primary-lecturers"
-                        placeholder="Nhập/chọn GVHD chính"
-                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                      />
-                      <input
-                        value={advisorRequestForm.co_lecturer_name}
-                        onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
-                        disabled={!advisorRequestForm.request_type}
-                        list="advisor-co-lecturers"
-                        placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
-                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                      />
-                      <datalist id="advisor-primary-lecturers">
-                        {lecturers.map(name => <option key={name} value={name} />)}
-                      </datalist>
-                      <datalist id="advisor-co-lecturers">
-                        {lecturers.map(name => <option key={name} value={name} />)}
-                      </datalist>
-                    </div>
-                    <textarea
-                      value={advisorRequestForm.student_note}
-                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                      placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
-                      rows={2}
+              {showAdvisorForm && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <select
+                      value={advisorRequestForm.request_type}
+                      onChange={e => {
+                        const requestType = e.target.value;
+                        setAdvisorRequestForm({
+                          ...advisorRequestForm,
+                          request_type: requestType,
+                          lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
+                          co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
+                        });
+                      }}
+                      className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
+                      <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
+                    </select>
+                    <input
+                      value={advisorRequestForm.lecturer_name}
+                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
+                      disabled={!advisorRequestForm.request_type}
+                      required={!!advisorRequestForm.request_type}
+                      list="advisor-primary-lecturers"
+                      placeholder="Nhập/chọn GVHD chính"
+                      className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
                     />
-                    <div className="flex flex-wrap gap-2">
-                      <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
-                        {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
-                      </button>
-                      {hasAdvisorSelection && (
-                        <button type="button" onClick={() => setIsAdvisorEditOpen(false)} disabled={advisorRequestSaving} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                          Hủy chỉnh sửa
-                        </button>
-                      )}
-                    </div>
+                    <input
+                      value={advisorRequestForm.co_lecturer_name}
+                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
+                      disabled={!advisorRequestForm.request_type}
+                      list="advisor-co-lecturers"
+                      placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
+                      className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    />
+                    <datalist id="advisor-primary-lecturers">
+                      {lecturers.map(name => <option key={name} value={name} />)}
+                    </datalist>
+                    <datalist id="advisor-co-lecturers">
+                      {lecturers.map(name => <option key={name} value={name} />)}
+                    </datalist>
                   </div>
-                )}
+                  <textarea
+                    value={advisorRequestForm.student_note}
+                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
+                    placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y"
+                    rows={2}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                      {advisorRequestSaving ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
+                    </button>
+                    {hasAdvisorSelection && (
+                      <button type="button" onClick={() => setIsAdvisorEditOpen(false)} disabled={advisorRequestSaving} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                        Hủy chỉnh sửa
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         )}
@@ -4150,7 +4150,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                               <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200" title="Giảng viên đã bị xóa khỏi hệ thống. Vui lòng tích chọn dòng sinh viên này và nhấn 'Xóa chọn' để hủy phân công rác và có thể phân công lại.">⚠️ Lỗi</span>
                             )}
                             {a.note && a.note.includes('Tự phân công') && (
-                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200" title="Được phân công tự động bởi hệ thống">⚡ Tự PC</span>
+                              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200" title="Được phân công tự động bởi hệ thống">Tự PC</span>
                             )}
                           </div>
                         ))
@@ -5444,11 +5444,11 @@ Khoa Công nghệ Thông tin`);
 
   function parseAssignmentList(value: string) {
     return String(value || '').split(',')
-    .map((item: string) => {
-      const [id, name, email] = item.split('|');
-      return { id: Number(id), name: (name || '').trim(), email: (email || '').trim() };
-    })
-    .filter(item => Number.isFinite(item.id) && item.id > 0 && item.name);
+      .map((item: string) => {
+        const [id, name, email] = item.split('|');
+        return { id: Number(id), name: (name || '').trim(), email: (email || '').trim() };
+      })
+      .filter(item => Number.isFinite(item.id) && item.id > 0 && item.name);
   }
 
   function getLecturerStudentRows(lecturer: any) {
@@ -5986,115 +5986,116 @@ Khoa Công nghệ Thông tin`);
             ) : paginatedLecturers.map((l, idx) => {
               const studentCount = getLecturerStudentRows(l).length;
               return (
-              <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 text-sm text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={selectedLecturerIdSet.has(String(l.id))}
-                    onChange={() => toggleLecturerSelection(Number(l.id))}
-                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                    aria-label={`Chọn ${l.name}`}
-                  />
-                </td>
-                <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
-                <td className="p-4 text-sm text-slate-800 font-medium">
-                  {editingId === l.id ? (
+                <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4 text-sm text-slate-600">
                     <input
-                      autoFocus
-                      type="text"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleUpdate(l.id);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
+                      type="checkbox"
+                      checked={selectedLecturerIdSet.has(String(l.id))}
+                      onChange={() => toggleLecturerSelection(Number(l.id))}
+                      className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                      aria-label={`Chọn ${l.name}`}
                     />
-                  ) : l.name}
-                </td>
-                <td className="p-4 text-sm">
-                  {editingId === l.id ? (
-                    <input
-                      type="email"
-                      value={editEmail}
-                      onChange={e => setEditEmail(e.target.value)}
-                      placeholder="Email..."
-                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleUpdate(l.id);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
-                  ) : (
-                    l.email
-                      ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
-                      : <span className="text-slate-400 italic text-xs">Chưa có</span>
-                  )}
-                </td>
-                <td className="p-4 text-sm">
-                  {editingId === l.id ? (
-                    <input
-                      type="text"
-                      value={editWorkUnit}
-                      onChange={e => setEditWorkUnit(e.target.value)}
-                      placeholder="Đơn vị công tác..."
-                      className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleUpdate(l.id);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
-                  ) : (
-                    l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
-                  )}
-                </td>
-                <td className="p-4 text-sm text-slate-700 whitespace-nowrap">
-                  {studentCount > 0 ? <span className="font-semibold">{studentCount}</span> : <span className="text-slate-400">0</span>}
-                </td>
-                <td className="p-4 text-sm whitespace-nowrap">
-                  {l.students_drive_link ? <a href={l.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
-                  {editingId === l.id ? (
-                    <>
-                      <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => { setMailMergeScope('selected'); setSelectedLecturerIds([Number(l.id)]); setMailMergeOpen(true); }}
-                        className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
-                        title="Mail merge giảng viên này"
-                      >
-                        <Send size={18} />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          setDriveBusy(true);
-                          try {
-                            const accessToken = await getGoogleDriveAccessToken();
-                            const folder = await pickDriveFolder(accessToken);
-                            await createDriveLinkForLecturer(accessToken, folder.id, l);
-                            alert(`Đã tạo/cập nhật link Drive cho ${l.name}.`);
-                          } catch (e: any) {
-                            alert(e.message || 'Không tạo được link Google Drive.');
-                          } finally {
-                            setDriveBusy(false);
-                          }
+                  </td>
+                  <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
+                  <td className="p-4 text-sm text-slate-800 font-medium">
+                    {editingId === l.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleUpdate(l.id);
+                          if (e.key === 'Escape') setEditingId(null);
                         }}
-                        className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
-                        title="Tạo link Drive"
-                      >
-                        <Upload size={18} />
-                      </button>
-                      <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
-                      <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            )})}
+                      />
+                    ) : l.name}
+                  </td>
+                  <td className="p-4 text-sm">
+                    {editingId === l.id ? (
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={e => setEditEmail(e.target.value)}
+                        placeholder="Email..."
+                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleUpdate(l.id);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                      />
+                    ) : (
+                      l.email
+                        ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
+                        : <span className="text-slate-400 italic text-xs">Chưa có</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-sm">
+                    {editingId === l.id ? (
+                      <input
+                        type="text"
+                        value={editWorkUnit}
+                        onChange={e => setEditWorkUnit(e.target.value)}
+                        placeholder="Đơn vị công tác..."
+                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleUpdate(l.id);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                      />
+                    ) : (
+                      l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-sm text-slate-700 whitespace-nowrap">
+                    {studentCount > 0 ? <span className="font-semibold">{studentCount}</span> : <span className="text-slate-400">0</span>}
+                  </td>
+                  <td className="p-4 text-sm whitespace-nowrap">
+                    {l.students_drive_link ? <a href={l.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
+                    {editingId === l.id ? (
+                      <>
+                        <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
+                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setMailMergeScope('selected'); setSelectedLecturerIds([Number(l.id)]); setMailMergeOpen(true); }}
+                          className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
+                          title="Mail merge giảng viên này"
+                        >
+                          <Send size={18} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setDriveBusy(true);
+                            try {
+                              const accessToken = await getGoogleDriveAccessToken();
+                              const folder = await pickDriveFolder(accessToken);
+                              await createDriveLinkForLecturer(accessToken, folder.id, l);
+                              alert(`Đã tạo/cập nhật link Drive cho ${l.name}.`);
+                            } catch (e: any) {
+                              alert(e.message || 'Không tạo được link Google Drive.');
+                            } finally {
+                              setDriveBusy(false);
+                            }
+                          }}
+                          className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
+                          title="Tạo link Drive"
+                        >
+                          <Upload size={18} />
+                        </button>
+                        <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
+                        <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
