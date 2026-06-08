@@ -3624,6 +3624,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const [advisorSortConfig, setAdvisorSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'student_id', direction: 'asc' });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
+  const [isAssignExportMenuOpen, setIsAssignExportMenuOpen] = useState(false);
   const pageSize = 25;
 
   const fetchData = async () => {
@@ -3861,7 +3862,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     }
   };
 
-  const exportXlsx = () => {
+  const exportXlsxSummary = () => {
     if (sortedRows.length === 0) return alert('Không có dữ liệu để xuất.');
     const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
     const summaryRows = sortedRows.map((row, idx) => [
@@ -3874,28 +3875,16 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
       parseAssignments(row.co_assignments).map(a => a.name).join('; ')
     ]);
-    const workbook = XLSX.utils.book_new();
-    const usedSheetNames = new Set<string>();
-    const safeSheetName = (name: string) => {
-      const base = String(name || 'Sheet')
-        .replace(/[:\\/?*\[\]]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 31) || 'Sheet';
-      let candidate = base;
-      let idx = 2;
-      while (usedSheetNames.has(candidate)) {
-        const suffix = ` ${idx}`;
-        candidate = `${base.slice(0, Math.max(1, 31 - suffix.length))}${suffix}`;
-        idx += 1;
-      }
-      usedSheetNames.add(candidate);
-      return candidate;
-    };
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers, ...summaryRows]), safeSheetName('Tong hop'));
+    saveXlsx('phan_cong_gvhd_tong_hop.xlsx', headers, summaryRows, 'Tong hop');
+    setIsAssignExportMenuOpen(false);
+  };
 
-    const lecturerMap = new Map<string, { lecturer: any; rows: any[][] }>();
+  const exportXlsxByLecturer = async () => {
+    if (sortedRows.length === 0) return alert('Không có dữ liệu để xuất.');
+    const zip = new JSZip();
+    const lecturerMap = new Map<string, { lecturerName: string; rows: any[][] }>();
     const unassignedRows: any[][] = [];
+
     sortedRows.forEach(row => {
       const primary = parseAssignments(row.primary_assignments);
       const co = parseAssignments(row.co_assignments);
@@ -3911,15 +3900,17 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           row.class_name || '',
           row.course_code || '',
           row.internship_place || '',
+          'Chưa phân công',
           '',
-          parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
-          parseAssignments(row.co_assignments).map(a => a.name).join('; '),
+          '',
         ]);
         return;
       }
       assignments.forEach(lecturer => {
-        const key = String(lecturer.id || lecturer.email || lecturer.name);
-        if (!lecturerMap.has(key)) lecturerMap.set(key, { lecturer, rows: [] });
+        const key = String(lecturer.name || 'giang_vien_khong_ten');
+        if (!lecturerMap.has(key)) {
+          lecturerMap.set(key, { lecturerName: lecturer.name, rows: [] });
+        }
         const entry = lecturerMap.get(key)!;
         entry.rows.push([
           entry.rows.length + 1,
@@ -3934,16 +3925,25 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
         ]);
       });
     });
+
     const lecturerHeaders = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'Vai trò của giảng viên', 'GVHD chính', 'Đồng hướng dẫn'];
-    Array.from(lecturerMap.values())
-      .sort((a, b) => String(a.lecturer.name || '').localeCompare(String(b.lecturer.name || ''), 'vi'))
-      .forEach(entry => {
-        XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([lecturerHeaders, ...entry.rows]), safeSheetName(entry.lecturer.name));
-      });
+    
+    lecturerMap.forEach((entry, name) => {
+      const safeName = name.replace(/[^a-z0-9_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂĐỔÔÚNhíợ]{1,30}/gi, '_');
+      zip.file(`phan_cong_gvhd_${safeName}.xlsx`, xlsxArrayBuffer(lecturerHeaders, entry.rows, 'Sinh viên hướng dẫn'));
+    });
+
     if (unassignedRows.length > 0) {
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([lecturerHeaders, ...unassignedRows]), safeSheetName('Chua phan cong'));
+      zip.file('chua_phan_cong.xlsx', xlsxArrayBuffer(lecturerHeaders, unassignedRows, 'Chưa phân công'));
     }
-    XLSX.writeFile(workbook, 'phan_cong_gvhd_theo_giang_vien.xlsx');
+
+    try {
+      const blob = await zip.generateAsync({ type: 'blob' });
+      saveAs(blob, 'phan_cong_gvhd_theo_giang_vien.zip');
+    } catch (error) {
+      alert('Tải file zip thất bại.');
+    }
+    setIsAssignExportMenuOpen(false);
   };
 
   const isAssignmentsView = view === 'assignments';
@@ -3990,9 +3990,24 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-60">
                   {autoAssigning ? <RefreshCw size={16} className="animate-spin" /> : <Users size={16} />} Tự phân công
                 </button>
-                <button onClick={exportXlsx} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
-                  <Download size={16} /> Xuất XLSX
-                </button>
+                <div className="relative">
+                  <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm flex items-center gap-2 whitespace-nowrap">
+                    <Download size={16} /> Xuất XLSX
+                  </button>
+                  {isAssignExportMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsAssignExportMenuOpen(false)}></div>
+                      <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white border border-slate-100 shadow-xl z-50 overflow-hidden py-1">
+                        <button onClick={exportXlsxSummary} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left">
+                          <FileText size={16} className="text-slate-400" /> Xuất Tổng hợp
+                        </button>
+                        <button onClick={exportXlsxByLecturer} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left">
+                          <Users size={16} className="text-slate-400" /> Xuất từng GV (ZIP)
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
