@@ -1834,7 +1834,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   </div>
                 ) : (
                   <div className="text-sm text-slate-600 space-y-2">
-                    <p>Sau khi có kết quả từ doanh nghiệp, bạn cần xác nhận một nơi thực tập chính thức để Khoa phân công GVHD và tính điểm.</p>
+                    <p>Sau khi có kết quả từ doanh nghiệp, bạn cần xác nhận một nơi thực tập chính thức để lấy điểm.</p>
                     {confirmationWindowStatus !== 'open' && (
                       <p className={`text-xs font-semibold ${confirmationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
                         {confirmationWindowStatus === 'not_open_yet'
@@ -3159,7 +3159,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
             </button>
             <h2 className="text-sm font-extrabold text-slate-800 ml-2 hidden md:block">Danh sách Đăng ký Thực tập</h2>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-2">
             <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
               <button
@@ -3176,7 +3176,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
             >
               <CheckCircle2 size={14} /> Duyệt tất cả
             </button>
-            
+
             <div className="relative">
               <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -3237,7 +3237,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
                 <option key={course} value={course}>{course}</option>
               ))}
             </select>
-            
+
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -4173,7 +4173,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     });
 
     const lecturerHeaders = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'Vai trò của giảng viên', 'GVHD chính', 'Đồng hướng dẫn'];
-    
+
     lecturerMap.forEach((entry, name) => {
       const safeName = name.replace(/[^a-z0-9_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂĐỔÔÚNhíợ]{1,30}/gi, '_');
       zip.file(`phan_cong_gvhd_${safeName}.xlsx`, xlsxArrayBuffer(lecturerHeaders, entry.rows, 'Sinh viên hướng dẫn'));
@@ -6267,157 +6267,157 @@ Khoa Công nghệ Thông tin`);
                     className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer w-4 h-4"
                     title="Chọn tất cả giảng viên trong trang hiện tại"
                   />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
-                Họ và tên <SortIndicator col="name" />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
-                Email <SortIndicator col="email" />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('work_unit')}>
-                Đơn vị công tác <SortIndicator col="work_unit" />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('student_count')}>
-                Sinh viên <SortIndicator col="student_count" />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('students_drive_link')}>
-                Link Drive <SortIndicator col="students_drive_link" />
-              </th>
-              <th className="p-4 font-semibold whitespace-nowrap text-right w-52">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredAndSorted.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-10 text-center text-slate-500">
-                  {lecturers.length === 0 ? 'Chưa có dữ liệu giảng viên.' : 'Không có giảng viên phù hợp.'}
-                </td>
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap w-16">STT</th>
+                <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
+                  Họ và tên <SortIndicator col="name" />
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
+                  Email <SortIndicator col="email" />
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('work_unit')}>
+                  Đơn vị công tác <SortIndicator col="work_unit" />
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('student_count')}>
+                  Sinh viên <SortIndicator col="student_count" />
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap cursor-pointer hover:bg-slate-100" onClick={() => handleSort('students_drive_link')}>
+                  Link Drive <SortIndicator col="students_drive_link" />
+                </th>
+                <th className="p-4 font-semibold whitespace-nowrap text-right w-52">Thao tác</th>
               </tr>
-            ) : paginatedLecturers.map((l, idx) => {
-              const studentCount = getLecturerStudentRows(l).length;
-              return (
-                <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 text-sm text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={selectedLecturerIdSet.has(String(l.id))}
-                      onChange={() => toggleLecturerSelection(Number(l.id))}
-                      className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                      aria-label={`Chọn ${l.name}`}
-                    />
-                  </td>
-                  <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
-                  <td className="p-4 text-sm text-slate-800 font-medium">
-                    {editingId === l.id ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleUpdate(l.id);
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                      />
-                    ) : l.name}
-                  </td>
-                  <td className="p-4 text-sm">
-                    {editingId === l.id ? (
-                      <input
-                        type="email"
-                        value={editEmail}
-                        onChange={e => setEditEmail(e.target.value)}
-                        placeholder="Email..."
-                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleUpdate(l.id);
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                      />
-                    ) : (
-                      l.email
-                        ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
-                        : <span className="text-slate-400 italic text-xs">Chưa có</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-sm">
-                    {editingId === l.id ? (
-                      <input
-                        type="text"
-                        value={editWorkUnit}
-                        onChange={e => setEditWorkUnit(e.target.value)}
-                        placeholder="Đơn vị công tác..."
-                        className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleUpdate(l.id);
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                      />
-                    ) : (
-                      l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-sm text-slate-700 whitespace-nowrap">
-                    {studentCount > 0 ? <span className="font-semibold">{studentCount}</span> : <span className="text-slate-400">0</span>}
-                  </td>
-                  <td className="p-4 text-sm whitespace-nowrap">
-                    {l.students_drive_link ? <a href={l.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
-                    {editingId === l.id ? (
-                      <>
-                        <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
-                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => { setMailMergeScope('selected'); setSelectedLecturerIds([Number(l.id)]); setMailMergeOpen(true); }}
-                          className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
-                          title="Mail merge giảng viên này"
-                        >
-                          <Send size={18} />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setDriveBusy(true);
-                            try {
-                              const accessToken = await getGoogleDriveAccessToken();
-                              const folder = await pickDriveFolder(accessToken);
-                              await createDriveLinkForLecturer(accessToken, folder.id, l);
-                              alert(`Đã tạo/cập nhật link Drive cho ${l.name}.`);
-                            } catch (e: any) {
-                              alert(e.message || 'Không tạo được link Google Drive.');
-                            } finally {
-                              setDriveBusy(false);
-                            }
-                          }}
-                          className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
-                          title="Tạo link Drive"
-                        >
-                          <Upload size={18} />
-                        </button>
-                        <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
-                        <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
-                      </>
-                    )}
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredAndSorted.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-10 text-center text-slate-500">
+                    {lecturers.length === 0 ? 'Chưa có dữ liệu giảng viên.' : 'Không có giảng viên phù hợp.'}
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ) : paginatedLecturers.map((l, idx) => {
+                const studentCount = getLecturerStudentRows(l).length;
+                return (
+                  <tr key={l.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 text-sm text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={selectedLecturerIdSet.has(String(l.id))}
+                        onChange={() => toggleLecturerSelection(Number(l.id))}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                        aria-label={`Chọn ${l.name}`}
+                      />
+                    </td>
+                    <td className="p-4 text-sm text-slate-600">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
+                    <td className="p-4 text-sm text-slate-800 font-medium">
+                      {editingId === l.id ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleUpdate(l.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                      ) : l.name}
+                    </td>
+                    <td className="p-4 text-sm">
+                      {editingId === l.id ? (
+                        <input
+                          type="email"
+                          value={editEmail}
+                          onChange={e => setEditEmail(e.target.value)}
+                          placeholder="Email..."
+                          className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleUpdate(l.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                      ) : (
+                        l.email
+                          ? <a href={`mailto:${l.email}`} className="text-blue-600 hover:underline">{l.email}</a>
+                          : <span className="text-slate-400 italic text-xs">Chưa có</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-sm">
+                      {editingId === l.id ? (
+                        <input
+                          type="text"
+                          value={editWorkUnit}
+                          onChange={e => setEditWorkUnit(e.target.value)}
+                          placeholder="Đơn vị công tác..."
+                          className="w-full border border-teal-500 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleUpdate(l.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                      ) : (
+                        l.work_unit || <span className="text-slate-400 italic text-xs">Chưa có</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-sm text-slate-700 whitespace-nowrap">
+                      {studentCount > 0 ? <span className="font-semibold">{studentCount}</span> : <span className="text-slate-400">0</span>}
+                    </td>
+                    <td className="p-4 text-sm whitespace-nowrap">
+                      {l.students_drive_link ? <a href={l.students_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="p-4 text-sm text-right flex items-center justify-end gap-2">
+                      {editingId === l.id ? (
+                        <>
+                          <button onClick={() => handleUpdate(l.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Lưu"><Save size={18} /></button>
+                          <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-lg transition-colors" title="Hủy"><X size={18} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setMailMergeScope('selected'); setSelectedLecturerIds([Number(l.id)]); setMailMergeOpen(true); }}
+                            className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
+                            title="Mail merge giảng viên này"
+                          >
+                            <Send size={18} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setDriveBusy(true);
+                              try {
+                                const accessToken = await getGoogleDriveAccessToken();
+                                const folder = await pickDriveFolder(accessToken);
+                                await createDriveLinkForLecturer(accessToken, folder.id, l);
+                                alert(`Đã tạo/cập nhật link Drive cho ${l.name}.`);
+                              } catch (e: any) {
+                                alert(e.message || 'Không tạo được link Google Drive.');
+                              } finally {
+                                setDriveBusy(false);
+                              }
+                            }}
+                            className="text-emerald-600 hover:bg-emerald-50 p-2 rounded-lg transition-colors"
+                            title="Tạo link Drive"
+                          >
+                            <Upload size={18} />
+                          </button>
+                          <button onClick={() => { setEditingId(l.id); setEditName(l.name); setEditEmail(l.email || ''); setEditWorkUnit(l.work_unit || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="Sửa"><Edit2 size={18} /></button>
+                          <button onClick={() => handleDelete(l.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Xóa"><Trash2 size={18} /></button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <PaginationControls
+          total={filteredAndSorted.length}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          label="giảng viên"
+        />
       </div>
-      <PaginationControls
-        total={filteredAndSorted.length}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        onPageChange={setCurrentPage}
-        label="giảng viên"
-      />
-    </div>
 
       {mailMergeOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
         <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
@@ -7450,136 +7450,136 @@ Trường Đại học Công nghệ, ĐHQGHN`;
           <table className="w-full text-left border-collapse text-xs text-slate-600">
             <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
               <tr>
-              <th className="p-3 font-semibold w-10">
-                <input
-                  type="checkbox"
-                  checked={isPageSelected}
-                  disabled={paginatedCompanies.length === 0}
-                  onChange={e => toggleCurrentPageSelection(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-40"
-                  title="Chọn/bỏ chọn công ty trong trang hiện tại"
-                />
-              </th>
-              <th className="p-3 font-semibold w-12">STT</th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên doanh nghiệp<SortIcon col="name" /></th>
-              <th className="p-3 font-semibold">Loại</th>
-              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('slots')}>Chỉ tiêu<SortIcon col="slots" /></th>
-              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('applicant_count')}>ƯV<SortIcon col="applicant_count" /></th>
-              <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-24" onClick={() => handleSort('approved_applicant_count')}>Đã duyệt<SortIcon col="approved_applicant_count" /></th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('last_sent_at')}>Gửi DN<SortIcon col="last_sent_at" /></th>
-              <th className="p-3 font-semibold">Link Drive</th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('contact_email')}>Email<SortIcon col="contact_email" /></th>
-              <th className="p-3 font-semibold">Người LH</th>
-              <th className="p-3 font-semibold">SĐT</th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('address')}>Địa chỉ<SortIcon col="address" /></th>
-              <th className="p-3 font-semibold text-right w-44">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {paginatedCompanies.map((c, idx) => (
-              <tr key={c.company_key || c.id || `${c.record_type}-${c.name}`} className="hover:bg-slate-50/50 transition-colors text-xs">
-                <td className="p-3">
+                <th className="p-3 font-semibold w-10">
                   <input
                     type="checkbox"
-                    checked={selectedCompanyKeySet.has(companyActionKey(c))}
-                    onChange={e => toggleCompanySelection(c, e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    title="Chọn công ty"
+                    checked={isPageSelected}
+                    disabled={paginatedCompanies.length === 0}
+                    onChange={e => toggleCurrentPageSelection(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-40"
+                    title="Chọn/bỏ chọn công ty trong trang hiện tại"
                   />
-                </td>
-                <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
-                {editingId === c.id && c.record_type !== 'other' ? (
-                  <>
-                    <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-semibold">Chính thức</span></td>
-                    <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-400 rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
-                    <td className="p-3 text-center text-slate-500">{c.approved_applicant_count ?? 0}</td>
-                    <td className="p-3 text-slate-500">{c.last_sent_at ? new Date(c.last_sent_at).toLocaleString('vi-VN') : 'Chưa gửi'}</td>
-                    <td className="p-3 text-slate-400">—</td>
-                    <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                    <td className="p-3 text-right flex items-center justify-end gap-1">
-                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="p-3 text-slate-800 font-medium">
-                      {c.name}
-                      {c.record_type === 'other' && <div className="text-[11px] text-slate-500 font-normal mt-1">Từ đăng ký “Công ty khác”</div>}
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full font-semibold ${c.record_type === 'other' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-600'}`}>
-                        {c.record_type === 'other' ? 'Tự liên hệ' : 'Chính thức'}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">{c.record_type === 'other' ? '—' : c.slots}</td>
-                    <td className="p-3 text-center">{c.applicant_count ?? 0}</td>
-                    <td className="p-3 text-center">{c.approved_applicant_count ?? 0}</td>
-                    <td className="p-3 text-slate-600 whitespace-nowrap">
-                      {c.last_sent_at ? (
-                        <span className="text-emerald-700 font-semibold">{new Date(c.last_sent_at).toLocaleString('vi-VN')}</span>
-                      ) : (
-                        <span className="text-slate-300">Chưa gửi</span>
-                      )}
-                      {Number(c.sent_count || 0) > 0 && <div className="text-[11px] text-slate-400">{c.sent_count} đăng ký</div>}
-                    </td>
-                    <td className="p-3 text-slate-600">
-                      {c.applicants_drive_link ? <a href={c.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
-                    <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
-                    <td className="p-3 text-right">
-                      <div className="relative inline-block text-left">
-                        <button
-                          onClick={() => setOpenCompanyActionKey(openCompanyActionKey === companyActionKey(c) ? null : companyActionKey(c))}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Thao tác <ChevronDown size={13} />
-                        </button>
-                        {openCompanyActionKey === companyActionKey(c) && (
-                          <>
-                            <div className="fixed inset-0 z-20" onClick={() => setOpenCompanyActionKey(null)} />
-                            <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
-                              <button onClick={() => { exportApplicantsForCompany(c); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
-                                <Download size={14} className="text-green-600" /> Xuất danh sách XLSX
-                              </button>
-                              {isOfficialBusinessCompany(c) && (
-                                <button onClick={() => { composeCompanyEmail(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                                  <FileText size={14} className="text-indigo-600" /> Tạo link/soạn email
-                                </button>
-                              )}
-                              <button onClick={() => { markCompanySent(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                                <CheckCircle2 size={14} className="text-emerald-600" /> Đánh dấu đã gửi
-                              </button>
-                              {c.record_type !== 'other' && (
-                                <>
-                                  <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
-                                    <Edit2 size={14} className="text-blue-600" /> Sửa công ty
-                                  </button>
-                                  <button onClick={() => { handleDelete(c.id, c.name); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
-                                    <Trash2 size={14} /> Xóa công ty
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </>
-                )}
+                </th>
+                <th className="p-3 font-semibold w-12">STT</th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên doanh nghiệp<SortIcon col="name" /></th>
+                <th className="p-3 font-semibold">Loại</th>
+                <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('slots')}>Chỉ tiêu<SortIcon col="slots" /></th>
+                <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-20" onClick={() => handleSort('applicant_count')}>ƯV<SortIcon col="applicant_count" /></th>
+                <th className="p-3 font-semibold text-center cursor-pointer hover:bg-slate-100 w-24" onClick={() => handleSort('approved_applicant_count')}>Đã duyệt<SortIcon col="approved_applicant_count" /></th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('last_sent_at')}>Gửi DN<SortIcon col="last_sent_at" /></th>
+                <th className="p-3 font-semibold">Link Drive</th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('contact_email')}>Email<SortIcon col="contact_email" /></th>
+                <th className="p-3 font-semibold">Người LH</th>
+                <th className="p-3 font-semibold">SĐT</th>
+                <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('address')}>Địa chỉ<SortIcon col="address" /></th>
+                <th className="p-3 font-semibold text-right w-44">Thao tác</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {paginatedCompanies.map((c, idx) => (
+                <tr key={c.company_key || c.id || `${c.record_type}-${c.name}`} className="hover:bg-slate-50/50 transition-colors text-xs">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedCompanyKeySet.has(companyActionKey(c))}
+                      onChange={e => toggleCompanySelection(c, e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      title="Chọn công ty"
+                    />
+                  </td>
+                  <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
+                  {editingId === c.id && c.record_type !== 'other' ? (
+                    <>
+                      <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-semibold">Chính thức</span></td>
+                      <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-400 rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
+                      <td className="p-3 text-center text-slate-500">{c.approved_applicant_count ?? 0}</td>
+                      <td className="p-3 text-slate-500">{c.last_sent_at ? new Date(c.last_sent_at).toLocaleString('vi-VN') : 'Chưa gửi'}</td>
+                      <td className="p-3 text-slate-400">—</td>
+                      <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3 text-right flex items-center justify-end gap-1">
+                        <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
+                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-3 text-slate-800 font-medium">
+                        {c.name}
+                        {c.record_type === 'other' && <div className="text-[11px] text-slate-500 font-normal mt-1">Từ đăng ký “Công ty khác”</div>}
+                      </td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded-full font-semibold ${c.record_type === 'other' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-slate-100 text-slate-600'}`}>
+                          {c.record_type === 'other' ? 'Tự liên hệ' : 'Chính thức'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">{c.record_type === 'other' ? '—' : c.slots}</td>
+                      <td className="p-3 text-center">{c.applicant_count ?? 0}</td>
+                      <td className="p-3 text-center">{c.approved_applicant_count ?? 0}</td>
+                      <td className="p-3 text-slate-600 whitespace-nowrap">
+                        {c.last_sent_at ? (
+                          <span className="text-emerald-700 font-semibold">{new Date(c.last_sent_at).toLocaleString('vi-VN')}</span>
+                        ) : (
+                          <span className="text-slate-300">Chưa gửi</span>
+                        )}
+                        {Number(c.sent_count || 0) > 0 && <div className="text-[11px] text-slate-400">{c.sent_count} đăng ký</div>}
+                      </td>
+                      <td className="p-3 text-slate-600">
+                        {c.applicants_drive_link ? <a href={c.applicants_drive_link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">Mở link</a> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="p-3 text-slate-600">{c.contact_email ? <a href={`mailto:${c.contact_email}`} className="text-blue-600 hover:underline">{c.contact_email}</a> : (extractEmails(c.contacts || '').length > 0 ? <span>{extractEmails(c.contacts || '').join(', ')}</span> : <span className="text-slate-300">—</span>)}</td>
+                      <td className="p-3 text-slate-600">{c.contact_name || <span className="text-slate-300">—</span>}</td>
+                      <td className="p-3 text-slate-600">{c.phone || <span className="text-slate-300">—</span>}</td>
+                      <td className="p-3 text-slate-600 max-w-[200px] truncate" title={c.address || c.contacts}>{c.address || c.contacts || <span className="text-slate-300">—</span>}</td>
+                      <td className="p-3 text-right">
+                        <div className="relative inline-block text-left">
+                          <button
+                            onClick={() => setOpenCompanyActionKey(openCompanyActionKey === companyActionKey(c) ? null : companyActionKey(c))}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            Thao tác <ChevronDown size={13} />
+                          </button>
+                          {openCompanyActionKey === companyActionKey(c) && (
+                            <>
+                              <div className="fixed inset-0 z-20" onClick={() => setOpenCompanyActionKey(null)} />
+                              <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+                                <button onClick={() => { exportApplicantsForCompany(c); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                  <Download size={14} className="text-green-600" /> Xuất danh sách XLSX
+                                </button>
+                                {isOfficialBusinessCompany(c) && (
+                                  <button onClick={() => { composeCompanyEmail(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                    <FileText size={14} className="text-indigo-600" /> Tạo link/soạn email
+                                  </button>
+                                )}
+                                <button onClick={() => { markCompanySent(c); setOpenCompanyActionKey(null); }} disabled={markingSentKey === companyActionKey(c)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                  <CheckCircle2 size={14} className="text-emerald-600" /> Đánh dấu đã gửi
+                                </button>
+                                {c.record_type !== 'other' && (
+                                  <>
+                                    <button onClick={() => { setEditingId(c.id); setEditCompany({ name: c.name, slots: String(c.slots), contact_email: c.contact_email || '', address: c.address || '', phone: c.phone || '', contact_name: c.contact_name || '', recruitment_link: c.recruitment_link || '' }); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                      <Edit2 size={14} className="text-blue-600" /> Sửa công ty
+                                    </button>
+                                    <button onClick={() => { handleDelete(c.id, c.name); setOpenCompanyActionKey(null); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">
+                                      <Trash2 size={14} /> Xóa công ty
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <PaginationControls
           total={filteredAndSorted.length}
           currentPage={currentPage}
