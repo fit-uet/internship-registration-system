@@ -4386,7 +4386,7 @@ async function startServer() {
   });
 
   app.post('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const result = await createAdvisorAssignment({ ...req.body, allow_without_final: true }, req.user.id);
+    const result = await createAdvisorAssignment({ ...req.body, allow_without_final: true, allow_over_quota: true }, req.user.id);
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json(result.row);
   });
