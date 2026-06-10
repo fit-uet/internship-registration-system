@@ -1824,10 +1824,19 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
                     {finalInternship.school_assignment_request ? <p>GVHD: <strong>Khoa sẽ phân công</strong></p> : null}
                     {myAdvisors.length > 0 && (
-                      <p>
-                        GVHD đã phân công:{' '}
-                        <strong>{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</strong>
-                      </p>
+                      <div>
+                        <div>
+                          GVHD đã phân công:{' '}
+                          <strong>{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</strong>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {myAdvisors.filter((a: any) => a.lecturer_email).map((a: any) => (
+                            <a key={`${a.role}-${a.lecturer_email}`} href={`mailto:${a.lecturer_email}`} className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-white hover:underline">
+                              {a.role === 'primary' ? 'GVHD chính' : 'Đồng HD'}: {a.lecturer_email}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
                     <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
                     {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Khoa đã khóa chỉnh sửa nơi thực tập chính thức.</p>}
@@ -5222,6 +5231,20 @@ function StudentGradeView({ token }: { token: string }) {
 
   const statusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có điểm';
   const scoreText = (value: any) => value === null || value === undefined || value === '' ? '-' : value;
+  const splitCsv = (value?: string) => String(value || '').split(',').map(item => item.trim()).filter(Boolean);
+  const renderAdvisorEmails = (emails?: string) => {
+    const items = splitCsv(emails);
+    if (items.length === 0) return null;
+    return (
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {items.map(email => (
+          <a key={email} href={`mailto:${email}`} className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 hover:underline">
+            {email}
+          </a>
+        ))}
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchGrade = async () => {
@@ -5267,7 +5290,13 @@ function StudentGradeView({ token }: { token: string }) {
           <div className="p-5">
             <div className="text-xs uppercase font-semibold text-slate-500">Giảng viên hướng dẫn</div>
             <div className="mt-2 text-base font-semibold text-slate-900">{grade?.primary_advisors || 'Chưa phân công'}</div>
-            {grade?.co_advisors && <div className="mt-1 text-xs text-slate-500">Đồng hướng dẫn: {grade.co_advisors}</div>}
+            {renderAdvisorEmails(grade?.primary_advisor_emails)}
+            {grade?.co_advisors && (
+              <div className="mt-2">
+                <div className="text-xs text-slate-500">Đồng hướng dẫn: {grade.co_advisors}</div>
+                {renderAdvisorEmails(grade?.co_advisor_emails)}
+              </div>
+            )}
           </div>
           <div className="p-5">
             <div className="text-xs uppercase font-semibold text-slate-500">Trạng thái điểm</div>

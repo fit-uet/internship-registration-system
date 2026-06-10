@@ -2330,7 +2330,9 @@ async function startServer() {
                        ELSE c.name
                      END as internship_place,
                      GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END) as primary_advisors,
+                     GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.email END) as primary_advisor_emails,
                      GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END) as co_advisors,
+                     GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.email END) as co_advisor_emails,
                      g.progress_score, g.report_score, g.company_score, g.final_score,
                      COALESCE(g.status, 'missing') as grade_status, g.comment,
                      g.submitted_at as grade_submitted_at, g.locked_at,
