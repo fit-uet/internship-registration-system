@@ -4492,11 +4492,13 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
 
   const exportXlsxSummary = () => {
     if (sortedRows.length === 0) return alert('Không có dữ liệu để xuất.');
-    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Email VNU (@vnu.edu.vn)', 'Email khác', 'Lớp', 'Mã môn', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn'];
     const summaryRows = sortedRows.map((row, idx) => [
       idx + 1,
       row.student_id || '',
       row.student_name || '',
+      row.email || '',
+      row.personal_email || '',
       row.class_name || '',
       row.course_code || '',
       row.internship_place || '',
@@ -4525,6 +4527,8 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           unassignedRows.length + 1,
           row.student_id || '',
           row.student_name || '',
+          row.email || '',
+          row.personal_email || '',
           row.class_name || '',
           row.course_code || '',
           row.internship_place || '',
@@ -4544,6 +4548,8 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
           entry.rows.length + 1,
           row.student_id || '',
           row.student_name || '',
+          row.email || '',
+          row.personal_email || '',
           row.class_name || '',
           row.course_code || '',
           row.internship_place || '',
@@ -4554,7 +4560,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       });
     });
 
-    const lecturerHeaders = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã môn', 'Nơi thực tập', 'Vai trò của giảng viên', 'GVHD chính', 'Đồng hướng dẫn'];
+    const lecturerHeaders = ['STT', 'Mã SV', 'Họ tên', 'Email VNU (@vnu.edu.vn)', 'Email khác', 'Lớp', 'Mã môn', 'Nơi thực tập', 'Vai trò của giảng viên', 'GVHD chính', 'Đồng hướng dẫn'];
 
     lecturerMap.forEach((entry, name) => {
       const safeName = name.replace(/[^a-z0-9_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂĐỔÔÚNhíợ]{1,30}/gi, '_');
