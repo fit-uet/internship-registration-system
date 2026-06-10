@@ -3960,12 +3960,19 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     const key = String(row.user_id);
     const lecturerId = selectedLecturers[key];
     if (!lecturerId) return alert('Vui lòng chọn giảng viên.');
+    const role = selectedRoles[key] || 'primary';
+    const existingAssignments = role === 'primary' ? parseAssignments(row.primary_assignments) : parseAssignments(row.co_assignments);
+    if (existingAssignments.length > 0) {
+      const roleLabel = role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn';
+      const currentNames = existingAssignments.map(item => item.name).join(', ');
+      if (!confirm(`Sinh viên hiện đã có ${roleLabel}: ${currentNames}.\n\nGán giảng viên mới sẽ thay thế phân công ${roleLabel} hiện tại. Bạn có chắc muốn tiếp tục?`)) return;
+    }
     setAssigningKey(key);
     try {
       const res = await fetch(`${API_BASE}/api/admin/advisor-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ user_id: row.user_id, lecturer_id: Number(lecturerId), role: selectedRoles[key] || 'primary' })
+        body: JSON.stringify({ user_id: row.user_id, lecturer_id: Number(lecturerId), role, replace_existing: true })
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Phân công thất bại.');

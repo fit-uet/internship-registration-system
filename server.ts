@@ -4169,6 +4169,27 @@ async function startServer() {
     if (alreadyAssigned) return { row: alreadyAssigned };
     if (!alreadyAssigned && Number(current?.count || 0) >= maxTotal && !body.allow_over_quota) return { error: `Giảng viên đã đủ chỉ tiêu ${maxTotal} sinh viên.`, status: 400 };
     try {
+      if (body.replace_existing) {
+        const existingSameRole = (await db.execute({
+          sql: 'SELECT * FROM advisor_assignments WHERE user_id = ? AND role = ?',
+          args: [userId, role],
+        })).rows as any[];
+        for (const existing of existingSameRole) {
+          await db.execute({
+            sql: `INSERT INTO advisor_assignment_history (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+                  VALUES (?, ?, ?, ?, 'replaced', ?, ?, datetime('now', '+7 hours'))`,
+            args: [
+              Number(existing.id),
+              userId,
+              Number(existing.lecturer_id),
+              role,
+              adminUserId,
+              body.note || `Thay bằng ${lecturer.name}`,
+            ],
+          });
+          await db.execute({ sql: 'DELETE FROM advisor_assignments WHERE id = ?', args: [Number(existing.id)] });
+        }
+      }
       const result = await db.execute({
         sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
               VALUES (?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
@@ -4386,7 +4407,7 @@ async function startServer() {
   });
 
   app.post('/api/admin/advisor-assignments', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const result = await createAdvisorAssignment({ ...req.body, allow_without_final: true, allow_over_quota: true }, req.user.id);
+    const result = await createAdvisorAssignment({ ...req.body, allow_without_final: true, allow_over_quota: true, replace_existing: true }, req.user.id);
     if (result.error) return res.status(result.status || 400).json({ error: result.error });
     res.json(result.row);
   });
