@@ -2797,6 +2797,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const [addRegistrationForm, setAddRegistrationForm] = useState(emptyAddRegistrationForm);
   const [addStudentQuery, setAddStudentQuery] = useState('');
   const [addCompanyQuery, setAddCompanyQuery] = useState('');
+  const [addOtherContact, setAddOtherContact] = useState({ contact_name: '', contact_phone: '', contact_email: '' });
   const [registrationPage, setRegistrationPage] = useState(1);
   const registrationPageSize = 25;
 
@@ -3093,6 +3094,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     setAddRegistrationForm(emptyAddRegistrationForm);
     setAddStudentQuery('');
     setAddCompanyQuery('');
+    setAddOtherContact({ contact_name: '', contact_phone: '', contact_email: '' });
     setAddingRegistration(true);
   };
 
@@ -3126,6 +3128,15 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     const selectedCompany = addRegistrationForm.company_id ? companies.find(item => String(item.id) === String(addRegistrationForm.company_id)) : resolveAddCompany(addCompanyQuery);
     if (!selectedStudent) return alert('Vui lòng nhập và chọn đúng sinh viên từ danh sách gợi ý.');
     if (!selectedCompany) return alert('Vui lòng nhập và chọn đúng nơi thực tập từ danh sách gợi ý.');
+    const isOtherSelection = selectedCompany.name === 'Công ty khác';
+    const otherContactValue = isOtherSelection
+      ? [addOtherContact.contact_name, addOtherContact.contact_phone, addOtherContact.contact_email].map(v => String(v || '').trim()).filter(Boolean).join(' - ')
+      : addRegistrationForm.other_company_contact;
+    if (isOtherSelection) {
+      if (!addOtherContact.contact_name.trim()) return alert('Vui lòng nhập người liên hệ.');
+      if (!/^(0|\+84)[35789]\d{8}$/.test(addOtherContact.contact_phone.trim().replace(/[\s\-\.]/g, ''))) return alert('Số điện thoại liên hệ không hợp lệ.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addOtherContact.contact_email.trim())) return alert('Email liên hệ không hợp lệ.');
+    }
     setSavingRegistration(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/registrations`, {
@@ -3135,6 +3146,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
           ...addRegistrationForm,
           user_id: String(selectedStudent.id),
           company_id: String(selectedCompany.id),
+          other_company_contact: otherContactValue,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -3143,6 +3155,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
       setAddRegistrationForm(emptyAddRegistrationForm);
       setAddStudentQuery('');
       setAddCompanyQuery('');
+      setAddOtherContact({ contact_name: '', contact_phone: '', contact_email: '' });
       await fetchRegistrations();
     } catch (e) {
       alert('Lỗi kết nối khi thêm đăng ký.');
@@ -3684,12 +3697,37 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Thông tin liên hệ</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Người liên hệ *</label>
                       <input
-                        value={addRegistrationForm.other_company_contact}
-                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_contact: e.target.value })}
+                        value={addOtherContact.contact_name}
+                        onChange={e => setAddOtherContact({ ...addOtherContact, contact_name: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Email/SĐT/người liên hệ"
+                        placeholder="VD: Anh Nguyễn Văn A"
+                        required={addingIsOtherCompany}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Điện thoại *</label>
+                      <input
+                        type="tel"
+                        pattern="^(0|\+84)[35789][0-9]{8}$"
+                        title="Vui lòng nhập số điện thoại hợp lệ (10 số, VD: 0912345678)"
+                        value={addOtherContact.contact_phone}
+                        onChange={e => setAddOtherContact({ ...addOtherContact, contact_phone: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="VD: 0987654321"
+                        required={addingIsOtherCompany}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={addOtherContact.contact_email}
+                        onChange={e => setAddOtherContact({ ...addOtherContact, contact_email: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="VD: a@company.com"
+                        required={addingIsOtherCompany}
                       />
                     </div>
                   </>
