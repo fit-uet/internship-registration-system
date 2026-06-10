@@ -2770,6 +2770,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [adminStudents, setAdminStudents] = useState<any[]>([]);
+  const [adminLecturerNames, setAdminLecturerNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -2816,6 +2817,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     fetchRegistrations();
     fetchRegistrationCompanies();
     fetchAdminStudents();
+    fetchAdminLecturers();
   }, []);
 
   const fetchRegistrations = async () => {
@@ -2844,6 +2846,16 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
       setAdminStudents(Array.isArray(data) ? data : []);
     } catch (e) {
       setAdminStudents([]);
+    }
+  };
+
+  const fetchAdminLecturers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setAdminLecturerNames(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setAdminLecturerNames([]);
     }
   };
 
@@ -3145,6 +3157,13 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
       if (!addOtherContact.contact_name.trim()) return alert('Vui lòng nhập người liên hệ.');
       if (!/^(0|\+84)[35789]\d{8}$/.test(addOtherContact.contact_phone.trim().replace(/[\s\-\.]/g, ''))) return alert('Số điện thoại liên hệ không hợp lệ.');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addOtherContact.contact_email.trim())) return alert('Email liên hệ không hợp lệ.');
+    }
+    if (selectedCompany.name === 'Trường Đại học Công nghệ') {
+      const primaryLecturer = addRegistrationForm.other_company_contact.trim();
+      const coLecturer = addRegistrationForm.other_company_role.trim();
+      if (primaryLecturer && !adminLecturerNames.includes(primaryLecturer)) return alert('Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn từ danh sách gợi ý.');
+      if (coLecturer && !adminLecturerNames.includes(coLecturer)) return alert('Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn từ danh sách gợi ý.');
+      if (primaryLecturer && coLecturer && primaryLecturer === coLecturer) return alert('Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.');
     }
     setSavingRegistration(true);
     try {
@@ -3747,21 +3766,29 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên hướng dẫn</label>
                       <input
+                        list="admin-add-registration-primary-lecturers"
                         value={addRegistrationForm.other_company_contact}
                         onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_contact: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tên GVHD nếu đã có"
+                        placeholder="Nhập/chọn GVHD nếu đã có"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên đồng hướng dẫn</label>
                       <input
+                        list="admin-add-registration-co-lecturers"
                         value={addRegistrationForm.other_company_role}
                         onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_role: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Không bắt buộc"
+                        placeholder="Nhập/chọn đồng hướng dẫn nếu có"
                       />
                     </div>
+                    <datalist id="admin-add-registration-primary-lecturers">
+                      {adminLecturerNames.map(name => <option key={name} value={name} />)}
+                    </datalist>
+                    <datalist id="admin-add-registration-co-lecturers">
+                      {adminLecturerNames.map(name => <option key={name} value={name} />)}
+                    </datalist>
                   </>
                 )}
 
