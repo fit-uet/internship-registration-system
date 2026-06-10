@@ -3007,7 +3007,7 @@ async function startServer() {
 
   // 12. Admin: Get Students (exclude admins)
   app.get('/api/admin/students', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name, phone, personal_email FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows;
+    const students = (await db.execute("SELECT id, email, name, student_id, dob, class_name, course_code, phone, personal_email FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows;
     res.json(students);
   });
 
@@ -3641,6 +3641,123 @@ async function startServer() {
       ORDER BY r.created_at DESC
     `)).rows;
     res.json(data);
+  });
+
+  app.post('/api/admin/registrations', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const userId = Number(req.body?.user_id);
+    const companyId = Number(req.body?.company_id);
+    const status = String(req.body?.status || 'approved');
+    const note = String(req.body?.note || '').trim();
+    const reviewComment = String(req.body?.review_comment || '').trim();
+    const courseCode = String(req.body?.course_code || '').trim();
+    const requestedOrder = req.body?.preference_order === '' || req.body?.preference_order === undefined || req.body?.preference_order === null
+      ? null
+      : Number(req.body.preference_order);
+
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ error: 'Sinh viên không hợp lệ.' });
+    if (!Number.isInteger(companyId) || companyId <= 0) return res.status(400).json({ error: 'Nơi thực tập không hợp lệ.' });
+    if (!['pending', 'approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
+    if (requestedOrder !== null && (!Number.isInteger(requestedOrder) || requestedOrder < 1)) return res.status(400).json({ error: 'Thứ tự nguyện vọng không hợp lệ.' });
+
+    try {
+      const student = (await db.execute({
+        sql: "SELECT id, email, personal_email, name FROM users WHERE id = ? AND role = 'student'",
+        args: [userId],
+      })).rows[0] as any;
+      if (!student) return res.status(404).json({ error: 'Không tìm thấy sinh viên.' });
+
+      const company = (await db.execute({ sql: 'SELECT id, name FROM companies WHERE id = ?', args: [companyId] })).rows[0] as any;
+      if (!company) return res.status(400).json({ error: 'Không tìm thấy nơi thực tập.' });
+
+      const existingRows = (await db.execute({
+        sql: 'SELECT id, company_id, other_company_name, preference_order FROM registrations WHERE user_id = ? ORDER BY COALESCE(preference_order, 999), created_at ASC',
+        args: [userId],
+      })).rows as any[];
+      if (existingRows.length >= 5) return res.status(400).json({ error: 'Sinh viên đã có đủ 5 nguyện vọng. Vui lòng sửa/xóa nguyện vọng hiện có nếu cần thay đổi.' });
+      for (let index = 0; index < existingRows.length; index++) {
+        const normalizedOrder = index + 1;
+        if (Number(existingRows[index].preference_order || 0) !== normalizedOrder) {
+          await db.execute({
+            sql: 'UPDATE registrations SET preference_order = ? WHERE id = ?',
+            args: [normalizedOrder, Number(existingRows[index].id)],
+          });
+          existingRows[index].preference_order = normalizedOrder;
+        }
+      }
+
+      const isOtherCompany = company.name === 'Công ty khác';
+      const isSchoolInternship = company.name === 'Trường Đại học Công nghệ';
+      const otherCompanyName = isOtherCompany ? String(req.body?.other_company_name || '').trim() : '';
+      const otherCompanyRole = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_role || '').trim() : '';
+      const otherCompanyContact = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_contact || '').trim() : '';
+      if (isOtherCompany && !otherCompanyName) return res.status(400).json({ error: 'Vui lòng nhập tên công ty tự liên hệ.' });
+
+      const normalizedOtherName = normalizeCompanyName(otherCompanyName);
+      const duplicate = existingRows.some((row: any) => {
+        if (isOtherCompany) {
+          return Number(row.company_id) === companyId && normalizeCompanyName(row.other_company_name || '') === normalizedOtherName;
+        }
+        return Number(row.company_id) === companyId;
+      });
+      if (duplicate) return res.status(400).json({ error: 'Sinh viên đã có nguyện vọng này trong danh sách đăng ký.' });
+
+      const preferenceOrder = requestedOrder === null
+        ? existingRows.length + 1
+        : Math.min(requestedOrder, existingRows.length + 1);
+
+      await db.execute({
+        sql: 'UPDATE registrations SET preference_order = preference_order + 1 WHERE user_id = ? AND preference_order >= ?',
+        args: [userId, preferenceOrder],
+      });
+
+      const result = await db.execute({
+        sql: `INSERT INTO registrations (user_id, company_id, note, status, review_comment, other_company_name, other_company_role, other_company_contact, preference_order, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+        args: [
+          userId,
+          companyId,
+          note || null,
+          status,
+          reviewComment || null,
+          otherCompanyName || null,
+          otherCompanyRole || null,
+          otherCompanyContact || null,
+          preferenceOrder,
+        ],
+      });
+
+      if (courseCode) {
+        await db.execute({ sql: 'UPDATE users SET course_code = ? WHERE id = ?', args: [courseCode, userId] });
+      }
+
+      const inserted = (await db.execute({
+        sql: `SELECT r.*, c.name as company_name
+              FROM registrations r
+              LEFT JOIN companies c ON c.id = r.company_id
+              WHERE r.id = ?`,
+        args: [Number(result.lastInsertRowid)],
+      })).rows[0] as any;
+      if (status === 'approved') {
+        await addApprovedCompanyFromRegistration(inserted);
+      }
+
+      await createNotification({
+        user_id: userId,
+        recipient_email: student.personal_email || student.email,
+        type: 'registration_status_changed',
+        subject: 'Khoa đã bổ sung đăng ký thực tập cho bạn',
+        body: `Khoa đã bổ sung nguyện vọng thực tập: ${isOtherCompany ? otherCompanyName : company.name}. Trạng thái hiện tại: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\n\nNhận xét: ${reviewComment}` : ''}`,
+        status: 'website_only',
+      });
+
+      res.json({ success: true, registration_id: Number(result.lastInsertRowid) });
+    } catch (error: any) {
+      if (String(error?.message || '').includes('UNIQUE')) {
+        return res.status(400).json({ error: 'Sinh viên đã có nguyện vọng này trong danh sách đăng ký.' });
+      }
+      console.error('[admin registrations] add failed:', error);
+      res.status(500).json({ error: 'Không thể thêm đăng ký thực tập.' });
+    }
   });
 
   app.put('/api/admin/registrations/:id(\\d+)', requireAuth, requireAdmin, async (req: any, res: any) => {

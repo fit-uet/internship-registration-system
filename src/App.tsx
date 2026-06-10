@@ -2760,6 +2760,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [adminStudents, setAdminStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -2768,6 +2769,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
   const [savingRegistration, setSavingRegistration] = useState(false);
+  const [addingRegistration, setAddingRegistration] = useState(false);
   const [editingRegistration, setEditingRegistration] = useState<any | null>(null);
   const [editRegistrationForm, setEditRegistrationForm] = useState({
     company_id: '',
@@ -2780,6 +2782,19 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     status: 'pending',
     review_comment: '',
   });
+  const emptyAddRegistrationForm = {
+    user_id: '',
+    company_id: '',
+    course_code: '',
+    other_company_name: '',
+    other_company_role: '',
+    other_company_contact: '',
+    note: '',
+    preference_order: '',
+    status: 'approved',
+    review_comment: '',
+  };
+  const [addRegistrationForm, setAddRegistrationForm] = useState(emptyAddRegistrationForm);
   const [registrationPage, setRegistrationPage] = useState(1);
   const registrationPageSize = 25;
 
@@ -2788,6 +2803,7 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   useEffect(() => {
     fetchRegistrations();
     fetchRegistrationCompanies();
+    fetchAdminStudents();
   }, []);
 
   const fetchRegistrations = async () => {
@@ -2806,6 +2822,16 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
       setCompanies(Array.isArray(data) ? data : []);
     } catch (e) {
       setCompanies([]);
+    }
+  };
+
+  const fetchAdminStudents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/students`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setAdminStudents(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setAdminStudents([]);
     }
   };
 
@@ -3036,6 +3062,48 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     setEditingRegistration(null);
   };
 
+  const openAddRegistration = () => {
+    setAddRegistrationForm(emptyAddRegistrationForm);
+    setAddingRegistration(true);
+  };
+
+  const closeAddRegistration = () => {
+    if (savingRegistration) return;
+    setAddingRegistration(false);
+  };
+
+  const handleAddRegistrationStudentChange = (userId: string) => {
+    const student = adminStudents.find(item => String(item.id) === String(userId));
+    setAddRegistrationForm({
+      ...addRegistrationForm,
+      user_id: userId,
+      course_code: student?.course_code || addRegistrationForm.course_code,
+    });
+  };
+
+  const handleSaveRegistrationAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addRegistrationForm.user_id) return alert('Vui lòng chọn sinh viên.');
+    if (!addRegistrationForm.company_id) return alert('Vui lòng chọn nơi thực tập.');
+    setSavingRegistration(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(addRegistrationForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Thêm đăng ký thất bại.');
+      setAddingRegistration(false);
+      setAddRegistrationForm(emptyAddRegistrationForm);
+      await fetchRegistrations();
+    } catch (e) {
+      alert('Lỗi kết nối khi thêm đăng ký.');
+    } finally {
+      setSavingRegistration(false);
+    }
+  };
+
   const handleSaveRegistrationEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRegistration) return;
@@ -3145,6 +3213,9 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const editingCompany = companies.find(company => Number(company.id) === Number(editRegistrationForm.company_id));
   const editingIsOtherCompany = editingCompany?.name === 'Công ty khác';
   const editingIsSchoolInternship = editingCompany?.name === 'Trường Đại học Công nghệ';
+  const addingCompany = companies.find(company => Number(company.id) === Number(addRegistrationForm.company_id));
+  const addingIsOtherCompany = addingCompany?.name === 'Công ty khác';
+  const addingIsSchoolInternship = addingCompany?.name === 'Trường Đại học Công nghệ';
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải dữ liệu...</div>;
 
@@ -3161,6 +3232,12 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={openAddRegistration}
+              className="bg-emerald-600 text-white px-3.5 py-2 rounded-xl hover:bg-emerald-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
+            >
+              <Plus size={14} /> Thêm đăng ký
+            </button>
             <span title="Gửi cùng một nhận xét cho toàn bộ danh sách đăng ký đang được lọc ở bảng bên dưới.">
               <button
                 onClick={handleSendFilteredRegistrationComment}
@@ -3463,6 +3540,180 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
           label="đăng ký"
         />
       </div>
+
+      {addingRegistration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] overflow-hidden">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Thêm đăng ký thực tập</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Bổ sung một nguyện vọng mới cho sinh viên, kể cả sinh viên đã có đăng ký trước đó.
+                </p>
+              </div>
+              <button onClick={closeAddRegistration} disabled={savingRegistration} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-60">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveRegistrationAdd} className="overflow-y-auto max-h-[calc(90vh-73px)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-5">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Sinh viên *</label>
+                  <select
+                    value={addRegistrationForm.user_id}
+                    onChange={e => handleAddRegistrationStudentChange(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">-- Chọn sinh viên --</option>
+                    {adminStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.student_id || 'Chưa có MSSV'} - {student.name || student.email} {student.class_name ? `(${student.class_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nơi thực tập *</label>
+                  <select
+                    value={addRegistrationForm.company_id}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, company_id: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">-- Chọn nơi thực tập --</option>
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>{company.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Thứ tự nguyện vọng</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addRegistrationForm.preference_order}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, preference_order: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Để trống = thêm vào cuối"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Học phần</label>
+                  <select
+                    value={addRegistrationForm.course_code}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, course_code: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Giữ nguyên học phần hiện tại của sinh viên</option>
+                    <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
+                    <option value="Thực tập Chuyên ngành INT3508">Thực tập Chuyên ngành INT3508</option>
+                    <option value="Thực tập Doanh nghiệp Nhật Bản INT4003">Thực tập Doanh nghiệp Nhật Bản INT4003</option>
+                  </select>
+                </div>
+
+                {addingIsOtherCompany && (
+                  <>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Tên công ty tự liên hệ *</label>
+                      <input
+                        value={addRegistrationForm.other_company_name}
+                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_name: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tên công ty"
+                        required={addingIsOtherCompany}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Vị trí thực tập</label>
+                      <input
+                        value={addRegistrationForm.other_company_role}
+                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_role: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="VD: Frontend Intern"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Thông tin liên hệ</label>
+                      <input
+                        value={addRegistrationForm.other_company_contact}
+                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_contact: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Email/SĐT/người liên hệ"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {addingIsSchoolInternship && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên hướng dẫn</label>
+                      <input
+                        value={addRegistrationForm.other_company_contact}
+                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_contact: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tên GVHD nếu đã có"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên đồng hướng dẫn</label>
+                      <input
+                        value={addRegistrationForm.other_company_role}
+                        onChange={e => setAddRegistrationForm({ ...addRegistrationForm, other_company_role: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Không bắt buộc"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Ghi chú đăng ký</label>
+                  <textarea
+                    rows={3}
+                    value={addRegistrationForm.note}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, note: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ghi chú từ Khoa hoặc thông tin sinh viên cung cấp"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Trạng thái</label>
+                  <select
+                    value={addRegistrationForm.status}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, status: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="approved">Đã duyệt</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="rejected">Từ chối</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nhận xét gửi sinh viên</label>
+                  <input
+                    value={addRegistrationForm.review_comment}
+                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, review_comment: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Không bắt buộc"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+                <button type="button" onClick={closeAddRegistration} disabled={savingRegistration} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                  Huỷ
+                </button>
+                <button type="submit" disabled={savingRegistration} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
+                  {savingRegistration ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                  {savingRegistration ? 'Đang thêm...' : 'Thêm đăng ký'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {editingRegistration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
@@ -9440,12 +9691,6 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
           >
             <CheckCircle2 size={14} /> Chấm điểm thực tập
-          </button>
-          <button
-            onClick={() => navigate('/admin/registrations')}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <LayoutDashboard size={14} className="text-slate-500" /> Danh sách đăng ký thực tập
           </button>
         </div>
       </div>
