@@ -4107,7 +4107,7 @@ async function startServer() {
     const lecturer = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE id = ?', args: [lecturerId] })).rows[0] as any;
     if (!lecturer) return 'unknown';
     const maxTotal = await advisorQuotaLimit(lecturer);
-    const current = (await db.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
+    const current = (await db.execute({ sql: 'SELECT COUNT(DISTINCT user_id) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
     return Number(current?.count || 0) >= maxTotal ? 'over_quota' : 'within_quota';
   }
 
@@ -4280,7 +4280,7 @@ async function startServer() {
     if (!lecturer) return { error: 'Không tìm thấy giảng viên.', status: 404 };
     if (role === 'primary' && isBachelorLecturer(lecturer.name)) return { error: 'Giảng viên CN không được làm hướng dẫn chính.', status: 400 };
     const maxTotal = await advisorQuotaLimit(lecturer);
-    const current = (await db.execute({ sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
+    const current = (await db.execute({ sql: 'SELECT COUNT(DISTINCT user_id) as count FROM advisor_assignments WHERE lecturer_id = ?', args: [lecturerId] })).rows[0] as any;
     const alreadyAssigned = (await db.execute({
       sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = ?',
       args: [userId, lecturerId, role],
@@ -4350,7 +4350,7 @@ async function startServer() {
              COALESCE(ac.assignment_count, 0) as assignment_count
       FROM lecturers l
       LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
-      LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
+      LEFT JOIN (SELECT lecturer_id, COUNT(DISTINCT user_id) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
       ORDER BY assignment_count ASC, l.name ASC
     `)).rows
       .map((row: any) => {
@@ -4396,7 +4396,7 @@ async function startServer() {
       let lecturer: any = null;
       for (const candidate of candidates) {
         const freshCountRow = (await db.execute({
-          sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?',
+          sql: 'SELECT COUNT(DISTINCT user_id) as count FROM advisor_assignments WHERE lecturer_id = ?',
           args: [Number(candidate.id)],
         })).rows[0] as any;
         const freshCount = Number(freshCountRow?.count || 0);
@@ -4459,6 +4459,8 @@ async function startServer() {
           SELECT user_id FROM advisor_requests
           UNION
           SELECT user_id FROM registrations WHERE status != 'rejected'
+          UNION
+          SELECT user_id FROM advisor_assignments
         ),
         registration_places AS (
           SELECT r.user_id,
@@ -4507,7 +4509,7 @@ async function startServer() {
                COALESCE(ac.assignment_count, 0) as assignment_count
         FROM lecturers l
         LEFT JOIN lecturer_quotas q ON q.lecturer_id = l.id
-        LEFT JOIN (SELECT lecturer_id, COUNT(*) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
+        LEFT JOIN (SELECT lecturer_id, COUNT(DISTINCT user_id) as assignment_count FROM advisor_assignments GROUP BY lecturer_id) ac ON ac.lecturer_id = l.id
         ORDER BY l.name ASC
       `)).rows as any[];
       const lecturers = lecturersRaw.map((lecturer: any) => {
