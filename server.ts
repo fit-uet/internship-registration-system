@@ -4391,7 +4391,19 @@ async function startServer() {
         }
         return (a.assignment_count - b.assignment_count) || String(a.name).localeCompare(String(b.name), 'vi');
       });
-      const lecturer = candidates.find((item: any) => item.assignment_count < item.max_total_students);
+      let lecturer: any = null;
+      for (const candidate of candidates) {
+        const freshCountRow = (await db.execute({
+          sql: 'SELECT COUNT(*) as count FROM advisor_assignments WHERE lecturer_id = ?',
+          args: [Number(candidate.id)],
+        })).rows[0] as any;
+        const freshCount = Number(freshCountRow?.count || 0);
+        candidate.assignment_count = freshCount;
+        if (freshCount < Number(candidate.max_total_students || 0)) {
+          lecturer = candidate;
+          break;
+        }
+      }
       if (!lecturer) {
         errors.push(`${student.student_id || student.user_id}: không còn giảng viên đủ chỉ tiêu`);
         continue;
