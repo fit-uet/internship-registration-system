@@ -2125,6 +2125,8 @@ async function startServer() {
 
   app.get('/api/lecturer/students', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
+    await approvePendingAgreedAdvisorRequests(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
@@ -2289,6 +2291,8 @@ async function startServer() {
 
   app.get('/api/lecturer/grades', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
+    await approvePendingAgreedAdvisorRequests(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
