@@ -2795,6 +2795,8 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     review_comment: '',
   };
   const [addRegistrationForm, setAddRegistrationForm] = useState(emptyAddRegistrationForm);
+  const [addStudentQuery, setAddStudentQuery] = useState('');
+  const [addCompanyQuery, setAddCompanyQuery] = useState('');
   const [registrationPage, setRegistrationPage] = useState(1);
   const registrationPageSize = 25;
 
@@ -2833,6 +2835,31 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     } catch (e) {
       setAdminStudents([]);
     }
+  };
+
+  const addStudentLabel = (student: any) =>
+    `${student.student_id || 'Chưa có MSSV'} - ${student.name || student.email || 'Sinh viên'}${student.email ? ` - ${student.email}` : ''}${student.class_name ? ` (${student.class_name})` : ''}`;
+
+  const resolveAddStudent = (query: string) => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return null;
+    const exact = adminStudents.find(student =>
+      addStudentLabel(student).toLowerCase() === normalized ||
+      String(student.student_id || '').toLowerCase() === normalized ||
+      String(student.email || '').toLowerCase() === normalized
+    );
+    if (exact) return exact;
+    const byName = adminStudents.filter(student => String(student.name || '').toLowerCase() === normalized);
+    return byName.length === 1 ? byName[0] : null;
+  };
+
+  const resolveAddCompany = (query: string) => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return null;
+    const exact = companies.find(company => String(company.name || '').trim().toLowerCase() === normalized);
+    if (exact) return exact;
+    const partial = companies.filter(company => String(company.name || '').toLowerCase().includes(normalized));
+    return partial.length === 1 ? partial[0] : null;
   };
 
   const registrationExportData = (dataList: any[]) => {
@@ -3064,6 +3091,8 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
 
   const openAddRegistration = () => {
     setAddRegistrationForm(emptyAddRegistrationForm);
+    setAddStudentQuery('');
+    setAddCompanyQuery('');
     setAddingRegistration(true);
   };
 
@@ -3072,30 +3101,48 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     setAddingRegistration(false);
   };
 
-  const handleAddRegistrationStudentChange = (userId: string) => {
-    const student = adminStudents.find(item => String(item.id) === String(userId));
+  const handleAddRegistrationStudentChange = (query: string) => {
+    const student = resolveAddStudent(query);
+    setAddStudentQuery(query);
     setAddRegistrationForm({
       ...addRegistrationForm,
-      user_id: userId,
+      user_id: student ? String(student.id) : '',
       course_code: student?.course_code || addRegistrationForm.course_code,
+    });
+  };
+
+  const handleAddRegistrationCompanyChange = (query: string) => {
+    const company = resolveAddCompany(query);
+    setAddCompanyQuery(query);
+    setAddRegistrationForm({
+      ...addRegistrationForm,
+      company_id: company ? String(company.id) : '',
     });
   };
 
   const handleSaveRegistrationAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addRegistrationForm.user_id) return alert('Vui lòng chọn sinh viên.');
-    if (!addRegistrationForm.company_id) return alert('Vui lòng chọn nơi thực tập.');
+    const selectedStudent = addRegistrationForm.user_id ? adminStudents.find(item => String(item.id) === String(addRegistrationForm.user_id)) : resolveAddStudent(addStudentQuery);
+    const selectedCompany = addRegistrationForm.company_id ? companies.find(item => String(item.id) === String(addRegistrationForm.company_id)) : resolveAddCompany(addCompanyQuery);
+    if (!selectedStudent) return alert('Vui lòng nhập và chọn đúng sinh viên từ danh sách gợi ý.');
+    if (!selectedCompany) return alert('Vui lòng nhập và chọn đúng nơi thực tập từ danh sách gợi ý.');
     setSavingRegistration(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(addRegistrationForm),
+        body: JSON.stringify({
+          ...addRegistrationForm,
+          user_id: String(selectedStudent.id),
+          company_id: String(selectedCompany.id),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Thêm đăng ký thất bại.');
       setAddingRegistration(false);
       setAddRegistrationForm(emptyAddRegistrationForm);
+      setAddStudentQuery('');
+      setAddCompanyQuery('');
       await fetchRegistrations();
     } catch (e) {
       alert('Lỗi kết nối khi thêm đăng ký.');
@@ -3559,33 +3606,36 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-5">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Sinh viên *</label>
-                  <select
-                    value={addRegistrationForm.user_id}
+                  <input
+                    list="admin-add-registration-students"
+                    value={addStudentQuery}
                     onChange={e => handleAddRegistrationStudentChange(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập MSSV, họ tên hoặc email sinh viên..."
                     required
-                  >
-                    <option value="">-- Chọn sinh viên --</option>
+                  />
+                  <datalist id="admin-add-registration-students">
                     {adminStudents.map(student => (
-                      <option key={student.id} value={student.id}>
-                        {student.student_id || 'Chưa có MSSV'} - {student.name || student.email} {student.class_name ? `(${student.class_name})` : ''}
-                      </option>
+                      <option key={student.id} value={addStudentLabel(student)} />
                     ))}
-                  </select>
+                  </datalist>
+                  <p className="mt-1 text-[11px] text-slate-500">Chọn một gợi ý để hệ thống xác định đúng tài khoản sinh viên.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Nơi thực tập *</label>
-                  <select
-                    value={addRegistrationForm.company_id}
-                    onChange={e => setAddRegistrationForm({ ...addRegistrationForm, company_id: e.target.value })}
+                  <input
+                    list="admin-add-registration-companies"
+                    value={addCompanyQuery}
+                    onChange={e => handleAddRegistrationCompanyChange(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập tên công ty hoặc nơi thực tập..."
                     required
-                  >
-                    <option value="">-- Chọn nơi thực tập --</option>
+                  />
+                  <datalist id="admin-add-registration-companies">
                     {companies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
+                      <option key={company.id} value={company.name} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Thứ tự nguyện vọng</label>
