@@ -884,6 +884,7 @@ async function ensureDbIndexes() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_lecturers_email_unique
       ON lecturers(email)
       WHERE email IS NOT NULL AND email != '';
+    CREATE INDEX IF NOT EXISTS idx_lecturers_name ON lecturers(name);
 
     CREATE INDEX IF NOT EXISTS idx_registrations_user_id ON registrations(user_id);
     CREATE INDEX IF NOT EXISTS idx_registrations_company_status ON registrations(company_id, status);
@@ -897,9 +898,12 @@ async function ensureDbIndexes() {
     CREATE INDEX IF NOT EXISTS idx_final_internships_company_id ON final_internships(company_id);
     CREATE INDEX IF NOT EXISTS idx_advisor_assignments_user_id ON advisor_assignments(user_id);
     CREATE INDEX IF NOT EXISTS idx_advisor_assignments_lecturer_id ON advisor_assignments(lecturer_id);
+    CREATE INDEX IF NOT EXISTS idx_advisor_assignments_lecturer_role_user ON advisor_assignments(lecturer_id, role, user_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_advisor_assignments_primary_unique
       ON advisor_assignments(user_id)
       WHERE role = 'primary';
+    CREATE INDEX IF NOT EXISTS idx_final_reports_user_id ON final_reports(user_id);
+    CREATE INDEX IF NOT EXISTS idx_grades_user_id ON grades(user_id);
   `);
 }
 
@@ -1442,6 +1446,24 @@ async function startServer() {
   const processingUsers = new Set<number>();
   let advisorAutoAssignRunning = false;
   let advisorRequestBackfillRunning = false;
+  let advisorRequestSyncLastRunAt = 0;
+
+  const queueAdvisorRequestSync = (actorId: number) => {
+    const now = Date.now();
+    if (advisorRequestBackfillRunning || now - advisorRequestSyncLastRunAt < 2 * 60 * 1000) return;
+    advisorRequestBackfillRunning = true;
+    advisorRequestSyncLastRunAt = now;
+    setTimeout(() => {
+      ensureAdvisorRequestsFromLegacySchoolRegistrations()
+        .then(() => approvePendingAgreedAdvisorRequests(actorId))
+        .catch((error: any) => {
+          console.error('[advisor] background request sync failed:', error);
+        })
+        .finally(() => {
+          advisorRequestBackfillRunning = false;
+        });
+    }, 0);
+  };
 
 
   const allowedOrigins = Array.from(new Set([
@@ -2125,8 +2147,7 @@ async function startServer() {
 
   app.get('/api/lecturer/students', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
-    await approvePendingAgreedAdvisorRequests(req.user.id);
+    queueAdvisorRequestSync(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
@@ -2291,8 +2312,7 @@ async function startServer() {
 
   app.get('/api/lecturer/grades', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    await ensureAdvisorRequestsFromLegacySchoolRegistrations();
-    await approvePendingAgreedAdvisorRequests(req.user.id);
+    queueAdvisorRequestSync(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
