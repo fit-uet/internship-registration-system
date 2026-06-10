@@ -378,7 +378,7 @@ Có. Nếu công ty đã nằm trong danh sách thẩm định nội bộ của 
 Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực tập chính thức đã trúng tuyển trong thời hạn Khoa cho phép.
 
 ### 4. Nếu không trúng tuyển công ty nào thì sao?
-Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa, chọn phương án nhờ Khoa phân công.
+Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa có GVHD, Khoa sẽ phân công sau.
 
 ### 5. Báo cáo final nộp ở đâu và định dạng gì?
 Em nộp báo cáo final trên hệ thống trong thời gian mở nộp. File phải là PDF và không vượt quá 10 MB. Báo cáo định kỳ vẫn trao đổi trực tiếp với giảng viên qua email.
@@ -1446,24 +1446,6 @@ async function startServer() {
   const processingUsers = new Set<number>();
   let advisorAutoAssignRunning = false;
   let advisorRequestBackfillRunning = false;
-  let advisorRequestSyncLastRunAt = 0;
-
-  const queueAdvisorRequestSync = (actorId: number) => {
-    const now = Date.now();
-    if (advisorRequestBackfillRunning || now - advisorRequestSyncLastRunAt < 2 * 60 * 1000) return;
-    advisorRequestBackfillRunning = true;
-    advisorRequestSyncLastRunAt = now;
-    setTimeout(() => {
-      ensureAdvisorRequestsFromLegacySchoolRegistrations()
-        .then(() => approvePendingAgreedAdvisorRequests(actorId))
-        .catch((error: any) => {
-          console.error('[advisor] background request sync failed:', error);
-        })
-        .finally(() => {
-          advisorRequestBackfillRunning = false;
-        });
-    }, 0);
-  };
 
 
   const allowedOrigins = Array.from(new Set([
@@ -2147,7 +2129,6 @@ async function startServer() {
 
   app.get('/api/lecturer/students', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    queueAdvisorRequestSync(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
@@ -2312,7 +2293,6 @@ async function startServer() {
 
   app.get('/api/lecturer/grades', requireAuth, async (req: any, res: any) => {
     if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    queueAdvisorRequestSync(req.user.id);
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
@@ -2496,7 +2476,7 @@ async function startServer() {
           recipient_email: req.user.personal_email || req.user.email,
           type: 'final_internship_confirmed',
           subject: 'Bạn đã xác nhận nơi thực tập chính thức',
-          body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: Thực tập tại trường.${requestAssignment ? '\nBạn đã chọn nhờ Khoa phân công GVHD.' : `\nGVHD đăng ký: ${lecturerName}.`}`,
+          body: `Hệ thống đã ghi nhận nơi thực tập chính thức của bạn: Thực tập tại trường.${requestAssignment ? '\nKhoa sẽ phân công GVHD sau.' : `\nGVHD đăng ký: ${lecturerName}.`}`,
           send_now: true,
         });
         return res.json({ success: true, advisor_warning: advisorWarning });
@@ -4257,7 +4237,6 @@ async function startServer() {
   }
 
   async function advisorRequestWithNames(userId: number) {
-    await ensureAdvisorRequestFromSchoolRegistration(userId);
     return (await db.execute({
       sql: `SELECT ar.*, l.name as lecturer_name, l.email as lecturer_email, cl.name as co_lecturer_name, cl.email as co_lecturer_email
             FROM advisor_requests ar
@@ -4277,9 +4256,12 @@ async function startServer() {
         AND r.status != 'rejected'
         AND COALESCE(trim(r.other_company_contact), '') != ''
     `)).rows as any[];
+    let synced = 0;
     for (const row of rows) {
-      await ensureAdvisorRequestFromSchoolRegistration(Number(row.user_id));
+      const result = await ensureAdvisorRequestFromSchoolRegistration(Number(row.user_id));
+      if (result) synced++;
     }
+    return { checked: rows.length, synced };
   }
 
   async function approvePendingAgreedAdvisorRequests(actorId: number) {
@@ -4288,9 +4270,12 @@ async function startServer() {
       FROM advisor_requests
       WHERE request_type = 'agreed' AND status = 'pending'
     `)).rows as any[];
+    let approved = 0;
     for (const row of rows) {
-      await approveAgreedAdvisorRequest(row, actorId);
+      const ok = await approveAgreedAdvisorRequest(row, actorId);
+      if (ok) approved++;
     }
+    return { checked: rows.length, approved };
   }
 
   async function createAdvisorAssignment(body: any, adminUserId: number) {
@@ -4592,9 +4577,23 @@ async function startServer() {
     res.json({ success: true, ...result });
   });
 
+  app.post('/api/admin/advisor-requests/sync-legacy', requireAuth, requireAdmin, async (req: any, res: any) => {
+    if (advisorRequestBackfillRunning) return res.status(409).json({ error: 'Đang có tiến trình đồng bộ dữ liệu GVHD cũ. Vui lòng thử lại sau.' });
+    advisorRequestBackfillRunning = true;
+    try {
+      const legacy = await ensureAdvisorRequestsFromLegacySchoolRegistrations();
+      const pending = await approvePendingAgreedAdvisorRequests(req.user.id);
+      res.json({ success: true, legacy, pending });
+    } catch (error: any) {
+      console.error('[advisor] manual legacy sync failed:', error);
+      res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không đồng bộ được dữ liệu GVHD cũ.', detail: error?.message || String(error) });
+    } finally {
+      advisorRequestBackfillRunning = false;
+    }
+  });
+
   app.get('/api/admin/advisor-requests', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      await approvePendingAgreedAdvisorRequests(req.user.id);
       const rows = (await db.execute(`
         SELECT ar.*, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
                l.name as lecturer_name, l.email as lecturer_email,
@@ -4611,17 +4610,6 @@ async function startServer() {
         ORDER BY CASE ar.status WHEN 'pending' THEN 0 ELSE 1 END, ar.updated_at DESC
       `)).rows;
       res.json(rows);
-      setTimeout(() => {
-        if (advisorRequestBackfillRunning) return;
-        advisorRequestBackfillRunning = true;
-        ensureAdvisorRequestsFromLegacySchoolRegistrations()
-          .catch((legacyError: any) => {
-            console.error('[advisor] failed to backfill legacy school advisor requests:', legacyError);
-          })
-          .finally(() => {
-            advisorRequestBackfillRunning = false;
-          });
-      }, 0);
     } catch (error: any) {
       console.error('[advisor] failed to load advisor requests:', error);
       res.status(isTransientLibsqlError(error) ? 503 : 500).json({ error: 'Không tải được danh sách đăng ký GVHD.', detail: error?.message || String(error) });

@@ -86,7 +86,7 @@ Có. Nếu công ty đã nằm trong danh sách thẩm định nội bộ của 
 Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực tập chính thức đã trúng tuyển trong thời hạn Khoa cho phép.
 
 ### 4. Nếu không trúng tuyển công ty nào thì sao?
-Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa, chọn phương án nhờ Khoa phân công.
+Em có thể đăng ký thực tập tại trường. Nếu đã được giảng viên đồng ý, em chọn giảng viên đó; nếu chưa có GVHD, Khoa sẽ phân công sau.
 
 ### 5. Báo cáo final nộp ở đâu và định dạng gì?
 Em nộp báo cáo final trên hệ thống trong thời gian mở nộp. File phải là PDF và không vượt quá 10 MB. Báo cáo định kỳ vẫn trao đổi trực tiếp với giảng viên qua email.
@@ -4240,6 +4240,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
   const [quotaEdits, setQuotaEdits] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [autoAssigning, setAutoAssigning] = useState(false);
+  const [syncingLegacyAdvisors, setSyncingLegacyAdvisors] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [advisorSortConfig, setAdvisorSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'student_id', direction: 'asc' });
@@ -4467,6 +4468,27 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
     }
   };
 
+  const syncLegacyAdvisorData = async () => {
+    if (!confirm('Đồng bộ dữ liệu GVHD cũ từ các đăng ký thực tập tại trường và các đăng ký GVHD đang chờ? Thao tác này chỉ tạo/cập nhật phân công chính thức khi dữ liệu hợp lệ.')) return;
+    setSyncingLegacyAdvisors(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/advisor-requests/sync-legacy`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Đồng bộ dữ liệu cũ thất bại.');
+      const legacy = data.legacy || {};
+      const pending = data.pending || {};
+      alert(`Đã đồng bộ dữ liệu GVHD cũ.\nKiểm tra đăng ký tại trường: ${legacy.checked || 0}, đồng bộ: ${legacy.synced || 0}.\nĐăng ký GVHD đang chờ: ${pending.checked || 0}, duyệt/tạo phân công: ${pending.approved || 0}.`);
+      fetchData();
+    } catch (e) {
+      alert('Lỗi kết nối khi đồng bộ dữ liệu cũ.');
+    } finally {
+      setSyncingLegacyAdvisors(false);
+    }
+  };
+
   const reviewAdvisorRequest = async (request: any, action: 'approve' | 'reject') => {
     const adminNote = action === 'reject' ? prompt('Nhập nhận xét gửi sinh viên:') : '';
     if (adminNote === null) return;
@@ -4623,6 +4645,9 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 </label>
                 <button onClick={autoAssignPrimary} disabled={autoAssigning} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
                   {autoAssigning ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />} Tự phân công
+                </button>
+                <button onClick={syncLegacyAdvisorData} disabled={syncingLegacyAdvisors} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
+                  {syncingLegacyAdvisors ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />} Đồng bộ dữ liệu cũ
                 </button>
                 <div className="relative">
                   <button onClick={() => setIsAssignExportMenuOpen(!isAssignExportMenuOpen)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
@@ -4785,7 +4810,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-slate-800">{row.internship_place || '-'}</div>
-                      {row.school_assignment_request ? <div className="text-xs text-orange-700 mt-1">Sinh viên nhờ Khoa phân công</div> : null}
+                      {row.school_assignment_request ? <div className="text-xs text-orange-700 mt-1">Khoa sẽ phân công GVHD</div> : null}
                     </td>
                     <td className="px-4 py-4 space-y-2">
                       {[...primary.map(a => ({ ...a, role: 'primary' })), ...co.map(a => ({ ...a, role: 'co' }))].length === 0 ? (

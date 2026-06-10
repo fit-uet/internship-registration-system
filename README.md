@@ -26,10 +26,10 @@ Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 - Nếu sinh viên không trúng tuyển tất cả nơi đã đăng ký, hệ thống cho phép sinh viên đăng ký/xác nhận phương án thực tập tại trường.
 - Sinh viên không được xác nhận nơi thực tập tại công ty chưa được Khoa duyệt.
 - Với sinh viên thực tập tại công ty, Khoa tự phân công giảng viên hướng dẫn.
-- Với sinh viên thực tập tại trường, nếu đã được giảng viên đồng ý thì sinh viên chọn giảng viên đó; nếu chưa có giảng viên đồng ý thì chọn “Nhờ Khoa phân công” để Khoa tổng hợp và phân công sau.
+- Với sinh viên thực tập tại trường, nếu đã được giảng viên đồng ý thì sinh viên chọn giảng viên đó. Nếu chưa có giảng viên đồng ý, sinh viên không cần chọn; Khoa sẽ phân công sau.
 - Giảng viên cử nhân, nhận diện theo tên có chữ `CN`, không được làm giảng viên hướng dẫn chính, chỉ được đồng hướng dẫn.
-- Chỉ tiêu dự kiến tính gộp cả hướng dẫn chính và đồng hướng dẫn: `GS`/`PGS` không quá 10 sinh viên; `TS` và `ThS` không quá 15 sinh viên.
-- Tạm thời không có ngoại lệ chỉ tiêu theo từng giảng viên; nếu vượt chỉ tiêu thì Khoa cần phân công sang giảng viên khác.
+- Chỉ tiêu mặc định tính gộp cả hướng dẫn chính và đồng hướng dẫn: `GS`/`PGS` tối đa 5 sinh viên, `TS` tối đa 8 sinh viên, `ThS`/khác tối đa 10 sinh viên. Khoa có thể cấu hình quota riêng cho từng giảng viên.
+- Nếu sinh viên đã được giảng viên đồng ý hướng dẫn nhưng vượt quota, hệ thống vẫn ghi nhận để Khoa duyệt thủ công.
 - Sinh viên không tìm được cơ hội thực tập tại doanh nghiệp sau thời hạn sẽ được Khoa chủ động chuyển trạng thái và phân công phương án thực tập tại trường hoặc đối tác khác.
 - Báo cáo định kỳ được nộp qua email cho giảng viên; hệ thống chỉ cần quản lý báo cáo final theo khoảng thời gian mở/đóng nộp của đợt.
 - Báo cáo final nộp trên hệ thống ở định dạng PDF.
@@ -227,7 +227,37 @@ Trường chính:
 - `created_at`
 - `other_company_name`, `other_company_role`, `other_company_contact`
 
-Với thực tập tại trường, tên giảng viên hướng dẫn hiện được lưu tạm trong `other_company_contact`.
+Với thực tập tại trường, tên giảng viên hướng dẫn khai báo trong giai đoạn đăng ký cũ có thể còn nằm trong `other_company_contact`. Đây chỉ là dữ liệu nguồn để đồng bộ một lần sang luồng GVHD, không phải nguồn dữ liệu chính thức.
+
+### `final_internships`
+
+Lưu 1 nơi thực tập chính thức của sinh viên sau giai đoạn xác nhận.
+
+Vai trò dữ liệu:
+
+- Là nguồn chính thức cho nơi thực tập dùng để tính điểm.
+- Không lưu thông tin GVHD chính thức.
+- Nếu chưa có bản ghi trong bảng này, sinh viên vẫn có thể được Khoa phân công GVHD trong một số luồng bổ sung, nhưng nơi thực tập chính thức chỉ được xác định khi có `final_internships`.
+
+### `advisor_assignments`
+
+Lưu phân công giảng viên hướng dẫn chính thức.
+
+Vai trò dữ liệu:
+
+- Là nguồn chính thức duy nhất cho GVHD chính và đồng hướng dẫn.
+- Trang giảng viên, trang điểm thực tập, xuất XLSX theo giảng viên và số lượng sinh viên hướng dẫn đều đọc từ bảng này.
+- Có thể được tạo từ thao tác duyệt đề xuất GVHD, gán thủ công, import, hoặc tự phân công theo quota.
+
+### `advisor_requests`
+
+Lưu đăng ký/đề xuất GVHD từ sinh viên trước khi trở thành phân công chính thức.
+
+Vai trò dữ liệu:
+
+- Chỉ là bảng trung gian phục vụ xử lý đề xuất “đã được GV đồng ý hướng dẫn”.
+- Khi Khoa duyệt, hệ thống ghi phân công chính thức vào `advisor_assignments`.
+- Hệ thống không tự đồng bộ ngầm bảng này khi người dùng mở các trang đọc dữ liệu. Nếu cần xử lý dữ liệu cũ từ các đăng ký `Trường Đại học Công nghệ`, admin dùng nút `Đồng bộ dữ liệu cũ` trong site `Phân công giảng viên hướng dẫn`.
 
 ### `lecturers`
 
@@ -378,7 +408,7 @@ Lưu ý cấu hình Google OAuth/Drive:
 | Sinh viên kiểm tra kết quả phỏng vấn | Sinh viên tự nhận kết quả từ công ty ngoài hệ thống | Ngoài phạm vi hệ thống |
 | Sinh viên chọn 1 nơi thực tập chính thức để lấy điểm | Có luồng xác nhận nơi thực tập chính thức, chỉ cho chọn công ty đã duyệt hoặc thực tập tại trường | Đáp ứng tốt |
 | Khoa phân công giảng viên hướng dẫn | Có phân công thủ công/import/tự phân công theo quota, có lịch sử tạo/xóa phân công | Đáp ứng phần chính |
-| Sinh viên thực tập tại trường nếu chưa có công ty | Có lựa chọn thực tập tại trường, cho chọn GV đã đồng ý hoặc nhờ Khoa phân công | Đáp ứng tốt |
+| Sinh viên thực tập tại trường nếu chưa có công ty | Có lựa chọn thực tập tại trường; nếu đã có GV đồng ý thì chọn GV, nếu chưa thì Khoa phân công sau | Đáp ứng tốt |
 | Sinh viên báo cáo định kỳ với giảng viên | Nghiệp vụ thực hiện qua email, không cần quản lý chi tiết trên hệ thống | Ngoài phạm vi hệ thống |
 | Sinh viên nộp báo cáo thực tập | Có upload báo cáo final PDF theo khoảng thời gian mở/đóng nộp, giới hạn 10 MB | Đáp ứng phần chính |
 | Giảng viên đánh giá và chấm điểm | Có nhập 3 đầu điểm và tự tính điểm tổng kết theo công thức 20/20/60 | Đáp ứng phần chính |
@@ -423,9 +453,10 @@ Cần bổ sung:
 - Tự động gợi ý/phân công theo lớp, học phần, công ty, số lượng tối đa mỗi giảng viên.
 - Cấu hình chỉ tiêu theo học hàm/học vị:
   - Giảng viên có tên chứa `CN` không được làm hướng dẫn chính, chỉ được đồng hướng dẫn.
-  - `GS`/`PGS` không quá 10 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
-  - `TS` và `ThS` không quá 15 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
-  - Tạm thời không có ngoại lệ theo từng giảng viên.
+  - `GS`/`PGS` mặc định không quá 5 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
+  - `TS` mặc định không quá 8 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
+  - `ThS`/khác mặc định không quá 10 sinh viên, tính gộp cả hướng dẫn chính và đồng hướng dẫn.
+  - Quota riêng từng giảng viên được cấu hình trong trang phân công và ghi đè quota mặc định.
 - Màn hình giảng viên xem danh sách sinh viên mình phụ trách.
 - Màn hình sinh viên xem GVHD được phân công.
 - Lịch sử thay đổi phân công.
@@ -635,7 +666,7 @@ Quy tắc xác nhận:
 - Nếu là công ty, sinh viên phải tick cam kết đã được công ty nhận thực tập.
 - Hệ thống không kiểm tra `PASS/FAIL`; trách nhiệm xác nhận đúng thuộc về sinh viên.
 - Nếu không trúng tuyển tất cả nơi đã đăng ký, sinh viên có thể chọn phương án thực tập tại trường nếu Khoa mở lựa chọn này.
-- Khi thực tập tại trường, sinh viên chọn giảng viên đã đồng ý hoặc chọn “Nhờ Khoa phân công”; hệ thống lưu `school_assignment_request = 1` để Khoa tổng hợp.
+- Khi thực tập tại trường, sinh viên chọn giảng viên đã đồng ý. Nếu chưa có GVHD, Khoa phân công sau; dữ liệu cũ có `school_assignment_request = 1` vẫn được đọc để Khoa xử lý.
 - Với thực tập tại trường hoặc đối tác khác, Khoa có thể tạo/cập nhật hồ sơ thay sinh viên.
 - Mỗi sinh viên chỉ có 1 bản ghi `final_internships`.
 - Sau khi khóa, chỉ admin được thay đổi.
@@ -714,9 +745,10 @@ Giá trị `role`:
 Quy tắc chỉ tiêu:
 
 - Tên chứa `CN`: không được `primary`, chỉ được `co`.
-- `GS`/`PGS`: tối đa 10 sinh viên, tính gộp `primary` và `co`.
-- `TS`/`ThS`: tối đa 15 sinh viên, tính gộp `primary` và `co`.
-- Tạm thời không có ngoại lệ theo từng giảng viên.
+- `GS`/`PGS`: mặc định tối đa 5 sinh viên, tính gộp `primary` và `co`.
+- `TS`: mặc định tối đa 8 sinh viên, tính gộp `primary` và `co`.
+- `ThS`/khác: mặc định tối đa 10 sinh viên, tính gộp `primary` và `co`.
+- Quota riêng theo từng giảng viên trong `lecturer_quotas` ghi đè quota mặc định.
 
 Thiết kế API:
 
@@ -724,6 +756,7 @@ Thiết kế API:
 - `POST /api/admin/advisor-assignments`: phân công 1 sinh viên.
 - `POST /api/admin/advisor-assignments/bulk`: import phân công từ XLSX/CSV qua UI.
 - `POST /api/admin/advisor-assignments/auto-primary`: tự phân công GVHD chính cho sinh viên chưa có GVHD theo quota.
+- `POST /api/admin/advisor-requests/sync-legacy`: đồng bộ thủ công dữ liệu GVHD cũ từ đăng ký thực tập tại trường và các đề xuất đã được GV đồng ý.
 - `DELETE /api/admin/advisor-assignments/:id`: xóa phân công.
 - `PUT /api/admin/lecturer-quotas/:id`: cập nhật chỉ tiêu tổng cho giảng viên.
 - `GET /api/lecturer/students`: giảng viên xem sinh viên phụ trách.
@@ -1030,7 +1063,7 @@ Các trạng thái chính:
 - `quota_status`:
   - `within_quota`: GV còn quota tại thời điểm gửi.
   - `over_quota`: GV đã đủ/vượt quota, hệ thống vẫn ghi nhận phân công nhưng gửi cảnh báo cho sinh viên, giảng viên.
-  - `unknown`: chưa xác định được GV hoặc nhờ Khoa phân công.
+  - `unknown`: chưa xác định được GV.
 
 Thiết kế UI sinh viên:
 
