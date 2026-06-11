@@ -2808,6 +2808,8 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const [addStudentQuery, setAddStudentQuery] = useState('');
   const [addCompanyQuery, setAddCompanyQuery] = useState('');
   const [addOtherContact, setAddOtherContact] = useState({ contact_name: '', contact_phone: '', contact_email: '' });
+  const [editCompanyQuery, setEditCompanyQuery] = useState('');
+  const [editOtherContact, setEditOtherContact] = useState({ contact_name: '', contact_phone: '', contact_email: '' });
   const [registrationPage, setRegistrationPage] = useState(1);
   const registrationPageSize = 25;
 
@@ -2882,6 +2884,15 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
     if (exact) return exact;
     const partial = companies.filter(company => String(company.name || '').toLowerCase().includes(normalized));
     return partial.length === 1 ? partial[0] : null;
+  };
+
+  const splitOtherContact = (value: string) => {
+    const parts = String(value || '').split(' - ').map(part => part.trim()).filter(Boolean);
+    return {
+      contact_name: parts[0] || '',
+      contact_phone: parts[1] || '',
+      contact_email: parts.slice(2).join(' - ') || '',
+    };
   };
 
   const registrationExportData = (dataList: any[]) => {
@@ -3093,6 +3104,8 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
 
   const startEditRegistration = (reg: any) => {
     setEditingRegistration(reg);
+    setEditCompanyQuery(reg.company_name || '');
+    setEditOtherContact(splitOtherContact(reg.other_company_contact || ''));
     setEditRegistrationForm({
       company_id: String(reg.company_id || ''),
       course_code: reg.course_code || '',
@@ -3109,6 +3122,8 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const closeEditRegistration = () => {
     if (savingRegistration) return;
     setEditingRegistration(null);
+    setEditCompanyQuery('');
+    setEditOtherContact({ contact_name: '', contact_phone: '', contact_email: '' });
   };
 
   const openAddRegistration = () => {
@@ -3141,6 +3156,23 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
       ...addRegistrationForm,
       company_id: company ? String(company.id) : '',
     });
+  };
+
+  const handleEditRegistrationCompanyChange = (query: string) => {
+    const company = resolveAddCompany(query);
+    const currentCompany = editRegistrationForm.company_id ? companies.find(item => String(item.id) === String(editRegistrationForm.company_id)) : null;
+    const companyTypeChanged = company && currentCompany && company.name !== currentCompany.name;
+    setEditCompanyQuery(query);
+    setEditRegistrationForm({
+      ...editRegistrationForm,
+      company_id: company ? String(company.id) : '',
+      other_company_name: companyTypeChanged ? '' : editRegistrationForm.other_company_name,
+      other_company_role: companyTypeChanged ? '' : editRegistrationForm.other_company_role,
+      other_company_contact: companyTypeChanged ? '' : editRegistrationForm.other_company_contact,
+    });
+    if (companyTypeChanged) {
+      setEditOtherContact({ contact_name: '', contact_phone: '', contact_email: '' });
+    }
   };
 
   const handleSaveRegistrationAdd = async (e: React.FormEvent) => {
@@ -3195,13 +3227,34 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const handleSaveRegistrationEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRegistration) return;
-    if (!editRegistrationForm.company_id) return alert('Vui lòng chọn nơi thực tập.');
+    const selectedCompany = editRegistrationForm.company_id ? companies.find(item => String(item.id) === String(editRegistrationForm.company_id)) : resolveAddCompany(editCompanyQuery);
+    if (!selectedCompany) return alert('Vui lòng nhập và chọn đúng nơi thực tập từ danh sách gợi ý.');
+    const isOtherSelection = selectedCompany.name === 'Công ty khác';
+    const otherContactValue = isOtherSelection
+      ? [editOtherContact.contact_name, editOtherContact.contact_phone, editOtherContact.contact_email].map(v => String(v || '').trim()).filter(Boolean).join(' - ')
+      : editRegistrationForm.other_company_contact;
+    if (isOtherSelection) {
+      if (!editOtherContact.contact_name.trim()) return alert('Vui lòng nhập người liên hệ.');
+      if (!/^(0|\+84)[35789]\d{8}$/.test(editOtherContact.contact_phone.trim().replace(/[\s\-\.]/g, ''))) return alert('Số điện thoại liên hệ không hợp lệ.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editOtherContact.contact_email.trim())) return alert('Email liên hệ không hợp lệ.');
+    }
+    if (selectedCompany.name === 'Trường Đại học Công nghệ') {
+      const primaryLecturer = editRegistrationForm.other_company_contact.trim();
+      const coLecturer = editRegistrationForm.other_company_role.trim();
+      if (primaryLecturer && !adminLecturerNames.includes(primaryLecturer)) return alert('Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn từ danh sách gợi ý.');
+      if (coLecturer && !adminLecturerNames.includes(coLecturer)) return alert('Giảng viên đồng hướng dẫn không hợp lệ. Vui lòng chọn từ danh sách gợi ý.');
+      if (primaryLecturer && coLecturer && primaryLecturer === coLecturer) return alert('Giảng viên đồng hướng dẫn không được trùng với giảng viên hướng dẫn chính.');
+    }
     setSavingRegistration(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/registrations/${editingRegistration.registration_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(editRegistrationForm),
+        body: JSON.stringify({
+          ...editRegistrationForm,
+          company_id: String(selectedCompany.id),
+          other_company_contact: otherContactValue,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Cập nhật đăng ký thất bại.');
@@ -3857,17 +3910,19 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Nơi thực tập *</label>
-                  <select
-                    value={editRegistrationForm.company_id}
-                    onChange={e => setEditRegistrationForm({ ...editRegistrationForm, company_id: e.target.value })}
+                  <input
+                    list="admin-edit-registration-companies"
+                    value={editCompanyQuery}
+                    onChange={e => handleEditRegistrationCompanyChange(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập tên công ty hoặc nơi thực tập..."
                     required
-                  >
-                    <option value="">-- Chọn nơi thực tập --</option>
+                  />
+                  <datalist id="admin-edit-registration-companies">
                     {companies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
+                      <option key={company.id} value={company.name} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Thứ tự nguyện vọng</label>
@@ -3916,12 +3971,37 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Thông tin liên hệ</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Người liên hệ *</label>
                       <input
-                        value={editRegistrationForm.other_company_contact}
-                        onChange={e => setEditRegistrationForm({ ...editRegistrationForm, other_company_contact: e.target.value })}
+                        value={editOtherContact.contact_name}
+                        onChange={e => setEditOtherContact({ ...editOtherContact, contact_name: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Email/SĐT/người liên hệ"
+                        placeholder="VD: Anh Nguyễn Văn A"
+                        required={editingIsOtherCompany}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Điện thoại *</label>
+                      <input
+                        type="tel"
+                        pattern="^(0|\+84)[35789][0-9]{8}$"
+                        title="Vui lòng nhập số điện thoại hợp lệ (10 số, VD: 0912345678)"
+                        value={editOtherContact.contact_phone}
+                        onChange={e => setEditOtherContact({ ...editOtherContact, contact_phone: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="VD: 0987654321"
+                        required={editingIsOtherCompany}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={editOtherContact.contact_email}
+                        onChange={e => setEditOtherContact({ ...editOtherContact, contact_email: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="VD: a@company.com"
+                        required={editingIsOtherCompany}
                       />
                     </div>
                   </>
@@ -3932,21 +4012,29 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên hướng dẫn</label>
                       <input
+                        list="admin-edit-registration-primary-lecturers"
                         value={editRegistrationForm.other_company_contact}
                         onChange={e => setEditRegistrationForm({ ...editRegistrationForm, other_company_contact: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tên GVHD nếu đã có"
+                        placeholder="Nhập/chọn GVHD nếu đã có"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Giảng viên đồng hướng dẫn</label>
                       <input
+                        list="admin-edit-registration-co-lecturers"
                         value={editRegistrationForm.other_company_role}
                         onChange={e => setEditRegistrationForm({ ...editRegistrationForm, other_company_role: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Không bắt buộc"
+                        placeholder="Nhập/chọn đồng hướng dẫn nếu có"
                       />
                     </div>
+                    <datalist id="admin-edit-registration-primary-lecturers">
+                      {adminLecturerNames.map(name => <option key={name} value={name} />)}
+                    </datalist>
+                    <datalist id="admin-edit-registration-co-lecturers">
+                      {adminLecturerNames.map(name => <option key={name} value={name} />)}
+                    </datalist>
                   </>
                 )}
 
