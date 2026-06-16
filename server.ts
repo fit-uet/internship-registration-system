@@ -1040,6 +1040,8 @@ async function initDb() {
       assigned_by INTEGER,
       assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       note TEXT,
+      contacted_at DATETIME,
+      contact_note TEXT,
       UNIQUE(user_id, lecturer_id, role)
     );
     CREATE TABLE IF NOT EXISTS lecturer_quotas (
@@ -1294,6 +1296,8 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE final_internships ADD COLUMN school_lecturer TEXT'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE final_internships ADD COLUMN school_assignment_request INTEGER NOT NULL DEFAULT 0'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE lecturer_quotas ADD COLUMN max_total_students INTEGER'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE advisor_assignments ADD COLUMN contacted_at DATETIME'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE advisor_assignments ADD COLUMN contact_note TEXT'); } catch (e) { }
   try {
     await db.executeMultiple(`CREATE TABLE IF NOT EXISTS advisor_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2133,6 +2137,7 @@ async function startServer() {
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
       sql: `SELECT aa.id as assignment_id, aa.user_id, aa.lecturer_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
+                   aa.contacted_at, aa.contact_note,
                    u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
                    f.internship_type, f.confirmed_at,
                    CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
@@ -2149,6 +2154,34 @@ async function startServer() {
       args: [Number(lecturer.id)],
     })).rows;
     res.json(rows);
+  });
+
+  app.put('/api/lecturer/students/:assignmentId/contact', requireAuth, async (req: any, res: any) => {
+    if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    const assignmentId = Number(req.params.assignmentId);
+    if (!Number.isInteger(assignmentId) || assignmentId <= 0) return res.status(400).json({ error: 'Phân công không hợp lệ.' });
+    const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
+    if (!lecturer) return res.status(403).json({ error: 'Không tìm thấy tài khoản giảng viên.' });
+    const assignment = (await db.execute({
+      sql: 'SELECT * FROM advisor_assignments WHERE id = ? AND lecturer_id = ?',
+      args: [assignmentId, Number(lecturer.id)],
+    })).rows[0] as any;
+    if (!assignment) return res.status(404).json({ error: 'Không tìm thấy sinh viên trong danh sách phụ trách.' });
+
+    const contacted = !!req.body?.contacted;
+    const contactNote = String(req.body?.contact_note || '').trim();
+    await db.execute({
+      sql: `UPDATE advisor_assignments
+            SET contacted_at = ${contacted ? "COALESCE(contacted_at, datetime('now', '+7 hours'))" : 'NULL'},
+                contact_note = ?
+            WHERE id = ?`,
+      args: [contactNote || null, assignmentId],
+    });
+    const updated = (await db.execute({
+      sql: 'SELECT id as assignment_id, contacted_at, contact_note FROM advisor_assignments WHERE id = ?',
+      args: [assignmentId],
+    })).rows[0];
+    res.json(updated);
   });
 
   async function canAccessStudentReport(actor: any, userId: number) {

@@ -9875,6 +9875,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
+  const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
 
   const fetchStudents = () => {
     setLoadingStudents(true);
@@ -9895,6 +9896,8 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
+  const advisedStudentCount = new Set(students.map((student: any) => student.user_id).filter(Boolean)).size;
+  const uncontactedCount = students.filter((student: any) => !student.contacted_at).length;
 
   const downloadReport = async (student: any) => {
     const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
@@ -9911,6 +9914,34 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
     });
     if (res.ok) fetchStudents();
     else alert('Cập nhật trạng thái báo cáo thất bại.');
+  };
+
+  const updateStudentContact = async (student: any, contacted: boolean, note = student.contact_note || '') => {
+    const key = String(student.assignment_id);
+    setUpdatingContactIds(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/api/lecturer/students/${student.assignment_id}/contact`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ contacted, contact_note: note })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Cập nhật tình trạng liên hệ thất bại.');
+      setStudents(prev => prev.map(item => Number(item.assignment_id) === Number(student.assignment_id)
+        ? { ...item, contacted_at: data.contacted_at, contact_note: data.contact_note }
+        : item
+      ));
+    } catch (e) {
+      alert('Lỗi kết nối khi cập nhật tình trạng liên hệ.');
+    } finally {
+      setUpdatingContactIds(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const editContactNote = (student: any) => {
+    const note = prompt(`Ghi chú liên hệ với ${student.student_name || 'sinh viên'}:`, student.contact_note || '');
+    if (note === null) return;
+    updateStudentContact(student, !!student.contacted_at, note);
   };
 
   return (
@@ -9959,8 +9990,20 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
       </div>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/60">
-          <h3 className="font-bold text-slate-800">Sinh viên phụ trách</h3>
-          <p className="text-xs text-slate-500 mt-1">Danh sách sinh viên đã được Khoa phân công cho giảng viên.</p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-slate-800">
+                Sinh viên phụ trách
+                <span className="ml-2 inline-flex items-center rounded-full bg-white border border-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-700">
+                  Tổng số SV hướng dẫn: {advisedStudentCount}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">Danh sách sinh viên đã được Khoa phân công cho giảng viên.</p>
+            </div>
+            <div className={`rounded-xl border px-3 py-2 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+              {uncontactedCount > 0 ? `Chưa liên hệ: ${uncontactedCount}` : 'Tất cả đã liên hệ'}
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs text-slate-600">
@@ -9970,6 +10013,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                 <th className="p-4">Họ tên</th>
                 <th className="p-4">Vai trò</th>
                 <th className="p-4">Nơi thực tập</th>
+                <th className="p-4">Tình trạng liên hệ</th>
                 <th className="p-4">Báo cáo final</th>
                 <th className="p-4">Liên hệ</th>
                 <th className="p-4">Môn học</th>
@@ -9978,9 +10022,9 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadingStudents ? (
-                <tr><td colSpan={8} className="p-10 text-center text-slate-500">Đang tải danh sách...</td></tr>
+                <tr><td colSpan={9} className="p-10 text-center text-slate-500">Đang tải danh sách...</td></tr>
               ) : students.length === 0 ? (
-                <tr><td colSpan={8} className="p-10 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
+                <tr><td colSpan={9} className="p-10 text-center text-slate-500">Chưa có sinh viên được phân công.</td></tr>
               ) : students.map((student: any) => (
                 <tr key={student.assignment_id} className="hover:bg-slate-50/50 transition-colors align-top">
                   <td className="p-4 font-mono font-semibold text-slate-800">{student.student_id || '-'}</td>
@@ -9991,6 +10035,37 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                     </span>
                   </td>
                   <td className="p-4 font-medium text-slate-700">{student.internship_place || '-'}</td>
+                  <td className="p-4 min-w-[190px]">
+                    <div className={`rounded-xl border px-3 py-2 ${student.contacted_at ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                      <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!student.contacted_at}
+                          disabled={!!updatingContactIds[String(student.assignment_id)]}
+                          onChange={e => updateStudentContact(student, e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        {student.contacted_at ? 'Đã liên hệ' : 'Chưa liên hệ'}
+                      </label>
+                      {student.contacted_at && (
+                        <div className="mt-1 text-[10px] text-emerald-700">
+                          {new Date(student.contacted_at).toLocaleString('vi-VN')}
+                        </div>
+                      )}
+                      {student.contact_note && (
+                        <div className="mt-2 rounded-lg bg-white/70 px-2 py-1 text-[11px] leading-relaxed text-slate-700 border border-white">
+                          {student.contact_note}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => editContactNote(student)}
+                        disabled={!!updatingContactIds[String(student.assignment_id)]}
+                        className="mt-2 text-[10px] font-semibold text-slate-700 hover:text-teal-700 disabled:opacity-60"
+                      >
+                        {student.contact_note ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+                      </button>
+                    </div>
+                  </td>
                   <td className="p-4">
                     <div className={`text-xs font-semibold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
                       {statusLabel(student.report_status)}
