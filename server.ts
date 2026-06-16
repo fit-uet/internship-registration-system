@@ -11,6 +11,11 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } fro
 const DEFAULT_JWT_SECRET = 'uyet-vnu-secret-key-1234';
 const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const MAX_REPORT_BYTES = 10 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const CHAT_THREAD_STORAGE_LIMIT_BYTES = Math.max(1, Number(process.env.CHAT_THREAD_STORAGE_MB || 200)) * 1024 * 1024;
+const CHAT_DAILY_UPLOAD_LIMIT_BYTES = Math.max(1, Number(process.env.CHAT_DAILY_UPLOAD_MB || 50)) * 1024 * 1024;
+const ALLOWED_CHAT_ATTACHMENT_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'jpg', 'jpeg', 'png']);
+const ALLOWED_CHAT_ATTACHMENT_MIME_PREFIXES = ['application/pdf', 'application/msword', 'application/vnd.', 'text/plain', 'application/zip', 'image/jpeg', 'image/png'];
 
 // A mock OAuth client ID. In production, this must match the frontend client ID.
 const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '123456789-mock.apps.googleusercontent.com';
@@ -247,6 +252,62 @@ function reportObjectKey(year: string, studentId: string | null | undefined) {
   return `reports/${cleanYear}/${cleanStudent}/final.pdf`;
 }
 
+function safeFilename(filename: string) {
+  const clean = String(filename || 'attachment')
+    .replace(/[/\\]/g, '_')
+    .replace(/[\r\n\t]/g, ' ')
+    .trim()
+    .slice(0, 180);
+  return clean || 'attachment';
+}
+
+function safeDecodeHeader(value: string | undefined, fallback = '') {
+  try {
+    return decodeURIComponent(String(value || fallback));
+  } catch (e) {
+    return String(value || fallback);
+  }
+}
+
+function fileExtension(filename: string) {
+  const clean = safeFilename(filename);
+  const idx = clean.lastIndexOf('.');
+  return idx >= 0 ? clean.slice(idx + 1).toLowerCase() : '';
+}
+
+function chatAttachmentObjectKey(studentUserId: number, lecturerId: number, senderUserId: number, filename: string) {
+  const stamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 10);
+  return `chat/${studentUserId}/${lecturerId}/${senderUserId}/${stamp}-${random}-${safeFilename(filename)}`;
+}
+
+function isAllowedChatAttachment(filename: string, mimeType: string) {
+  const ext = fileExtension(filename);
+  const mime = String(mimeType || '').toLowerCase();
+  return ALLOWED_CHAT_ATTACHMENT_EXTENSIONS.has(ext) || ALLOWED_CHAT_ATTACHMENT_MIME_PREFIXES.some(prefix => mime.startsWith(prefix));
+}
+
+function normalizeChatAttachmentMime(filename: string, mimeType: string) {
+  const mime = String(mimeType || '').toLowerCase();
+  if (mime && mime !== 'application/octet-stream') return mime;
+  const ext = fileExtension(filename);
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    txt: 'text/plain',
+    zip: 'application/zip',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
 function getR2Config() {
   const bucket = process.env.R2_BUCKET || process.env.R2_BUCKET_NAME;
   const endpoint = process.env.R2_ENDPOINT || (process.env.R2_ACCOUNT_ID ? `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '');
@@ -275,6 +336,10 @@ function getR2Client() {
 
 function localReportPath(key: string) {
   return join(process.cwd(), 'scratch', 'final-reports', key);
+}
+
+function localChatAttachmentPath(key: string) {
+  return join(process.cwd(), 'scratch', 'chat-attachments', key);
 }
 
 async function saveReportObject(key: string, file: Buffer) {
@@ -344,6 +409,83 @@ async function deleteReportObject(key: string | null | undefined) {
     const localPath = localReportPath(key);
     if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
   }
+}
+
+async function saveChatAttachmentObject(key: string, file: Buffer, contentType: string) {
+  const r2 = getR2Client();
+  if (r2) {
+    await r2.client.send(new PutObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+      Body: file,
+      ContentType: contentType || 'application/octet-stream',
+    }));
+    return 'r2';
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Chưa cấu hình Cloudflare R2 cho lưu file trao đổi. Cần R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY và R2_ACCOUNT_ID/R2_ENDPOINT.');
+  }
+
+  const localPath = localChatAttachmentPath(key);
+  fs.mkdirSync(dirname(localPath), { recursive: true });
+  fs.writeFileSync(localPath, file);
+  return 'local';
+}
+
+async function streamChatAttachmentObject(key: string, res: any) {
+  const r2 = getR2Client();
+  if (r2) {
+    const object = await r2.client.send(new GetObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+    }));
+    const body = object.Body as any;
+    if (!body) return false;
+    if (typeof body.pipe === 'function') {
+      body.pipe(res);
+      return true;
+    }
+    if (typeof body.transformToByteArray === 'function') {
+      res.end(Buffer.from(await body.transformToByteArray()));
+      return true;
+    }
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Chưa cấu hình Cloudflare R2 cho tải file trao đổi.');
+  }
+
+  const localPath = localChatAttachmentPath(key);
+  if (!fs.existsSync(localPath)) return false;
+  fs.createReadStream(localPath).pipe(res);
+  return true;
+}
+
+async function deleteChatAttachmentObject(key: string | null | undefined) {
+  if (!key) return;
+  const r2 = getR2Client();
+  if (r2) {
+    await r2.client.send(new DeleteObjectCommand({
+      Bucket: r2.bucket,
+      Key: key,
+    }));
+    return;
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    const localPath = localChatAttachmentPath(key);
+    if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+  }
+}
+
+async function cleanupChatAttachments(sql: string, args: any[]) {
+  const rows = (await db.execute({ sql, args })).rows as any[];
+  await Promise.all(rows
+    .map(row => row.attachment_key)
+    .filter(Boolean)
+    .map(key => deleteChatAttachmentObject(String(key)).catch(() => undefined))
+  );
 }
 
 function normalizeScore(value: any) {
@@ -1128,6 +1270,10 @@ async function initDb() {
       lecturer_id INTEGER NOT NULL,
       sender_user_id INTEGER NOT NULL,
       body TEXT NOT NULL,
+      attachment_key TEXT,
+      attachment_name TEXT,
+      attachment_size INTEGER,
+      attachment_mime TEXT,
       created_at DATETIME DEFAULT (datetime('now', '+7 hours')),
       read_at DATETIME,
       FOREIGN KEY (student_user_id) REFERENCES users (id),
@@ -1334,6 +1480,10 @@ async function initDb() {
       FOREIGN KEY (sender_user_id) REFERENCES users (id)
     )`);
   } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE chat_messages ADD COLUMN attachment_key TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE chat_messages ADD COLUMN attachment_name TEXT'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE chat_messages ADD COLUMN attachment_size INTEGER'); } catch (e) { }
+  try { await db.executeMultiple('ALTER TABLE chat_messages ADD COLUMN attachment_mime TEXT'); } catch (e) { }
   try { await db.executeMultiple('CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(student_user_id, lecturer_id, created_at)'); } catch (e) { }
   try { await db.executeMultiple('CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON chat_messages(student_user_id, lecturer_id, sender_user_id, read_at)'); } catch (e) { }
 
@@ -1537,7 +1687,10 @@ async function startServer() {
   };
 
   const chatMessageSelect = `
-    SELECT cm.id, cm.student_user_id, cm.lecturer_id, cm.sender_user_id, cm.body, cm.created_at, cm.read_at,
+    SELECT cm.id, cm.student_user_id, cm.lecturer_id, cm.sender_user_id, cm.body,
+           cm.attachment_name, cm.attachment_size, cm.attachment_mime,
+           CASE WHEN cm.attachment_key IS NOT NULL THEN 1 ELSE 0 END as has_attachment,
+           cm.created_at, cm.read_at,
            u.name as sender_name, u.role as sender_role, u.email as sender_email
     FROM chat_messages cm
     JOIN users u ON u.id = cm.sender_user_id
@@ -1870,13 +2023,13 @@ async function startServer() {
             SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                    l.name as lecturer_name, l.email as lecturer_email,
                    u.name as student_name, u.student_id,
-                   last_msg.body as last_message, last_msg.created_at as last_message_at,
+                   last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
                    COALESCE(unread.unread_count, 0) as unread_count
             FROM advisor_assignments aa
             JOIN lecturers l ON l.id = aa.lecturer_id
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN (
-              SELECT student_user_id, lecturer_id, body, created_at
+              SELECT student_user_id, lecturer_id, body, attachment_name, created_at
               FROM chat_messages cm
               WHERE id IN (
                 SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
@@ -1902,13 +2055,13 @@ async function startServer() {
           SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                  l.name as lecturer_name, l.email as lecturer_email,
                  u.name as student_name, u.student_id, u.email as student_email, u.class_name, u.course_code,
-                 last_msg.body as last_message, last_msg.created_at as last_message_at,
+                 last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
                  COALESCE(unread.unread_count, 0) as unread_count
           FROM advisor_assignments aa
           JOIN lecturers l ON l.id = aa.lecturer_id
           JOIN users u ON u.id = aa.user_id
           LEFT JOIN (
-            SELECT student_user_id, lecturer_id, body, created_at
+            SELECT student_user_id, lecturer_id, body, attachment_name, created_at
             FROM chat_messages cm
             WHERE id IN (
               SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
@@ -1979,6 +2132,90 @@ async function startServer() {
       res.json(message);
     } catch (e: any) {
       res.status(500).json({ error: 'Database error: ' + e.message });
+    }
+  });
+
+  app.post('/api/chat/threads/:studentUserId/:lecturerId/attachments', requireAuth, express.raw({ type: '*/*', limit: '11mb' }), async (req: any, res: any) => {
+    let uploadedKey = '';
+    try {
+      const studentUserId = Number(req.params.studentUserId);
+      const lecturerId = Number(req.params.lecturerId);
+      if (!(await canAccessChatThread(req.user, studentUserId, lecturerId))) {
+        return res.status(403).json({ error: 'Bạn không có quyền gửi file trong cuộc trò chuyện này.' });
+      }
+      const file = Buffer.isBuffer(req.body) ? req.body : Buffer.from([]);
+      const originalFilename = safeFilename(safeDecodeHeader(req.header('x-filename'), 'attachment'));
+      const rawMimeType = String(req.header('content-type') || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+      const mimeType = normalizeChatAttachmentMime(originalFilename, rawMimeType);
+      const body = safeDecodeHeader(req.header('x-message-body'), '').trim();
+      if (file.length === 0) return res.status(400).json({ error: 'File rỗng.' });
+      if (file.length > MAX_CHAT_ATTACHMENT_BYTES) return res.status(413).json({ error: 'File vượt quá 10 MB. Vui lòng nén hoặc gửi file nhỏ hơn.' });
+      if (!isAllowedChatAttachment(originalFilename, mimeType)) {
+        return res.status(400).json({ error: 'Định dạng file chưa được hỗ trợ. Hệ thống chỉ nhận PDF, Office, TXT, ZIP, JPG/PNG.' });
+      }
+      if (body.length > 2000) return res.status(400).json({ error: 'Tin nhắn tối đa 2000 ký tự.' });
+      const threadUsage = (await db.execute({
+        sql: 'SELECT COALESCE(SUM(attachment_size), 0) as total FROM chat_messages WHERE student_user_id = ? AND lecturer_id = ?',
+        args: [studentUserId, lecturerId],
+      })).rows[0] as any;
+      if (Number(threadUsage?.total || 0) + file.length > CHAT_THREAD_STORAGE_LIMIT_BYTES) {
+        return res.status(413).json({ error: `Cuộc trò chuyện này đã gần vượt quota lưu file ${Math.round(CHAT_THREAD_STORAGE_LIMIT_BYTES / 1024 / 1024)} MB. Vui lòng dùng file nhỏ hơn hoặc trao đổi qua kênh lưu trữ khác.` });
+      }
+      const dailyUsage = (await db.execute({
+        sql: `SELECT COALESCE(SUM(attachment_size), 0) as total
+              FROM chat_messages
+              WHERE sender_user_id = ?
+                AND attachment_key IS NOT NULL
+                AND created_at >= datetime('now', '+7 hours', 'start of day')`,
+        args: [req.user.id],
+      })).rows[0] as any;
+      if (Number(dailyUsage?.total || 0) + file.length > CHAT_DAILY_UPLOAD_LIMIT_BYTES) {
+        return res.status(429).json({ error: `Bạn đã gần vượt quota gửi file trong ngày ${Math.round(CHAT_DAILY_UPLOAD_LIMIT_BYTES / 1024 / 1024)} MB. Vui lòng gửi tiếp vào ngày mai hoặc dùng file nhỏ hơn.` });
+      }
+
+      const key = chatAttachmentObjectKey(studentUserId, lecturerId, Number(req.user.id), originalFilename);
+      await saveChatAttachmentObject(key, file, mimeType);
+      uploadedKey = key;
+      const result = await db.execute({
+        sql: `INSERT INTO chat_messages (student_user_id, lecturer_id, sender_user_id, body, attachment_key, attachment_name, attachment_size, attachment_mime, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+        args: [studentUserId, lecturerId, req.user.id, body || '', key, originalFilename, file.length, mimeType],
+      });
+      const message = (await db.execute({
+        sql: `${chatMessageSelect} WHERE cm.id = ?`,
+        args: [Number(result.lastInsertRowid)],
+      })).rows[0];
+      res.json(message);
+      uploadedKey = '';
+    } catch (e: any) {
+      if (uploadedKey) {
+        try { await deleteChatAttachmentObject(uploadedKey); } catch (cleanupError) { console.error('[chat] failed to cleanup orphan attachment:', cleanupError); }
+      }
+      res.status(e?.type === 'entity.too.large' ? 413 : 500).json({ error: e?.type === 'entity.too.large' ? 'File vượt quá 10 MB. Vui lòng nén hoặc gửi file nhỏ hơn.' : e.message });
+    }
+  });
+
+  app.get('/api/chat/messages/:messageId/attachment', requireAuth, async (req: any, res: any) => {
+    try {
+      const messageId = Number(req.params.messageId);
+      const message = (await db.execute({
+        sql: 'SELECT * FROM chat_messages WHERE id = ?',
+        args: [messageId],
+      })).rows[0] as any;
+      if (!message || !message.attachment_key) return res.status(404).json({ error: 'Không tìm thấy file.' });
+      if (!(await canAccessChatThread(req.user, Number(message.student_user_id), Number(message.lecturer_id)))) {
+        return res.status(403).json({ error: 'Bạn không có quyền tải file này.' });
+      }
+      const preview = String(req.query.preview || '') === '1';
+      const mime = String(message.attachment_mime || 'application/octet-stream');
+      const disposition = preview && (mime.startsWith('image/') || mime === 'application/pdf') ? 'inline' : 'attachment';
+      res.setHeader('content-type', mime);
+      res.setHeader('content-length', String(message.attachment_size || ''));
+      res.setHeader('content-disposition', `${disposition}; filename="${encodeURIComponent(message.attachment_name || 'attachment')}"`);
+      const streamed = await streamChatAttachmentObject(message.attachment_key, res);
+      if (!streamed && !res.headersSent) return res.status(404).json({ error: 'Không tìm thấy file lưu trữ.' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Không tải được file.' });
     }
   });
 
@@ -3205,6 +3442,7 @@ async function startServer() {
           sql: 'SELECT object_key FROM final_reports WHERE user_id = ?',
           args: [user.id],
         })).rows as any[];
+        await cleanupChatAttachments('SELECT attachment_key FROM chat_messages WHERE (student_user_id = ? OR sender_user_id = ?) AND attachment_key IS NOT NULL', [user.id, user.id]);
         await executeBatch([
           { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [user.id] },
           { sql: 'DELETE FROM advisor_requests WHERE user_id = ?', args: [user.id] },
@@ -3443,6 +3681,7 @@ async function startServer() {
     try {
       const idVal = Number(req.params.id);
       const lecturer = (await db.execute({ sql: "SELECT email FROM lecturers WHERE id = ?", args: [idVal] })).rows[0] as any;
+      await cleanupChatAttachments('SELECT attachment_key FROM chat_messages WHERE lecturer_id = ? AND attachment_key IS NOT NULL', [idVal]);
       await executeBatch([
         { sql: 'DELETE FROM advisor_assignments WHERE lecturer_id = ?', args: [idVal] },
         { sql: 'DELETE FROM lecturer_quotas WHERE lecturer_id = ?', args: [idVal] },

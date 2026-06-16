@@ -58,7 +58,7 @@ Backend:
 - Cơ sở dữ liệu chính khi deploy Render: Turso/libSQL.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
-- Báo cáo final PDF được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong bảng `final_reports`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports`; khi chạy production bắt buộc cấu hình R2.
+- Báo cáo final PDF và file đính kèm trong chat được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong `final_reports` và `chat_messages`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports` và `scratch/chat-attachments`; khi chạy production bắt buộc cấu hình R2.
 - Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi thông báo cho sinh viên qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công. Email gửi doanh nghiệp tạm thời được soạn sẵn qua Gmail/app Mail để Khoa gửi thủ công vì chưa xác thực được domain trường trên Brevo.
 
 Các biến/secrets chính:
@@ -72,6 +72,8 @@ Các biến/secrets chính:
 - `CORS_ORIGIN`, đặt bằng domain frontend/Render cần cho phép.
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` để lưu báo cáo final PDF trên Cloudflare R2.
 - `R2_ENDPOINT` nếu muốn khai báo endpoint thủ công; nếu bỏ trống hệ thống dùng `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`.
+- `CHAT_THREAD_STORAGE_MB`, mặc định `200`, giới hạn tổng file chat trong một cuộc trò chuyện.
+- `CHAT_DAILY_UPLOAD_MB`, mặc định `50`, giới hạn dung lượng file chat một tài khoản được gửi trong ngày.
 - `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY` nếu muốn gửi email thật qua Brevo.
 - `EMAIL_DAILY_SEND_CAP`, ví dụ `250`, để chừa quota phát sinh trong giới hạn Brevo Free 300 email/ngày.
 - `EMAIL_BATCH_SIZE`, ví dụ `25`, số email gửi mỗi lần bấm gửi hàng đợi.

@@ -2,8 +2,8 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
-import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings, MessageCircle, Paperclip } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -9661,6 +9661,12 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
+  const [previewLoadingIds, setPreviewLoadingIds] = useState<Record<string, boolean>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachmentPreviewUrlsRef = useRef<Record<string, string>>({});
 
   const selectedKey = params.studentUserId && params.lecturerId ? `${params.studentUserId}:${params.lecturerId}` : '';
   const selectedThread = threads.find((thread: any) => `${thread.student_user_id}:${thread.lecturer_id}` === selectedKey) || null;
@@ -9720,8 +9726,13 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
     fetchThreads();
   }, [token]);
 
+  useEffect(() => () => {
+    Object.values(attachmentPreviewUrlsRef.current).forEach(url => URL.revokeObjectURL(url));
+  }, []);
+
   useEffect(() => {
     fetchMessages(true);
+    setSelectedFile(null);
     if (!params.studentUserId || !params.lecturerId) return;
     const timer = window.setInterval(() => fetchMessages(false), 10000);
     return () => window.clearInterval(timer);
@@ -9731,25 +9742,115 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
     navigate(`/chat/${thread.student_user_id}/${thread.lecturer_id}`);
   };
 
+  const uploadChatAttachment = (thread: any, file: File, body: string) => new Promise<any>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE}/api/chat/threads/${thread.student_user_id}/${thread.lecturer_id}/attachments`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.setRequestHeader('x-filename', encodeURIComponent(file.name));
+    xhr.setRequestHeader('x-message-body', encodeURIComponent(body));
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      const data = JSON.parse(xhr.responseText || '{}');
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || 'Gửi file thất bại.'));
+    };
+    xhr.onerror = () => reject(new Error('Lỗi kết nối khi gửi file.'));
+    xhr.send(file);
+  });
+
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!selectedThread || sending) return;
     const body = draft.trim();
-    if (!body) return;
+    if (!body && !selectedFile) return;
+    if (selectedFile && selectedFile.size > 10 * 1024 * 1024) return alert('File vượt quá 10 MB. Vui lòng nén hoặc chọn file nhỏ hơn.');
     setSending(true);
+    setUploadProgress(selectedFile ? 0 : null);
     try {
-      const res = await fetch(`${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ body }),
-      });
-      const data = await res.json();
-      if (!res.ok) return alert(data.error || 'Gửi tin nhắn thất bại.');
+      const data = selectedFile
+        ? await uploadChatAttachment(selectedThread, selectedFile, body)
+        : await (async () => {
+          const res = await fetch(`${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ body }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || 'Gửi tin nhắn thất bại.');
+          return json;
+        })();
       setDraft('');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setMessages(prev => [...prev, data]);
       fetchThreads();
+    } catch (e: any) {
+      alert(e?.message || 'Gửi tin nhắn thất bại.');
     } finally {
       setSending(false);
+      setUploadProgress(null);
+    }
+  };
+
+  const formatChatBytes = (bytes: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const chooseChatFile = (file: File | null) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return alert('File vượt quá 10 MB. Vui lòng nén hoặc chọn file nhỏ hơn.');
+    }
+    setSelectedFile(file);
+  };
+
+  const downloadChatAttachment = async (message: any) => {
+    const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}/attachment`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return alert('Không tải được file.');
+    saveAs(await res.blob(), message.attachment_name || 'attachment');
+  };
+
+  const canPreviewAttachment = (message: any) => {
+    const mime = String(message.attachment_mime || '').toLowerCase();
+    return mime.startsWith('image/') || mime === 'application/pdf';
+  };
+
+  const toggleAttachmentPreview = async (message: any) => {
+    const key = String(message.id);
+    if (attachmentPreviewUrls[key]) {
+      URL.revokeObjectURL(attachmentPreviewUrls[key]);
+      setAttachmentPreviewUrls(prev => {
+        const next = { ...prev };
+        delete next[key];
+        attachmentPreviewUrlsRef.current = next;
+        return next;
+      });
+      return;
+    }
+    setPreviewLoadingIds(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}/attachment?preview=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return alert('Không tải được bản xem trước.');
+      const url = URL.createObjectURL(await res.blob());
+      setAttachmentPreviewUrls(prev => {
+        const next = { ...prev, [key]: url };
+        attachmentPreviewUrlsRef.current = next;
+        return next;
+      });
+    } catch (e) {
+      alert('Không tải được bản xem trước.');
+    } finally {
+      setPreviewLoadingIds(prev => ({ ...prev, [key]: false }));
     }
   };
 
@@ -9797,11 +9898,11 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                   className={`w-full text-left p-4 transition-colors ${active ? 'bg-sky-50' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
-                      <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
-                      <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || 'Chưa có tin nhắn.'}</div>
-                    </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
+                        <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
+                        <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || (thread.last_attachment_name ? `File: ${thread.last_attachment_name}` : 'Chưa có tin nhắn.')}</div>
+                      </div>
                     {Number(thread.unread_count || 0) > 0 && (
                       <span className="min-w-5 h-5 px-1 rounded-full bg-sky-600 text-white text-[11px] font-bold flex items-center justify-center">
                         {Number(thread.unread_count) > 99 ? '99+' : thread.unread_count}
@@ -9835,6 +9936,44 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                           {mine ? 'Bạn' : message.sender_name}
                         </div>
                         <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</div>
+                        {message.has_attachment ? (
+                          <div className="mt-3 space-y-2">
+                            <div className={`flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${mine ? 'border-sky-300 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                              <Paperclip size={14} className="shrink-0" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate">{message.attachment_name || 'File đính kèm'}</span>
+                                <span className={`block text-[10px] font-medium ${mine ? 'text-sky-100' : 'text-slate-400'}`}>{formatChatBytes(Number(message.attachment_size || 0))}</span>
+                              </span>
+                              {canPreviewAttachment(message) && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAttachmentPreview(message)}
+                                  disabled={!!previewLoadingIds[String(message.id)]}
+                                  className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ${mine ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'} disabled:opacity-60`}
+                                >
+                                  {previewLoadingIds[String(message.id)] ? 'Đang tải' : attachmentPreviewUrls[String(message.id)] ? 'Ẩn' : 'Xem'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadChatAttachment(message)}
+                                className={`shrink-0 rounded-lg p-1 ${mine ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+                                title="Tải file"
+                              >
+                                <Download size={14} />
+                              </button>
+                            </div>
+                            {attachmentPreviewUrls[String(message.id)] && (
+                              <div className={`overflow-hidden rounded-xl border ${mine ? 'border-sky-300 bg-white/10' : 'border-slate-200 bg-white'}`}>
+                                {String(message.attachment_mime || '').toLowerCase().startsWith('image/') ? (
+                                  <img src={attachmentPreviewUrls[String(message.id)]} alt={message.attachment_name || 'Preview'} className="max-h-72 w-full object-contain" />
+                                ) : (
+                                  <iframe src={attachmentPreviewUrls[String(message.id)]} title={message.attachment_name || 'PDF preview'} className="h-72 w-full bg-white" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                         <div className={`text-[10px] mt-2 ${mine ? 'text-sky-100' : 'text-slate-400'}`}>
                           {message.created_at ? new Date(message.created_at).toLocaleString('vi-VN') : '-'}
                         </div>
@@ -9844,7 +9983,46 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                 })}
               </div>
               <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 bg-white">
+                {selectedFile && (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <Paperclip size={14} className="shrink-0" />
+                      <span className="truncate font-semibold">{selectedFile.name}</span>
+                      <span className="shrink-0 text-sky-600">{formatChatBytes(selectedFile.size)}</span>
+                    </div>
+                    <button type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="rounded-lg p-1 text-sky-700 hover:bg-sky-100">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                {uploadProgress !== null && (
+                  <div className="mb-3 rounded-xl border border-sky-100 bg-white px-3 py-2">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-sky-700">
+                      <span>Đang tải file lên</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-sky-50">
+                      <div className="h-full rounded-full bg-sky-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-end gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,application/zip,image/jpeg,image/png"
+                    onChange={e => chooseChatFile(e.target.files?.[0] || null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                    title="Đính kèm file"
+                  >
+                    <Paperclip size={16} />
+                  </button>
                   <textarea
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
@@ -9853,11 +10031,14 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                     className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-sky-100 focus:border-sky-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-none placeholder-slate-400"
                     placeholder="Nhập tin nhắn..."
                   />
-                  <button disabled={sending || !draft.trim()} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
+                  <button disabled={sending || (!draft.trim() && !selectedFile)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
                     <Send size={14} /> Gửi
                   </button>
                 </div>
-                <div className="text-[10px] text-slate-400 mt-2 text-right font-medium">{draft.length}/2000</div>
+                <div className="text-[10px] text-slate-400 mt-2 flex justify-between gap-3 font-medium">
+                  <span>File hỗ trợ: PDF, Office, TXT, ZIP, JPG/PNG. Tối đa 10 MB/file; hệ thống có quota lưu trữ theo cuộc trò chuyện và theo ngày.</span>
+                  <span>{draft.length}/2000</span>
+                </div>
               </form>
             </>
           ) : (
