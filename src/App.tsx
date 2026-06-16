@@ -4764,8 +4764,10 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
       {isRequestsView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
-            <h3 className="font-bold text-slate-800">Đăng ký GVHD từ sinh viên</h3>
-            <p className="text-xs text-slate-500 mt-1">Chỉ hiển thị các sinh viên khai báo đã được giảng viên đồng ý hướng dẫn và cần Khoa xử lý quota/trạng thái.</p>
+            <h3 className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+              <span>Đăng ký GVHD từ sinh viên</span>
+              <PageDescriptionTooltip description="Chỉ hiển thị các sinh viên khai báo đã được giảng viên đồng ý hướng dẫn và cần Khoa xử lý quota/trạng thái." />
+            </h3>
           </div>
           <span className="text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100 px-3 py-1">
             {advisorRequests.filter(item => item.status === 'pending').length} chờ xử lý
@@ -5991,8 +5993,10 @@ function NotificationAdmin({ token }: { token: string }) {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
-            <h3 className="font-bold text-slate-800 text-sm">Soạn thông báo thủ công</h3>
-            <p className="text-xs text-slate-500 mt-1">Thông báo được tạo vào hàng đợi; dùng nút “Gửi theo quota” để gửi email thật.</p>
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 flex-wrap">
+              <span>Soạn thông báo thủ công</span>
+              <PageDescriptionTooltip description="Thông báo được tạo vào hàng đợi; dùng nút “Gửi theo quota” để gửi email thật." />
+            </h3>
           </div>
           <select
             value={manualNotice.target}
@@ -9346,8 +9350,10 @@ function FAQView({ user, token }: { user: any, token: string }) {
       {user?.role !== 'admin' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</h3>
-            <p className="text-xs text-slate-500 mt-1">Câu hỏi sẽ được quản trị viên trả lời trong mục FAQ; câu trả lời cũng hiển thị trong thông báo của bạn.</p>
+            <h3 className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+              <span className="flex items-center gap-2"><CircleHelp size={18} className="text-blue-600" /> Gửi câu hỏi cho Khoa</span>
+              <PageDescriptionTooltip description="Câu hỏi sẽ được quản trị viên trả lời trong mục FAQ; câu trả lời cũng hiển thị trong thông báo của bạn." />
+            </h3>
           </div>
           <div className="p-6 space-y-4">
             <textarea
@@ -9775,9 +9781,9 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
         ? await uploadChatAttachment(selectedThread, selectedFile, body)
         : await (async () => {
           const res = await fetch(`${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ body }),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ body }),
           });
           const json = await res.json();
           if (!res.ok) throw new Error(json.error || 'Gửi tin nhắn thất bại.');
@@ -9925,11 +9931,11 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                   className={`w-full text-left p-4 transition-colors ${active ? 'bg-sky-50' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
-                        <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
-                        <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || (thread.last_attachment_name ? `File: ${thread.last_attachment_name}` : 'Chưa có tin nhắn.')}</div>
-                      </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
+                      <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
+                      <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || (thread.last_attachment_name ? `File: ${thread.last_attachment_name}` : 'Chưa có tin nhắn.')}</div>
+                    </div>
                     {Number(thread.unread_count || 0) > 0 && (
                       <span className="min-w-5 h-5 px-1 rounded-full bg-sky-600 text-white text-[11px] font-bold flex items-center justify-center">
                         {Number(thread.unread_count) > 99 ? '99+' : thread.unread_count}
@@ -10043,7 +10049,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                     </div>
                   </div>
                 )}
-                <div className="flex items-end gap-3">
+                <div className="flex items-center gap-3">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -10055,7 +10061,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={sending}
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                    className="w-10 h-10 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
                     title="Đính kèm file"
                   >
                     <Paperclip size={16} />
@@ -10065,10 +10071,10 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                     onChange={e => setDraft(e.target.value)}
                     maxLength={2000}
                     rows={2}
-                    className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-sky-100 focus:border-sky-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-none placeholder-slate-400"
+                    className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-sky-100 focus:border-sky-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-none placeholder-slate-400"
                     placeholder="Nhập tin nhắn..."
                   />
-                  <button disabled={sending || (!draft.trim() && !selectedFile)} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
+                  <button disabled={sending || (!draft.trim() && !selectedFile)} className="h-10 px-4 shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
                     <Send size={14} /> Gửi
                   </button>
                 </div>
@@ -10210,13 +10216,13 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
         <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/60">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h3 className="font-bold text-slate-800">
-                Sinh viên phụ trách
-                <span className="ml-2 inline-flex items-center rounded-full bg-white border border-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-700">
+              <h3 className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+                <span>Sinh viên phụ trách</span>
+                <span className="inline-flex items-center rounded-full bg-white border border-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-700">
                   Tổng số SV hướng dẫn: {advisedStudentCount}
                 </span>
+                <PageDescriptionTooltip description="Danh sách sinh viên đã được Khoa phân công cho giảng viên." />
               </h3>
-              <p className="text-xs text-slate-500 mt-1">Danh sách sinh viên đã được Khoa phân công cho giảng viên.</p>
             </div>
             <div className={`rounded-xl border px-3 py-2 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
               {uncontactedCount > 0 ? `Chưa liên hệ: ${uncontactedCount}` : 'Tất cả đã liên hệ'}
