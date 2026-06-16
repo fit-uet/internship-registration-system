@@ -9665,6 +9665,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
   const [previewLoadingIds, setPreviewLoadingIds] = useState<Record<string, boolean>>({});
+  const [deletingMessageIds, setDeletingMessageIds] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentPreviewUrlsRef = useRef<Record<string, string>>({});
 
@@ -9818,6 +9819,38 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
     saveAs(await res.blob(), message.attachment_name || 'attachment');
   };
 
+  const revokePreviewUrl = (messageId: string) => {
+    const url = attachmentPreviewUrlsRef.current[messageId];
+    if (url) URL.revokeObjectURL(url);
+    setAttachmentPreviewUrls(prev => {
+      const next = { ...prev };
+      delete next[messageId];
+      attachmentPreviewUrlsRef.current = next;
+      return next;
+    });
+  };
+
+  const retractMessage = async (message: any) => {
+    if (!confirm('Thu hồi tin nhắn này? Tin nhắn sẽ bị xoá khỏi hệ thống, file đính kèm nếu có cũng sẽ bị xoá khỏi kho lưu trữ.')) return;
+    const key = String(message.id);
+    setDeletingMessageIds(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Không thu hồi được tin nhắn.');
+      revokePreviewUrl(key);
+      setMessages(prev => prev.filter(item => Number(item.id) !== Number(message.id)));
+      fetchThreads();
+    } catch (e) {
+      alert('Lỗi kết nối khi thu hồi tin nhắn.');
+    } finally {
+      setDeletingMessageIds(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   const canPreviewAttachment = (message: any) => {
     const mime = String(message.attachment_mime || '').toLowerCase();
     return mime.startsWith('image/') || mime === 'application/pdf';
@@ -9826,13 +9859,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   const toggleAttachmentPreview = async (message: any) => {
     const key = String(message.id);
     if (attachmentPreviewUrls[key]) {
-      URL.revokeObjectURL(attachmentPreviewUrls[key]);
-      setAttachmentPreviewUrls(prev => {
-        const next = { ...prev };
-        delete next[key];
-        attachmentPreviewUrlsRef.current = next;
-        return next;
-      });
+      revokePreviewUrl(key);
       return;
     }
     setPreviewLoadingIds(prev => ({ ...prev, [key]: true }));
@@ -9974,8 +10001,18 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                             )}
                           </div>
                         ) : null}
-                        <div className={`text-[10px] mt-2 ${mine ? 'text-sky-100' : 'text-slate-400'}`}>
-                          {message.created_at ? new Date(message.created_at).toLocaleString('vi-VN') : '-'}
+                        <div className={`mt-2 flex items-center gap-2 text-[10px] ${mine ? 'justify-end text-sky-100' : 'text-slate-400'}`}>
+                          <span>{message.created_at ? new Date(message.created_at).toLocaleString('vi-VN') : '-'}</span>
+                          {mine && (
+                            <button
+                              type="button"
+                              onClick={() => retractMessage(message)}
+                              disabled={!!deletingMessageIds[String(message.id)]}
+                              className="rounded-md px-1.5 py-0.5 font-semibold text-white/90 hover:bg-white/15 disabled:opacity-60"
+                            >
+                              {deletingMessageIds[String(message.id)] ? 'Đang thu hồi' : 'Thu hồi'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

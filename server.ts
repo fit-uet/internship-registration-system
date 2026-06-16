@@ -2219,6 +2219,33 @@ async function startServer() {
     }
   });
 
+  app.delete('/api/chat/messages/:messageId', requireAuth, async (req: any, res: any) => {
+    try {
+      const messageId = Number(req.params.messageId);
+      if (!Number.isInteger(messageId) || messageId <= 0) return res.status(400).json({ error: 'Tin nhắn không hợp lệ.' });
+      const message = (await db.execute({
+        sql: 'SELECT * FROM chat_messages WHERE id = ?',
+        args: [messageId],
+      })).rows[0] as any;
+      if (!message) return res.status(404).json({ error: 'Không tìm thấy tin nhắn.' });
+      if (req.user.role !== 'admin') {
+        if (Number(message.sender_user_id) !== Number(req.user.id)) {
+          return res.status(403).json({ error: 'Bạn chỉ có thể thu hồi tin nhắn do mình gửi.' });
+        }
+        if (!(await canAccessChatThread(req.user, Number(message.student_user_id), Number(message.lecturer_id)))) {
+          return res.status(403).json({ error: 'Bạn không có quyền thu hồi tin nhắn này.' });
+        }
+      }
+      if (message.attachment_key) {
+        await deleteChatAttachmentObject(message.attachment_key);
+      }
+      await db.execute({ sql: 'DELETE FROM chat_messages WHERE id = ?', args: [messageId] });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Không thu hồi được tin nhắn.' });
+    }
+  });
+
   // 3. Get Registration (Student)
   app.get('/api/registrations/my', requireAuth, requireStudent, async (req: any, res: any) => {
     const regs = (await db.execute({
