@@ -424,6 +424,104 @@ const paginationBounds = (total: number, currentPage: number, pageSize: number) 
 const isAuthExpiredResponse = (res: Response, data?: any) =>
   res.status === 401 && /invalid token|unauthorized|user not found/i.test(String(data?.error || ''));
 
+const jwtExpiresAtMs = (token: string | null | undefined) => {
+  try {
+    const base64Url = String(token || '').split('.')[1] || '';
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(base64Url.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64));
+    const exp = Number(payload?.exp || 0);
+    return exp > 0 ? exp * 1000 : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const JSON_CACHE_PREFIX = 'irs-cache:json:';
+const CACHE_TTL = {
+  campaign: 5 * 60 * 1000,
+  companies: 5 * 60 * 1000,
+  lecturers: 30 * 60 * 1000,
+  markdown: 30 * 60 * 1000,
+  lecturerStudents: 60 * 1000,
+};
+
+type JsonCacheEntry<T = any> = {
+  data: T;
+  savedAt: number;
+  expiresAt: number;
+};
+
+const jsonCacheStorageKey = (key: string) => `${JSON_CACHE_PREFIX}${key}`;
+
+const readJsonCache = <T,>(key: string, allowExpired = false): T | null => {
+  try {
+    const raw = localStorage.getItem(jsonCacheStorageKey(key));
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as JsonCacheEntry<T>;
+    if (!entry || typeof entry.expiresAt !== 'number') return null;
+    if (!allowExpired && Date.now() > entry.expiresAt) return null;
+    return entry.data;
+  } catch (e) {
+    return null;
+  }
+};
+
+const writeJsonCache = (key: string, data: any, ttlMs: number) => {
+  try {
+    const now = Date.now();
+    const entry: JsonCacheEntry = { data, savedAt: now, expiresAt: now + ttlMs };
+    localStorage.setItem(jsonCacheStorageKey(key), JSON.stringify(entry));
+  } catch (e) { }
+};
+
+const clearJsonCache = (prefix = '') => {
+  try {
+    const fullPrefix = `${JSON_CACHE_PREFIX}${prefix}`;
+    Object.keys(localStorage)
+      .filter(key => key.startsWith(fullPrefix))
+      .forEach(key => localStorage.removeItem(key));
+  } catch (e) { }
+};
+
+const cachedJsonFetch = async <T,>(
+  url: string,
+  {
+    cacheKey,
+    ttlMs,
+    headers,
+    forceRefresh = false,
+    onAuthExpired,
+  }: {
+    cacheKey: string;
+    ttlMs: number;
+    headers?: HeadersInit;
+    forceRefresh?: boolean;
+    onAuthExpired?: () => void;
+  }
+): Promise<T> => {
+  if (!forceRefresh) {
+    const cached = readJsonCache<T>(cacheKey);
+    if (cached !== null) return cached;
+  }
+  const stale = readJsonCache<T>(cacheKey, true);
+  try {
+    const res = await fetch(url, { headers });
+    const data = await res.json().catch(() => null);
+    if (isAuthExpiredResponse(res, data)) {
+      clearJsonCache();
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+      onAuthExpired?.();
+      throw new Error(data?.error || 'Phiên đăng nhập không hợp lệ.');
+    }
+    if (!res.ok) throw new Error(data?.error || `Không tải được dữ liệu (${res.status}).`);
+    writeJsonCache(cacheKey, data, ttlMs);
+    return data as T;
+  } catch (e) {
+    if (stale !== null) return stale;
+    throw e;
+  }
+};
+
 function PaginationControls({
   total,
   currentPage,
@@ -624,6 +722,7 @@ function App() {
   const clearAuthSession = (message?: string) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearJsonCache();
     setToken(null);
     setUser(null);
     setUnreadNotifications(0);
@@ -641,6 +740,26 @@ function App() {
     clearAuthSession('Phiên đăng nhập đã hết hạn hoặc không còn hợp lệ. Vui lòng đăng nhập lại.');
   };
 
+  useEffect(() => {
+    if (!token) return;
+    const expiresAt = jwtExpiresAtMs(token);
+    if (!expiresAt) return;
+    const msUntilExpiry = expiresAt - Date.now();
+    if (msUntilExpiry <= 0) {
+      handleAuthExpired();
+      return;
+    }
+    const timer = window.setTimeout(handleAuthExpired, Math.min(msUntilExpiry, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const listener = () => handleAuthExpired();
+    window.addEventListener('auth-expired', listener);
+    return () => window.removeEventListener('auth-expired', listener);
+  }, [token]);
+
   const refreshUnreadNotifications = async () => {
     if (!token) return;
     try {
@@ -656,6 +775,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/chat/threads`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
+      if (isAuthExpiredResponse(res, data)) return handleAuthExpired();
       if (res.ok && Array.isArray(data)) {
         const total = data.reduce((sum, t) => sum + Number(t.unread_count || 0), 0);
         setUnreadChats(total);
@@ -1279,20 +1399,39 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     setLoading(true);
     try {
       const isStudent = user?.role === 'student';
-      const [compRes, regRes, finalRes, advisorRes, advisorReqRes, reportRes, campRes, itListRes, lecRes] = await Promise.all([
-        fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } }),
+      const authHeaders = { Authorization: `Bearer ${token}` };
+      const [compData, regRes, finalRes, advisorRes, advisorReqRes, reportRes, campData, itListData, lecData] = await Promise.all([
+        cachedJsonFetch<any[]>(`${API_BASE}/api/companies`, {
+          cacheKey: 'companies',
+          ttlMs: CACHE_TTL.companies,
+          headers: authHeaders,
+          onAuthExpired,
+        }),
         isStudent ? fetch(`${API_BASE}/api/registrations/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/advisor/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/advisor/request/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
         isStudent ? fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
-        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/companies/it-list`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } })
+        cachedJsonFetch<any>(`${API_BASE}/api/settings/campaign`, {
+          cacheKey: 'settings:campaign',
+          ttlMs: CACHE_TTL.campaign,
+          headers: authHeaders,
+          onAuthExpired,
+        }),
+        cachedJsonFetch<any[]>(`${API_BASE}/api/companies/it-list`, {
+          cacheKey: 'companies:it-list',
+          ttlMs: CACHE_TTL.companies,
+          headers: authHeaders,
+          onAuthExpired,
+        }),
+        cachedJsonFetch<any[]>(`${API_BASE}/api/lecturers`, {
+          cacheKey: 'lecturers:names',
+          ttlMs: CACHE_TTL.lecturers,
+          headers: authHeaders,
+          onAuthExpired,
+        })
       ]);
 
-      const compData = await compRes.json().catch(() => null);
-      if (isAuthExpiredResponse(compRes, compData)) return onAuthExpired();
       setCompanies(Array.isArray(compData) ? compData : []);
 
       const regData = regRes ? await regRes.json().catch(() => null) : [];
@@ -1326,13 +1465,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       const reportData = reportRes ? await reportRes.json() : null;
       setFinalReport(reportData && !reportData.error ? reportData : null);
 
-      const campData = await campRes.json();
       if (campData && !campData.error) {
         setCampaign(campData);
       }
 
-      setItCompanyList(await itListRes.json());
-      setLecturers(await lecRes.json());
+      setItCompanyList(Array.isArray(itListData) ? itListData : []);
+      setLecturers(Array.isArray(lecData) ? lecData : []);
     } catch (e) {
       console.error(e);
       if (user?.role === 'student') {
@@ -2984,8 +3122,11 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
 
   const fetchRegistrationCompanies = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/companies`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
+      const data = await cachedJsonFetch<any[]>(`${API_BASE}/api/companies`, {
+        cacheKey: 'companies',
+        ttlMs: CACHE_TTL.companies,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setCompanies(Array.isArray(data) ? data : []);
     } catch (e) {
       setCompanies([]);
@@ -3004,8 +3145,11 @@ function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
 
   const fetchAdminLecturers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
+      const data = await cachedJsonFetch<any[]>(`${API_BASE}/api/lecturers`, {
+        cacheKey: 'lecturers:names',
+        ttlMs: CACHE_TTL.lecturers,
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setAdminLecturerNames(Array.isArray(data) ? data : []);
     } catch (e) {
       setAdminLecturerNames([]);
@@ -5187,11 +5331,15 @@ function StudentFinalReportView({ token, user }: { token: string, user: any }) {
     setLoading(true);
     try {
       const [campRes, finalRes, reportRes] = await Promise.all([
-        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } }),
+        cachedJsonFetch<any>(`${API_BASE}/api/settings/campaign`, {
+          cacheKey: 'settings:campaign',
+          ttlMs: CACHE_TTL.campaign,
+          headers: { Authorization: `Bearer ${token}` },
+        }),
         fetch(`${API_BASE}/api/internships/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/reports/final/my`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      const campData = await campRes.json().catch(() => ({}));
+      const campData = campRes;
       const finalData = await finalRes.json().catch(() => null);
       const reportData = await reportRes.json().catch(() => null);
       if (campData && !campData.error) setCampaign(campData);
@@ -6345,6 +6493,7 @@ Khoa Công nghệ Thông tin`);
   const [editWorkUnit, setEditWorkUnit] = useState('');
 
   const fetchLecturers = async () => {
+    clearJsonCache('lecturers:names');
     try {
       const lecturerRes = await fetch(`${API_BASE}/api/admin/lecturers`, { headers: { Authorization: `Bearer ${token}` } });
       const lecturerData = await lecturerRes.json();
@@ -7269,6 +7418,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
   const [editCompany, setEditCompany] = useState({ name: '', slots: '5', contact_email: '', address: '', phone: '', contact_name: '', recruitment_link: '' });
 
   const fetchCompanies = async () => {
+    clearJsonCache('companies');
     setLoading(true);
     try {
       const [companyRes, regRes] = await Promise.all([
@@ -8297,6 +8447,7 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
   const [editName, setEditName] = useState('');
 
   const fetchCompanies = async () => {
+    clearJsonCache('companies:it-list');
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/approved-companies`, { headers: { Authorization: `Bearer ${token}` } });
@@ -8541,12 +8692,16 @@ function AdminSettings({ token }: { token: string }) {
     try {
       const [sheetRes, campRes] = await Promise.all([
         fetch(`${API_BASE}/api/settings/google-sheet`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
+        cachedJsonFetch<any>(`${API_BASE}/api/settings/campaign`, {
+          cacheKey: 'settings:campaign',
+          ttlMs: CACHE_TTL.campaign,
+          headers: { Authorization: `Bearer ${token}` },
+        })
       ]);
       const data = await sheetRes.json();
       setSheetUrl(data.url || '');
       setExportSheetUrl(data.export_url || '');
-      setCampaign(await campRes.json());
+      setCampaign(campRes);
     } catch (e) { }
   };
 
@@ -8601,7 +8756,10 @@ function AdminSettings({ token }: { token: string }) {
         },
         body: JSON.stringify(campaign)
       });
-      if (res.ok) alert('Đã lưu cấu hình học phần');
+      if (res.ok) {
+        clearJsonCache('settings:campaign');
+        alert('Đã lưu cấu hình học phần');
+      }
     } catch (e) { }
     setSavingCampaign(false);
   };
@@ -9141,12 +9299,15 @@ function PlanView({ user }: { user: any }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/plan`)
-      .then(res => res.json())
+    cachedJsonFetch<any>(`${API_BASE}/api/plan`, {
+      cacheKey: 'markdown:plan',
+      ttlMs: CACHE_TTL.markdown,
+    })
       .then(data => {
         setPlan(data.plan);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   return (
@@ -9225,6 +9386,7 @@ function PlanSettingsAdmin({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Lưu kế hoạch thất bại.');
+      clearJsonCache('markdown:plan');
       alert('Đã lưu Kế hoạch triển khai.');
     } catch (e) {
       alert('Không thể kết nối đến máy chủ.');
@@ -9317,8 +9479,11 @@ function LecturerGuideView({ token, user }: { token: string; user: any }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/lecturer-guide`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
+    cachedJsonFetch<any>(`${API_BASE}/api/lecturer-guide`, {
+      cacheKey: 'markdown:lecturer-guide',
+      ttlMs: CACHE_TTL.markdown,
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(data => setGuide(data?.guide || DEFAULT_LECTURER_GUIDE))
       .catch(() => setGuide(DEFAULT_LECTURER_GUIDE))
       .finally(() => setLoading(false));
@@ -9394,6 +9559,7 @@ function LecturerGuideSettingsAdmin({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Lưu hướng dẫn sử dụng thất bại.');
+      clearJsonCache('markdown:lecturer-guide');
       alert('Đã lưu Hướng dẫn sử dụng cho giảng viên.');
     } catch (e) {
       alert('Không thể kết nối đến máy chủ.');
@@ -9586,8 +9752,11 @@ function FAQView({ user, token }: { user: any, token: string }) {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json())
+      cachedJsonFetch<any>(`${API_BASE}/api/settings/faq`, {
+        cacheKey: 'markdown:faq',
+        ttlMs: CACHE_TTL.markdown,
+        headers: { Authorization: `Bearer ${token}` },
+      })
         .then(data => setCampaign(data && !data.error ? data : {})),
       fetchMyFaqQuestions().catch(() => setQuestions([])),
     ]).finally(() => setLoading(false));
@@ -9852,8 +10021,11 @@ function FAQSettingsAdmin({ token }: { token: string }) {
   const [importingDocx, setImportingDocx] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings/faq`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
+    cachedJsonFetch<any>(`${API_BASE}/api/settings/faq`, {
+      cacheKey: 'markdown:faq',
+      ttlMs: CACHE_TTL.markdown,
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(data => {
         if (data && !data.error) {
           setFaq({
@@ -9875,6 +10047,7 @@ function FAQSettingsAdmin({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Lưu FAQ thất bại.');
+      clearJsonCache('markdown:faq');
       alert('Đã lưu FAQ.');
     } catch (e) {
       alert('Không thể kết nối đến máy chủ.');
@@ -10448,11 +10621,24 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
   const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
 
   const fetchStudents = () => {
-    setLoadingStudents(true);
-    fetch(`${API_BASE}/api/lecturer/students`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
+    const cacheKey = `lecturer:students:${user?.id || user?.email || 'me'}`;
+    const cached = readJsonCache<any[]>(cacheKey);
+    if (Array.isArray(cached)) {
+      setStudents(cached);
+      setLoadingStudents(false);
+    } else {
+      setLoadingStudents(true);
+    }
+    cachedJsonFetch<any[]>(`${API_BASE}/api/lecturer/students`, {
+      cacheKey,
+      ttlMs: CACHE_TTL.lecturerStudents,
+      headers: { Authorization: `Bearer ${token}` },
+      forceRefresh: true,
+    })
       .then(data => setStudents(Array.isArray(data) ? data : []))
-      .catch(() => setStudents([]))
+      .catch(() => {
+        if (!Array.isArray(cached)) setStudents([]);
+      })
       .finally(() => setLoadingStudents(false));
   };
 
@@ -10498,6 +10684,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Cập nhật tình trạng liên hệ thất bại.');
+      clearJsonCache(`lecturer:students:${user?.id || user?.email || 'me'}`);
       setStudents(prev => prev.map(item => Number(item.assignment_id) === Number(student.assignment_id)
         ? { ...item, contacted_at: data.contacted_at, contact_note: data.contact_note }
         : item
@@ -10959,8 +11146,11 @@ function Profile({ user, setUser, token }: { user: any, setUser: any, token: str
 
   useEffect(() => {
     if (!isStaff) {
-      fetch(`${API_BASE}/api/settings/campaign`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json())
+      cachedJsonFetch<any>(`${API_BASE}/api/settings/campaign`, {
+        cacheKey: 'settings:campaign',
+        ttlMs: CACHE_TTL.campaign,
+        headers: { Authorization: `Bearer ${token}` },
+      })
         .then(data => {
           if (data.classes_list) {
             setClassesList(data.classes_list.split(',').map((c: string) => c.trim()));
