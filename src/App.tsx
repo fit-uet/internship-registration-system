@@ -2567,9 +2567,9 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               <h3 className="text-lg font-bold">Xác nhận hủy đăng ký</h3>
             </div>
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-              Bạn có chắc chắn muốn hủy kết quả đăng ký thực tập hiện tại?
+              Bạn có chắc chắn muốn hủy toàn bộ nguyện vọng đăng ký thực tập hiện tại để đăng ký lại?
               <br /><br />
-              <strong>Lưu ý:</strong> Mọi lựa chọn đều được hệ thống ghi lại. Hủy bỏ là hành động không thể hoàn tác.
+              <strong>Lưu ý:</strong> Hệ thống chỉ hủy danh sách nguyện vọng và nơi thực tập chính thức chưa khóa. Thông tin hồ sơ cá nhân, số điện thoại, email cá nhân và thông tin GVHD đã đăng ký/phân công sẽ được giữ lại.
             </p>
             <div className="flex justify-end gap-2.5 mt-6">
               <button

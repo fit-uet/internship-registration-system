@@ -3846,9 +3846,6 @@ async function startServer() {
     }
     await executeBatch([
       { sql: 'DELETE FROM final_internships WHERE user_id = ? AND locked_at IS NULL', args: [req.user.id] },
-      { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
-      { sql: 'DELETE FROM advisor_assignment_history WHERE user_id = ?', args: [req.user.id] },
-      { sql: 'DELETE FROM advisor_requests WHERE user_id = ?', args: [req.user.id] },
       { sql: 'DELETE FROM registrations WHERE user_id = ?', args: [req.user.id] },
     ]);
     res.json({ success: true });
