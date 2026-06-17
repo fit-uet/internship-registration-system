@@ -293,6 +293,7 @@ Lưu cấu hình:
 ### 5.2. Công bố kế hoạch thực tập
 
 Admin cập nhật nội dung kế hoạch tại phần cài đặt hệ thống. Nội dung được lưu Markdown trong `settings.implementation_plan_md`.
+Hướng dẫn sử dụng cho giảng viên được quản lý ở site riêng và lưu Markdown trong `settings.lecturer_guide_md`; nội dung này tách khỏi FAQ để Khoa có thể chỉnh quy trình sử dụng chi tiết theo từng đợt.
 
 Sinh viên và giảng viên xem kế hoạch tại màn hình “Kế hoạch triển khai”.
 
