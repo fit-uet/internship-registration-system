@@ -58,7 +58,8 @@ Backend:
 - Cơ sở dữ liệu chính khi deploy Render: Turso/libSQL.
 - JWT tự ký bằng `JWT_SECRET`.
 - Tích hợp Google Sheets bằng Service Account.
-- Báo cáo final PDF và file đính kèm trong chat được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong `final_reports` và `chat_messages`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports` và `scratch/chat-attachments`; khi chạy production bắt buộc cấu hình R2.
+- Báo cáo final PDF và file đính kèm trong chat được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong `final_reports`, `chat_messages` và `chat_group_messages`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports` và `scratch/chat-attachments`; khi chạy production bắt buộc cấu hình R2.
+- Chat hỗ trợ cả trao đổi 1-1 giữa sinh viên và giảng viên hướng dẫn, và nhóm chat theo từng giảng viên với toàn bộ sinh viên được phân công cho giảng viên đó. Trạng thái đọc của nhóm dùng bảng `chat_group_message_reads` để không nhân bản một tin nhắn cho từng sinh viên.
 - Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi thông báo cho sinh viên qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công. Email gửi doanh nghiệp tạm thời được soạn sẵn qua Gmail/app Mail để Khoa gửi thủ công vì chưa xác thực được domain trường trên Brevo.
 
 Các biến/secrets chính:

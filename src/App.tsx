@@ -742,6 +742,7 @@ function App() {
                 <Route path="/grades" element={user.role === 'student' ? <StudentGradeView token={token} /> : <Navigate to="/" />} />
                 <Route path="/lecturer/grades" element={(user.role === 'lecturer' || user.is_lecturer) ? <LecturerGradeView token={token} user={user} /> : <Navigate to="/" />} />
                 <Route path="/chat" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} onUnreadChanged={setUnreadChats} /> : <Navigate to="/" />} />
+                <Route path="/chat/group/:groupLecturerId" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} onUnreadChanged={setUnreadChats} /> : <Navigate to="/" />} />
                 <Route path="/chat/:studentUserId/:lecturerId" element={(user.role === 'student' || user.role === 'lecturer' || user.is_lecturer) ? <ChatView token={token} user={user} onUnreadChanged={setUnreadChats} /> : <Navigate to="/" />} />
                 <Route path="/notifications" element={<MyNotifications token={token} onChanged={setUnreadNotifications} />} />
                 <Route path="*" element={<Navigate to="/" />} />
@@ -9691,8 +9692,14 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentPreviewUrlsRef = useRef<Record<string, string>>({});
 
-  const selectedKey = params.studentUserId && params.lecturerId ? `${params.studentUserId}:${params.lecturerId}` : '';
-  const selectedThread = threads.find((thread: any) => `${thread.student_user_id}:${thread.lecturer_id}` === selectedKey) || null;
+  const threadKey = (thread: any) => Number(thread?.is_group || 0) === 1
+    ? `group:${thread.lecturer_id}`
+    : `${thread.student_user_id}:${thread.lecturer_id}`;
+  const selectedKey = params.groupLecturerId
+    ? `group:${params.groupLecturerId}`
+    : (params.studentUserId && params.lecturerId ? `${params.studentUserId}:${params.lecturerId}` : '');
+  const selectedThread = threads.find((thread: any) => threadKey(thread) === selectedKey) || null;
+  const selectedIsGroup = selectedKey.startsWith('group:');
 
   const fetchThreads = async () => {
     try {
@@ -9708,7 +9715,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
       const total = list.reduce((sum, t) => sum + Number(t.unread_count || 0), 0);
       onUnreadChanged?.(total);
       if (!selectedKey && list.length > 0) {
-        navigate(`/chat/${list[0].student_user_id}/${list[0].lecturer_id}`, { replace: true });
+        navigate(Number(list[0].is_group || 0) === 1 ? `/chat/group/${list[0].lecturer_id}` : `/chat/${list[0].student_user_id}/${list[0].lecturer_id}`, { replace: true });
       }
     } catch (e) {
       setError('Không tải được danh sách trao đổi.');
@@ -9719,13 +9726,16 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   };
 
   const fetchMessages = async (showLoading = false) => {
-    if (!params.studentUserId || !params.lecturerId) {
+    if (!selectedKey) {
       setMessages([]);
       return;
     }
     if (showLoading) setLoadingMessages(true);
     try {
-      const res = await fetch(`${API_BASE}/api/chat/threads/${params.studentUserId}/${params.lecturerId}/messages`, {
+      const endpoint = selectedIsGroup
+        ? `${API_BASE}/api/chat/groups/${params.groupLecturerId}/messages`
+        : `${API_BASE}/api/chat/threads/${params.studentUserId}/${params.lecturerId}/messages`;
+      const res = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -9756,18 +9766,20 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   useEffect(() => {
     fetchMessages(true);
     setSelectedFile(null);
-    if (!params.studentUserId || !params.lecturerId) return;
+    if (!selectedKey) return;
     const timer = window.setInterval(() => fetchMessages(false), 10000);
     return () => window.clearInterval(timer);
-  }, [token, params.studentUserId, params.lecturerId]);
+  }, [token, selectedKey]);
 
   const openThread = (thread: any) => {
-    navigate(`/chat/${thread.student_user_id}/${thread.lecturer_id}`);
+    navigate(Number(thread?.is_group || 0) === 1 ? `/chat/group/${thread.lecturer_id}` : `/chat/${thread.student_user_id}/${thread.lecturer_id}`);
   };
 
   const uploadChatAttachment = (thread: any, file: File, body: string) => new Promise<any>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_BASE}/api/chat/threads/${thread.student_user_id}/${thread.lecturer_id}/attachments`);
+    xhr.open('POST', Number(thread?.is_group || 0) === 1
+      ? `${API_BASE}/api/chat/groups/${thread.lecturer_id}/attachments`
+      : `${API_BASE}/api/chat/threads/${thread.student_user_id}/${thread.lecturer_id}/attachments`);
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
     xhr.setRequestHeader('x-filename', encodeURIComponent(file.name));
@@ -9796,7 +9808,10 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
       const data = selectedFile
         ? await uploadChatAttachment(selectedThread, selectedFile, body)
         : await (async () => {
-          const res = await fetch(`${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`, {
+          const endpoint = Number(selectedThread?.is_group || 0) === 1
+            ? `${API_BASE}/api/chat/groups/${selectedThread.lecturer_id}/messages`
+            : `${API_BASE}/api/chat/threads/${selectedThread.student_user_id}/${selectedThread.lecturer_id}/messages`;
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ body }),
@@ -9833,8 +9848,11 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
     setSelectedFile(file);
   };
 
+  const isGroupMessage = (message: any) => Number(message?.is_group || selectedThread?.is_group || 0) === 1;
+  const messageUiKey = (message: any) => `${isGroupMessage(message) ? 'g' : 'm'}:${message.id}`;
+
   const downloadChatAttachment = async (message: any) => {
-    const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}/attachment`, {
+    const res = await fetch(`${API_BASE}/api/chat/${isGroupMessage(message) ? 'group-messages' : 'messages'}/${message.id}/attachment`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return alert('Không tải được file.');
@@ -9854,17 +9872,17 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
 
   const retractMessage = async (message: any) => {
     if (!confirm('Thu hồi tin nhắn này? Tin nhắn sẽ bị xoá khỏi hệ thống, file đính kèm nếu có cũng sẽ bị xoá khỏi kho lưu trữ.')) return;
-    const key = String(message.id);
+    const key = messageUiKey(message);
     setDeletingMessageIds(prev => ({ ...prev, [key]: true }));
     try {
-      const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}`, {
+      const res = await fetch(`${API_BASE}/api/chat/${isGroupMessage(message) ? 'group-messages' : 'messages'}/${message.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Không thu hồi được tin nhắn.');
       revokePreviewUrl(key);
-      setMessages(prev => prev.filter(item => Number(item.id) !== Number(message.id)));
+      setMessages(prev => prev.filter(item => messageUiKey(item) !== key));
       fetchThreads();
     } catch (e) {
       alert('Lỗi kết nối khi thu hồi tin nhắn.');
@@ -9879,14 +9897,14 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   };
 
   const toggleAttachmentPreview = async (message: any) => {
-    const key = String(message.id);
+    const key = messageUiKey(message);
     if (attachmentPreviewUrls[key]) {
       revokePreviewUrl(key);
       return;
     }
     setPreviewLoadingIds(prev => ({ ...prev, [key]: true }));
     try {
-      const res = await fetch(`${API_BASE}/api/chat/messages/${message.id}/attachment?preview=1`, {
+      const res = await fetch(`${API_BASE}/api/chat/${isGroupMessage(message) ? 'group-messages' : 'messages'}/${message.id}/attachment?preview=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return alert('Không tải được bản xem trước.');
@@ -9904,11 +9922,11 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
   };
 
   const threadTitle = (thread: any) => user.role === 'student'
-    ? thread.lecturer_name
-    : thread.student_name;
+    ? (Number(thread?.is_group || 0) === 1 ? `Nhóm của ${thread.lecturer_name}` : thread.lecturer_name)
+    : (Number(thread?.is_group || 0) === 1 ? 'Nhóm sinh viên hướng dẫn' : thread.student_name);
   const threadSubtitle = (thread: any) => user.role === 'student'
-    ? (thread.advisor_role === 'primary' ? 'GVHD chính' : 'Đồng hướng dẫn')
-    : [thread.student_id, thread.class_name, thread.course_code].filter(Boolean).join(' · ');
+    ? (Number(thread?.is_group || 0) === 1 ? 'Trao đổi chung với giảng viên và các sinh viên cùng GVHD' : (thread.advisor_role === 'primary' ? 'GVHD chính' : 'Đồng hướng dẫn'))
+    : (Number(thread?.is_group || 0) === 1 ? `${Number(thread.student_count || 0)} sinh viên` : [thread.student_id, thread.class_name, thread.course_code].filter(Boolean).join(' · '));
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -9916,7 +9934,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <MessageCircle className="text-sky-600" /> Trao đổi với {user.role === 'student' ? 'giảng viên hướng dẫn' : 'sinh viên'}
-            <PageDescriptionTooltip description="Tin nhắn chỉ mở giữa sinh viên và giảng viên đã được phân công trong hệ thống." />
+            <PageDescriptionTooltip description="Tin nhắn chỉ mở cho các phân công giảng viên hướng dẫn trong hệ thống, gồm chat riêng và chat nhóm theo từng giảng viên." />
           </h2>
         </div>
         <button onClick={fetchThreads} disabled={loadingThreads} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50">
@@ -9938,7 +9956,7 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
             ) : threads.length === 0 ? (
               <div className="p-6 text-sm text-slate-500 text-center">Chưa có giảng viên/sinh viên được phân công để trao đổi.</div>
             ) : threads.map((thread: any) => {
-              const key = `${thread.student_user_id}:${thread.lecturer_id}`;
+              const key = threadKey(thread);
               const active = key === selectedKey;
               return (
                 <button
@@ -9978,8 +9996,9 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                   <div className="text-sm text-slate-500 text-center py-10">Chưa có tin nhắn. Bạn có thể bắt đầu trao đổi ở ô bên dưới.</div>
                 ) : messages.map((message: any) => {
                   const mine = Number(message.sender_user_id) === Number(user.id);
+                  const uiKey = messageUiKey(message);
                   return (
-                    <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                    <div key={uiKey} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${mine ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
                         <div className={`text-[11px] font-semibold mb-1 ${mine ? 'text-sky-100' : 'text-slate-500'}`}>
                           {mine ? 'Bạn' : message.sender_name}
@@ -9997,10 +10016,10 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                                 <button
                                   type="button"
                                   onClick={() => toggleAttachmentPreview(message)}
-                                  disabled={!!previewLoadingIds[String(message.id)]}
+                                  disabled={!!previewLoadingIds[uiKey]}
                                   className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ${mine ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'} disabled:opacity-60`}
                                 >
-                                  {previewLoadingIds[String(message.id)] ? 'Đang tải' : attachmentPreviewUrls[String(message.id)] ? 'Ẩn' : 'Xem'}
+                                  {previewLoadingIds[uiKey] ? 'Đang tải' : attachmentPreviewUrls[uiKey] ? 'Ẩn' : 'Xem'}
                                 </button>
                               )}
                               <button
@@ -10012,12 +10031,12 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                                 <Download size={14} />
                               </button>
                             </div>
-                            {attachmentPreviewUrls[String(message.id)] && (
+                            {attachmentPreviewUrls[uiKey] && (
                               <div className={`overflow-hidden rounded-xl border ${mine ? 'border-sky-300 bg-white/10' : 'border-slate-200 bg-white'}`}>
                                 {String(message.attachment_mime || '').toLowerCase().startsWith('image/') ? (
-                                  <img src={attachmentPreviewUrls[String(message.id)]} alt={message.attachment_name || 'Preview'} className="max-h-72 w-full object-contain" />
+                                  <img src={attachmentPreviewUrls[uiKey]} alt={message.attachment_name || 'Preview'} className="max-h-72 w-full object-contain" />
                                 ) : (
-                                  <iframe src={attachmentPreviewUrls[String(message.id)]} title={message.attachment_name || 'PDF preview'} className="h-72 w-full bg-white" />
+                                  <iframe src={attachmentPreviewUrls[uiKey]} title={message.attachment_name || 'PDF preview'} className="h-72 w-full bg-white" />
                                 )}
                               </div>
                             )}
@@ -10029,10 +10048,10 @@ function ChatView({ token, user, onUnreadChanged }: { token: string; user: any; 
                             <button
                               type="button"
                               onClick={() => retractMessage(message)}
-                              disabled={!!deletingMessageIds[String(message.id)]}
+                              disabled={!!deletingMessageIds[uiKey]}
                               className="rounded-md px-1.5 py-0.5 font-semibold text-white/90 hover:bg-white/15 disabled:opacity-60"
                             >
-                              {deletingMessageIds[String(message.id)] ? 'Đang thu hồi' : 'Thu hồi'}
+                              {deletingMessageIds[uiKey] ? 'Đang thu hồi' : 'Thu hồi'}
                             </button>
                           )}
                         </div>
@@ -10138,6 +10157,7 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
   const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
   const advisedStudentCount = new Set(students.map((student: any) => student.user_id).filter(Boolean)).size;
   const uncontactedCount = students.filter((student: any) => !student.contacted_at).length;
+  const groupLecturerId = students.find((student: any) => student.lecturer_id)?.lecturer_id;
 
   const downloadReport = async (student: any) => {
     const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
@@ -10294,6 +10314,13 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Download size={14} /> Xuất XLSX
+              </button>
+              <button
+                onClick={() => groupLecturerId && navigate(`/chat/group/${groupLecturerId}`)}
+                disabled={!groupLecturerId}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Users size={14} /> Chat nhóm
               </button>
             </div>
           </div>
