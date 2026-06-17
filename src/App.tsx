@@ -1855,7 +1855,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   </div>
                 )}
               </div>
-              {!finalInternship && (
+              {!finalInternship ? (
                 <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                   <button
                     onClick={() => openFinalConfirm('company')}
@@ -1872,7 +1872,23 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     Thực tập tại trường
                   </button>
                 </div>
-              )}
+              ) : !finalInternship.locked_at && confirmationWindowStatus === 'open' ? (
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  <button
+                    onClick={() => openFinalConfirm('company')}
+                    disabled={approvedFinalOptions.length === 0}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    Đổi sang công ty
+                  </button>
+                  <button
+                    onClick={() => openFinalConfirm('school')}
+                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    Đổi về thực tập tại trường
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -10168,6 +10184,50 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
     updateStudentContact(student, !!student.contacted_at, note);
   };
 
+  const exportLecturerStudentsXlsx = () => {
+    if (students.length === 0) return alert('Chưa có sinh viên để xuất.');
+    const headers = [
+      'STT',
+      'Mã SV',
+      'Họ và tên',
+      'Lớp khóa học',
+      'Môn học',
+      'Vai trò hướng dẫn',
+      'Nơi thực tập',
+      'SĐT',
+      'Email VNU',
+      'Email khác',
+      'Tình trạng liên hệ',
+      'Thời gian đánh dấu liên hệ',
+      'Ghi chú liên hệ',
+      'Báo cáo final',
+      'Tên file báo cáo',
+      'Dung lượng báo cáo',
+      'Ngày nộp báo cáo',
+    ];
+    const rows = students.map((student: any, index: number) => [
+      index + 1,
+      student.student_id || '',
+      student.student_name || '',
+      student.class_name || '',
+      student.course_code || '',
+      student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn',
+      student.internship_place || '',
+      student.phone || '',
+      student.email || '',
+      student.personal_email || '',
+      student.contacted_at ? 'Đã liên hệ' : 'Chưa liên hệ',
+      student.contacted_at ? new Date(student.contacted_at).toLocaleString('vi-VN') : '',
+      student.contact_note || '',
+      statusLabel(student.report_status),
+      student.report_filename || '',
+      student.report_file_size ? formatBytes(Number(student.report_file_size || 0)) : '',
+      student.report_submitted_at ? new Date(student.report_submitted_at).toLocaleString('vi-VN') : '',
+    ]);
+    const safeName = String(user?.name || 'giang_vien').replace(/[^a-zA-Z0-9À-ỹ_-]+/g, '_').slice(0, 60) || 'giang_vien';
+    saveXlsx(`sinh_vien_phu_trach_${safeName}.xlsx`, headers, rows, 'Sinh viên phụ trách');
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
@@ -10224,8 +10284,17 @@ function LecturerHome({ user, token }: { user: any, token: string }) {
                 <PageDescriptionTooltip description="Danh sách sinh viên đã được Khoa phân công cho giảng viên." />
               </h3>
             </div>
-            <div className={`rounded-xl border px-3 py-2 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
-              {uncontactedCount > 0 ? `Chưa liên hệ: ${uncontactedCount}` : 'Tất cả đã liên hệ'}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className={`rounded-xl border px-3 py-2 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                {uncontactedCount > 0 ? `Chưa liên hệ: ${uncontactedCount}` : 'Tất cả đã liên hệ'}
+              </div>
+              <button
+                onClick={exportLecturerStudentsXlsx}
+                disabled={loadingStudents || students.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={14} /> Xuất XLSX
+              </button>
             </div>
           </div>
         </div>

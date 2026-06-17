@@ -1696,6 +1696,74 @@ async function startServer() {
     JOIN users u ON u.id = cm.sender_user_id
   `;
 
+  async function ensureSchoolFinalInternshipFromRegistration(userId: number, actorUserId?: number) {
+    const final = (await db.execute({
+      sql: 'SELECT * FROM final_internships WHERE user_id = ?',
+      args: [userId],
+    })).rows[0] as any;
+    if (final || final?.locked_at) return final || null;
+    const schoolReg = (await db.execute({
+      sql: `SELECT r.*, c.id as school_company_id
+            FROM registrations r
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.user_id = ?
+              AND r.status != 'rejected'
+              AND c.name = 'Trường Đại học Công nghệ'
+            ORDER BY COALESCE(r.preference_order, 999), r.created_at ASC
+            LIMIT 1`,
+      args: [userId],
+    })).rows[0] as any;
+    if (!schoolReg) return null;
+    const lecturerName = String(schoolReg.other_company_contact || '').trim();
+    const requestAssignment = lecturerName ? 0 : 1;
+    await db.execute({
+      sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
+            VALUES (?, ?, ?, 'school', 'confirmed', 1, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))
+            ON CONFLICT(user_id) DO NOTHING`,
+      args: [
+        userId,
+        Number(schoolReg.id),
+        Number(schoolReg.school_company_id),
+        lecturerName
+          ? 'Hệ thống tự chốt nơi thực tập tại trường từ đăng ký Trường Đại học Công nghệ.'
+          : 'Hệ thống tự chốt nơi thực tập tại trường; Khoa sẽ phân công GVHD sau.',
+        lecturerName || null,
+        requestAssignment,
+        actorUserId || userId,
+        'Tự động chốt từ đăng ký thực tập tại Trường Đại học Công nghệ.',
+      ],
+    });
+    return (await db.execute({
+      sql: 'SELECT * FROM final_internships WHERE user_id = ?',
+      args: [userId],
+    })).rows[0] || null;
+  }
+
+  async function backfillSchoolFinalInternshipsFromRegistrations(actorUserId?: number) {
+    await db.execute({
+      sql: `INSERT INTO final_internships (user_id, registration_id, company_id, internship_type, status, student_attested, attestation_text, school_lecturer, school_assignment_request, confirmed_by, note, confirmed_at)
+            SELECT r.user_id, r.id, c.id, 'school', 'confirmed', 1,
+                   CASE
+                     WHEN COALESCE(trim(r.other_company_contact), '') != ''
+                       THEN 'Hệ thống tự chốt nơi thực tập tại trường từ đăng ký Trường Đại học Công nghệ.'
+                     ELSE 'Hệ thống tự chốt nơi thực tập tại trường; Khoa sẽ phân công GVHD sau.'
+                   END,
+                   NULLIF(trim(r.other_company_contact), ''),
+                   CASE WHEN COALESCE(trim(r.other_company_contact), '') != '' THEN 0 ELSE 1 END,
+                   COALESCE(?, r.user_id),
+                   'Tự động chốt từ đăng ký thực tập tại Trường Đại học Công nghệ.',
+                   datetime('now', '+7 hours')
+            FROM registrations r
+            JOIN companies c ON c.id = r.company_id
+            WHERE r.status != 'rejected'
+              AND c.name = 'Trường Đại học Công nghệ'
+              AND NOT EXISTS (
+                SELECT 1 FROM final_internships f WHERE f.user_id = r.user_id
+              )`,
+      args: [actorUserId || null],
+    });
+  }
+
   // 1. Google Login endpoint
   app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
@@ -2261,6 +2329,7 @@ async function startServer() {
   });
 
   app.get('/api/internships/final/my', requireAuth, requireStudent, async (req: any, res: any) => {
+    await ensureSchoolFinalInternshipFromRegistration(Number(req.user.id), Number(req.user.id));
     const final = (await db.execute({
       sql: `SELECT f.*, c.name as company_name, r.other_company_name, r.other_company_role, r.other_company_contact
             FROM final_internships f
@@ -3035,6 +3104,7 @@ async function startServer() {
         }
       }
       await executeBatch(writeStatements);
+      await ensureSchoolFinalInternshipFromRegistration(Number(req.user.id), Number(req.user.id));
 
       if (advisorRequestPayload) {
         await executeBatch([
@@ -3147,7 +3217,7 @@ async function startServer() {
       for (const raw of preferences) {
         const id = raw.id ? Number(raw.id) : null;
         if (id && !existingById.has(id)) return res.status(403).json({ error: 'Nguyện vọng không thuộc tài khoản của bạn.' });
-        if (final?.registration_id && id === Number(final.registration_id)) {
+        if (final?.registration_id && id === Number(final.registration_id) && final.internship_type !== 'school') {
           const existing = existingById.get(id);
           const requestedCompanyId = raw.type === 'other' ? Number(khacCompany.id) : Number(raw.company_id);
           if (requestedCompanyId !== Number(existing.company_id)) {
@@ -3190,11 +3260,14 @@ async function startServer() {
       }
 
       const incomingIds = new Set(normalizedPrefs.map(item => item.id).filter(Boolean).map(Number));
-      if (final?.registration_id && !incomingIds.has(Number(final.registration_id))) {
+      if (final?.registration_id && !incomingIds.has(Number(final.registration_id)) && final.internship_type !== 'school') {
         return res.status(400).json({ error: 'Không thể xóa nguyện vọng đã được dùng để xác nhận nơi thực tập chính thức.' });
       }
 
       const statements: any[] = [];
+      if (final?.registration_id && final.internship_type === 'school' && !incomingIds.has(Number(final.registration_id))) {
+        statements.push({ sql: "DELETE FROM final_internships WHERE user_id = ? AND internship_type = 'school' AND locked_at IS NULL", args: [userId] });
+      }
       for (const row of existingRows) {
         if (!incomingIds.has(Number(row.id))) {
           statements.push({ sql: 'DELETE FROM registrations WHERE id = ? AND user_id = ?', args: [Number(row.id), userId] });
@@ -3248,6 +3321,23 @@ async function startServer() {
         }
       });
       await executeBatch(statements);
+      await db.execute({
+        sql: `DELETE FROM final_internships
+              WHERE user_id = ?
+                AND internship_type = 'school'
+                AND locked_at IS NULL
+                AND registration_id IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM registrations r
+                  JOIN companies c ON c.id = r.company_id
+                  WHERE r.user_id = final_internships.user_id
+                    AND r.status != 'rejected'
+                    AND c.name = 'Trường Đại học Công nghệ'
+                )`,
+        args: [userId],
+      });
+      await ensureSchoolFinalInternshipFromRegistration(userId, userId);
       const rows = (await db.execute({
         sql: `SELECT r.*, c.name as company_name, c.contact_email, c.address, c.slots, c.description
               FROM registrations r
@@ -4045,6 +4135,7 @@ async function startServer() {
       if (status === 'approved') {
         await addApprovedCompanyFromRegistration(inserted);
       }
+      await ensureSchoolFinalInternshipFromRegistration(userId, req.user.id);
 
       await createNotification({
         user_id: userId,
@@ -4154,6 +4245,14 @@ async function startServer() {
           body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
           send_now: true,
         });
+      }
+      if ((status === 'rejected' || company.name !== 'Trường Đại học Công nghệ') && current.company_name === 'Trường Đại học Công nghệ') {
+        await db.execute({
+          sql: "DELETE FROM final_internships WHERE user_id = ? AND registration_id = ? AND internship_type = 'school' AND locked_at IS NULL",
+          args: [Number(current.user_id), Number(id)],
+        });
+      } else {
+        await ensureSchoolFinalInternshipFromRegistration(Number(current.user_id), req.user.id);
       }
 
       res.json({ success: true });
@@ -4327,6 +4426,7 @@ async function startServer() {
   });
 
   app.get('/api/admin/final-internships', requireAuth, requireAdmin, async (req, res) => {
+    await backfillSchoolFinalInternshipsFromRegistrations((req as any).user?.id);
     const rows = (await db.execute(`
       SELECT f.*, u.email, u.name as student_name, u.student_id, u.class_name, u.course_code, u.phone, u.personal_email,
              c.name as company_name, r.other_company_name, r.other_company_role, r.other_company_contact
