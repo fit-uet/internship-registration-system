@@ -2472,15 +2472,32 @@ async function startServer() {
       sql: `SELECT aa.id as assignment_id, aa.user_id, aa.lecturer_id, aa.role as advisor_role, aa.assigned_at, aa.note as assignment_note,
                    aa.contacted_at, aa.contact_note,
                    u.student_id, u.name as student_name, u.email, u.class_name, u.course_code, u.phone, u.personal_email,
-                   f.internship_type, f.confirmed_at,
-                   CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
-                   r.other_company_role, r.other_company_contact,
+                   COALESCE(f.internship_type, CASE WHEN sr.school_place IS NOT NULL THEN 'school' ELSE NULL END) as internship_type,
+                   f.confirmed_at,
+                   CASE
+                     WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                     WHEN c.name IS NOT NULL THEN c.name
+                     ELSE sr.school_place
+                   END as internship_place,
+                   COALESCE(r.other_company_role, sr.school_co_lecturer) as other_company_role,
+                   COALESCE(r.other_company_contact, sr.school_lecturer) as other_company_contact,
                    fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at
             FROM advisor_assignments aa
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
             LEFT JOIN companies c ON c.id = f.company_id
             LEFT JOIN registrations r ON r.id = f.registration_id
+            LEFT JOIN (
+              SELECT r.user_id,
+                     'Trường Đại học Công nghệ' as school_place,
+                     MAX(r.other_company_contact) as school_lecturer,
+                     MAX(r.other_company_role) as school_co_lecturer
+              FROM registrations r
+              JOIN companies c2 ON c2.id = r.company_id
+              WHERE r.status != 'rejected'
+                AND c2.name = 'Trường Đại học Công nghệ'
+              GROUP BY r.user_id
+            ) sr ON sr.user_id = aa.user_id
             LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
             WHERE aa.lecturer_id = ?
             ORDER BY u.student_id ASC`,
@@ -2663,7 +2680,11 @@ async function startServer() {
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
       sql: `SELECT aa.user_id, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
-                   CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
+                   CASE
+                     WHEN c.name = 'Công ty khác' THEN r.other_company_name
+                     WHEN c.name IS NOT NULL THEN c.name
+                     ELSE sr.school_place
+                   END as internship_place,
                    fr.status as report_status, fr.submitted_at as report_submitted_at,
                    g.progress_score, g.report_score, g.company_score, g.final_score, g.status as grade_status,
                    g.comment, g.submitted_at as grade_submitted_at, g.locked_at
@@ -2672,6 +2693,15 @@ async function startServer() {
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
             LEFT JOIN companies c ON c.id = f.company_id
             LEFT JOIN registrations r ON r.id = f.registration_id
+            LEFT JOIN (
+              SELECT r.user_id,
+                     'Trường Đại học Công nghệ' as school_place
+              FROM registrations r
+              JOIN companies c2 ON c2.id = r.company_id
+              WHERE r.status != 'rejected'
+                AND c2.name = 'Trường Đại học Công nghệ'
+              GROUP BY r.user_id
+            ) sr ON sr.user_id = aa.user_id
             LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
             LEFT JOIN grades g ON g.user_id = aa.user_id
             WHERE aa.lecturer_id = ? AND aa.role = 'primary'
