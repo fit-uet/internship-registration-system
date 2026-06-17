@@ -2814,6 +2814,9 @@ async function startServer() {
     try {
       const advisorWindow = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_request_open_at', 'advisor_request_close_at')")).rows as any[]);
       const windowStatus = isWithinLocalWindow(advisorWindow, 'advisor_request_open_at', 'advisor_request_close_at');
+      if (!advisorWindow.advisor_request_open_at && !advisorWindow.advisor_request_close_at) {
+        return res.status(403).json({ error: 'Chưa mở đợt đăng ký GVHD.' });
+      }
       if (!windowStatus.ok) return res.status(403).json({ error: `Ngoài thời gian đăng ký GVHD: ${windowStatus.error}` });
       const requestType = req.body.request_type === 'agreed' ? 'agreed' : null;
       if (!requestType) return res.status(400).json({ error: 'Chỉ đăng ký GVHD khi sinh viên đã được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, Khoa sẽ phân công sau.' });
@@ -2901,6 +2904,9 @@ async function startServer() {
     try {
       const advisorWindow = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_request_open_at', 'advisor_request_close_at')")).rows as any[]);
       const windowStatus = isWithinLocalWindow(advisorWindow, 'advisor_request_open_at', 'advisor_request_close_at');
+      if (!advisorWindow.advisor_request_open_at && !advisorWindow.advisor_request_close_at) {
+        return res.status(403).json({ error: 'Chưa mở đợt đăng ký GVHD.' });
+      }
       if (!windowStatus.ok) return res.status(403).json({ error: `Ngoài thời gian đăng ký GVHD: ${windowStatus.error}` });
       await executeBatch([
         { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [req.user.id] },
@@ -3418,6 +3424,14 @@ async function startServer() {
         }
         if (closeUTC && nowUTC > closeUTC) {
           return res.status(403).json({ error: `Đã hết thời gian đăng ký. Thời gian kết thúc: ${new Date(closeUTC.getTime() + 7*3600000).toISOString().replace('T',' ').slice(0,16)} (GMT+7).` });
+        }
+      }
+      if (advisorRequestPayload) {
+        const advisorWindow = rowsToSettings((await db.execute("SELECT key, value FROM settings WHERE key IN ('advisor_request_open_at', 'advisor_request_close_at')")).rows as any[]);
+        const hasAdvisorWindow = !!(advisorWindow.advisor_request_open_at || advisorWindow.advisor_request_close_at);
+        const advisorWindowStatus = isWithinLocalWindow(advisorWindow, 'advisor_request_open_at', 'advisor_request_close_at');
+        if (!hasAdvisorWindow || !advisorWindowStatus.ok) {
+          return res.status(403).json({ error: advisorWindowStatus.error ? `Ngoài thời gian đăng ký GVHD: ${advisorWindowStatus.error}` : 'Chưa mở đợt đăng ký GVHD.' });
         }
       }
       if (!Array.isArray(req.body.preferences) && !Array.isArray(company_ids) && (!Array.isArray(other_companies) || other_companies.length === 0)) {

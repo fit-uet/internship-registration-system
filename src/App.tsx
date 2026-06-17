@@ -1133,7 +1133,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const advisorRequestWindowStatus = useMemo(() => {
     const openStr = campaign?.advisor_request_open_at;
     const closeStr = campaign?.advisor_request_close_at;
-    if (!openStr && !closeStr) return 'open';
+    if (!openStr && !closeStr) return 'unconfigured';
     const toUTC = (s: string) => s ? new Date(s + ':00+07:00') : null;
     const now = new Date();
     const openUTC = openStr ? toUTC(openStr) : null;
@@ -1142,6 +1142,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     if (closeUTC && now > closeUTC) return 'closed';
     return 'open';
   }, [campaign]);
+  const canEditAdvisorRequest = advisorRequestWindowStatus === 'open';
 
   const finalReportWindowStatus = useMemo(() => {
     const openStr = campaign?.final_report_open_at;
@@ -1557,7 +1558,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           personal_email: registerForm.personal_email,
           school_lecturer: registerForm.school_lecturer,
           school_co_lecturer: registerForm.school_co_lecturer,
-          ...(advisorRequestForm.request_type ? {
+          ...(canEditAdvisorRequest && advisorRequestForm.request_type ? {
             advisor_request: {
               request_type: advisorRequestForm.request_type,
               lecturer_name: advisorRequestForm.lecturer_name,
@@ -1665,7 +1666,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const submitAdvisorRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (advisorRequestSaving) return;
-    if (advisorRequestWindowStatus !== 'open') {
+    if (!canEditAdvisorRequest) {
       alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
       return;
     }
@@ -1701,7 +1702,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
   const cancelAdvisorRequest = async () => {
     if (advisorRequestSaving) return;
-    if (advisorRequestWindowStatus !== 'open') return alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
+    if (!canEditAdvisorRequest) return alert('Ngoài thời gian đăng ký Giảng viên hướng dẫn.');
     if (!confirm('Hủy đăng ký giảng viên hướng dẫn hiện tại?')) return;
     setAdvisorRequestSaving(true);
     try {
@@ -2191,7 +2192,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         </div>
                       )}
                     </div>
-                    {advisorRequestWindowStatus === 'open' && (
+                    {canEditAdvisorRequest && (
                       <div className="flex flex-wrap gap-2 shrink-0">
                         <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer">
                           {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
@@ -2255,7 +2256,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     rows={2}
                   />
                   <div className="flex flex-wrap gap-2.5">
-                    <button type="submit" disabled={advisorRequestSaving || advisorRequestWindowStatus !== 'open'} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={advisorRequestSaving || !canEditAdvisorRequest} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                       {advisorRequestSaving ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
                     </button>
                     {hasAdvisorSelection && (
@@ -2752,60 +2753,66 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 <textarea className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-y text-slate-800" rows={hasSelectedKhac ? 2 : 3} value={registerForm.note} onChange={e => setRegisterForm({ ...registerForm, note: e.target.value })} placeholder="Mong muốn, kỹ năng nổi bật..." />
               </div>
 
-              <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl space-y-3 shadow-sm">
-                <div>
-                  <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Đăng ký giảng viên hướng dẫn</h4>
-                  <p className="text-[11px] text-emerald-700/80 mt-1 font-medium">Chỉ điền khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, để trống; Khoa sẽ phân công sau theo quota còn lại.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <select
-                    value={advisorRequestForm.request_type}
-                    onChange={e => {
-                      const requestType = e.target.value;
-                      setAdvisorRequestForm({
-                        ...advisorRequestForm,
-                        request_type: requestType,
-                        lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
-                        co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
-                      });
-                    }}
-                    className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 cursor-pointer"
-                  >
-                    <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
-                    <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
-                  </select>
-                  <input
-                    value={advisorRequestForm.lecturer_name}
-                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
-                    disabled={!advisorRequestForm.request_type}
-                    required={!!advisorRequestForm.request_type}
-                    list="registration-advisor-primary-lecturers"
-                    placeholder="Nhập/chọn GVHD chính"
-                    className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
+              {canEditAdvisorRequest ? (
+                <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl space-y-3 shadow-sm">
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Đăng ký giảng viên hướng dẫn</h4>
+                    <p className="text-[11px] text-emerald-700/80 mt-1 font-medium">Chỉ điền khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, để trống; Khoa sẽ phân công sau theo quota còn lại.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <select
+                      value={advisorRequestForm.request_type}
+                      onChange={e => {
+                        const requestType = e.target.value;
+                        setAdvisorRequestForm({
+                          ...advisorRequestForm,
+                          request_type: requestType,
+                          lecturer_name: requestType ? advisorRequestForm.lecturer_name : '',
+                          co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
+                        });
+                      }}
+                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 cursor-pointer"
+                    >
+                      <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
+                      <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
+                    </select>
+                    <input
+                      value={advisorRequestForm.lecturer_name}
+                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, lecturer_name: e.target.value })}
+                      disabled={!advisorRequestForm.request_type}
+                      required={!!advisorRequestForm.request_type}
+                      list="registration-advisor-primary-lecturers"
+                      placeholder="Nhập/chọn GVHD chính"
+                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
+                    />
+                    <input
+                      value={advisorRequestForm.co_lecturer_name}
+                      onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
+                      disabled={!advisorRequestForm.request_type}
+                      list="registration-advisor-co-lecturers"
+                      placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
+                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
+                    />
+                    <datalist id="registration-advisor-primary-lecturers">
+                      {lecturers.map(name => <option key={name} value={name} />)}
+                    </datalist>
+                    <datalist id="registration-advisor-co-lecturers">
+                      {lecturers.map(name => <option key={name} value={name} />)}
+                    </datalist>
+                  </div>
+                  <textarea
+                    value={advisorRequestForm.student_note}
+                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
+                    placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
+                    className="w-full border border-emerald-150 rounded-xl px-3 py-2.5 text-xs resize-y bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all text-slate-800"
+                    rows={2}
                   />
-                  <input
-                    value={advisorRequestForm.co_lecturer_name}
-                    onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, co_lecturer_name: e.target.value })}
-                    disabled={!advisorRequestForm.request_type}
-                    list="registration-advisor-co-lecturers"
-                    placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
-                    className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
-                  />
-                  <datalist id="registration-advisor-primary-lecturers">
-                    {lecturers.map(name => <option key={name} value={name} />)}
-                  </datalist>
-                  <datalist id="registration-advisor-co-lecturers">
-                    {lecturers.map(name => <option key={name} value={name} />)}
-                  </datalist>
                 </div>
-                <textarea
-                  value={advisorRequestForm.student_note}
-                  onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                  placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
-                  className="w-full border border-emerald-150 rounded-xl px-3 py-2.5 text-xs resize-y bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all text-slate-800"
-                  rows={2}
-                />
-              </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-xs text-slate-600 font-medium shadow-sm">
+                  Đợt đăng ký GVHD hiện chưa mở. Khi đăng ký bổ sung nơi thực tập, hệ thống sẽ giữ nguyên GVHD đã đăng ký/phân công trước đó; nếu sinh viên chưa có GVHD, Khoa sẽ phân công sau.
+                </div>
+              )}
 
               {hasSelectedSchool && (
                 <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl text-xs text-blue-900 font-medium shadow-sm">
