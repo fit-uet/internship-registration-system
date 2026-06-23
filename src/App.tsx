@@ -2324,7 +2324,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         )}
 
         {/* Registration Table Area */}
-        {showCompanyList && <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+        {showCompanyList && <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
@@ -2405,7 +2405,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             </div>
           )}
 
-          <div className="flex-1 overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left min-w-[700px]">
               <thead>
                 <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider font-bold">
@@ -2517,8 +2517,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         </button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                      <div className="md:col-span-2">
+                    <div className="space-y-3.5">
+                      <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
                         <input list="edit-it-companies-datalist" value={otherCompany.name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên công ty" />
                       </div>
@@ -2526,17 +2526,19 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí *</label>
                         <input value={otherCompany.role || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, role: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Vị trí thực tập" />
                       </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ *</label>
-                        <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên người liên hệ" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Điện thoại *</label>
-                        <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Số điện thoại" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
-                        <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="email@company.com" />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ *</label>
+                          <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên người liên hệ" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Điện thoại *</label>
+                          <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Số điện thoại" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
+                          <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="email@company.com" />
+                        </div>
                       </div>
                     </div>
                   </div>
