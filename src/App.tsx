@@ -1090,7 +1090,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     role: '',
     contact_name: '',
     contact_phone: '',
-    contact_email: ''
+    contact_email: '',
+    note: ''
   }]);
   const [advisorRequestForm, setAdvisorRequestForm] = useState({
     request_type: '',
@@ -1218,7 +1219,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
     if (existingOtherCompanies.length > 0) {
       setOtherCompanies(existingOtherCompanies);
     } else {
-      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }]);
     }
     setRegisterForm((prev: any) => ({ ...prev, note: '' }));
     setEditingPreferences(true);
@@ -1226,7 +1227,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
 
   const cancelEditingPreferences = () => {
     setSelectedCompanies(new Set());
-    setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+    setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }]);
     setEditingPreferences(false);
   };
 
@@ -1341,7 +1342,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
       setMyRegs(rows);
       setEditingPreferences(false);
       setSelectedCompanies(new Set());
-      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+      setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }]);
       await fetchData();
       alert('Đã cập nhật nguyện vọng.');
     } catch (err) {
@@ -1545,7 +1546,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 type: 'other',
                 name: c.name,
                 role: c.role,
-                contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`
+                contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`,
+                note: c.note || ''
               }));
             }
             return [{ type: 'company', company_id: companyId }];
@@ -1570,7 +1572,8 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           other_companies: hasSelectedKhac ? otherCompanies.map(c => ({
             name: c.name,
             role: c.role,
-            contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`
+            contact: `${c.contact_name} - ${c.contact_phone} - ${c.contact_email}`,
+            note: c.note || ''
           })) : []
         })
       });
@@ -1584,7 +1587,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         setSelectedCompanies(new Set());
         setRegisterForm({ student_id: data.user?.student_id || user?.student_id || studentIdFromEmail, dob: data.user?.dob || user?.dob || '', class_name: data.user?.class_name || user?.class_name || '', course_code: data.user?.course_code || user?.course_code || '', phone: data.user?.phone || user?.phone || '', personal_email: data.user?.personal_email || user?.personal_email || '', school_lecturer: '', school_co_lecturer: '', note: '' });
         setAdvisorRequestForm({ request_type: '', lecturer_name: '', co_lecturer_name: '', student_note: '' });
-        setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }]);
+        setOtherCompanies([{ name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }]);
         if (data.advisor_warning) alert(data.advisor_warning);
         fetchData();
       } else {
@@ -2495,7 +2498,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
                   <button
                     type="button"
-                    onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }])}
+                    onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }])}
                     className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100"
                   >
                     <Plus size={14} /> Thêm công ty
@@ -2539,6 +2542,10 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
                           <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="email@company.com" />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú đăng ký</label>
+                        <textarea rows={2} value={otherCompany.note || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, note: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Lý do đăng ký, liên hệ GVHD..." />
                       </div>
                     </div>
                   </div>
@@ -2862,13 +2869,17 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           <input required type="email" className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" value={otherCompany.contact_email} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, contact_email: e.target.value } : c))} placeholder="a@company.com" />
                         </div>
                       </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ghi chú đăng ký</label>
+                        <textarea rows={2} className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-y text-slate-800" value={otherCompany.note || ''} onChange={e => setOtherCompanies(prev => prev.map((c, i) => i === index ? { ...c, note: e.target.value } : c))} placeholder="Lý do đăng ký, liên hệ GVHD..." />
+                      </div>
                     </div>
                   ))}
 
                   {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
                     <button
                       type="button"
-                      onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '' }])}
+                      onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }])}
                       className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       + Thêm công ty tự liên hệ

@@ -1540,14 +1540,14 @@ async function route(request: Request, env: Env) {
     const rawPreferences = Array.isArray(body.preferences) ? body.preferences : [];
     const orderedPreferences = rawPreferences.length > 0
       ? rawPreferences.flatMap((item: any) => {
-        if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact }];
+        if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact, note: item.note }];
         const companyId = Number(item?.company_id);
         if (!Number.isFinite(companyId) || companyId === khac?.id) return [];
         return [{ type: 'company', company_id: companyId }];
       })
       : [
         ...fallbackCompanyIds.map((companyId: number) => ({ type: 'company', company_id: companyId })),
-        ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact })),
+        ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact, note: item.note })),
       ];
     const seenCompanyIds = new Set<number>();
     const dedupedPreferences = orderedPreferences.filter((item: any) => {
@@ -1605,7 +1605,7 @@ async function route(request: Request, env: Env) {
         const other = preference;
         if (!other.name || !other.role || !other.contact) return json({ error: 'Vui lòng cung cấp đầy đủ thông tin các công ty ngoài danh sách.' }, 400);
         const status = approvedNames.has(normalizeCompanyName(other.name)) ? 'approved' : 'pending';
-        statements.push({ sql: insertSql, args: [user.id, khac.id, body.note || null, status, other.name, other.role, other.contact, preferenceOrder] });
+        statements.push({ sql: insertSql, args: [user.id, khac.id, String(other.note || '').trim() || body.note || null, status, other.name, other.role, other.contact, preferenceOrder] });
         preferenceOrder += 1;
       }
     }

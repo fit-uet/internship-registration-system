@@ -3445,14 +3445,14 @@ async function startServer() {
       const rawPreferences = Array.isArray(req.body.preferences) ? req.body.preferences : [];
       const orderedPreferences = rawPreferences.length > 0
         ? rawPreferences.flatMap((item: any) => {
-          if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact }];
+          if (item?.type === 'other') return [{ type: 'other', name: item.name, role: item.role, contact: item.contact, note: item.note }];
           const companyId = Number(item?.company_id);
           if (!Number.isFinite(companyId) || companyId === khacCompany?.id) return [];
           return [{ type: 'company', company_id: companyId }];
         })
         : [
           ...fallbackCompanyIds.map((companyId: number) => ({ type: 'company', company_id: companyId })),
-          ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact })),
+          ...fallbackOtherCompanies.map((item: any) => ({ type: 'other', name: item.name, role: item.role, contact: item.contact, note: item.note })),
         ];
       const seenCompanyIds = new Set<number>();
       const dedupedPreferences = orderedPreferences.filter((item: any) => {
@@ -3585,7 +3585,7 @@ async function startServer() {
             args: [
               req.user.id,
               khacCompany.id,
-              note || null,
+              String(other.note || '').trim() || note || null,
               status,
               other.name || null,
               other.role || null,
@@ -3695,6 +3695,7 @@ async function startServer() {
 
       const existingRows = (await db.execute({ sql: 'SELECT * FROM registrations WHERE user_id = ? ORDER BY preference_order ASC, created_at ASC', args: [userId] })).rows as any[];
       const existingById = new Map(existingRows.map(row => [Number(row.id), row]));
+      const existingNote = existingRows.find(row => row.note)?.note || null;
       const final = (await db.execute({ sql: 'SELECT * FROM final_internships WHERE user_id = ?', args: [userId] })).rows[0] as any;
       if (final?.locked_at) return res.status(400).json({ error: 'Nơi thực tập chính thức đã bị khóa. Vui lòng liên hệ Khoa nếu cần thay đổi nguyện vọng.' });
 
@@ -3734,7 +3735,7 @@ async function startServer() {
           seenCompanyNames.add(normalizedName);
           if (seenOtherNames.has(normalizedName)) return res.status(400).json({ error: `Bạn đã nhập trùng công ty "${name}".` });
           seenOtherNames.add(normalizedName);
-          normalizedPrefs.push({ id, type: 'other', company_id: Number(khacCompany.id), name, role, contact, status: approvedCompanyNames.has(normalizedName) ? 'approved' : 'pending', note: String(raw.note || '').trim() || null });
+          normalizedPrefs.push({ id, type: 'other', company_id: Number(khacCompany.id), name, role, contact, status: approvedCompanyNames.has(normalizedName) ? 'approved' : 'pending', note: String(raw.note || '').trim() || existingNote });
         } else {
           const companyId = Number(raw.company_id);
           if (!Number.isFinite(companyId) || companyId === Number(khacCompany.id)) return res.status(400).json({ error: 'Công ty không hợp lệ.' });
@@ -3745,7 +3746,7 @@ async function startServer() {
           const normalizedName = normalizeCompanyName(String(company.name || ''));
           if (seenCompanyNames.has(normalizedName)) return res.status(400).json({ error: `Bạn đã chọn trùng nơi thực tập "${company.name}".` });
           seenCompanyNames.add(normalizedName);
-          normalizedPrefs.push({ id, type: 'company', company_id: companyId, name: company.name, status: 'approved', note: String(raw.note || '').trim() || null });
+          normalizedPrefs.push({ id, type: 'company', company_id: companyId, name: company.name, status: 'approved', note: String(raw.note || '').trim() || existingNote });
         }
       }
       if (normalizedPrefs.some(item => item.company_id === Number(schoolCompany?.id)) && normalizedPrefs.length > 1) {
