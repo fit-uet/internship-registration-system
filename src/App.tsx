@@ -1942,56 +1942,64 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-t-4 border-t-blue-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-t-4 border-t-blue-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Đăng ký thực tập</div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 pr-8">{registrationSummary}</div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Đăng ký thực tập</div>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                <ClipboardList size={15} />
+              </div>
+            </div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800">{registrationSummary}</div>
             {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
             {hasRegistered && <div className="mt-3 text-xs font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-              <ClipboardList size={15} />
-            </div>
           </button>
 
           <button
             type="button"
             onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-t-4 border-t-emerald-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-t-4 border-t-emerald-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2 pr-8">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
-            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
-              <CheckCircle2 size={15} />
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+                <CheckCircle2 size={15} />
+              </div>
             </div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
+            {hasRegistered && <div className="mt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/grades')}
-            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${showAdvisorTask ? 'border-t-4 border-t-indigo-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${showAdvisorTask ? 'border-t-4 border-t-indigo-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Giảng viên hướng dẫn</div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2 pr-8">{advisorSummary}</div>
-            <div className="mt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số</div>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-              <UserCheck size={15} />
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Giảng viên hướng dẫn</div>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-650 shrink-0">
+                <UserCheck size={15} />
+              </div>
             </div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{advisorSummary}</div>
+            <div className="mt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số</div>
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
-            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${activeCampaignKey === 'final_report' ? 'border-t-4 border-t-violet-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${activeCampaignKey === 'final_report' ? 'border-t-4 border-t-violet-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo final</div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 pr-8">{finalReportSummary}</div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo final</div>
+              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-650 shrink-0">
+                <FileCheck size={15} />
+              </div>
+            </div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800">{finalReportSummary}</div>
             {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
             <div className="mt-3 text-xs font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo</div>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600">
-              <FileCheck size={15} />
-            </div>
           </button>
         </div>
 
@@ -2148,61 +2156,78 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               )}
             </div>
 
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
-              <div className="flex-1 min-w-0">
-                {finalInternship ? (
-                  <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 space-y-3.5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Đơn vị tiếp nhận</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block">
-                          {finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
-                        </span>
-                      </div>
-                      {finalInternship.school_lecturer && (
-                        <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
-                          <span className="text-sm font-bold text-slate-800 mt-1 block">{finalInternship.school_lecturer}</span>
+            <div>
+              {finalInternship ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Đơn vị tiếp nhận</span>
+                      <span className="text-sm font-bold text-slate-800 mt-1 block">
+                        {finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
+                      {myAdvisors.length > 0 ? (
+                        <div className="mt-1.5 space-y-1.5">
+                          {myAdvisors.map((a: any) => (
+                            <div key={`${a.role}-${a.lecturer_id}`} className="text-xs font-semibold text-slate-850 flex items-center gap-1.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${a.role === 'primary' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-650'}`}>
+                                {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
+                              </span>
+                              <strong>{a.lecturer_name}</strong>
+                              {a.lecturer_email && (
+                                <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-[10px] font-medium">
+                                  ({a.lecturer_email})
+                                </a>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      {finalInternship.school_assignment_request ? (
-                        <div>
-                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
-                          <span className="text-xs font-semibold text-slate-650 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1">Khoa sẽ phân công</span>
-                        </div>
-                      ) : null}
-                      {myAdvisors.length > 0 && (
-                        <div className="md:col-span-2">
-                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5">Giảng viên hướng dẫn đã phân công</span>
-                          <div className="flex flex-wrap gap-2">
-                            {myAdvisors.map((a: any) => (
-                              <div key={`${a.role}-${a.lecturer_id}`} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 text-xs text-slate-850">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${a.role === 'primary' ? 'bg-indigo-50 text-indigo-750' : 'bg-slate-100 text-slate-600'}`}>
-                                  {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
-                                </span>
-                                <strong className="text-slate-800">{a.lecturer_name}</strong>
-                                {a.lecturer_email && (
-                                  <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-[11px] ml-1.5 font-medium">
-                                    ({a.lecturer_email})
-                                  </a>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                      ) : finalInternship.school_lecturer ? (
+                        <span className="text-sm font-bold text-slate-800 mt-1 block">{finalInternship.school_lecturer}</span>
+                      ) : finalInternship.school_assignment_request ? (
+                        <span className="text-xs font-semibold text-slate-650 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1">Khoa sẽ phân công</span>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic mt-1 block">Chưa phân công</span>
                       )}
                     </div>
-                    <div className="border-t border-slate-200/60 pt-3 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
-                      <div>Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</div>
+
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Thời gian xác nhận</span>
+                      <span className="text-sm font-semibold text-slate-600 mt-1 block">
+                        {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}
+                      </span>
                       {finalInternship.locked_at && (
-                        <div className="text-rose-600 font-bold flex items-center gap-1">
-                          <Lock size={12} /> Khoa đã khóa dữ liệu xác nhận.
+                        <div className="text-rose-600 font-bold text-[10px] flex items-center gap-1 mt-1">
+                          <Lock size={10} /> Khoa đã khóa dữ liệu xác nhận.
                         </div>
                       )}
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-3">
+
+                  {!finalInternship.locked_at && confirmationWindowStatus === 'open' && (
+                    <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
+                      <button
+                        onClick={() => openFinalConfirm('company')}
+                        disabled={approvedFinalOptions.length === 0}
+                        className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                      >
+                        Đổi sang công ty
+                      </button>
+                      <button
+                        onClick={() => openFinalConfirm('school')}
+                        className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                      >
+                        Đổi về thực tập tại trường
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="space-y-3.5 mb-5">
                     <p className="text-sm text-slate-600 leading-relaxed">Sau khi có kết quả tuyển dụng từ doanh nghiệp hoặc trường học, sinh viên bắt buộc phải chọn và xác nhận một nơi thực tập chính thức để hệ thống ghi nhận làm căn cứ phân công giảng viên và nhập điểm học phần.</p>
                     {confirmationWindowStatus !== 'open' && (
                       <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 flex items-start gap-2 text-xs text-orange-800">
@@ -2220,45 +2245,25 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       </p>
                     )}
                   </div>
-                )}
-              </div>
 
-              <div className="shrink-0 flex flex-row lg:flex-col gap-2 w-full lg:w-auto">
-                {!finalInternship ? (
-                  <>
+                  <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
                     <button
                       onClick={() => openFinalConfirm('company')}
                       disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
-                      className="flex-1 lg:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                     >
                       Xác nhận công ty
                     </button>
                     <button
                       onClick={() => openFinalConfirm('school')}
                       disabled={confirmationWindowStatus !== 'open'}
-                      className="flex-1 lg:flex-none justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                      className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                     >
                       Thực tập tại trường
                     </button>
-                  </>
-                ) : !finalInternship.locked_at && confirmationWindowStatus === 'open' ? (
-                  <>
-                    <button
-                      onClick={() => openFinalConfirm('company')}
-                      disabled={approvedFinalOptions.length === 0}
-                      className="flex-1 lg:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
-                    >
-                      Đổi sang công ty
-                    </button>
-                    <button
-                      onClick={() => openFinalConfirm('school')}
-                      className="flex-1 lg:flex-none justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-                    >
-                      Đổi về thực tập tại trường
-                    </button>
-                  </>
-                ) : null}
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
