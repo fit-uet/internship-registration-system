@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { HashRouter, Routes, Route, useNavigate, Navigate, useParams, Link } from 'react-router-dom';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings, MessageCircle, Paperclip } from 'lucide-react';
+import { LogOut, User as UserIcon, Users, Upload, CheckCircle2, Download, LogIn, LayoutDashboard, ArrowUpDown, Search, AlertTriangle, ChevronRight, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Clock, Send, Bell, CircleHelp, Settings, MessageCircle, Paperclip, Lock, ClipboardList, UserCheck, FileCheck } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
@@ -1892,15 +1892,15 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         </div>
 
-        <details className="group bg-[#004a99] text-white rounded-2xl shadow-md overflow-hidden">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
-            <span className="text-xs font-bold text-blue-200 uppercase tracking-widest">Quy định Đăng ký</span>
-            <ChevronDown size={18} className="text-blue-200 transition-transform group-open:rotate-180" />
+        <details className="group bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden transition-all duration-200">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 select-none focus:outline-none">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Quy định Đăng ký</span>
+            <ChevronDown size={18} className="text-slate-400 transition-transform group-open:rotate-180 group-open:text-slate-800" />
           </summary>
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 border-t border-slate-100/80 pt-4 text-slate-700 text-xs leading-relaxed max-h-[400px] overflow-y-auto">
             {registrationRulesMarkdown.trim()
               ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-              : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
+              : <p className="text-sm text-slate-400 italic">Chưa có quy định nào.</p>}
           </div>
         </details>
       </div>
@@ -1937,46 +1937,61 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <button
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`rounded-xl border p-4 text-left transition-colors ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'} ${hasRegistered ? 'hover:border-blue-300 hover:bg-blue-50/70 cursor-pointer' : 'cursor-default'}`}
+            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-t-4 border-t-blue-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Đăng ký thực tập</div>
-            <div className="mt-2 text-sm font-semibold text-slate-900">{registrationSummary}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Đăng ký thực tập</div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 pr-8">{registrationSummary}</div>
             {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-2 text-xs font-semibold text-blue-700">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
+            {hasRegistered && <div className="mt-3 text-xs font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+              <ClipboardList size={15} />
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`rounded-xl border p-4 text-left transition-colors ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'} ${hasRegistered ? 'hover:border-emerald-300 hover:bg-emerald-50/70 cursor-pointer' : 'cursor-default'}`}
+            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-t-4 border-t-emerald-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Nơi thực tập chính thức</div>
-            <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-2 text-xs font-semibold text-emerald-700">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2 pr-8">{finalInternshipSummary}</div>
+            {hasRegistered && <div className="mt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
+            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+              <CheckCircle2 size={15} />
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => navigate('/grades')}
-            className={`rounded-xl border p-4 text-left transition-colors ${showAdvisorTask ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'} hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer`}
+            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${showAdvisorTask ? 'border-t-4 border-t-indigo-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Giảng viên hướng dẫn</div>
-            <div className="mt-2 text-sm font-semibold text-slate-900 line-clamp-2">{advisorSummary}</div>
-            <div className="mt-2 text-xs font-semibold text-blue-700">Xem chi tiết & điểm số</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Giảng viên hướng dẫn</div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2 pr-8">{advisorSummary}</div>
+            <div className="mt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số</div>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <UserCheck size={15} />
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
-            className={`rounded-xl border p-4 text-left transition-colors ${activeCampaignKey === 'final_report' ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-white'} hover:border-indigo-300 hover:bg-indigo-50/70`}
+            className={`relative rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${activeCampaignKey === 'final_report' ? 'border-t-4 border-t-violet-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Báo cáo final</div>
-            <div className="mt-2 text-sm font-semibold text-slate-900">{finalReportSummary}</div>
-            {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleString('vi-VN')}</div>}
-            <div className="mt-2 text-xs font-semibold text-indigo-700">Mở trang nộp báo cáo</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo final</div>
+            <div className="mt-2.5 text-sm font-bold text-slate-800 pr-8">{finalReportSummary}</div>
+            {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
+            <div className="mt-3 text-xs font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo</div>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600">
+              <FileCheck size={15} />
+            </div>
           </button>
         </div>
 
@@ -1986,81 +2001,116 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
           </div>
         ) : (showRegistrationTask || (hasRegistered && showRegistrationDetails)) ? (hasRegistered ? (showRegistrationDetails ? (
-          <div className="bg-green-50/50 border border-green-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md">
             {!editingPreferences ? (
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="text-green-600" size={20} />
-                    <h3 className="text-base font-bold text-green-900">Đã ghi nhận đăng ký {myRegs.length} công ty</h3>
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                      <CheckCircle2 size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800">Đã ghi nhận đăng ký nguyện vọng</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</p>
+                    </div>
                   </div>
-                  <ul className="text-sm text-green-800 mb-4 space-y-2">
-                    {myRegs.map((reg: any, idx: number) => (
-                      <li key={reg.id}>
-                        <div>NV{idx + 1}: <strong>{reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}</strong> — <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${reg.status === 'approved' ? 'bg-green-100 text-green-700' : reg.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}</span></div>
-                        {reg.review_comment && <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">Nhận xét của Khoa: {reg.review_comment}</div>}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex items-center gap-3 text-xs text-green-700 font-medium">
-                    <span>NGÀY GHI NHẬN: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</span>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button
+                      onClick={startEditingPreferences}
+                      disabled={!canWithdrawRegistration}
+                      title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
+                      className={`bg-white text-slate-750 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <Edit2 size={13} /> Sửa nguyện vọng
+                    </button>
+                    <button
+                      onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
+                      disabled={!canWithdrawRegistration}
+                      title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
+                      className={`bg-rose-50 text-rose-600 border border-rose-100 px-3.5 py-1.5 rounded-xl hover:bg-rose-100/60 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <Trash2 size={13} /> Hủy tất cả
+                    </button>
                   </div>
-                  {canWithdrawRegistration && (
-                    <p className="mt-3 text-xs text-green-700">
-                      Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.
-                    </p>
-                  )}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                  <button
-                    onClick={startEditingPreferences}
-                    disabled={!canWithdrawRegistration}
-                    title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
-                    className={`bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <Edit2 size={14} /> Chỉnh sửa nguyện vọng
-                  </button>
-                  <button
-                    onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
-                    disabled={!canWithdrawRegistration}
-                    title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
-                    className={`bg-white text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <Trash2 size={14} /> Hủy tất cả
-                  </button>
+
+                <div className="space-y-3 mb-5">
+                  {myRegs.map((reg: any, idx: number) => (
+                    <div key={reg.id} className="flex items-start sm:items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition-colors">
+                      <div className="min-w-0 flex-1 pr-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">NV{idx + 1}</span>
+                          <span className="text-sm font-bold text-slate-800">
+                            {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
+                          </span>
+                        </div>
+                        {reg.review_comment && (
+                          <div className="text-xs text-slate-600 mt-2 bg-white border border-slate-150 rounded-lg p-2.5 shadow-sm inline-block max-w-full">
+                            <span className="font-semibold text-slate-700">Nhận xét của Khoa:</span> {reg.review_comment}
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full border shadow-sm shrink-0 ${
+                        reg.status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : reg.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-100'
+                            : 'bg-amber-50 text-amber-700 border-amber-100'
+                      }`}>
+                        {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+
+                {canWithdrawRegistration && (
+                  <div className="flex items-start gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs text-slate-500 leading-relaxed">
+                    <Clock size={14} className="mt-0.5 text-slate-400 shrink-0" />
+                    <p>Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Edit2 className="text-blue-600" size={20} />
-                      <h3 className="text-base font-bold text-slate-900">Chỉnh sửa nguyện vọng thực tập</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                      <Edit2 size={20} />
                     </div>
-                    <p className="text-sm text-slate-600">Danh sách nơi thực tập đã được mở lại ở bên dưới. Các nơi đã đăng ký được tích sẵn; sinh viên có thể bỏ chọn hoặc chọn thêm nơi khác, tối đa 5 nguyện vọng.</p>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800">Chỉnh sửa nguyện vọng thực tập</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Sinh viên có thể chọn thêm hoặc bỏ bớt nơi thực tập</p>
+                    </div>
                   </div>
-                  <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">Đang chọn {selectedWishCount}/5</div>
+                  <div className="rounded-full bg-blue-50 border border-blue-100 px-3.5 py-1 text-xs font-bold text-blue-700 shadow-sm shrink-0">
+                    Đang chọn {selectedWishCount}/5
+                  </div>
                 </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+
+                <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4 text-xs text-amber-900 leading-relaxed">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-600" />
                     <div><strong>Lưu ý:</strong> Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.</div>
                   </div>
                 </div>
+
                 {selectedPreferencePreview.length > 0 && (
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Nguyện vọng sau khi chỉnh sửa</div>
-                    <ol className="space-y-1 text-sm text-slate-800">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                    <div className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-400">Nguyện vọng sau khi chỉnh sửa</div>
+                    <ol className="space-y-2 text-xs text-slate-850">
                       {selectedPreferencePreview.map((item, idx) => (
-                        <li key={item.key}><span className="font-bold text-blue-700">NV{idx + 1}:</span> {item.name}</li>
+                        <li key={item.key} className="flex items-center gap-2">
+                          <span className="font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded text-[10px]">NV{idx + 1}</span>
+                          <span className="font-semibold text-slate-800">{item.name}</span>
+                        </li>
                       ))}
                     </ol>
                   </div>
                 )}
-                <div className="flex flex-col sm:flex-row justify-end gap-2.5">
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-slate-100 pt-4">
                   <button onClick={cancelEditingPreferences} disabled={savingPreferences} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50">Hủy chỉnh sửa</button>
-                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                     <Save size={14} /> {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
                 </div>
@@ -2080,86 +2130,135 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
         )) : null}
 
         {showConfirmationBlock && (
-          <div className={`border rounded-2xl p-6 shadow-sm ${finalInternship ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className={finalInternship ? 'text-emerald-600' : 'text-slate-400'} size={20} />
-                  <h3 className={`text-base font-bold ${finalInternship ? 'text-emerald-900' : 'text-slate-800'}`}>Nơi thực tập chính thức</h3>
+          <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                  <CheckCircle2 size={20} />
                 </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Nơi thực tập chính thức</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Xác nhận nơi trúng tuyển chính thức để lấy điểm học phần</p>
+                </div>
+              </div>
+              {finalInternship && (
+                <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full shadow-sm">
+                  Đã Xác Nhận
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+              <div className="flex-1 min-w-0">
                 {finalInternship ? (
-                  <div className="text-sm text-emerald-800 space-y-1">
-                    <p>
-                      Đã xác nhận: <strong>{finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}</strong>
-                    </p>
-                    {finalInternship.school_lecturer && <p>GVHD đăng ký: <strong>{finalInternship.school_lecturer}</strong></p>}
-                    {finalInternship.school_assignment_request ? <p>GVHD: <strong>Khoa sẽ phân công</strong></p> : null}
-                    {myAdvisors.length > 0 && (
+                  <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 space-y-3.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
+                        <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Đơn vị tiếp nhận</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block">
+                          {finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
+                        </span>
+                      </div>
+                      {finalInternship.school_lecturer && (
                         <div>
-                          GVHD đã phân công:{' '}
-                          <strong>{myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')}</strong>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
+                          <span className="text-sm font-bold text-slate-800 mt-1 block">{finalInternship.school_lecturer}</span>
                         </div>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {myAdvisors.filter((a: any) => a.lecturer_email).map((a: any) => (
-                            <a key={`${a.role}-${a.lecturer_email}`} href={`mailto:${a.lecturer_email}`} className="rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 hover:bg-white hover:underline">
-                              {a.role === 'primary' ? 'GVHD chính' : 'Đồng HD'}: {a.lecturer_email}
-                            </a>
-                          ))}
+                      )}
+                      {finalInternship.school_assignment_request ? (
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
+                          <span className="text-xs font-semibold text-slate-650 bg-white border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1">Khoa sẽ phân công</span>
+                        </div>
+                      ) : null}
+                      {myAdvisors.length > 0 && (
+                        <div className="md:col-span-2">
+                          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1.5">Giảng viên hướng dẫn đã phân công</span>
+                          <div className="flex flex-wrap gap-2">
+                            {myAdvisors.map((a: any) => (
+                              <div key={`${a.role}-${a.lecturer_id}`} className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 text-xs text-slate-850">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${a.role === 'primary' ? 'bg-indigo-50 text-indigo-750' : 'bg-slate-100 text-slate-600'}`}>
+                                  {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
+                                </span>
+                                <strong className="text-slate-800">{a.lecturer_name}</strong>
+                                {a.lecturer_email && (
+                                  <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-[11px] ml-1.5 font-medium">
+                                    ({a.lecturer_email})
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-slate-200/60 pt-3 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+                      <div>Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</div>
+                      {finalInternship.locked_at && (
+                        <div className="text-rose-600 font-bold flex items-center gap-1">
+                          <Lock size={12} /> Khoa đã khóa dữ liệu xác nhận.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-600 leading-relaxed">Sau khi có kết quả tuyển dụng từ doanh nghiệp hoặc trường học, sinh viên bắt buộc phải chọn và xác nhận một nơi thực tập chính thức để hệ thống ghi nhận làm căn cứ phân công giảng viên và nhập điểm học phần.</p>
+                    {confirmationWindowStatus !== 'open' && (
+                      <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 flex items-start gap-2 text-xs text-orange-800">
+                        <Clock size={14} className="shrink-0 mt-0.5 text-orange-500" />
+                        <div>
+                          {confirmationWindowStatus === 'not_open_yet'
+                            ? `Đợt xác nhận chưa mở. Thời gian mở: ${campaign.confirmation_open_at ? formatGMT7(campaign.confirmation_open_at) : '—'} (GMT+7).`
+                            : `Đợt xác nhận đã kết thúc vào lúc: ${campaign.confirmation_close_at ? formatGMT7(campaign.confirmation_close_at) : '—'} (GMT+7).`}
                         </div>
                       </div>
                     )}
-                    <p className="text-xs">Thời gian xác nhận: {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}</p>
-                    {finalInternship.locked_at && <p className="text-xs font-semibold text-emerald-900">Khoa đã khóa chỉnh sửa nơi thực tập chính thức.</p>}
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-600 space-y-2">
-                    <p>Sau khi có kết quả từ doanh nghiệp, bạn cần xác nhận một nơi thực tập chính thức để lấy điểm.</p>
-                    {confirmationWindowStatus !== 'open' && (
-                      <p className={`text-xs font-semibold ${confirmationWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
-                        {confirmationWindowStatus === 'not_open_yet'
-                          ? `Chưa mở xác nhận${campaign.confirmation_open_at ? `: ${formatGMT7(campaign.confirmation_open_at)} (GMT+7)` : ''}.`
-                          : `Đã hết hạn xác nhận${campaign.confirmation_close_at ? `: ${formatGMT7(campaign.confirmation_close_at)} (GMT+7)` : ''}.`}
+                    {approvedFinalOptions.length === 0 && (
+                      <p className="text-xs text-amber-700 italic font-medium bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                        Hiện chưa có công ty nào được Khoa duyệt trong danh sách nguyện vọng của bạn. Nếu không trúng tuyển doanh nghiệp nào ngoài danh sách chính thức, bạn có thể thực tập tại trường khi Khoa mở cổng xác nhận.
                       </p>
                     )}
-                    {approvedFinalOptions.length === 0 && <p className="text-xs text-orange-700">Hiện chưa có công ty đã duyệt để xác nhận. Nếu không trúng tuyển nơi nào, bạn có thể chọn thực tập tại trường khi Khoa mở xác nhận.</p>}
                   </div>
                 )}
               </div>
-              {!finalInternship ? (
-                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                  <button
-                    onClick={() => openFinalConfirm('company')}
-                    disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    Xác nhận công ty
-                  </button>
-                  <button
-                    onClick={() => openFinalConfirm('school')}
-                    disabled={confirmationWindowStatus !== 'open'}
-                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    Thực tập tại trường
-                  </button>
-                </div>
-              ) : !finalInternship.locked_at && confirmationWindowStatus === 'open' ? (
-                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                  <button
-                    onClick={() => openFinalConfirm('company')}
-                    disabled={approvedFinalOptions.length === 0}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    Đổi sang công ty
-                  </button>
-                  <button
-                    onClick={() => openFinalConfirm('school')}
-                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    Đổi về thực tập tại trường
-                  </button>
-                </div>
-              ) : null}
+
+              <div className="shrink-0 flex flex-row lg:flex-col gap-2 w-full lg:w-auto">
+                {!finalInternship ? (
+                  <>
+                    <button
+                      onClick={() => openFinalConfirm('company')}
+                      disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
+                      className="flex-1 lg:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Xác nhận công ty
+                    </button>
+                    <button
+                      onClick={() => openFinalConfirm('school')}
+                      disabled={confirmationWindowStatus !== 'open'}
+                      className="flex-1 lg:flex-none justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Thực tập tại trường
+                    </button>
+                  </>
+                ) : !finalInternship.locked_at && confirmationWindowStatus === 'open' ? (
+                  <>
+                    <button
+                      onClick={() => openFinalConfirm('company')}
+                      disabled={approvedFinalOptions.length === 0}
+                      className="flex-1 lg:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Đổi sang công ty
+                    </button>
+                    <button
+                      onClick={() => openFinalConfirm('school')}
+                      className="flex-1 lg:flex-none justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Đổi về thực tập tại trường
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
