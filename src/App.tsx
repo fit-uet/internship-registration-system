@@ -1019,7 +1019,7 @@ function App() {
                 <div className="flex justify-end gap-3 mt-6">
                   <button
                     onClick={() => setLoginError(null)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
                   >
                     Đã hiểu
                   </button>
@@ -2214,13 +2214,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                         disabled={approvedFinalOptions.length === 0}
                         className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                       >
-                        Đổi sang công ty
+                        {finalInternship.internship_type === 'company' ? 'Cập nhật công ty' : 'Chuyển sang công ty'}
                       </button>
                       <button
                         onClick={() => openFinalConfirm('school')}
                         className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
                       >
-                        Đổi về thực tập tại trường
+                        {finalInternship.internship_type === 'school' ? 'Cập nhật thực tập tại trường' : 'Chuyển sang thực tập tại trường'}
                       </button>
                     </div>
                   )}
@@ -2446,21 +2446,21 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm nơi thực tập..."
-                className="text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+                className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full sm:w-64 bg-slate-50/50 shadow-inner font-semibold text-slate-800"
               />
               {editingPreferences ? (
                 <>
                   <button
                     onClick={cancelEditingPreferences}
                     disabled={savingPreferences}
-                    className="px-4 py-1.5 rounded-md text-sm font-bold border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60 whitespace-nowrap"
+                    className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap"
                   >
                     Hủy
                   </button>
                   <button
                     onClick={savePreferenceEdits}
                     disabled={savingPreferences || selectedWishCount === 0}
-                    className="px-5 py-1.5 rounded-md text-sm font-bold bg-green-600 text-white hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
@@ -2627,30 +2627,30 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     </div>
                     <div className="space-y-3.5">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Tên công ty *</label>
-                        <input list="edit-it-companies-datalist" value={otherCompany.name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên công ty" />
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Tên công ty *</label>
+                        <input list="edit-it-companies-datalist" value={otherCompany.name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Tên công ty" />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Vị trí *</label>
-                        <input value={otherCompany.role || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, role: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Vị trí thực tập" />
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Vị trí *</label>
+                        <input value={otherCompany.role || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, role: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Vị trí thực tập" />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Người liên hệ *</label>
-                          <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Tên người liên hệ" />
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Người liên hệ *</label>
+                          <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Tên người liên hệ" />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Điện thoại *</label>
-                          <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Số điện thoại" />
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Điện thoại *</label>
+                          <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Số điện thoại" />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">Email *</label>
-                          <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="email@company.com" />
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+                          <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="email@company.com" />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Ghi chú đăng ký</label>
-                        <textarea rows={2} value={otherCompany.note || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, note: e.target.value } : c))} className="w-full border border-slate-300 rounded-lg px-3.5 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Lý do đăng ký, liên hệ GVHD..." />
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Ghi chú đăng ký</label>
+                        <textarea rows={2} value={otherCompany.note || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, note: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-850" placeholder="Lý do đăng ký, liên hệ GVHD..." />
                       </div>
                     </div>
                   </div>
@@ -3170,13 +3170,13 @@ function AdminDashboard({ token, user: propUser }: { token: string; user?: any }
                   key={item.path}
                   type="button"
                   onClick={() => navigate(item.path)}
-                  className={`text-left p-4 rounded-xl border border-slate-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow cursor-pointer flex flex-col justify-between min-h-[110px] ${item.color}`}
+                  className={`text-left p-5 rounded-2xl border border-slate-200/60 bg-slate-50/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-slate-50/40 shadow-sm cursor-pointer flex flex-col justify-between min-h-[120px] ${item.color}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 w-full">
                     <span className="font-bold text-xs text-slate-800">{item.title}</span>
-                    {item.icon}
+                    <span className="p-1.5 bg-white rounded-xl shadow-sm border border-slate-100">{item.icon}</span>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-2 line-clamp-2">{item.desc}</p>
+                  <p className="text-[11px] text-slate-500 mt-2.5 font-medium line-clamp-2 leading-relaxed">{item.desc}</p>
                 </button>
               ))}
             </div>
@@ -5394,25 +5394,25 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
         />
       </div>}
 
-      {isQuotasView && <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-        <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h3 className="font-bold text-slate-800">Chỉ tiêu giảng viên</h3>
+      {isQuotasView && <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="font-bold text-slate-800 text-sm">Chỉ tiêu giảng viên</h3>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => requestAdvisorSort('name')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Tên GV <AdvisorSortIcon col="name" /></button>
-            <button onClick={() => requestAdvisorSort('assignment_count')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Đã phân công <AdvisorSortIcon col="assignment_count" /></button>
-            <button onClick={() => requestAdvisorSort('max_total_students')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Chỉ tiêu <AdvisorSortIcon col="max_total_students" /></button>
+            <button onClick={() => requestAdvisorSort('name')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-707 hover:bg-slate-50 transition-colors cursor-pointer">Tên GV <AdvisorSortIcon col="name" /></button>
+            <button onClick={() => requestAdvisorSort('assignment_count')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-707 hover:bg-slate-50 transition-colors cursor-pointer">Đã phân công <AdvisorSortIcon col="assignment_count" /></button>
+            <button onClick={() => requestAdvisorSort('max_total_students')} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-707 hover:bg-slate-50 transition-colors cursor-pointer">Chỉ tiêu <AdvisorSortIcon col="max_total_students" /></button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
           {sortedLecturers.map(lecturer => (
-            <div key={lecturer.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
+            <div key={lecturer.id} className="border border-slate-200/60 bg-slate-50/20 hover:bg-slate-50/55 hover:shadow-sm transition-all rounded-2xl p-4 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="font-medium text-sm text-slate-800 truncate">{lecturer.name}</div>
-                <div className="text-xs text-slate-500">{lecturer.assignment_count}/{lecturer.max_total_students} sinh viên</div>
+                <div className="font-bold text-xs text-slate-800 truncate">{lecturer.name}</div>
+                <div className="text-xs text-slate-500 mt-1">{lecturer.assignment_count}/{lecturer.max_total_students} sinh viên</div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-16 border border-slate-300 rounded px-2 py-1 text-sm text-center" />
-                <button onClick={() => saveQuota(lecturer)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Lưu chỉ tiêu"><Save size={16} /></button>
+                <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all bg-white font-semibold text-slate-800" />
+                <button onClick={() => saveQuota(lecturer)} className="text-emerald-700 hover:bg-emerald-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu chỉ tiêu"><Save size={16} /></button>
               </div>
             </div>
           ))}
@@ -8764,23 +8764,23 @@ function ApprovedCompanyRegistry({ token }: { token: string }) {
                 <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                 <td className="p-3">
                   {editingId === c.id ? (
-                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-teal-400 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-teal-500" />
+                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-white font-semibold text-slate-800" />
                   ) : (
                     <span className="font-medium text-slate-800">{c.name}</span>
                   )}
                 </td>
                 <td className="p-3 text-slate-600">{c.source || 'manual'}</td>
-                <td className="p-3 text-slate-600 whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString('vi-VN') : '-'}</td>
+                <td className="p-3 text-slate-650 whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString('vi-VN') : '-'}</td>
                 <td className="p-3 text-right">
                   {editingId === c.id ? (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
+                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu"><Save size={16} /></button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-xl transition-colors cursor-pointer" title="Hủy"><X size={16} /></button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors" title="Sửa"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="Xóa"><Trash2 size={16} /></button>
+                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-xl transition-colors cursor-pointer" title="Sửa"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors cursor-pointer" title="Xóa"><Trash2 size={16} /></button>
                     </div>
                   )}
                 </td>
@@ -11787,74 +11787,74 @@ function StudentRegistry({ token }: { token: string }) {
         </div>
       </div>
       {showAddForm && (
-        <form onSubmit={handleAddStudent} className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <form onSubmit={handleAddStudent} className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-inner">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Mã SV *</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">Mã SV *</label>
               <input
                 value={newStudent.student_id}
                 onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
                 placeholder="24021400"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Họ và tên *</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">Họ và tên *</label>
               <input
                 value={newStudent.name}
                 onChange={e => setNewStudent({ ...newStudent, name: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
                 placeholder="Nguyễn Văn A"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Ngày sinh</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">Ngày sinh</label>
               <input
                 type="date"
                 value={newStudent.dob}
                 onChange={e => setNewStudent({ ...newStudent, dob: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">SĐT</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">SĐT</label>
               <input
                 value={newStudent.phone}
                 onChange={e => setNewStudent({ ...newStudent, phone: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
                 placeholder="09..."
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Lớp khoá học</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">Lớp khoá học</label>
               <input
                 value={newStudent.class_name}
                 onChange={e => setNewStudent({ ...newStudent, class_name: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
                 placeholder="QH-2024-I/CQ..."
               />
             </div>
             <div className="md:col-span-3">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Email cá nhân</label>
+              <label className="block text-xs font-semibold text-slate-650 mb-1">Email cá nhân</label>
               <input
                 type="email"
                 value={newStudent.personal_email}
                 onChange={e => setNewStudent({ ...newStudent, personal_email: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
                 placeholder="email@example.com"
               />
             </div>
             <div className="md:col-span-3 flex items-end justify-end gap-2">
-              <button type="button" onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }} disabled={savingStudent} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-white disabled:opacity-60">
+              <button type="button" onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }} disabled={savingStudent} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50">
                 Huỷ
               </button>
-              <button type="submit" disabled={savingStudent} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2">
-                {savingStudent ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              <button type="submit" disabled={savingStudent} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+                {savingStudent ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
                 {savingStudent ? 'Đang lưu...' : 'Lưu sinh viên'}
               </button>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Email VNU được tạo tự động theo dạng MSSV@vnu.edu.vn. Sinh viên ngoài khóa đang mở sẽ được xem là ngoại lệ nếu MSSV/email này tồn tại trong danh sách.</p>
+          <p className="mt-3 text-xs text-slate-400 font-medium">Email VNU được tạo tự động theo dạng MSSV@vnu.edu.vn. Sinh viên ngoài khóa đang mở sẽ được xem là ngoại lệ nếu MSSV/email này tồn tại trong danh sách.</p>
         </form>
       )}
       {importing && (
