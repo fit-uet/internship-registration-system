@@ -2280,11 +2280,18 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
             )}
             <form onSubmit={submitAdvisorRequest} className="space-y-3">
               {hasAdvisorSelection && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/30 p-5 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
-                      <div className="font-bold">GVHD hiện tại</div>
-                      <div className="mt-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">GVHD hiện tại</span>
+                        {advisorRequest && (
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${advisorRequest.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : advisorRequest.status === 'rejected' ? 'bg-red-50 text-red-750 border border-red-150' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                            {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm font-bold text-slate-800">
                         {myAdvisors.length > 0
                           ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
                           : advisorRequest?.request_type === 'faculty_assign'
@@ -2292,20 +2299,19 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                             : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
                       </div>
                       {advisorRequest && (
-                        <div className="mt-1 text-xs text-emerald-800">
-                          Trạng thái: {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
-                          {advisorRequest.quota_status === 'over_quota' ? ' · Vượt quota, đã cảnh báo' : ''}
-                          {advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text ? ` · Đồng HD: ${advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}` : ''}
-                          {advisorRequest.admin_note ? ` · Nhận xét: ${advisorRequest.admin_note}` : ''}
+                        <div className="mt-2 text-xs text-slate-500 font-medium space-y-1">
+                          {advisorRequest.quota_status === 'over_quota' && <p className="text-amber-600 font-bold">⚠️ Vượt quota, đã cảnh báo</p>}
+                          {(advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text) && <p>Đồng HD: <span className="font-semibold text-slate-700">{advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}</span></p>}
+                          {advisorRequest.admin_note && <p>Nhận xét từ Khoa: <span className="font-semibold text-slate-750">{advisorRequest.admin_note}</span></p>}
                         </div>
                       )}
                     </div>
                     {canEditAdvisorRequest && (
                       <div className="flex flex-wrap gap-2 shrink-0">
-                        <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer">
+                        <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer">
                           {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
                         </button>
-                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="bg-white text-red-600 border border-red-200 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50">
+                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="bg-white text-red-650 border border-red-200 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50">
                           Hủy đăng ký
                         </button>
                       </div>
@@ -2364,7 +2370,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     rows={2}
                   />
                   <div className="flex flex-wrap gap-2.5">
-                    <button type="submit" disabled={advisorRequestSaving || !canEditAdvisorRequest} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={advisorRequestSaving || !canEditAdvisorRequest} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                       {advisorRequestSaving ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
                     </button>
                     {hasAdvisorSelection && (
@@ -2763,10 +2769,17 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               ) : (
                 <div className="space-y-3">
                   {primaryAdvisor ? (
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Giảng viên hướng dẫn đã phân công</p>
-                      <p className="mt-1 text-sm font-bold text-emerald-900">{primaryAdvisor.lecturer_name}</p>
-                      {primaryAdvisor.lecturer_email && <p className="mt-0.5 text-xs text-emerald-700">{primaryAdvisor.lecturer_email}</p>}
+                    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/45 p-4">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn đã phân công</span>
+                        <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[9px] font-bold">GV chính</span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">{primaryAdvisor.lecturer_name}</p>
+                      {primaryAdvisor.lecturer_email && (
+                        <a href={`mailto:${primaryAdvisor.lecturer_email}`} className="mt-1 text-xs text-blue-600 hover:underline font-semibold block w-fit">
+                          {primaryAdvisor.lecturer_email}
+                        </a>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -2876,12 +2889,12 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
               </div>
 
               {canEditAdvisorRequest ? (
-                <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl space-y-3 shadow-sm">
+                <div className="bg-slate-50/50 border border-slate-200 p-5 rounded-2xl space-y-3.5 shadow-inner">
                   <div>
-                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Đăng ký giảng viên hướng dẫn</h4>
-                    <p className="text-[11px] text-emerald-700/80 mt-1 font-medium">Chỉ điền khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, để trống; Khoa sẽ phân công sau theo quota còn lại.</p>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Đăng ký giảng viên hướng dẫn</h4>
+                    <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">Chỉ điền khi sinh viên đã liên hệ và được giảng viên đồng ý hướng dẫn. Nếu chưa có GVHD, để trống; Khoa sẽ phân công sau theo quota còn lại.</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                     <select
                       value={advisorRequestForm.request_type}
                       onChange={e => {
@@ -2893,7 +2906,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
                         });
                       }}
-                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 cursor-pointer"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-semibold text-slate-850 cursor-pointer"
                     >
                       <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
                       <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
@@ -2905,7 +2918,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       required={!!advisorRequestForm.request_type}
                       list="registration-advisor-primary-lecturers"
                       placeholder="Nhập/chọn GVHD chính"
-                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-semibold text-slate-850 disabled:bg-slate-100 disabled:text-slate-400"
                     />
                     <input
                       value={advisorRequestForm.co_lecturer_name}
@@ -2913,7 +2926,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       disabled={!advisorRequestForm.request_type}
                       list="registration-advisor-co-lecturers"
                       placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
-                      className="border border-emerald-150 rounded-xl px-3 py-2.5 text-xs bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-semibold text-slate-800 disabled:bg-emerald-50/50 disabled:text-emerald-400"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-semibold text-slate-850 disabled:bg-slate-100 disabled:text-slate-400"
                     />
                     <datalist id="registration-advisor-primary-lecturers">
                       {lecturers.map(name => <option key={name} value={name} />)}
@@ -2926,7 +2939,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                     value={advisorRequestForm.student_note}
                     onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
                     placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
-                    className="w-full border border-emerald-150 rounded-xl px-3 py-2.5 text-xs resize-y bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all text-slate-800"
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs resize-y bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-slate-850 font-medium"
                     rows={2}
                   />
                 </div>
@@ -4678,10 +4691,10 @@ function FinalInternshipListAdmin({ token }: { token: string }) {
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Tìm mã SV, tên, nơi thực tập, GVHD..."
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
           />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none">
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none">
           <option value="">Tất cả loại</option>
           <option value="company">Công ty</option>
           <option value="school">Tại trường</option>
@@ -5152,7 +5165,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
               </div>
               <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập, giảng viên..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none bg-slate-50/50 transition-all shadow-inner" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm sinh viên, nơi thực tập, giảng viên..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none bg-slate-50/50 transition-all shadow-inner" />
               </div>
               <div className="flex flex-wrap gap-2">
                 <label className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
@@ -5353,7 +5366,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                         <select
                           value={selectedRoles[key] || 'primary'}
                           onChange={e => setSelectedRoles(prev => ({ ...prev, [key]: e.target.value as 'primary' | 'co' }))}
-                          className="border border-slate-200 bg-white text-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all cursor-pointer"
+                          className="border border-slate-200 bg-white text-slate-705 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
                         >
                           <option value="primary">Hướng dẫn chính</option>
                           <option value="co">Đồng hướng dẫn</option>
@@ -5361,7 +5374,7 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                         <select
                           value={selectedLecturers[key] || ''}
                           onChange={e => setSelectedLecturers(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="border border-slate-200 bg-white text-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all cursor-pointer min-w-[200px]"
+                          className="border border-slate-200 bg-white text-slate-705 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer min-w-[200px]"
                         >
                           <option value="">-- Chọn giảng viên --</option>
                           {lecturers.map(lecturer => (
@@ -5411,8 +5424,8 @@ function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string
                 <div className="text-xs text-slate-500 mt-1">{lecturer.assignment_count}/{lecturer.max_total_students} sinh viên</div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all bg-white font-semibold text-slate-800" />
-                <button onClick={() => saveQuota(lecturer)} className="text-emerald-700 hover:bg-emerald-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu chỉ tiêu"><Save size={16} /></button>
+                <input type="number" min="0" value={quotaEdits[String(lecturer.id)] ?? lecturer.max_total_students} onChange={e => setQuotaEdits(prev => ({ ...prev, [lecturer.id]: e.target.value }))} className="w-14 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-850" />
+                <button onClick={() => saveQuota(lecturer)} className="text-green-600 hover:bg-green-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu chỉ tiêu"><Save size={16} /></button>
               </div>
             </div>
           ))}
