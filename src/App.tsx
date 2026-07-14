@@ -49,25 +49,25 @@ const normalizeRegistrationRulesMarkdown = (content: string) => {
 };
 
 const RegistrationRulesMarkdown = ({ content }: { content: string }) => (
-  <div className="registration-rules-markdown text-sm text-blue-50">
+  <div className="registration-rules-markdown text-xs text-slate-650">
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        h1: ({ node, ...props }) => <h1 className="text-base font-bold text-white mb-3" {...props} />,
-        h2: ({ node, ...props }) => <h2 className="text-sm font-bold text-white mt-4 mb-2" {...props} />,
-        h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-white mt-3 mb-2" {...props} />,
-        p: ({ node, ...props }) => <p className="mb-3 leading-relaxed text-blue-50" {...props} />,
-        ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-2 marker:text-blue-300" {...props} />,
-        ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-2 marker:text-blue-300" {...props} />,
-        li: ({ node, ...props }) => <li className="pl-1 leading-relaxed" {...props} />,
-        strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
-        em: ({ node, ...props }) => <em className="text-blue-100" {...props} />,
-        a: ({ node, ...props }) => <a className="text-cyan-200 underline hover:text-white" target="_blank" rel="noreferrer" {...props} />,
-        code: ({ node, ...props }) => <code className="bg-blue-950/40 text-cyan-100 px-1 py-0.5 rounded" {...props} />,
-        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-blue-300 pl-3 italic text-blue-100 my-3" {...props} />,
-        table: ({ node, ...props }) => <div className="overflow-x-auto my-3"><table className="min-w-full border border-blue-300/40 text-xs" {...props} /></div>,
-        th: ({ node, ...props }) => <th className="border border-blue-300/40 px-2 py-1 text-left text-white" {...props} />,
-        td: ({ node, ...props }) => <td className="border border-blue-300/30 px-2 py-1 text-blue-50" {...props} />,
+        h1: ({ node, ...props }) => <h1 className="text-sm font-bold text-slate-800 mb-3" {...props} />,
+        h2: ({ node, ...props }) => <h2 className="text-xs font-bold text-slate-800 mt-4 mb-2" {...props} />,
+        h3: ({ node, ...props }) => <h3 className="text-xs font-semibold text-slate-800 mt-3 mb-2" {...props} />,
+        p: ({ node, ...props }) => <p className="mb-3 leading-relaxed text-slate-650 font-medium" {...props} />,
+        ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-2 marker:text-blue-500" {...props} />,
+        ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-2 marker:text-blue-500" {...props} />,
+        li: ({ node, ...props }) => <li className="pl-1 leading-relaxed text-slate-650 font-medium" {...props} />,
+        strong: ({ node, ...props }) => <strong className="font-bold text-slate-900" {...props} />,
+        em: ({ node, ...props }) => <em className="text-slate-800 italic" {...props} />,
+        a: ({ node, ...props }) => <a className="text-blue-600 underline hover:text-blue-700 font-semibold transition-colors" target="_blank" rel="noreferrer" {...props} />,
+        code: ({ node, ...props }) => <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono text-[11px]" {...props} />,
+        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-300 pl-3 italic text-slate-500 my-3" {...props} />,
+        table: ({ node, ...props }) => <div className="overflow-x-auto my-3"><table className="min-w-full border border-slate-200 text-xs" {...props} /></div>,
+        th: ({ node, ...props }) => <th className="border border-slate-200 px-2 py-1 text-left text-slate-800 bg-slate-50 font-semibold" {...props} />,
+        td: ({ node, ...props }) => <td className="border border-slate-150 px-2 py-1 text-slate-650 font-medium" {...props} />,
       }}
     >
       {normalizeRegistrationRulesMarkdown(content)}
@@ -8449,20 +8449,20 @@ Trường Đại học Công nghệ, ĐHQGHN`;
                   <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                   {editingId === c.id && c.record_type !== 'other' ? (
                     <>
-                      <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input autoFocus value={editCompany.name} onChange={e => setEditCompany({ ...editCompany, name: e.target.value })} className="w-full border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800" /></td>
                       <td className="p-3"><span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-semibold">Chính thức</span></td>
-                      <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-400 rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input type="number" value={editCompany.slots} onChange={e => setEditCompany({ ...editCompany, slots: e.target.value })} className="w-16 border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs text-center focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800 animate-none" /></td>
                       <td className="p-3 text-center text-slate-500">{c.applicant_count ?? 0}</td>
                       <td className="p-3 text-center text-slate-500">{c.approved_applicant_count ?? 0}</td>
                       <td className="p-3 text-slate-500">{c.last_sent_at ? new Date(c.last_sent_at).toLocaleString('vi-VN') : 'Chưa gửi'}</td>
                       <td className="p-3 text-slate-400">—</td>
-                      <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                      <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                      <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
-                      <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500" /></td>
+                      <td className="p-3"><input value={editCompany.contact_email} onChange={e => setEditCompany({ ...editCompany, contact_email: e.target.value })} className="w-full border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800" /></td>
+                      <td className="p-3"><input value={editCompany.contact_name} onChange={e => setEditCompany({ ...editCompany, contact_name: e.target.value })} className="w-full border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800" /></td>
+                      <td className="p-3"><input value={editCompany.phone} onChange={e => setEditCompany({ ...editCompany, phone: e.target.value })} className="w-full border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800" /></td>
+                      <td className="p-3"><input value={editCompany.address} onChange={e => setEditCompany({ ...editCompany, address: e.target.value })} className="w-full border border-orange-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-white font-semibold text-slate-800" /></td>
                       <td className="p-3 text-right flex items-center justify-end gap-1">
-                        <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors" title="Lưu"><Save size={16} /></button>
-                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors" title="Hủy"><X size={16} /></button>
+                        <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu"><Save size={16} /></button>
+                        <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-xl transition-colors cursor-pointer" title="Hủy"><X size={16} /></button>
                       </td>
                     </>
                   ) : (
@@ -9856,11 +9856,11 @@ function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
           </div>
           <div className="p-5 bg-slate-50/25">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
-            <div className="bg-[#004a99] text-white rounded-2xl p-5 shadow-md">
-              <h2 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
               {String(rules || '').trim()
                 ? <RegistrationRulesMarkdown content={rules} />
-                : <p className="text-sm text-blue-100">Chưa có quy định nào.</p>}
+                : <p className="text-xs text-slate-400 italic">Chưa có quy định nào.</p>}
             </div>
           </div>
         </div>
