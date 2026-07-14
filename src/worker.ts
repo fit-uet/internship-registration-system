@@ -1400,12 +1400,19 @@ async function route(request: Request, env: Env) {
     const type = body.internship_type === 'school' ? 'school' : 'company';
     const school = (await database.execute("SELECT id FROM companies WHERE name = 'Trường Đại học Công nghệ'")).rows[0] as any;
     if (type === 'school') {
-      const requestAssignment = !!body.school_assignment_request;
-      const lecturerName = String(body.school_lecturer || '').trim();
-      let validLecturer: any = null;
+      const assignedPrimaryLecturer = (await database.execute({
+        sql: `SELECT l.* FROM advisor_assignments aa
+              JOIN lecturers l ON l.id = aa.lecturer_id
+              WHERE aa.user_id = ? AND aa.role = 'primary'
+              ORDER BY aa.assigned_at DESC, aa.id DESC LIMIT 1`,
+        args: [user.id],
+      })).rows[0] as any;
+      const requestAssignment = assignedPrimaryLecturer ? false : !!body.school_assignment_request;
+      const lecturerName = assignedPrimaryLecturer?.name || String(body.school_lecturer || '').trim();
+      let validLecturer: any = assignedPrimaryLecturer || null;
       if (!requestAssignment) {
         if (!lecturerName) return json({ error: 'Vui lòng chọn giảng viên hướng dẫn hoặc chọn Nhờ Khoa phân công.' }, 400);
-        validLecturer = (await database.execute({ sql: 'SELECT * FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0] as any;
+        if (!validLecturer) validLecturer = (await database.execute({ sql: 'SELECT * FROM lecturers WHERE name = ?', args: [lecturerName] })).rows[0] as any;
         if (!validLecturer) return json({ error: 'Giảng viên hướng dẫn không hợp lệ. Vui lòng chọn trong danh sách.' }, 400);
         if (isBachelorLecturer(validLecturer.name)) return json({ error: 'Giảng viên CN không được làm hướng dẫn chính. Vui lòng chọn giảng viên khác hoặc nhờ Khoa phân công.' }, 400);
         const quotaRow = (await database.execute({ sql: 'SELECT max_total_students FROM lecturer_quotas WHERE lecturer_id = ?', args: [Number(validLecturer.id)] })).rows[0] as any;
@@ -1432,7 +1439,7 @@ async function route(request: Request, env: Env) {
           body.note || null,
         ],
       });
-      if (!requestAssignment && validLecturer) {
+      if (!assignedPrimaryLecturer && !requestAssignment && validLecturer) {
         try {
           const result = await database.execute({
             sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)

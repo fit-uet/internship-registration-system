@@ -1102,6 +1102,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const navigate = useNavigate();
 
   const hasRegistered = myRegs.length > 0;
+  const primaryAdvisor = myAdvisors.find((advisor: any) => advisor.role === 'primary') || null;
 
   // Compute registration time window status (GMT+7)
   const registrationWindowStatus = useMemo(() => {
@@ -1732,7 +1733,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
   const openFinalConfirm = (mode: 'company' | 'school') => {
     setFinalConfirmMode(mode);
     setSelectedFinalRegId(mode === 'company' ? String(approvedFinalOptions[0]?.id || '') : '');
-    setFinalSchoolLecturer('');
+    setFinalSchoolLecturer(mode === 'school' && primaryAdvisor ? String(primaryAdvisor.lecturer_name || '') : '');
     setFinalAttested(false);
     setFinalNote('');
     setConfirmFinalOpen(true);
@@ -2657,21 +2658,29 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                 </>
               ) : (
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Giảng viên đã đồng ý hướng dẫn <span className="text-slate-400 font-normal normal-case">(nếu có)</span></label>
-                    <input
-                      type="text"
-                      list="final-lecturers-list"
-                      value={finalSchoolLecturer}
-                      onChange={e => setFinalSchoolLecturer(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
-                      placeholder="Để trống nếu Khoa phân công sau..."
-                    />
-                    <datalist id="final-lecturers-list">
-                      {lecturers.map(lec => <option key={lec} value={lec} />)}
-                    </datalist>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-medium">Chỉ chọn thực tập tại trường khi bạn không trúng tuyển công ty nào hoặc thực hiện theo sắp xếp của Khoa. Nếu để trống GVHD, Khoa sẽ phân công sau.</p>
+                  {primaryAdvisor ? (
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Giảng viên hướng dẫn đã phân công</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-900">{primaryAdvisor.lecturer_name}</p>
+                      {primaryAdvisor.lecturer_email && <p className="mt-0.5 text-xs text-emerald-700">{primaryAdvisor.lecturer_email}</p>}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Giảng viên đã đồng ý hướng dẫn <span className="text-slate-400 font-normal normal-case">(nếu có)</span></label>
+                      <input
+                        type="text"
+                        list="final-lecturers-list"
+                        value={finalSchoolLecturer}
+                        onChange={e => setFinalSchoolLecturer(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                        placeholder="Để trống nếu Khoa phân công sau..."
+                      />
+                      <datalist id="final-lecturers-list">
+                        {lecturers.map(lec => <option key={lec} value={lec} />)}
+                      </datalist>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-400 font-medium">Chỉ chọn thực tập tại trường khi bạn không trúng tuyển công ty nào hoặc thực hiện theo sắp xếp của Khoa.{!primaryAdvisor ? ' Nếu để trống GVHD, Khoa sẽ phân công sau.' : ''}</p>
                 </div>
               )}
 
