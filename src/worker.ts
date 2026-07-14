@@ -2776,7 +2776,10 @@ async function route(request: Request, env: Env) {
              fr.status as report_status,
              g.progress_score, g.report_score, g.company_score, g.final_score,
              COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
-             COALESCE(gl.name, 'Giảng viên đã bị xóa') as grading_lecturer_name,
+             CASE
+               WHEN g.id IS NULL THEN NULL
+               ELSE COALESCE(gl.name, 'Giảng viên đã bị xóa')
+             END as grading_lecturer_name,
              GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
              GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
       FROM final_internships f
