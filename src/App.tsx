@@ -2162,7 +2162,7 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                       <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Đơn vị tiếp nhận</span>
-                      <span className="text-sm font-bold text-slate-800 mt-1 block">
+                      <span className="text-sm font-bold text-slate-800 mt-1.5 block">
                         {finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
                       </span>
                     </div>
@@ -2172,13 +2172,13 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                       {myAdvisors.length > 0 ? (
                         <div className="mt-1.5 space-y-1.5">
                           {myAdvisors.map((a: any) => (
-                            <div key={`${a.role}-${a.lecturer_id}`} className="text-xs font-semibold text-slate-850 flex items-center gap-1.5">
+                            <div key={`${a.role}-${a.lecturer_id}`} className="text-sm font-bold text-slate-850 flex items-center gap-1.5">
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${a.role === 'primary' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-650'}`}>
                                 {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
                               </span>
                               <strong>{a.lecturer_name}</strong>
                               {a.lecturer_email && (
-                                <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-[10px] font-medium">
+                                <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-xs font-semibold">
                                   ({a.lecturer_email})
                                 </a>
                               )}
@@ -2186,17 +2186,17 @@ function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser
                           ))}
                         </div>
                       ) : finalInternship.school_lecturer ? (
-                        <span className="text-sm font-bold text-slate-800 mt-1 block">{finalInternship.school_lecturer}</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1.5 block">{finalInternship.school_lecturer}</span>
                       ) : finalInternship.school_assignment_request ? (
-                        <span className="text-xs font-semibold text-slate-650 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1">Khoa sẽ phân công</span>
+                        <span className="text-xs font-semibold text-slate-650 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1.5">Khoa sẽ phân công</span>
                       ) : (
-                        <span className="text-xs text-slate-400 italic mt-1 block">Chưa phân công</span>
+                        <span className="text-xs text-slate-400 italic mt-1.5 block">Chưa phân công</span>
                       )}
                     </div>
 
                     <div>
                       <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Thời gian xác nhận</span>
-                      <span className="text-sm font-semibold text-slate-600 mt-1 block">
+                      <span className="text-sm font-bold text-slate-800 mt-1.5 block">
                         {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}
                       </span>
                       {finalInternship.locked_at && (
