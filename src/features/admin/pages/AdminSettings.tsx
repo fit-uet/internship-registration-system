@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { RefreshCw, Save, Clock } from 'lucide-react';
-import { API_BASE, cohortOptionsForYear, defaultAllowedCohortsForYear, CACHE_TTL, clearJsonCache, cachedJsonFetch } from '../../../shared';
+import { API_BASE, Button, cohortOptionsForYear, defaultAllowedCohortsForYear, CACHE_TTL, clearJsonCache, cachedJsonFetch, PageHeader, Surface } from '../../../shared';
 
 export function AdminSettings({ token }: { token: string }) {
   const [sheetUrl, setSheetUrl] = useState('');
@@ -113,10 +113,10 @@ export function AdminSettings({ token }: { token: string }) {
     const now = new Date();
     const open = toGMT7Date((campaign as any)[openKey]);
     const close = toGMT7Date((campaign as any)[closeKey]);
-    if (open && now < open) return { label: 'Chưa mở', className: 'bg-orange-50 border-orange-200 text-orange-800' };
-    if (close && now > close) return { label: 'Đã đóng', className: 'bg-red-50 border-red-200 text-red-800' };
-    if (open || close) return { label: 'Đang mở', className: 'bg-green-50 border-green-200 text-green-800' };
-    return { label: 'Chưa cấu hình', className: 'bg-slate-50 border-slate-200 text-slate-700' };
+    if (open && now < open) return { label: 'Chưa mở', tone: 'warning' };
+    if (close && now > close) return { label: 'Đã đóng', tone: 'danger' };
+    if (open || close) return { label: 'Đang mở', tone: 'success' };
+    return { label: 'Chưa cấu hình', tone: 'neutral' };
   };
 
   const campaignWindows = [
@@ -164,15 +164,14 @@ export function AdminSettings({ token }: { token: string }) {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800">Cài đặt hệ thống</h2>
-        </div>
-      </div>
+      <PageHeader
+        title="Cài đặt hệ thống"
+        description="Quản lý campaign, phạm vi sinh viên và các kết nối dữ liệu của hệ thống."
+        actions={<Button onClick={() => navigate('/admin')} size="sm">&larr; Quay lại Quản trị</Button>}
+      />
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
-        <h3 className="font-bold text-lg text-slate-800">Cài đặt học phần</h3>
+      <Surface padding="lg" className="flex flex-col gap-5">
+        <h3>Cài đặt học phần</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Năm học / Khóa</label>
@@ -203,9 +202,9 @@ export function AdminSettings({ token }: { token: string }) {
               ))}
             </div>
           </div>
-          <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <div className="font-semibold">Ngoại lệ khóa luôn được áp dụng theo danh sách sinh viên</div>
-            <div className="text-xs text-amber-800 mt-1">
+          <div className="md:col-span-2 ui-callout ui-callout--warning">
+            <div className="ui-callout__title">Ngoại lệ khóa luôn được áp dụng theo danh sách sinh viên</div>
+            <div className="ui-callout__body">
               Hệ thống kiểm tra khóa từ email trước. Nếu khóa nằm trong danh sách đang mở thì cho đăng nhập/đăng ký ngay; nếu không, hệ thống mới kiểm tra MSSV/email trong site Quản lý sinh viên. Ví dụ K69 MSSV 24021400 chỉ được vào nếu admin đã thêm/import sinh viên này.
             </div>
           </div>
@@ -322,15 +321,15 @@ export function AdminSettings({ token }: { token: string }) {
             <p className="mt-2 text-xs text-slate-500">Quota riêng của từng giảng viên trong site Phân công GVHD vẫn được ưu tiên nếu đã thiết lập.</p>
           </div>
           <p className="md:col-span-2 text-xs text-slate-500">Mỗi campaign dùng khoảng thời gian riêng. Để trống nếu chưa cấu hình campaign đó.</p>
-          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="md:col-span-2 ui-status-grid">
             {campaignWindows.map(item => {
               const status = campaignWindowStatus(item.openKey, item.closeKey);
               return (
-                <div key={item.openKey} className={`p-3 rounded-lg text-sm border flex items-start gap-2 ${status.className}`}>
-                  <Clock size={16} className="shrink-0 mt-0.5" />
+                <div key={item.openKey} className={`ui-status-card ui-status-card--${status.tone}`}>
+                  <Clock />
                   <div>
-                    <div className="font-semibold">{item.title}</div>
-                    <div>Trạng thái hiện tại: <strong>{status.label}</strong></div>
+                    <div className="ui-status-card__title">{item.title}</div>
+                    <div className="ui-status-card__detail">Trạng thái hiện tại: <strong>{status.label}</strong></div>
                   </div>
                 </div>
               );
@@ -339,18 +338,19 @@ export function AdminSettings({ token }: { token: string }) {
         </div>
 
         <div className="flex justify-end mt-2">
-          <button
+          <Button
             onClick={handleSaveCampaign}
             disabled={savingCampaign}
-            className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm transition-all"
+            variant="primary"
+            leadingIcon={<Save />}
           >
-            <Save size={18} /> {savingCampaign ? 'Đang lưu...' : 'Lưu cấu hình'}
-          </button>
+            {savingCampaign ? 'Đang lưu...' : 'Lưu cấu hình'}
+          </Button>
         </div>
-      </div>
+      </Surface>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-5">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">Tích hợp Google Sheets <RefreshCw size={18} className="text-slate-400" /></h3>
+      <Surface padding="lg" className="flex flex-col gap-5">
+        <h3 className="flex items-center gap-2">Tích hợp Google Sheets <RefreshCw size={16} className="text-slate-400" /></h3>
         <div className="flex flex-col gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Đường dẫn Google Sheets (chứa danh sách công ty)</label>
@@ -362,13 +362,14 @@ export function AdminSettings({ token }: { token: string }) {
                 onChange={(e) => setSheetUrl(e.target.value)}
                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               />
-              <button
+              <Button
                 onClick={handleSaveImportUrl}
                 disabled={savingUrl}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 shadow-sm transition-colors"
+                variant="primary"
+                leadingIcon={<Save />}
               >
-                <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
-              </button>
+                {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
+              </Button>
             </div>
             <p className="text-xs text-slate-500 mt-2">Lưu ý: Link này cần được cấp quyền "Bất kỳ ai có liên kết đều có thể xem" (Anyone with the link can view).</p>
           </div>
@@ -382,13 +383,14 @@ export function AdminSettings({ token }: { token: string }) {
                 onChange={(e) => setExportSheetUrl(e.target.value)}
                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               />
-              <button
+              <Button
                 onClick={handleSaveExportUrl}
                 disabled={savingUrl}
-                className="flex items-center justify-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-70 shadow-sm transition-colors"
+                variant="primary"
+                leadingIcon={<Save />}
               >
-                <Save size={18} /> {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
-              </button>
+                {savingUrl ? 'Đang lưu...' : 'Lưu URL'}
+              </Button>
             </div>
             <p className="text-xs text-slate-500 mt-2">Lưu ý: Để tính năng này hoạt động, bạn <b>bắt buộc</b> phải cấp quyền Người chỉnh sửa (Editor) cho tài khoản Service Account của bạn trên Google Sheet này.</p>
           </div>
@@ -398,17 +400,18 @@ export function AdminSettings({ token }: { token: string }) {
               <p className="font-medium text-slate-800">Đồng bộ danh sách công ty</p>
               <p className="text-xs">Cập nhật danh sách công ty từ Google Sheet. Bạn có thể chọn giữ lại hoặc xoá đăng ký hiện tại.</p>
             </div>
-            <button
+            <Button
               onClick={handleSyncCompanies}
               disabled={syncing}
-              className="flex items-center justify-center gap-2 bg-orange-600 white text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-70 shadow-sm transition-colors whitespace-nowrap"
+              variant="primary"
+              leadingIcon={<RefreshCw className={syncing ? 'animate-spin' : ''} />}
             >
-              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
-            </button>
+              {syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}
+            </Button>
           </div>
 
         </div>
-      </div>
+      </Surface>
 
 
       <div className="bg-blue-50 text-blue-800 p-5 rounded-xl text-sm leading-relaxed border border-blue-100">

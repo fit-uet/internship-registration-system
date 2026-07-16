@@ -117,7 +117,39 @@ textarea:focus-visible {
 
 .feature-page {
   width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.5;
   animation: ui-page-enter 180ms ease-out;
+}
+
+.feature-page .text-base {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.feature-page .text-sm {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.feature-page .text-xs {
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.feature-page .text-lg {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.feature-page .text-xl {
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+
+.feature-page .text-2xl {
+  font-size: 1.375rem;
+  line-height: 1.3;
 }
 
 .feature-page :where(h1, h2, h3) {
@@ -127,6 +159,24 @@ textarea:focus-visible {
 
 .feature-page :where(h2) {
   font-weight: 750;
+}
+
+.feature-page :where(h3) {
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.feature-page :where(h4) {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.feature-page :where(label) {
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .feature-page :where(p) {
@@ -172,8 +222,22 @@ textarea:focus-visible {
 }
 
 .feature-page :where(button) {
+  font-size: 0.75rem;
   font-weight: 650;
+  line-height: 1.25rem;
   transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 100ms ease;
+}
+
+.feature-page button:not(.ui-button) {
+  min-height: 2.125rem;
+  padding-top: 0.4375rem;
+  padding-bottom: 0.4375rem;
+}
+
+.feature-page button > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  stroke-width: 2;
 }
 
 .feature-page :where(button:not(:disabled):active) {
@@ -274,15 +338,15 @@ textarea:focus-visible {
 }
 
 .ui-button--md {
-  min-height: 2.5rem;
-  padding: 0.625rem 1rem;
-  font-size: 0.8125rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.75rem;
 }
 
 .ui-button--lg {
-  min-height: 2.875rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.875rem;
+  min-height: 2.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
 }
 
 .ui-button--primary {
@@ -410,6 +474,107 @@ textarea:focus-visible {
   color: var(--ui-text-muted);
 }
 
+.ui-callout {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  padding: 0.875rem 1rem;
+  background: var(--ui-surface-subtle);
+}
+
+.ui-callout__title {
+  color: var(--ui-text);
+  font-size: 0.8125rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.ui-callout__body {
+  max-width: 100ch;
+  color: var(--ui-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.ui-callout--warning {
+  border-color: #f4d68b;
+  background: #fffbeb;
+}
+
+.ui-callout--warning .ui-callout__title {
+  color: #8a3b0c;
+}
+
+.ui-callout--warning .ui-callout__body {
+  color: #9a4b12;
+}
+
+.ui-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ui-status-card {
+  display: flex;
+  min-height: 4.75rem;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  padding: 0.875rem 1rem;
+  background: var(--ui-surface-subtle);
+  color: #475569;
+}
+
+.ui-status-card > svg {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.1rem;
+  flex: 0 0 auto;
+}
+
+.ui-status-card__title {
+  font-size: 0.8125rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.ui-status-card__detail {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.ui-status-card__detail strong {
+  font-weight: 750;
+}
+
+.ui-status-card--success {
+  border-color: #a7e8c4;
+  background: #f0fdf6;
+  color: #096b43;
+}
+
+.ui-status-card--danger {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #a8141f;
+}
+
+.ui-status-card--warning {
+  border-color: #f4d68b;
+  background: #fffbeb;
+  color: #92500b;
+}
+
+.ui-status-card--neutral {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-subtle);
+  color: #475569;
+}
+
 @keyframes ui-page-enter {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
@@ -428,6 +593,10 @@ textarea:focus-visible {
   .ui-page-header__actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .ui-status-grid {
+    grid-template-columns: 1fr;
   }
 }
 
