@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { saveAs } from 'file-saver';
-import { API_BASE, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, Button, PageDescriptionTooltip, PageHeader } from '../../../shared';
 
 export function LecturerGradeView({ token, user }: { token: string, user: any }) {
   const navigate = useNavigate();
@@ -82,25 +82,26 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(user.role === 'admin' ? '/admin' : '/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-3">
-            &larr; {user.role === 'admin' ? 'Quay lại Quản trị' : 'Quay lại trang chủ'}
-          </button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <CheckCircle2 className="text-green-600" /> Chấm điểm thực tập
-            <PageDescriptionTooltip description={
-              <>
-                <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
-                <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
-              </>
-            } />
-          </h2>
-        </div>
-        <button onClick={fetchGrades} disabled={loadingGrades} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
-          <RefreshCw size={14} className={loadingGrades ? 'animate-spin' : ''} /> Tải lại
-        </button>
-      </div>
+      <PageHeader
+        title={<>Chấm điểm thực tập <PageDescriptionTooltip description={
+          <>
+            <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
+            <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
+          </>
+        } /></>}
+        description="Nhập, lưu nháp và nộp điểm thực tập cho sinh viên được hướng dẫn chính."
+        icon={<CheckCircle2 size={20} />}
+        actions={
+          <>
+            <Button onClick={() => navigate(user.role === 'admin' ? '/admin' : '/')} size="sm">
+              &larr; {user.role === 'admin' ? 'Quay lại Quản trị' : 'Quay lại trang chủ'}
+            </Button>
+            <Button onClick={fetchGrades} disabled={loadingGrades} size="sm" leadingIcon={<RefreshCw size={14} className={loadingGrades ? 'animate-spin' : ''} />}>
+              Tải lại
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[

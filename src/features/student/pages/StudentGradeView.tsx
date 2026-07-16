@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { API_BASE } from '../../../shared';
+import { API_BASE, Button, PageHeader } from '../../../shared';
 
 export function StudentGradeView({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -52,12 +52,12 @@ export function StudentGradeView({ token }: { token: string }) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <CheckCircle2 className="text-green-600" /> Điểm thực tập
-        </h2>
-      </div>
+      <PageHeader
+        title="Điểm thực tập"
+        description="Theo dõi kết quả đánh giá và trạng thái nộp điểm của học phần."
+        icon={<CheckCircle2 size={20} />}
+        actions={<Button onClick={() => navigate('/')} size="sm">&larr; Quay lại trang chủ</Button>}
+      />
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { User as UserIcon, Plus, Trash2, Shield } from 'lucide-react';
-import { API_BASE, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, Button, PageDescriptionTooltip, PageHeader } from '../../../shared';
 
 export function AdminRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -90,15 +90,12 @@ export function AdminRegistry({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Shield className="text-purple-600" /> Quản lý Quản trị viên
-            <PageDescriptionTooltip description="Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên." />
-          </h2>
-        </div>
-      </div>
+      <PageHeader
+        title={<>Quản lý Quản trị viên <PageDescriptionTooltip description="Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên." /></>}
+        description="Quản lý quyền truy cập quản trị và vai trò giảng viên đi kèm."
+        icon={<Shield size={20} />}
+        actions={<Button onClick={() => navigate('/admin')} size="sm">&larr; Quay lại Quản trị</Button>}
+      />
 
       {/* Add admin */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">

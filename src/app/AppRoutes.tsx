@@ -28,6 +28,7 @@ export function AppRoutes({
   onUnreadNotificationsChanged,
   onUnreadChatsChanged,
 }: AppRoutesProps) {
+  const roleClass = isAdmin(user) ? 'admin' : isLecturer(user) ? 'lecturer' : 'student';
   const home = user?.role === 'lecturer'
     ? <LecturerHome user={user} token={token} />
     : isAdmin(user)
@@ -40,7 +41,8 @@ export function AppRoutes({
   const chatAllowed = isStudent(user) || isLecturer(user);
 
   return (
-    <Routes>
+    <div className={`feature-page feature-page--${roleClass}`}>
+      <Routes>
       <Route path="/" element={home} />
       <Route path="/lecturer" element={lecturerOnly(<LecturerHome user={user} token={token} />)} />
       <Route path="/lecturer/grades" element={lecturerOnly(<LecturerGradeView token={token} user={user} />)} />
@@ -77,7 +79,8 @@ export function AppRoutes({
       <Route path="/chat/group/:groupLecturerId" element={<GuardedRoute allowed={chatAllowed}><ChatView token={token} user={user} onUnreadChanged={onUnreadChatsChanged} /></GuardedRoute>} />
       <Route path="/chat/:studentUserId/:lecturerId" element={<GuardedRoute allowed={chatAllowed}><ChatView token={token} user={user} onUnreadChanged={onUnreadChatsChanged} /></GuardedRoute>} />
       <Route path="/notifications" element={<MyNotifications token={token} onChanged={onUnreadNotificationsChanged} />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   );
 }

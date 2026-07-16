@@ -116,10 +116,10 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <HashRouter>
-        <div className="w-full h-full min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans overflow-x-hidden">
+        <div className="app-shell w-full h-full flex flex-col font-sans overflow-x-hidden">
           {/* Header */}
-          <header className="h-16 bg-[#004a99] text-white px-6 flex items-center justify-between shadow-md z-10 sticky top-0 w-full">
-            <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+          <header className="app-header h-16 text-white px-6 flex items-center justify-between z-10 sticky top-0 w-full">
+            <div className="app-header__inner mx-auto w-full flex items-center justify-between">
               <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center hidden sm:flex overflow-hidden border border-white/20 shadow-sm">
                   <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FIT UET 30 Years" className="w-full h-full object-contain p-0.5" />
@@ -254,7 +254,7 @@ function App() {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
+          <main className="app-main flex-1 px-6 py-8">
             {!token ? (
               <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center">
                 <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100 shadow-sm">
@@ -287,7 +287,7 @@ function App() {
             )}
           </main>
 
-          <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium mt-auto">
+          <div className="app-footer px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium mt-auto">
             <p>© 2026 Khoa CNTT UET</p>
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <p>Hỗ trợ thông tin: baoptm@vnu.edu.vn (cô Bảo)</p>

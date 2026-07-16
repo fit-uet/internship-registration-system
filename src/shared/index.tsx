@@ -6,6 +6,10 @@ import { Bell, CircleHelp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
+import { Button } from './ui/Button';
+import { PageHeader } from './ui/PageHeader';
+
+export * from './ui';
 
 export const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 export const GOOGLE_API_KEY = (import.meta as any).env.VITE_GOOGLE_API_KEY || '';
@@ -540,21 +544,21 @@ export function PaginationControls({
         Hiển thị <strong>{start}</strong>-<strong>{end}</strong> / <strong>{total}</strong> {label}
       </div>
       <div className="flex items-center gap-2.5">
-        <button
+        <Button
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
           disabled={safePage <= 1}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          size="sm"
         >
           Trước
-        </button>
+        </Button>
         <span className="min-w-16 text-center text-xs font-semibold text-slate-600">Trang {safePage} / {totalPages}</span>
-        <button
+        <Button
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
           disabled={safePage >= totalPages}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          size="sm"
         >
           Sau
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -621,15 +625,12 @@ export function MyNotifications({ token, compact = false, onChanged }: { token: 
   return (
     <div className={compact ? '' : 'max-w-4xl mx-auto space-y-6'}>
       {!compact && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Bell className="text-amber-600" /> Thông báo của tôi</h2>
-            <p className="text-sm text-slate-500 mt-1">{unread} thông báo chưa đọc.</p>
-          </div>
-          <button onClick={markAllRead} disabled={!unread} className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-            Đánh dấu đã đọc tất cả
-          </button>
-        </div>
+        <PageHeader
+          title="Thông báo của tôi"
+          description={`${unread} thông báo chưa đọc.`}
+          icon={<Bell size={20} />}
+          actions={<Button onClick={markAllRead} disabled={!unread} variant="primary" size="sm">Đánh dấu đã đọc tất cả</Button>}
+        />
       )}
       {compact && rows.length > 0 && (
         <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
@@ -655,9 +656,9 @@ export function MyNotifications({ token, compact = false, onChanged }: { token: 
                 <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
               </div>
               {!row.read_at && (
-                <button onClick={() => markRead(row)} className="bg-white text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1 transition-colors cursor-pointer whitespace-nowrap">
+                <Button onClick={() => markRead(row)} size="sm">
                   Đã đọc
-                </button>
+                </Button>
               )}
             </div>
           </div>
