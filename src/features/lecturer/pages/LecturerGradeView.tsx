@@ -4,12 +4,16 @@ import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, Button, PageDescriptionTooltip, PageHeader } from '../../../shared';
 
+const SCORE_FIELDS = ['progress_score', 'report_score', 'company_score'] as const;
+type ScoreField = typeof SCORE_FIELDS[number];
+
 export function LecturerGradeView({ token, user }: { token: string, user: any }) {
   const navigate = useNavigate();
   const [grades, setGrades] = useState<any[]>([]);
   const [gradeEdits, setGradeEdits] = useState<Record<string, any>>({});
   const [loadingGrades, setLoadingGrades] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
 
   const fetchGrades = () => {
     setLoadingGrades(true);
@@ -24,6 +28,7 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
           company_score: row.company_score ?? '',
           comment: row.comment || ''
         }])));
+        setScoreErrors({});
       })
       .catch(() => setGrades([]))
       .finally(() => setLoadingGrades(false));
@@ -39,7 +44,7 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
     const p = edit?.progress_score === '' ? null : Number(edit?.progress_score);
     const r = edit?.report_score === '' ? null : Number(edit?.report_score);
     const c = edit?.company_score === '' ? null : Number(edit?.company_score);
-    if (![p, r, c].every(v => v !== null && Number.isFinite(v))) return '-';
+    if (![p, r, c].every(v => v !== null && Number.isFinite(v) && v >= 0 && v <= 10)) return '-';
     return ((p as number) * 0.2 + (r as number) * 0.2 + (c as number) * 0.6).toFixed(2);
   };
 
@@ -47,8 +52,49 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
     setGradeEdits(prev => ({ ...prev, [userId]: { ...(prev[String(userId)] || {}), [key]: value } }));
   };
 
+  const scoreErrorKey = (userId: number, field: ScoreField) => `${userId}:${field}`;
+
+  const clearScoreError = (userId: number, field: ScoreField) => {
+    const errorKey = scoreErrorKey(userId, field);
+    setScoreErrors(prev => {
+      if (!prev[errorKey]) return prev;
+      const next = { ...prev };
+      delete next[errorKey];
+      return next;
+    });
+  };
+
+  const updateScoreEdit = (userId: number, field: ScoreField, value: string) => {
+    if (value === '') {
+      clearScoreError(userId, field);
+      updateGradeEdit(userId, field, value);
+      return;
+    }
+    const score = Number(value);
+    if (!Number.isFinite(score) || score < 0 || score > 10) {
+      setScoreErrors(prev => ({ ...prev, [scoreErrorKey(userId, field)]: 'Điểm chỉ được từ 0 đến 10.' }));
+      return;
+    }
+    clearScoreError(userId, field);
+    updateGradeEdit(userId, field, value);
+  };
+
   const saveGrade = async (row: any, submit = false) => {
     const edit = gradeEdits[String(row.user_id)] || {};
+    const validationErrors: Record<string, string> = {};
+    SCORE_FIELDS.forEach(field => {
+      const value = edit[field];
+      const score = value === '' || value === null || value === undefined ? null : Number(value);
+      if (submit && score === null) validationErrors[scoreErrorKey(row.user_id, field)] = 'Vui lòng nhập điểm.';
+      else if (score !== null && (!Number.isFinite(score) || score < 0 || score > 10)) {
+        validationErrors[scoreErrorKey(row.user_id, field)] = 'Điểm chỉ được từ 0 đến 10.';
+      }
+    });
+    const hasExistingInputError = SCORE_FIELDS.some(field => scoreErrors[scoreErrorKey(row.user_id, field)]);
+    if (Object.keys(validationErrors).length > 0 || hasExistingInputError) {
+      if (Object.keys(validationErrors).length > 0) setScoreErrors(prev => ({ ...prev, ...validationErrors }));
+      return;
+    }
     const key = `${row.user_id}:${submit ? 'submit' : 'draft'}`;
     setSavingKey(key);
     try {
@@ -159,20 +205,26 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
                         </button>
                       )}
                     </td>
-                    {['progress_score', 'report_score', 'company_score'].map(key => (
-                      <td key={key} className="p-4">
+                    {SCORE_FIELDS.map(field => {
+                      const errorKey = scoreErrorKey(row.user_id, field);
+                      const error = scoreErrors[errorKey];
+                      return <td key={field} className="p-4">
                         <input
                           type="number"
                           min="0"
                           max="10"
                           step="0.1"
+                          inputMode="decimal"
                           disabled={disabled}
-                          value={edit[key] ?? ''}
-                          onChange={e => updateGradeEdit(row.user_id, key, e.target.value)}
-                          className="w-20 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
+                          value={edit[field] ?? ''}
+                          onChange={e => updateScoreEdit(row.user_id, field, e.target.value)}
+                          aria-invalid={Boolean(error)}
+                          aria-describedby={error ? `${errorKey}-error` : undefined}
+                          className={`w-20 rounded-xl px-2 py-1.5 text-xs text-center outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner ${error ? 'border border-red-400 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border border-slate-200 focus:ring-2 focus:ring-green-100 focus:border-green-500'}`}
                         />
-                      </td>
-                    ))}
+                        {error && <div id={`${errorKey}-error`} className="mt-1 max-w-24 text-[10px] leading-tight text-red-600">{error}</div>}
+                      </td>;
+                    })}
                     <td className="p-4 font-bold text-green-700">{previewFinalScore(edit)}</td>
                     <td className="p-4">
                       <div className="flex flex-col gap-2 min-w-[180px]">
