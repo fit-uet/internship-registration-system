@@ -1,4 +1,5 @@
 import { createClient as createTursoClient } from '@libsql/client/web';
+import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 
 type Env = {
   DB: D1Database;
@@ -298,7 +299,7 @@ function normalizeCompanyName(name: string) {
     .replace(/\s+/g, ' ');
 }
 
-async function addApprovedCompanyFromRegistration(database: LibsqlLike, row: any) {
+async function addApprovedCompanyFromRegistration(database: DatabaseClient, row: any) {
   if (!row || row.company_name !== 'Công ty khác') return false;
   const name = String(row.other_company_name || '').trim();
   const normalized = normalizeCompanyName(name);
@@ -312,7 +313,7 @@ async function addApprovedCompanyFromRegistration(database: LibsqlLike, row: any
   return true;
 }
 
-async function approveMatchingOtherCompanyRegistrations(database: LibsqlLike, row: any, reviewComment: string) {
+async function approveMatchingOtherCompanyRegistrations(database: DatabaseClient, row: any, reviewComment: string) {
   if (!row || row.company_name !== 'Công ty khác') return [];
   const normalized = normalizeCompanyName(row.other_company_name || '');
   if (!normalized) return [];
@@ -334,7 +335,7 @@ async function approveMatchingOtherCompanyRegistrations(database: LibsqlLike, ro
   return matched;
 }
 
-async function approvePendingOtherRegistrationsFromApprovedNames(database: LibsqlLike) {
+async function approvePendingOtherRegistrationsFromApprovedNames(database: DatabaseClient) {
   const approvedRows = (await database.execute('SELECT normalized_name FROM approved_company_names')).rows as any[];
   const approvedNames = new Set(approvedRows.map(row => String(row.normalized_name || '').trim()).filter(Boolean));
   if (approvedNames.size === 0) return;

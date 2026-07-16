@@ -189,7 +189,7 @@ async function exportRegistrationsToGoogleSheets() {
     throw error;
   }
 
-  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as { value: string };
+  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'export_google_sheet_url'")).rows[0] as unknown as { value: string };
   const url = setting?.value;
   if (!url) {
     const error = new Error('Bạn chưa cấu hình [Đường dẫn Google Sheet xuất dữ liệu] trong phần Cài đặt hệ thống.');
@@ -1193,7 +1193,7 @@ async function ensureSpecialCompanies() {
 }
 
 async function seedApprovedCompanyNamesIfEmpty() {
-  const count = (await db.execute('SELECT COUNT(*) as count FROM approved_company_names')).rows[0] as { count: number };
+  const count = (await db.execute('SELECT COUNT(*) as count FROM approved_company_names')).rows[0] as unknown as { count: number };
   if (count.count > 0) return;
   const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
   if (!fs.existsSync(itCompaniesFile)) return;
@@ -1665,7 +1665,7 @@ async function initDb() {
   await approvePendingOtherRegistrationsFromApprovedNames();
 
   // Seed lecturers if empty but csv exists
-  const lecCount = (await db.execute("SELECT COUNT(*) as count FROM lecturers")).rows[0] as { count: number };
+  const lecCount = (await db.execute("SELECT COUNT(*) as count FROM lecturers")).rows[0] as unknown as { count: number };
   if (lecCount.count === 0) {
     const p = join(process.cwd(), 'lectures-list.csv');
     if (fs.existsSync(p)) {
@@ -1691,10 +1691,10 @@ async function initDb() {
 }
 
 async function seedCompaniesIfEmpty() {
-  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Công ty khác' AND name != 'Trường Đại học Công nghệ'")).rows[0] as { count: number };
+  const count = (await db.execute("SELECT COUNT(*) as count FROM companies WHERE name != 'Công ty khác' AND name != 'Trường Đại học Công nghệ'")).rows[0] as unknown as { count: number };
   if (count.count > 0) return;
 
-  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
+  const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as unknown as { value: string };
   if (!setting || !setting.value) return;
 
   let fetchUrl = setting.value;
@@ -6285,7 +6285,7 @@ async function startServer() {
   });
 
   app.get('/api/settings/registration-rules', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'registration_rules_md'")).rows[0] as { value: string };
+    const setting = (await db.execute("SELECT value FROM settings WHERE key = 'registration_rules_md'")).rows[0] as unknown as { value: string };
     res.json({ registration_rules_md: setting?.value || DEFAULT_REGISTRATION_RULES });
   });
 
@@ -6329,7 +6329,7 @@ async function startServer() {
       if (req.user.role !== 'admin' && req.user.role !== 'lecturer' && !req.user.is_lecturer) {
         return res.status(403).json({ error: 'Chỉ giảng viên hoặc quản trị viên được xem hướng dẫn này.' });
       }
-      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'lecturer_guide_md'")).rows[0] as { value: string };
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'lecturer_guide_md'")).rows[0] as unknown as { value: string };
       res.json({ guide: setting?.value || DEFAULT_LECTURER_GUIDE });
     } catch (e: any) {
       res.status(503).json({ error: 'Không tải được hướng dẫn sử dụng. Vui lòng thử lại sau.', detail: e.message });
@@ -6338,7 +6338,7 @@ async function startServer() {
 
   app.get('/api/settings/lecturer-guide', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'lecturer_guide_md'")).rows[0] as { value: string };
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'lecturer_guide_md'")).rows[0] as unknown as { value: string };
       res.json({ guide: setting?.value || DEFAULT_LECTURER_GUIDE });
     } catch (e: any) {
       res.status(503).json({ error: 'Không tải được cài đặt hướng dẫn sử dụng. Vui lòng thử lại sau.', detail: e.message });
@@ -6465,7 +6465,7 @@ async function startServer() {
   });
 
   app.get('/api/settings/plan', requireAuth, requireAdmin, async (req: any, res: any) => {
-    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
+    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as unknown as { value: string };
     res.json({ plan: planSetting ? planSetting.value : '' });
   });
 
@@ -6510,7 +6510,7 @@ async function startServer() {
 
   // Public endpoint for students to view the plan
   app.get('/api/plan', async (req: any, res: any) => {
-    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as { value: string };
+    const planSetting = (await db.execute("SELECT value FROM settings WHERE key = 'implementation_plan_md'")).rows[0] as unknown as { value: string };
     res.json({ plan: planSetting ? planSetting.value : '' });
   });
 
@@ -6566,7 +6566,7 @@ async function startServer() {
   // 10. Admin: Import companies from Google Sheet
   app.post('/api/settings/import-companies', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
-      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as { value: string };
+      const setting = (await db.execute("SELECT value FROM settings WHERE key = 'google_sheet_url'")).rows[0] as unknown as { value: string };
       if (!setting || !setting.value) {
         return res.status(400).json({ error: 'Spreadsheet URL not set' });
       }
