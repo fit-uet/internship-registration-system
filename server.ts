@@ -946,7 +946,7 @@ async function sendQueuedNotificationBatch(options: { requestedLimit?: number; n
 let cachedItCompanyNames: { mtimeMs: number; names: Set<string> } | null = null;
 
 function getItCompanyNameSet() {
-  const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
+  const itCompaniesFile = join(process.cwd(), 'data/seed/it-companies-list.csv');
   if (!fs.existsSync(itCompaniesFile)) return new Set<string>();
 
   const stat = fs.statSync(itCompaniesFile);
@@ -1195,7 +1195,7 @@ async function ensureSpecialCompanies() {
 async function seedApprovedCompanyNamesIfEmpty() {
   const count = (await db.execute('SELECT COUNT(*) as count FROM approved_company_names')).rows[0] as unknown as { count: number };
   if (count.count > 0) return;
-  const itCompaniesFile = join(process.cwd(), 'it-companies-list.csv');
+  const itCompaniesFile = join(process.cwd(), 'data/seed/it-companies-list.csv');
   if (!fs.existsSync(itCompaniesFile)) return;
   const content = fs.readFileSync(itCompaniesFile, 'utf8');
   const records = parse(content, { columns: true, skip_empty_lines: true });
@@ -1667,7 +1667,7 @@ async function initDb() {
   // Seed lecturers if empty but csv exists
   const lecCount = (await db.execute("SELECT COUNT(*) as count FROM lecturers")).rows[0] as unknown as { count: number };
   if (lecCount.count === 0) {
-    const p = join(process.cwd(), 'lectures-list.csv');
+    const p = join(process.cwd(), 'data/seed/lecturers-list.csv');
     if (fs.existsSync(p)) {
       const text = fs.readFileSync(p, 'utf-8');
       const lines = text.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);

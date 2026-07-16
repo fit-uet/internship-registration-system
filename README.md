@@ -1,6 +1,6 @@
 # Hệ thống đăng ký thực tập FIT UET
 
-Tài liệu này mô tả hiện trạng hệ thống đăng ký thực tập trong repo, đối chiếu với quy trình nghiệp vụ trong file `Đăng ký thực tập FIT UET.md`, và liệt kê các chức năng còn thiếu nếu muốn hệ thống xử lý trọn vòng đời học phần thực tập.
+Tài liệu này mô tả kiến trúc, quy trình nghiệp vụ và cách vận hành hệ thống đăng ký thực tập FIT UET.
 
 ## 1. Mục tiêu hệ thống
 
@@ -18,7 +18,7 @@ Phạm vi hiện tại tập trung chủ yếu vào giai đoạn trước và tr
 
 Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 
-- Khoa chỉ duyệt thủ công khi doanh nghiệp sinh viên tự liên hệ không nằm trong danh sách công ty đã được Khoa thẩm định trong `it-companies-list.csv`. Danh sách này không công khai cho sinh viên.
+- Khoa chỉ duyệt thủ công khi doanh nghiệp sinh viên tự liên hệ không nằm trong danh sách công ty đã được Khoa thẩm định trong `data/seed/it-companies-list.csv`. Danh sách này không công khai cho sinh viên.
 - Danh sách công ty đã thẩm định được quản lý riêng trong màn “Danh sách công ty thẩm định nội bộ” bên trong khu “Quản lý công ty”, có CRUD, import/export XLSX, tìm kiếm và sắp xếp.
 - Kết quả phỏng vấn do công ty xác nhận trực tiếp với sinh viên; Khoa không cần nhập trạng thái `PASS/FAIL` cho từng sinh viên trên hệ thống.
 - Sinh viên chịu trách nhiệm xác nhận 1 nơi thực tập chính thức mà mình đã trúng tuyển để thực tập, nộp báo cáo và tính điểm.
@@ -441,7 +441,7 @@ Lưu ý cấu hình Google OAuth/Drive:
    - Sau khi xác nhận, khóa lựa chọn; nếu đổi nơi cần Khoa mở khóa hoặc cập nhật thay.
 
 3. Thêm quản lý danh sách công ty thẩm định nội bộ:
-   - Dữ liệu gốc hiện là `it-companies-list.csv`.
+   - Dữ liệu gốc hiện là `data/seed/it-companies-list.csv`.
    - Danh sách này không công khai cho sinh viên.
    - Worker cần dùng danh sách này, hoặc một bảng database import từ danh sách này, để quyết định tự động duyệt công ty tự liên hệ.
    - Có thể bổ sung màn hình admin import/xem/sửa, nhưng đây là ưu tiên thấp hơn luồng xác nhận nơi thực tập.

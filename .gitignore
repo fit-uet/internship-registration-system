@@ -1,9 +1,19 @@
+# Dependencies and generated output
 node_modules/
 build/
 dist/
 coverage/
+.vite/
+.wrangler/
+
+# OS/editor/runtime noise
 .DS_Store
 *.log
+tmp/
+temp/
+scratch/
+
+# Environment files and local credentials
 .env*
 !.env.example
 !.env.production
@@ -13,15 +23,10 @@ coverage/
 !package.json
 !package-lock.json
 !tsconfig.json
-database.sqlite
-Đăng ký thực tập FIT UET.md
-internship-db.db
-internship-db.db-shm
-internship-db.db-wal
-internship-db.db.before-users-consolidation.bak
-log.txt
-scratch/test_quota.js
-scratch/test_quota.py
-scratch/upgrade_colors.py
-scratch/upgrade_ui.py
-scratch/upgrade_ui2.py
+
+# Local databases and backups
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.bak
