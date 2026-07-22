@@ -52,12 +52,19 @@ export function StudentGradeView({ token }: { token: string }) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <PageHeader
-        title="Điểm thực tập"
-        description="Theo dõi kết quả đánh giá và trạng thái nộp điểm của học phần."
-        icon={<CheckCircle2 size={20} />}
-        actions={<Button onClick={() => navigate('/')} size="sm">&larr; Quay lại trang chủ</Button>}
-      />
+      <div>
+        <button
+          onClick={() => navigate('/')}
+          className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2"
+        >
+          &larr; Quay lại trang chủ
+        </button>
+        <PageHeader
+          title="Điểm thực tập"
+          description="Theo dõi kết quả đánh giá và trạng thái nộp điểm của học phần."
+          icon={<CheckCircle2 size={20} />}
+        />
+      </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">
