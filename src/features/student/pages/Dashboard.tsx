@@ -890,37 +890,36 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       {/* Campaign overview with supporting information in a compact left sidebar. */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
         <aside className="space-y-4 lg:sticky lg:top-24">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="campaign-status-title">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="campaign-status-title">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <Clock size={16} />
-                </div>
-                <h3 id="campaign-status-title" className="text-[13px] font-bold text-slate-900">Trạng thái hệ thống</h3>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">GMT+7</span>
+              <h3 id="campaign-status-title" className="text-base font-bold text-slate-900">Trạng thái hệ thống</h3>
             </div>
 
-            <div className="grid gap-2.5">
+            <div className="grid gap-3">
               {visibleCampaignStatusItems.map(item => (
-                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
+                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${campaignStatusDot(item.status)}`} />
-                      <span className="truncate text-xs font-bold text-slate-800">{item.label}</span>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="relative flex h-3 w-3 shrink-0">
+                        {item.status === 'open' && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        )}
+                        <span className={`relative inline-flex h-3 w-3 rounded-full ${campaignStatusDot(item.status)}`} />
+                      </span>
+                      <span className="truncate text-base font-bold text-slate-900">{item.label}</span>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${campaignStatusColor(item.status)}`}>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${campaignStatusColor(item.status)}`}>
                       {campaignStatusText(item.status)}
                     </span>
                   </div>
-                  <div className="mt-2.5 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-2 text-[10px] leading-4">
+                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-3 text-xs">
                     <div>
                       <div className="font-semibold text-slate-400">Mở</div>
-                      <div className="mt-0.5 font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
+                      <div className="mt-1 text-sm font-bold text-slate-800">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
                     </div>
                     <div>
                       <div className="font-semibold text-slate-400">Đóng</div>
-                      <div className="mt-0.5 font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
+                      <div className="mt-1 text-sm font-bold text-slate-800">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
                     </div>
                   </div>
                 </div>
@@ -929,14 +928,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           </section>
 
           <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 select-none">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <ClipboardList size={16} />
-                </div>
-                <span className="text-[13px] font-bold text-slate-900">Quy định đăng ký</span>
-              </div>
-              <ChevronDown size={16} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 select-none">
+              <span className="text-base font-bold text-slate-900">Quy định đăng ký</span>
+              <ChevronDown size={18} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
             </summary>
             <div className="max-h-72 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-4">
               {registrationRulesMarkdown.trim()
