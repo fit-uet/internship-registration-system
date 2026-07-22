@@ -1097,11 +1097,15 @@ async function route(request: Request, env: Env) {
   }
 
   if (method === 'GET' && path === '/api/companies/it-list') {
-    const list = (await database.execute(`
-      SELECT name FROM companies
-      WHERE name NOT IN ('Công ty khác', 'Trường Đại học Công nghệ')
-      ORDER BY name ASC
-    `)).rows.map((row: any) => row.name);
+    const approvedRows = (await database.execute('SELECT name FROM approved_company_names ORDER BY name ASC')).rows;
+    const fallbackRows = approvedRows.length > 0 ? [] : (await database.execute(`
+        SELECT name FROM companies
+        WHERE name NOT IN ('Công ty khác', 'Trường Đại học Công nghệ')
+        ORDER BY name ASC
+      `)).rows;
+    const list = (approvedRows.length > 0 ? approvedRows : fallbackRows)
+      .map((row: any) => String(row.name || '').trim())
+      .filter(Boolean);
     return json(list);
   }
 
@@ -2277,16 +2281,13 @@ async function route(request: Request, env: Env) {
   if (method === 'PUT' && registrationUpdateMatch) {
     const body = await readBody(request);
     const companyId = Number(body.company_id);
-    const status = String(body.status || 'pending');
     const note = String(body.note || '').trim();
-    const reviewComment = String(body.review_comment || '').trim();
     const courseCode = String(body.course_code || '').trim();
     const preferenceOrder = body.preference_order === '' || body.preference_order === undefined || body.preference_order === null
       ? null
       : Number(body.preference_order);
 
     if (!Number.isInteger(companyId) || companyId <= 0) return json({ error: 'Nơi thực tập không hợp lệ.' }, 400);
-    if (!['pending', 'approved', 'rejected'].includes(status)) return json({ error: 'Trạng thái không hợp lệ.' }, 400);
     if (preferenceOrder !== null && (!Number.isInteger(preferenceOrder) || preferenceOrder < 1)) return json({ error: 'Thứ tự nguyện vọng không hợp lệ.' }, 400);
 
     const current = (await database.execute({
@@ -2308,6 +2309,14 @@ async function route(request: Request, env: Env) {
     const otherCompanyRole = isOtherCompany || isSchoolInternship ? String(body.other_company_role || '').trim() : '';
     const otherCompanyContact = isOtherCompany || isSchoolInternship ? String(body.other_company_contact || '').trim() : '';
     if (isOtherCompany && !otherCompanyName) return json({ error: 'Vui lòng nhập tên công ty tự liên hệ.' }, 400);
+    const approvedCompany = isOtherCompany
+      ? (await database.execute({
+          sql: 'SELECT id FROM approved_company_names WHERE normalized_name = ? LIMIT 1',
+          args: [normalizeCompanyName(otherCompanyName)],
+        })).rows[0]
+      : company;
+    const status = approvedCompany ? 'approved' : 'pending';
+    const reviewComment = current.status === status ? String(current.review_comment || '').trim() : '';
     const targetChanged =
       Number(current.company_id) !== companyId ||
       String(current.other_company_name || '').trim() !== otherCompanyName;
@@ -2315,10 +2324,12 @@ async function route(request: Request, env: Env) {
     try {
       await database.execute({
         sql: `UPDATE registrations
-              SET company_id = ?, note = ?, status = ?, review_comment = ?, preference_order = ?,
+              SET company_id = ?, note = ?, status = ?,
+                  review_comment = CASE WHEN status != ? THEN NULL ELSE review_comment END,
+                  preference_order = ?,
                   other_company_name = ?, other_company_role = ?, other_company_contact = ?
               WHERE id = ?`,
-        args: [companyId, note || null, status, reviewComment || null, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, registrationUpdateMatch[1]],
+        args: [companyId, note || null, status, status, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, registrationUpdateMatch[1]],
       });
       await database.execute({
         sql: 'UPDATE users SET course_code = ? WHERE id = ?',
@@ -2363,11 +2374,11 @@ async function route(request: Request, env: Env) {
         user_id: Number(current.user_id),
         recipient_email: current.personal_email || current.email,
         type: 'registration_status_changed',
-        subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
-        body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+        subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : 'đang chờ duyệt'}`,
+        body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
       });
     }
-    return json({ success: true });
+    return json({ success: true, status });
   }
 
   if (method === 'PUT' && path === '/api/admin/registrations/mark-sent') {

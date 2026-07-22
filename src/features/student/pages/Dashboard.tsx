@@ -393,7 +393,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           onAuthExpired,
         }),
         cachedJsonFetch<any[]>(`${API_BASE}/api/companies/it-list`, {
-          cacheKey: 'companies:it-list',
+          cacheKey: 'companies:it-list:approved',
           ttlMs: CACHE_TTL.companies,
           headers: authHeaders,
           onAuthExpired,

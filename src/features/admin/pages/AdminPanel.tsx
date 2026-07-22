@@ -30,8 +30,6 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
     other_company_contact: '',
     note: '',
     preference_order: '',
-    status: 'pending',
-    review_comment: '',
   });
   const emptyAddRegistrationForm = {
     user_id: '',
@@ -379,8 +377,6 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       other_company_contact: reg.other_company_contact || '',
       note: reg.note || '',
       preference_order: reg.preference_order ? String(reg.preference_order) : '',
-      status: reg.status || 'pending',
-      review_comment: reg.review_comment || '',
     });
   };
 
@@ -1246,7 +1242,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                         ))}
                       </datalist>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        Gợi ý từ danh sách công ty đã được duyệt và các đăng ký trước đây.
+                        Tên khớp danh sách thẩm định sẽ tự động được duyệt; tên mới sẽ chuyển sang Chờ duyệt.
                       </p>
                     </div>
                     <div>
@@ -1334,28 +1330,6 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                     onChange={e => setEditRegistrationForm({ ...editRegistrationForm, note: e.target.value })}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Ghi chú của sinh viên hoặc điều chỉnh từ Khoa"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Trạng thái</label>
-                  <select
-                    value={editRegistrationForm.status}
-                    onChange={e => setEditRegistrationForm({ ...editRegistrationForm, status: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="pending">Chờ duyệt</option>
-                    <option value="approved">Đã duyệt</option>
-                    <option value="rejected">Từ chối</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nhận xét gửi sinh viên</label>
-                  <input
-                    value={editRegistrationForm.review_comment}
-                    onChange={e => setEditRegistrationForm({ ...editRegistrationForm, review_comment: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Lý do duyệt/từ chối hoặc yêu cầu chỉnh sửa"
                   />
                 </div>
               </div>

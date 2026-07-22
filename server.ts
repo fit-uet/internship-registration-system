@@ -2089,11 +2089,13 @@ async function startServer() {
     res.json(companies);
   });
 
-  app.get('/api/companies/it-list', requireAuth, requireStudentOrAdmin, (req, res) => {
+  app.get('/api/companies/it-list', requireAuth, requireStudentOrAdmin, async (req, res) => {
     try {
-      res.json(Array.from(getItCompanyNameSet()));
+      const rows = (await db.execute('SELECT name FROM approved_company_names ORDER BY name ASC')).rows as any[];
+      const names = rows.map(row => String(row.name || '').trim()).filter(Boolean);
+      res.json(names.length > 0 ? names : Array.from(getItCompanyNameSet()));
     } catch (e) {
-      res.json([]);
+      res.json(Array.from(getItCompanyNameSet()));
     }
   });
 
@@ -4657,16 +4659,13 @@ async function startServer() {
   app.put('/api/admin/registrations/:id(\\d+)', requireAuth, requireAdmin, async (req: any, res: any) => {
     const { id } = req.params;
     const companyId = Number(req.body?.company_id);
-    const status = String(req.body?.status || 'pending');
     const note = String(req.body?.note || '').trim();
-    const reviewComment = String(req.body?.review_comment || '').trim();
     const courseCode = String(req.body?.course_code || '').trim();
     const preferenceOrder = req.body?.preference_order === '' || req.body?.preference_order === undefined || req.body?.preference_order === null
       ? null
       : Number(req.body.preference_order);
 
     if (!Number.isInteger(companyId) || companyId <= 0) return res.status(400).json({ error: 'Nơi thực tập không hợp lệ.' });
-    if (!['pending', 'approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
     if (preferenceOrder !== null && (!Number.isInteger(preferenceOrder) || preferenceOrder < 1)) return res.status(400).json({ error: 'Thứ tự nguyện vọng không hợp lệ.' });
 
     try {
@@ -4689,16 +4688,26 @@ async function startServer() {
       const otherCompanyRole = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_role || '').trim() : '';
       const otherCompanyContact = isOtherCompany || isSchoolInternship ? String(req.body?.other_company_contact || '').trim() : '';
       if (isOtherCompany && !otherCompanyName) return res.status(400).json({ error: 'Vui lòng nhập tên công ty tự liên hệ.' });
+      const approvedCompany = isOtherCompany
+        ? (await db.execute({
+            sql: 'SELECT id FROM approved_company_names WHERE normalized_name = ? LIMIT 1',
+            args: [normalizeCompanyName(otherCompanyName)],
+          })).rows[0]
+        : company;
+      const status = approvedCompany ? 'approved' : 'pending';
+      const reviewComment = current.status === status ? String(current.review_comment || '').trim() : '';
       const targetChanged =
         Number(current.company_id) !== companyId ||
         String(current.other_company_name || '').trim() !== otherCompanyName;
 
       await db.execute({
         sql: `UPDATE registrations
-              SET company_id = ?, note = ?, status = ?, review_comment = ?, preference_order = ?,
+              SET company_id = ?, note = ?, status = ?,
+                  review_comment = CASE WHEN status != ? THEN NULL ELSE review_comment END,
+                  preference_order = ?,
                   other_company_name = ?, other_company_role = ?, other_company_contact = ?
               WHERE id = ?`,
-        args: [companyId, note || null, status, reviewComment || null, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, id],
+        args: [companyId, note || null, status, status, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, id],
       });
       await db.execute({
         sql: 'UPDATE users SET course_code = ? WHERE id = ?',
@@ -4739,12 +4748,12 @@ async function startServer() {
           user_id: Number(current.user_id),
           recipient_email: current.personal_email || current.email,
           type: 'registration_status_changed',
-          subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : status === 'rejected' ? 'đã bị từ chối' : 'đang chờ duyệt'}`,
-          body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
+          subject: `Đăng ký thực tập ${status === 'approved' ? 'đã được duyệt' : 'đang chờ duyệt'}`,
+          body: `Đăng ký thực tập tại ${company.name === 'Công ty khác' ? otherCompanyName || 'Công ty khác' : company.name} hiện có trạng thái: ${status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}.${reviewComment ? `\nNhận xét: ${reviewComment}` : ''}`,
           send_now: true,
         });
       }
-      if ((status === 'rejected' || company.name !== 'Trường Đại học Công nghệ') && current.company_name === 'Trường Đại học Công nghệ') {
+      if (company.name !== 'Trường Đại học Công nghệ' && current.company_name === 'Trường Đại học Công nghệ') {
         await db.execute({
           sql: "DELETE FROM final_internships WHERE user_id = ? AND registration_id = ? AND internship_type = 'school' AND locked_at IS NULL",
           args: [Number(current.user_id), Number(id)],
@@ -4753,7 +4762,7 @@ async function startServer() {
         await ensureSchoolFinalInternshipFromRegistration(Number(current.user_id), req.user.id);
       }
 
-      res.json({ success: true });
+      res.json({ success: true, status });
     } catch (e: any) {
       const message = String(e?.message || '');
       if (message.toLowerCase().includes('unique')) return res.status(400).json({ error: 'Sinh viên đã có đăng ký trùng nơi thực tập này.' });
