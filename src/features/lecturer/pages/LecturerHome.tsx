@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { User as UserIcon, Users, CheckCircle2, Download, FileText, Bell, CircleHelp, MessageCircle, GraduationCap } from 'lucide-react';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, CACHE_TTL, readJsonCache, clearJsonCache, cachedJsonFetch, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, PageDescriptionTooltip } from '../../../shared';
 
 export function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
@@ -11,26 +11,20 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
 
-  const fetchStudents = () => {
-    const cacheKey = `lecturer:students:${user?.id || user?.email || 'me'}`;
-    const cached = readJsonCache<any[]>(cacheKey);
-    if (Array.isArray(cached)) {
-      setStudents(cached);
+  const fetchStudents = async () => {
+    setLoadingStudents(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/lecturer/students`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => []);
+      if (!res.ok) throw new Error(data?.error || 'Không tải được danh sách sinh viên phụ trách.');
+      setStudents(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setStudents([]);
+    } finally {
       setLoadingStudents(false);
-    } else {
-      setLoadingStudents(true);
     }
-    cachedJsonFetch<any[]>(`${API_BASE}/api/lecturer/students`, {
-      cacheKey,
-      ttlMs: CACHE_TTL.lecturerStudents,
-      headers: { Authorization: `Bearer ${token}` },
-      forceRefresh: true,
-    })
-      .then(data => setStudents(Array.isArray(data) ? data : []))
-      .catch(() => {
-        if (!Array.isArray(cached)) setStudents([]);
-      })
-      .finally(() => setLoadingStudents(false));
   };
 
   useEffect(() => {
@@ -47,14 +41,19 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
   const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
-  const advisedStudentCount = new Set(students.map((student: any) => student.user_id).filter(Boolean)).size;
-  const uncontactedCount = students.filter((student: any) => !student.contacted_at).length;
+  const uniqueStudents = Array.from(new Map(
+    students
+      .filter((student: any) => student.user_id)
+      .map((student: any) => [Number(student.user_id), student])
+  ).values()) as any[];
+  const advisedStudentCount = uniqueStudents.length;
+  const uncontactedCount = uniqueStudents.filter((student: any) => !student.contacted_at).length;
   const groupLecturerId = students.find((student: any) => student.lecturer_id)?.lecturer_id;
 
   const registeredCount = advisedStudentCount;
-  const confirmedCount = students.filter((s: any) => s.confirmed_at || s.internship_place || s.internship_type).length;
-  const reportCount = students.filter((s: any) => s.report_submitted_at || ['submitted', 'accepted', 'needs_revision'].includes(s.report_status)).length;
-  const gradedCount = students.filter((s: any) =>
+  const confirmedCount = uniqueStudents.filter((s: any) => s.confirmed_at || s.internship_place || s.internship_type).length;
+  const reportCount = uniqueStudents.filter((s: any) => s.report_submitted_at || ['submitted', 'accepted', 'needs_revision'].includes(s.report_status)).length;
+  const gradedCount = uniqueStudents.filter((s: any) =>
     s.grade_status === 'submitted' || s.grade_status === 'draft' || (s.final_score !== null && s.final_score !== undefined && s.final_score !== '') ||
     grades.some((g: any) => Number(g.user_id) === Number(s.user_id) && (g.grade_status === 'submitted' || g.grade_status === 'draft' || (g.final_score !== null && g.final_score !== undefined && g.final_score !== '')))
   ).length;
@@ -87,7 +86,6 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Cập nhật tình trạng liên hệ thất bại.');
-      clearJsonCache(`lecturer:students:${user?.id || user?.email || 'me'}`);
       setStudents(prev => prev.map(item => Number(item.assignment_id) === Number(student.assignment_id)
         ? { ...item, contacted_at: data.contacted_at, contact_note: data.contact_note }
         : item
@@ -204,7 +202,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Số SV đăng ký</span>
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Số SV phụ trách</span>
             <div className="p-2 bg-sky-50 rounded-xl text-sky-600">
               <Users size={18} />
             </div>

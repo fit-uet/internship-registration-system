@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Users, CheckCircle2, LayoutDashboard, Building2, FileText, Shield, Clock, CircleHelp, Settings, GraduationCap } from 'lucide-react';
-import { API_BASE, CACHE_TTL, cachedJsonFetch } from '../../../shared';
+import { API_BASE, cachedJsonFetch } from '../../../shared';
 
 export function AdminDashboard({ token, user: propUser }: { token: string; user?: any }) {
   const navigate = useNavigate();
@@ -11,8 +11,8 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
 
   useEffect(() => {
     cachedJsonFetch<any>(`${API_BASE}/api/admin/dashboard-stats`, {
-      cacheKey: 'admin:dashboard-stats',
-      ttlMs: CACHE_TTL.adminStats || 30000,
+      cacheKey: 'admin:dashboard-stats:v2',
+      ttlMs: 30_000,
       headers: { Authorization: `Bearer ${token}` },
       forceRefresh: true,
     })

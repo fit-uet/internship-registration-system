@@ -1975,11 +1975,25 @@ async function route(request: Request, env: Env) {
 
   if (method === 'GET' && path === '/api/admin/dashboard-stats') {
     requireRole(user, ['admin']);
-    const registeredCount = Number((await database.execute("SELECT COUNT(*) as count FROM users WHERE role = 'student'")).rows[0]?.count || 0);
-    const confirmedCount = Number((await database.execute("SELECT COUNT(*) as count FROM final_internships")).rows[0]?.count || 0);
-    const reportCount = Number((await database.execute("SELECT COUNT(*) as count FROM final_reports")).rows[0]?.count || 0);
-    const gradedCount = Number((await database.execute("SELECT COUNT(*) as count FROM grades WHERE status IN ('submitted', 'draft') OR final_score IS NOT NULL")).rows[0]?.count || 0);
-    return json({ registeredCount, confirmedCount, reportCount, gradedCount });
+    const stats = (await database.execute(`
+      WITH registered_students AS (
+        SELECT DISTINCT user_id FROM registrations
+      )
+      SELECT
+        (SELECT COUNT(*) FROM registered_students) AS registeredCount,
+        (SELECT COUNT(DISTINCT f.user_id) FROM final_internships f JOIN registered_students r ON r.user_id = f.user_id) AS confirmedCount,
+        (SELECT COUNT(DISTINCT fr.user_id) FROM final_reports fr JOIN registered_students r ON r.user_id = fr.user_id) AS reportCount,
+        (SELECT COUNT(DISTINCT g.user_id)
+           FROM grades g
+           JOIN registered_students r ON r.user_id = g.user_id
+          WHERE g.status IN ('submitted', 'draft') OR g.final_score IS NOT NULL) AS gradedCount
+    `)).rows[0] as any;
+    return json({
+      registeredCount: Number(stats?.registeredCount || 0),
+      confirmedCount: Number(stats?.confirmedCount || 0),
+      reportCount: Number(stats?.reportCount || 0),
+      gradedCount: Number(stats?.gradedCount || 0),
+    });
   }
 
   if (method === 'GET' && path === '/api/admin/students') {
