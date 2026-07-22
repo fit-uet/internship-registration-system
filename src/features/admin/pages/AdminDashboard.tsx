@@ -68,7 +68,6 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
 
           {/* Thống kê Tổng quan Hệ thống */}
           <div className="mt-8 border-t border-slate-100 pt-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Thống kê Tổng quan</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -132,7 +131,6 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
 
           {/* Quick navigation modules grid */}
           <div className="mt-8 border-t border-slate-100 pt-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Các chức năng quản trị chính</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {[
                 {
