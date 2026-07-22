@@ -1,9 +1,26 @@
-import { useNavigate } from 'react-router-dom';
-import { User as UserIcon, Users, CheckCircle2, LayoutDashboard, Building2, FileText, Shield, Clock, CircleHelp, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User as UserIcon, Users, CheckCircle2, LayoutDashboard, Building2, FileText, Shield, Clock, CircleHelp, Settings, GraduationCap } from 'lucide-react';
+import { API_BASE, CACHE_TTL, cachedJsonFetch } from '../../../shared';
 
 export function AdminDashboard({ token, user: propUser }: { token: string; user?: any }) {
   const navigate = useNavigate();
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
+  const [stats, setStats] = useState<any>({ registeredCount: 0, confirmedCount: 0, reportCount: 0, gradedCount: 0 });
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    cachedJsonFetch<any>(`${API_BASE}/api/admin/dashboard-stats`, {
+      cacheKey: 'admin:dashboard-stats',
+      ttlMs: CACHE_TTL.adminStats || 30000,
+      headers: { Authorization: `Bearer ${token}` },
+      forceRefresh: true,
+    })
+      .then(data => {
+        if (data && typeof data === 'object') setStats(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingStats(false));
+  }, [token]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -45,6 +62,70 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
               >
                 <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
               </button>
+            </div>
+          </div>
+
+          {/* Thống kê Tổng quan Hệ thống */}
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Thống kê Tổng quan</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Số SV đăng ký</span>
+                  <div className="p-2 bg-sky-50 rounded-xl text-sky-600">
+                    <Users size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-3xl font-bold text-slate-800">{loadingStats ? '—' : stats.registeredCount}</span>
+                  <span className="text-[11px] font-medium text-slate-400">tổng số</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider">Số SV xác nhận</span>
+                  <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                    <CheckCircle2 size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-3xl font-bold text-blue-700">{loadingStats ? '—' : stats.confirmedCount}</span>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    {stats.registeredCount ? `${Math.round((stats.confirmedCount / stats.registeredCount) * 100)}%` : '0%'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-amber-600 text-xs font-semibold uppercase tracking-wider">Số SV nộp báo cáo</span>
+                  <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                    <FileText size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-3xl font-bold text-amber-700">{loadingStats ? '—' : stats.reportCount}</span>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    {stats.registeredCount ? `${Math.round((stats.reportCount / stats.registeredCount) * 100)}%` : '0%'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-emerald-600 text-xs font-semibold uppercase tracking-wider">Số SV có điểm</span>
+                  <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                    <GraduationCap size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-3xl font-bold text-emerald-700">{loadingStats ? '—' : stats.gradedCount}</span>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    {stats.registeredCount ? `${Math.round((stats.gradedCount / stats.registeredCount) * 100)}%` : '0%'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1973,6 +1973,15 @@ async function route(request: Request, env: Env) {
     return json({ success: true });
   }
 
+  if (method === 'GET' && path === '/api/admin/dashboard-stats') {
+    requireRole(user, ['admin']);
+    const registeredCount = Number((await database.execute("SELECT COUNT(*) as count FROM users WHERE role = 'student'")).rows[0]?.count || 0);
+    const confirmedCount = Number((await database.execute("SELECT COUNT(*) as count FROM final_internships")).rows[0]?.count || 0);
+    const reportCount = Number((await database.execute("SELECT COUNT(*) as count FROM final_reports")).rows[0]?.count || 0);
+    const gradedCount = Number((await database.execute("SELECT COUNT(*) as count FROM grades WHERE status IN ('submitted', 'draft') OR final_score IS NOT NULL")).rows[0]?.count || 0);
+    return json({ registeredCount, confirmedCount, reportCount, gradedCount });
+  }
+
   if (method === 'GET' && path === '/api/admin/students') {
     return json((await database.execute("SELECT id, email, name, student_id, dob, class_name, phone, personal_email FROM users WHERE role = 'student' ORDER BY student_id ASC")).rows);
   }
