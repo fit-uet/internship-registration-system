@@ -1571,6 +1571,14 @@ async function initDb() {
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN attempt_count INTEGER DEFAULT 0'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN last_attempt_at DATETIME'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE notifications ADD COLUMN read_at DATETIME'); } catch (e) { }
+  try {
+    await db.execute({
+      sql: `UPDATE notifications
+            SET status = 'website_only', error = 'Đã ngừng gửi thông báo vượt quota GVHD theo chính sách hiện tại.'
+            WHERE type = 'advisor_quota_exceeded' AND status = 'queued'`,
+      args: [],
+    });
+  } catch (e) { }
   // Legacy denormalized profile columns; reports now read these fields from users.
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN student_id'); } catch (e) { }
   try { await db.executeMultiple('ALTER TABLE registrations DROP COLUMN dob'); } catch (e) { }
@@ -2183,8 +2191,11 @@ async function startServer() {
         sql: `
           SELECT id, 'personal' as source, type, subject, body, status, error, created_at, sent_at, read_at
           FROM notifications
-          WHERE lower(trim(recipient_email)) = lower(trim(?))
-             OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+          WHERE type != 'advisor_quota_exceeded'
+            AND (
+              lower(trim(recipient_email)) = lower(trim(?))
+              OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+            )
           LIMIT 100
         `,
         args: [req.user.email || '', req.user.personal_email || ''],
@@ -2886,15 +2897,12 @@ async function startServer() {
           sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
           args: [req.user.id],
         });
-        if (quotaStatus === 'over_quota') {
-          await notifyAdvisorQuotaExceeded(Number(req.user.id), [lecturerId, coLecturerId]);
-        }
       }
       res.json({
         success: true,
         request: await advisorRequestWithNames(req.user.id),
         warning: quotaStatus === 'over_quota'
-          ? 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.'
+          ? 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn chấp nhận và ghi nhận GVHD theo thông tin bạn khai báo.'
           : null,
       });
     } catch (e: any) {
@@ -3311,8 +3319,7 @@ async function startServer() {
             args: [req.user.id, Number(validLecturer.id), lecturerName, 'approved', quotaStatus],
           });
           if (quotaStatus === 'over_quota') {
-            advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.';
-            await notifyAdvisorQuotaExceeded(Number(req.user.id), [Number(validLecturer.id)]);
+            advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn chấp nhận và ghi nhận GVHD theo thông tin bạn khai báo.';
           }
           await createAdvisorAssignment({
             user_id: req.user.id,
@@ -3626,7 +3633,7 @@ async function startServer() {
         });
         let advisorWarning: string | null = null;
         if (advisorRequestType === 'agreed' && advisorQuota === 'over_quota') {
-          advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn ghi nhận GVHD theo thông tin bạn khai báo và đã gửi cảnh báo cho sinh viên, giảng viên.';
+          advisorWarning = 'Giảng viên đã đủ/vượt chỉ tiêu. Hệ thống vẫn chấp nhận và ghi nhận GVHD theo thông tin bạn khai báo.';
         }
         if (advisorRequestType === 'agreed' && advisorLecturer) {
           const primaryResult = await createAdvisorAssignment({
@@ -3654,9 +3661,6 @@ async function startServer() {
             sql: "UPDATE advisor_requests SET status = 'approved', reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE user_id = ?",
             args: [req.user.id],
           });
-          if (advisorQuota === 'over_quota') {
-            await notifyAdvisorQuotaExceeded(Number(req.user.id), [Number(advisorLecturer.id), advisorCoLecturer ? Number(advisorCoLecturer.id) : 0]);
-          }
         }
         (req as any).advisorWarning = advisorWarning;
       }
@@ -5030,34 +5034,6 @@ async function startServer() {
     })).rows[0] as any || null;
   }
 
-  async function notifyAdvisorQuotaExceeded(userId: number, lecturerIds: number[]) {
-    const ids = Array.from(new Set(lecturerIds.map(Number).filter(Boolean)));
-    if (ids.length === 0) return;
-    const student = (await db.execute({ sql: 'SELECT email, personal_email, name, student_id FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
-    const lecturers: any[] = [];
-    for (const id of ids) {
-      const lecturer = (await db.execute({ sql: 'SELECT id, name, email FROM lecturers WHERE id = ?', args: [id] })).rows[0] as any;
-      if (lecturer) lecturers.push(lecturer);
-    }
-    const lecturerNames = lecturers.map(item => item.name).filter(Boolean).join('; ');
-    await createNotification({
-      user_id: userId,
-      recipient_email: student?.personal_email || student?.email,
-      type: 'advisor_quota_exceeded',
-      subject: 'Đăng ký GVHD vượt chỉ tiêu đã được ghi nhận',
-      body: `Đăng ký GVHD của bạn với ${lecturerNames || 'giảng viên đã chọn'} đã được ghi nhận dù giảng viên đã đủ/vượt chỉ tiêu. Khoa và giảng viên đã được thông báo.`,
-    });
-    for (const lecturer of lecturers) {
-      if (!lecturer.email) continue;
-      await createNotification({
-        recipient_email: lecturer.email,
-        type: 'advisor_quota_exceeded',
-        subject: 'Có sinh viên đăng ký GVHD vượt chỉ tiêu',
-        body: `Sinh viên ${student?.name || userId}${student?.student_id ? ` (${student.student_id})` : ''} đã đăng ký ${lecturer.name} làm GVHD trong trạng thái vượt chỉ tiêu. Hệ thống vẫn ghi nhận phân công theo chính sách hiện tại.`,
-      });
-    }
-  }
-
   async function approveAgreedAdvisorRequest(request: any, actorId: number) {
     if (!request || request.request_type !== 'agreed' || request.status === 'approved') return false;
     let lecturerId = request.lecturer_id ? Number(request.lecturer_id) : 0;
@@ -5095,9 +5071,6 @@ async function startServer() {
           suppress_student_notification: true,
         }, actorId);
       }
-    }
-    if (quotaStatus === 'over_quota') {
-      await notifyAdvisorQuotaExceeded(Number(request.user_id), [lecturerId, coLecturerId]);
     }
     await db.execute({
       sql: `UPDATE advisor_requests
@@ -5571,9 +5544,6 @@ async function startServer() {
       sql: `UPDATE advisor_requests SET status = 'approved', admin_note = ?, reviewed_by = ?, reviewed_at = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours') WHERE id = ?`,
       args: [req.body.admin_note || null, req.user.id, id],
     });
-    if (request.quota_status === 'over_quota') {
-      await notifyAdvisorQuotaExceeded(Number(request.user_id), [lecturerId, coLecturerId]);
-    }
     const adminNote = String(req.body.admin_note || '').trim();
     if (adminNote) {
       const student = (await db.execute({ sql: 'SELECT email, personal_email FROM users WHERE id = ?', args: [Number(request.user_id)] })).rows[0] as any;

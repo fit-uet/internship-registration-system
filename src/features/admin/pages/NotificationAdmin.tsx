@@ -190,7 +190,6 @@ export function NotificationAdmin({ token }: { token: string }) {
     const labels: Record<string, string> = {
       advisor_request_approved_comment: 'Nhận xét đăng ký GVHD',
       advisor_assigned: 'Phân công giảng viên hướng dẫn',
-      advisor_quota_exceeded: 'Cảnh báo vượt quota GVHD',
       company_applicants_sent: 'Đã gửi danh sách cho doanh nghiệp',
       faq_answered: 'Trả lời FAQ',
       faq_question_created: 'Câu hỏi FAQ mới',

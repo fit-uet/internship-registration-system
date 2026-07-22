@@ -609,7 +609,6 @@ export function MyNotifications({ token, compact = false, onChanged }: { token: 
   const typeLabel = (type: string) => {
     if (type === 'registration_status_changed') return 'Đăng ký';
     if (type === 'advisor_assigned') return 'GVHD';
-    if (type === 'advisor_quota_exceeded') return 'Vượt quota GVHD';
     if (type === 'final_report_status_changed') return 'Báo cáo';
     if (type === 'grade_locked') return 'Bảng điểm';
     if (type === 'faq_answered') return 'FAQ';

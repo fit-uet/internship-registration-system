@@ -29,7 +29,7 @@ Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 - Với sinh viên thực tập tại trường, nếu đã được giảng viên đồng ý thì sinh viên chọn giảng viên đó. Nếu chưa có giảng viên đồng ý, sinh viên không cần chọn; Khoa sẽ phân công sau.
 - Giảng viên cử nhân, nhận diện theo tên có chữ `CN`, không được làm giảng viên hướng dẫn chính, chỉ được đồng hướng dẫn.
 - Chỉ tiêu mặc định tính gộp cả hướng dẫn chính và đồng hướng dẫn: `GS`/`PGS` tối đa 5 sinh viên, `TS` tối đa 8 sinh viên, `ThS`/khác tối đa 10 sinh viên. Khoa có thể cấu hình quota riêng cho từng giảng viên.
-- Nếu sinh viên đã được giảng viên đồng ý hướng dẫn nhưng vượt quota, hệ thống vẫn ghi nhận để Khoa duyệt thủ công.
+- Nếu sinh viên đã được giảng viên đồng ý hướng dẫn nhưng vượt quota, hệ thống vẫn chấp nhận và ghi nhận phân công; sinh viên chỉ nhận cảnh báo trực tiếp trên giao diện.
 - Sinh viên không tìm được cơ hội thực tập tại doanh nghiệp sau thời hạn sẽ được Khoa chủ động chuyển trạng thái và phân công phương án thực tập tại trường hoặc đối tác khác.
 - Báo cáo định kỳ được nộp qua email cho giảng viên; hệ thống chỉ cần quản lý báo cáo final theo khoảng thời gian mở/đóng nộp của đợt.
 - Báo cáo final nộp trên hệ thống ở định dạng PDF.
@@ -1016,7 +1016,7 @@ Quy tắc nghiệp vụ đã chốt:
 - Nếu sinh viên chưa có GVHD đồng ý hướng dẫn, sinh viên để trống phần đăng ký GVHD; Khoa sẽ phân công sau theo quota còn lại.
 - Với các sinh viên trước đó đã đăng ký nơi thực tập là `Trường Đại học Công nghệ` và đã điền tên GVHD khi đăng ký, hệ thống tự hiểu đây là trạng thái `Tôi đã được GV đồng ý hướng dẫn`. Sinh viên không cần nhập lại.
 - Nếu sinh viên đã khai báo GVHD trong đăng ký cũ, hệ thống cần hiển thị lại GVHD đó trong phần đăng ký GVHD và chuyển thành yêu cầu chờ Khoa xác nhận nếu chưa có phân công chính thức.
-- Nếu GV đã đủ hoặc vượt quota, hệ thống vẫn ghi nhận đăng ký/phân công GVHD đã được GV đồng ý, đánh dấu `over_quota` và gửi cảnh báo cho sinh viên, giảng viên.
+- Nếu GV đã đủ hoặc vượt quota, hệ thống vẫn ghi nhận đăng ký/phân công GVHD đã được GV đồng ý, đánh dấu `over_quota` và chỉ hiển thị cảnh báo trực tiếp cho sinh viên; không tạo thông báo hoặc email.
 - Giảng viên có tên chứa `CN` không được làm GVHD chính, nhưng có thể là đồng hướng dẫn nếu Khoa cho phép trong luồng phân công.
 - Khoa/Admin có quyền duyệt, từ chối, hoặc đổi sang giảng viên khác khi xử lý đăng ký GVHD.
 - Khi Khoa duyệt đăng ký GVHD, hệ thống mới ghi phân công chính thức vào `advisor_assignments`.
@@ -1066,7 +1066,7 @@ Các trạng thái chính:
   - `assigned_by_faculty`: Khoa chọn giảng viên khác để phân công.
 - `quota_status`:
   - `within_quota`: GV còn quota tại thời điểm gửi.
-  - `over_quota`: GV đã đủ/vượt quota, hệ thống vẫn ghi nhận phân công nhưng gửi cảnh báo cho sinh viên, giảng viên.
+  - `over_quota`: GV đã đủ/vượt quota, hệ thống vẫn ghi nhận phân công và chỉ cảnh báo trực tiếp cho sinh viên; không tạo thông báo hoặc email.
   - `unknown`: chưa xác định được GV.
 
 Thiết kế UI sinh viên:
@@ -1085,12 +1085,12 @@ Thiết kế UI admin:
   - Duyệt đăng ký.
   - Từ chối kèm nhận xét.
   - Chọn GV khác và phân công.
-- Khi đăng ký/phân công vượt quota, UI chỉ hiển thị cảnh báo; không yêu cầu quản trị viên duyệt thủ công riêng.
+- Khi đăng ký/phân công vượt quota, UI sinh viên chỉ hiển thị cảnh báo; không tạo notification, không đưa email vào hàng đợi và không yêu cầu quản trị viên duyệt thủ công riêng.
 
 ## 10. Các điểm đã chốt thêm
 
 - Không có ngoại lệ dung lượng báo cáo final trong giai đoạn hiện tại. File PDF lớn hơn 10 MB bị từ chối và sinh viên phải nén lại.
-- Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn ghi nhận đăng ký GVHD đã được đồng ý khi vượt quota và gửi cảnh báo cho sinh viên, giảng viên.
+- Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn ghi nhận đăng ký GVHD đã được đồng ý khi vượt quota và chỉ cảnh báo trực tiếp cho sinh viên, không tạo thông báo hoặc email.
 
 ## 11. Nhận xét tổng quan
 

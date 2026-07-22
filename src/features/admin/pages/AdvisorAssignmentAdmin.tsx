@@ -497,7 +497,6 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
                     <td className="px-4 py-3">
                       <div>{request.lecturer_name || request.lecturer_name_text || '-'}</div>
                       {(request.co_lecturer_name || request.co_lecturer_name_text) && <div className="text-xs text-slate-500 mt-1">Đồng HD: {request.co_lecturer_name || request.co_lecturer_name_text}</div>}
-                      {request.quota_status === 'over_quota' && <div className="text-xs text-red-700 font-semibold mt-1">Vượt quota - đã cảnh báo</div>}
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       <div className="text-xs text-slate-600 whitespace-pre-wrap">{request.student_note || '-'}</div>

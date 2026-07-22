@@ -1271,7 +1271,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       </div>
                       {advisorRequest && (
                         <div className="mt-2 text-xs text-slate-500 font-medium space-y-1">
-                          {advisorRequest.quota_status === 'over_quota' && <p className="text-amber-600 font-bold">⚠️ Vượt quota, đã cảnh báo</p>}
+                          {advisorRequest.quota_status === 'over_quota' && <p className="text-amber-600 font-bold">⚠️ GVHD đã vượt quota nhưng phân công vẫn được ghi nhận</p>}
                           {(advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text) && <p>Đồng HD: <span className="font-semibold text-slate-700">{advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}</span></p>}
                           {advisorRequest.admin_note && <p>Nhận xét từ Khoa: <span className="font-semibold text-slate-750">{advisorRequest.admin_note}</span></p>}
                         </div>

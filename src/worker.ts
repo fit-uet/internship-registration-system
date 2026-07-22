@@ -863,6 +863,14 @@ async function initDb(env: Env) {
     for (const sql of migrations) {
       try { await database.execute(sql); } catch (e) { }
     }
+    try {
+      await database.execute({
+        sql: `UPDATE notifications
+              SET status = 'website_only', error = 'Đã ngừng gửi thông báo vượt quota GVHD theo chính sách hiện tại.'
+              WHERE type = 'advisor_quota_exceeded' AND status = 'queued'`,
+        args: [],
+      });
+    } catch (e) { }
 
     await database.executeMultiple(`
       DELETE FROM registrations
@@ -1154,8 +1162,11 @@ async function route(request: Request, env: Env) {
       sql: `
         SELECT id, 'personal' as source, type, subject, body, status, error, created_at, sent_at, read_at
         FROM notifications
-        WHERE lower(trim(recipient_email)) = lower(trim(?))
-           OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+        WHERE type != 'advisor_quota_exceeded'
+          AND (
+            lower(trim(recipient_email)) = lower(trim(?))
+            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+          )
         LIMIT 100
       `,
       args: [user.email || '', user.personal_email || ''],
