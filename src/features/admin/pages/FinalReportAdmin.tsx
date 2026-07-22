@@ -88,7 +88,7 @@ export function FinalReportAdmin({ token }: { token: string }) {
       row.report_submitted_at || '',
       row.lecturer_comment || ''
     ]);
-    saveXlsx('bao_cao_final.xlsx', headers, data, 'Báo cáo final');
+    saveXlsx('bao_cao.xlsx', headers, data, 'Báo cáo');
   };
 
   if (loading) return <div className="text-center py-20 text-slate-500">Đang tải báo cáo...</div>;
@@ -99,8 +99,8 @@ export function FinalReportAdmin({ token }: { token: string }) {
         <div>
           <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="text-indigo-600" /> Báo cáo final
-            <PageDescriptionTooltip description="Theo dõi báo cáo PDF final của sinh viên đã xác nhận nơi thực tập." />
+            <FileText className="text-indigo-600" /> Báo cáo
+            <PageDescriptionTooltip description="Theo dõi báo cáo PDF của sinh viên đã xác nhận nơi thực tập." />
           </h2>
         </div>
       </div>

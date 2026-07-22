@@ -61,7 +61,7 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
       setFinalInternship(finalData && !finalData.error ? finalData : null);
       setFinalReport(reportData && !reportData.error ? reportData : null);
     } catch (e) {
-      alert('Không tải được dữ liệu báo cáo final.');
+      alert('Không tải được dữ liệu báo cáo.');
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || 'Nộp báo cáo thất bại.');
       setFinalReport(data);
-      alert('Đã nộp báo cáo final.');
+      alert('Đã nộp báo cáo.');
     } catch (e) {
       alert('Lỗi kết nối khi nộp báo cáo.');
     } finally {
@@ -122,14 +122,14 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
         <div>
           <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="text-indigo-600" /> Báo cáo final PDF
-            <PageDescriptionTooltip description="Nộp bản báo cáo thực tập final để giảng viên hướng dẫn đánh giá và chấm điểm." />
+            <FileText className="text-indigo-600" /> Báo cáo
+            <PageDescriptionTooltip description="Nộp báo cáo thực tập để giảng viên hướng dẫn đánh giá và chấm điểm." />
           </h2>
         </div>
         <div className={`rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-150 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-150 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-150 text-red-800'}`}>
           <div className="font-bold text-xs uppercase tracking-wider">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
           {finalReportWindowStatus === 'unconfigured'
-            ? <div className="text-xs mt-1 font-normal text-slate-500">Khoa chưa cấu hình thời gian nộp báo cáo final.</div>
+            ? <div className="text-xs mt-1 font-normal text-slate-500">Khoa chưa cấu hình thời gian nộp báo cáo.</div>
             : <div className="text-xs mt-1 font-normal">Từ {formatGMT7Local(campaign.final_report_open_at)} đến {formatGMT7Local(campaign.final_report_close_at)} GMT+7</div>}
         </div>
       </div>
@@ -157,7 +157,7 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
 
         {!finalInternship ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Bạn cần xác nhận nơi thực tập chính thức trước khi nộp báo cáo final.
+            Bạn cần xác nhận nơi thực tập chính thức trước khi nộp báo cáo.
           </div>
         ) : (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
@@ -167,7 +167,7 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
                 {finalReport.lecturer_comment && <div className="text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</div>}
               </div>
             ) : (
-              <div className="text-sm text-indigo-950">Chưa có file báo cáo final.</div>
+              <div className="text-sm text-indigo-950">Chưa có file báo cáo.</div>
             )}
           </div>
         )}

@@ -122,7 +122,7 @@ export function AdminSettings({ token }: { token: string }) {
   const campaignWindows = [
     { title: 'Đăng ký học phần', openKey: 'registration_open_at', closeKey: 'registration_close_at' },
     { title: 'Xác nhận nơi thực tập', openKey: 'confirmation_open_at', closeKey: 'confirmation_close_at' },
-    { title: 'Nộp báo cáo final', openKey: 'final_report_open_at', closeKey: 'final_report_close_at' },
+    { title: 'Nộp báo cáo', openKey: 'final_report_open_at', closeKey: 'final_report_close_at' },
     { title: 'Đăng ký GV hướng dẫn', openKey: 'advisor_request_open_at', closeKey: 'advisor_request_close_at' }
   ];
 
@@ -245,7 +245,7 @@ export function AdminSettings({ token }: { token: string }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Mở nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mở nộp báo cáo <span className="text-slate-400 font-normal">(GMT+7)</span></label>
             <input
               type="datetime-local"
               value={(campaign as any).final_report_open_at || ''}
@@ -254,7 +254,7 @@ export function AdminSettings({ token }: { token: string }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Đóng nộp báo cáo final <span className="text-slate-400 font-normal">(GMT+7)</span></label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Đóng nộp báo cáo <span className="text-slate-400 font-normal">(GMT+7)</span></label>
             <input
               type="datetime-local"
               value={(campaign as any).final_report_close_at || ''}

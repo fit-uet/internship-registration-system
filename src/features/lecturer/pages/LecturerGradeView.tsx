@@ -131,8 +131,8 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
       <PageHeader
         title={<>Chấm điểm thực tập <PageDescriptionTooltip description={
           <>
-            <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo final ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
-            <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD.</p>
+            <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
+            <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo, 60% đánh giá công ty/GVHD.</p>
           </>
         } /></>}
         description="Nhập, lưu nháp và nộp điểm thực tập cho sinh viên được hướng dẫn chính."

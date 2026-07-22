@@ -121,7 +121,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
       'Tình trạng liên hệ',
       'Thời gian đánh dấu liên hệ',
       'Ghi chú liên hệ',
-      'Báo cáo final',
+      'Báo cáo',
       'Tên file báo cáo',
       'Dung lượng báo cáo',
       'Ngày nộp báo cáo',
@@ -303,7 +303,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
                 <th className="p-4">Vai trò</th>
                 <th className="p-4">Nơi thực tập</th>
                 <th className="p-4">Tình trạng liên hệ</th>
-                <th className="p-4">Báo cáo final</th>
+                <th className="p-4">Báo cáo</th>
                 <th className="p-4">Liên hệ</th>
                 <th className="p-4">Môn học</th>
                 <th className="p-4">Trao đổi</th>

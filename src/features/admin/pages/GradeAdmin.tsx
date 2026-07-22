@@ -85,7 +85,7 @@ export function GradeAdmin({ token }: { token: string }) {
           <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <CheckCircle2 className="text-green-600" /> Bảng điểm thực tập
-            <PageDescriptionTooltip description="Tổng hợp điểm 20% định kỳ, 20% báo cáo final, 60% đánh giá công ty/GVHD." />
+            <PageDescriptionTooltip description="Tổng hợp điểm 20% định kỳ, 20% báo cáo, 60% đánh giá công ty/GVHD." />
           </h2>
         </div>
       </div>

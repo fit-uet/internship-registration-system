@@ -45,7 +45,7 @@ export function StudentGradeView({ token }: { token: string }) {
 
   const scoreCards = [
     { label: 'Điểm định kỳ', value: grade?.progress_score, note: '20%' },
-    { label: 'Điểm báo cáo final', value: grade?.report_score, note: '20%' },
+    { label: 'Điểm báo cáo', value: grade?.report_score, note: '20%' },
     { label: 'Điểm công ty/GVHD', value: grade?.company_score, note: '60%' },
     { label: 'Điểm tổng kết', value: grade?.final_score, note: 'Tạm tính', highlight: true },
   ];

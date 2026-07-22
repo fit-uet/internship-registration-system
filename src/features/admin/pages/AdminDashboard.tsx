@@ -89,8 +89,8 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
                   color: 'hover:border-emerald-300 hover:bg-emerald-50/30'
                 },
                 {
-                  title: 'Báo cáo Final',
-                  desc: 'Theo dõi, duyệt báo cáo thực tập final của sinh viên.',
+                  title: 'Báo cáo',
+                  desc: 'Theo dõi, duyệt báo cáo thực tập của sinh viên.',
                   path: '/admin/reports',
                   icon: <FileText className="text-indigo-600" size={20} />,
                   color: 'hover:border-indigo-300 hover:bg-indigo-50/30'

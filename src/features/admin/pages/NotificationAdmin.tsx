@@ -59,7 +59,7 @@ export function NotificationAdmin({ token }: { token: string }) {
   };
 
   const createFinalReportReminders = async () => {
-    if (!confirm('Tạo thông báo nhắc nộp báo cáo final cho sinh viên chưa nộp hoặc cần nộp lại?')) return;
+    if (!confirm('Tạo thông báo nhắc nộp báo cáo cho sinh viên chưa nộp hoặc cần nộp lại?')) return;
     setCreatingReminders(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/notifications/final-report-reminders`, {
@@ -195,8 +195,8 @@ export function NotificationAdmin({ token }: { token: string }) {
       faq_question_created: 'Câu hỏi FAQ mới',
       final_confirmation_open: 'Mở xác nhận nơi thực tập',
       final_internship_confirmed: 'Xác nhận nơi thực tập',
-      final_report_due_reminder: 'Nhắc nộp báo cáo final',
-      final_report_status_changed: 'Trạng thái báo cáo final',
+      final_report_due_reminder: 'Nhắc nộp báo cáo',
+      final_report_status_changed: 'Trạng thái báo cáo',
       grade_locked: 'Bảng điểm đã khóa',
       lecturer_students_mail_merge: 'Mail merge giảng viên',
       manual_direct_notice: 'Thông báo tới một tài khoản',

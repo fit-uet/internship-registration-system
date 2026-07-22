@@ -198,7 +198,7 @@ function App() {
                           {user.role === 'student' && (
                             <>
                               <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <FileText size={16} className="text-indigo-600" /> Báo cáo final
+                                <FileText size={16} className="text-indigo-600" /> Báo cáo
                               </Link>
                               <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
                                 <CheckCircle2 size={16} className="text-green-600" /> Điểm thực tập

@@ -599,7 +599,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Nộp báo cáo thất bại.');
       setFinalReport(data);
-      alert('Đã nộp báo cáo final.');
+      alert('Đã nộp báo cáo.');
     } catch (err) {
       alert('Lỗi kết nối khi nộp báo cáo.');
     } finally {
@@ -767,7 +767,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: (!campaign.advisor_request_open_at && !campaign.advisor_request_close_at) ? 'unconfigured' : advisorRequestWindowStatus,
     },
     {
-      label: 'Nộp báo cáo final',
+      label: 'Nộp báo cáo',
       openAt: campaign.final_report_open_at,
       closeAt: campaign.final_report_close_at,
       status: (!campaign.final_report_open_at && !campaign.final_report_close_at) ? 'unconfigured' : finalReportWindowStatus,
@@ -800,7 +800,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       ? 'confirmation'
       : openCampaign?.label === 'Đăng ký GVHD'
         ? 'advisor'
-        : openCampaign?.label === 'Nộp báo cáo final'
+        : openCampaign?.label === 'Nộp báo cáo'
           ? 'final_report'
           : 'registration';
   const activeCampaignTitle = openCampaign?.label || 'Đăng ký thực tập';
@@ -967,7 +967,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${activeCampaignKey === 'final_report' ? 'border-t-4 border-t-violet-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo final</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo</div>
               <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-650 shrink-0">
                 <FileCheck size={15} />
               </div>
@@ -1366,7 +1366,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="text-indigo-600" size={20} />
-                  <h3 className="text-base font-bold text-slate-900">Báo cáo thực tập final</h3>
+                  <h3 className="text-base font-bold text-slate-900">Báo cáo</h3>
                 </div>
                 <div className="text-sm text-slate-600 space-y-1">
                   <p>
@@ -1384,7 +1384,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       {finalReport.lecturer_comment && <p className="text-xs text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</p>}
                     </>
                   ) : (
-                    <p>Chưa nộp báo cáo final.</p>
+                    <p>Chưa nộp báo cáo.</p>
                   )}
                   {finalReportWindowStatus !== 'open' && (
                     <p className={`text-xs font-semibold ${finalReportWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
