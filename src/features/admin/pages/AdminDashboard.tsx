@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Users, CheckCircle2, LayoutDashboard, Building2, FileText, Shield, Clock, CircleHelp, Settings, GraduationCap } from 'lucide-react';
 import { API_BASE, CACHE_TTL, cachedJsonFetch } from '../../../shared';
