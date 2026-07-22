@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle, ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Clock, Send, Lock, ClipboardList, UserCheck, FileCheck } from 'lucide-react';
+import { Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle, ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Clock, Send, Lock, ClipboardList, UserCheck, FileCheck, User as UserIcon, GraduationCap, Bell, CircleHelp } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, companyDescriptionText, isAuthExpiredResponse, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
 
@@ -830,75 +830,124 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
-      {/* Sidebar Info */}
-      <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trạng thái Hệ thống</h2>
-          <div className="space-y-3">
-            {visibleCampaignStatusItems.map(item => (
-              <div key={item.label} className={`rounded-xl border px-3 py-3 ${campaignStatusColor(item.status)}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="relative flex h-2.5 w-2.5 shrink-0">
-                      {item.status === 'open' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${campaignStatusDot(item.status)}`}></span>
-                    </span>
-                    <span className="text-sm font-semibold truncate">{item.label}</span>
-                  </div>
-                  <span className="text-xs font-bold whitespace-nowrap">{campaignStatusText(item.status)}</span>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Student User Profile Card - Synchronized with Lecturer & Admin UI */}
+      {user && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              {user.picture ? (
+                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
+                  <UserIcon size={26} />
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] opacity-90">
-                  <div>
-                    <div className="font-semibold">Mở</div>
-                    <div>{item.openAt ? formatGMT7(item.openAt) : '—'}</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold">Đóng</div>
-                    <div>{item.closeAt ? formatGMT7(item.closeAt) : '—'}</div>
-                  </div>
-                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1 flex items-center gap-1.5">
+                  <GraduationCap size={14} className="text-blue-600" /> Sinh viên thực tập
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+                <p className="text-sm text-slate-500 mt-1 break-all">
+                  {user.email}
+                  {user.student_id ? ` · MSSV: ${user.student_id}` : ''}
+                  {user.class_name ? ` · Lớp: ${user.class_name}` : ''}
+                </p>
               </div>
-            ))}
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                onClick={() => navigate('/profile')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <UserIcon size={14} /> Cập nhật hồ sơ
+              </button>
+              <button
+                onClick={() => navigate('/plan')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+              </button>
+              <a
+                href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <FileText size={14} className="text-slate-500" /> Mẫu báo cáo
+              </a>
+              <button
+                onClick={() => navigate('/faq')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
+              </button>
+              <button
+                onClick={() => navigate('/notifications')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+              >
+                <Bell size={14} className="text-slate-500" /> Thông báo
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        <details className="group bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden transition-all duration-200">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 select-none focus:outline-none">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Quy định Đăng ký</span>
-            <ChevronDown size={18} className="text-slate-400 transition-transform group-open:rotate-180 group-open:text-slate-800" />
-          </summary>
-          <div className="px-5 pb-5 border-t border-slate-100/80 pt-4 text-slate-700 text-xs leading-relaxed max-h-[400px] overflow-y-auto">
-            {registrationRulesMarkdown.trim()
-              ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-              : <p className="text-sm text-slate-400 italic">Chưa có quy định nào.</p>}
+      {/* Grid Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Sidebar Info */}
+        <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Trạng thái Hệ thống</h2>
+            <div className="space-y-3">
+              {visibleCampaignStatusItems.map(item => (
+                <div key={item.label} className={`rounded-xl border px-3 py-3 ${campaignStatusColor(item.status)}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="relative flex h-2.5 w-2.5 shrink-0">
+                        {item.status === 'open' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${campaignStatusDot(item.status)}`}></span>
+                      </span>
+                      <span className="text-sm font-semibold truncate">{item.label}</span>
+                    </div>
+                    <span className="text-xs font-bold whitespace-nowrap">{campaignStatusText(item.status)}</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] opacity-90">
+                    <div>
+                      <div className="font-semibold">Mở</div>
+                      <div>{item.openAt ? formatGMT7(item.openAt) : '—'}</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold">Đóng</div>
+                      <div>{item.closeAt ? formatGMT7(item.closeAt) : '—'}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </details>
-      </div>
 
-      <div className="col-span-1 lg:col-span-9 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
-            <p className="mt-1 text-sm text-slate-500">Việc cần làm hiện tại: <strong className="text-slate-800">{activeCampaignTitle}</strong></p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/plan')}
-              className="bg-blue-50 text-blue-700 border border-blue-100 px-4 py-2 rounded-xl hover:bg-blue-100/70 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              Kế hoạch triển khai
-            </button>
-            <a
-              href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <FileText size={14} className="text-slate-500" /> Mẫu báo cáo
-            </a>
-            {user.role === 'admin' && (
-              <>
+          <details className="group bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden transition-all duration-200">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 select-none focus:outline-none">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Quy định Đăng ký</span>
+              <ChevronDown size={18} className="text-slate-400 transition-transform group-open:rotate-180 group-open:text-slate-800" />
+            </summary>
+            <div className="px-5 pb-5 border-t border-slate-100/80 pt-4 text-slate-700 text-xs leading-relaxed max-h-[400px] overflow-y-auto">
+              {registrationRulesMarkdown.trim()
+                ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+                : <p className="text-sm text-slate-400 italic">Chưa có quy định nào.</p>}
+            </div>
+          </details>
+        </div>
+
+        <div className="col-span-1 lg:col-span-9 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
+              <p className="mt-1 text-sm text-slate-500">Việc cần làm hiện tại: <strong className="text-slate-800">{activeCampaignTitle}</strong></p>
+            </div>
+            {user?.role === 'admin' && (
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate('/admin')}
                   className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -909,12 +958,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   onClick={() => navigate('/admin/final-internships')}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <CheckCircle2 size={14} /> Danh sách xác nhận thực tập
+                  <CheckCircle2 size={14} /> Danh sách xác nhận
                 </button>
-              </>
+              </div>
             )}
           </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <button
@@ -2018,5 +2066,6 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         </div>
       )}
     </div>
+  </div>
   );
 }
