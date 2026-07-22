@@ -773,9 +773,6 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: (!campaign.final_report_open_at && !campaign.final_report_close_at) ? 'unconfigured' : finalReportWindowStatus,
     },
   ];
-  const visibleCampaignStatusItems = campaignStatusItems.some(item => item.status === 'open')
-    ? campaignStatusItems.filter(item => item.status === 'open')
-    : campaignStatusItems.slice(0, 1);
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
     ? 'bg-green-50 text-green-700 border-green-100'
@@ -830,10 +827,10 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Student User Profile Card - Synchronized with Lecturer & Admin UI */}
       {user && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               {user.picture ? (
@@ -887,12 +884,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         </div>
       )}
 
-      {/* Campaign Progress Header & 4 Task Cards Grid (Full Width) */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Campaign overview and student workflow */}
+      <div className="space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Thực tập {campaign.year}</h2>
-            <p className="mt-1 text-sm text-slate-500">Việc cần làm hiện tại: <strong className="text-slate-800">{activeCampaignTitle}</strong></p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-600">Tổng quan học phần</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">Thực tập {campaign.year}</h2>
+            <p className="mt-1 text-sm text-slate-500">Theo dõi tiến trình và hoàn thành các bước thực tập theo đúng thời hạn.</p>
           </div>
           {user?.role === 'admin' && (
             <div className="flex items-center gap-2">
@@ -910,6 +908,15 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               </button>
             </div>
           )}
+          {user?.role !== 'admin' && (
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
+              </span>
+              Việc cần làm: {activeCampaignTitle}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -917,7 +924,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-t-4 border-t-blue-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Đăng ký thực tập</div>
@@ -927,14 +934,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
             <div className="mt-2.5 text-sm font-bold text-slate-800">{registrationSummary}</div>
             {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-3 text-xs font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}</div>}
+            {hasRegistered && <div className="mt-auto pt-3 text-xs font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={13} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md ${hasRegistered ? 'cursor-pointer hover:border-slate-300' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-t-4 border-t-emerald-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
@@ -943,13 +950,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               </div>
             </div>
             <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}</div>}
+            {hasRegistered && <div className="mt-auto pt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={13} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/grades')}
-            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${showAdvisorTask ? 'border-t-4 border-t-indigo-500 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Giảng viên hướng dẫn</div>
@@ -958,13 +965,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               </div>
             </div>
             <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{advisorSummary}</div>
-            <div className="mt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số</div>
+            <div className="mt-auto pt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={13} /></div>
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
-            className={`rounded-2xl border p-5 text-left transition-all duration-300 bg-white border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer hover:border-slate-300 ${activeCampaignKey === 'final_report' ? 'border-t-4 border-t-violet-600 border-x-slate-200/50 border-b-slate-200/50' : ''}`}
+            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo</div>
@@ -974,8 +981,71 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
             <div className="mt-2.5 text-sm font-bold text-slate-800">{finalReportSummary}</div>
             {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
-            <div className="mt-3 text-xs font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo</div>
+            <div className="mt-auto pt-3 text-xs font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={13} /></div>
           </button>
+        </div>
+
+        {/* Operational information stays secondary to the four-step workflow. */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3" aria-labelledby="campaign-status-title">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <h3 id="campaign-status-title" className="text-sm font-bold text-slate-900">Trạng thái hệ thống</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">Lịch mở và đóng các chức năng trong đợt thực tập.</p>
+                </div>
+              </div>
+              <span className="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex">
+                GMT+7
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {campaignStatusItems.map(item => (
+                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${campaignStatusDot(item.status)}`} />
+                      <span className="truncate text-xs font-bold text-slate-800">{item.label}</span>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${campaignStatusColor(item.status)}`}>
+                      {campaignStatusText(item.status)}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-2.5 text-[11px]">
+                    <div className="min-w-0">
+                      <div className="font-semibold uppercase tracking-wide text-slate-400">Mở</div>
+                      <div className="mt-0.5 break-words font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold uppercase tracking-wide text-slate-400">Đóng</div>
+                      <div className="mt-0.5 break-words font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="flex min-h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2" aria-labelledby="registration-rules-title">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <ClipboardList size={18} />
+              </div>
+              <div>
+                <h3 id="registration-rules-title" className="text-sm font-bold text-slate-900">Quy định đăng ký</h3>
+                <p className="mt-0.5 text-xs text-slate-500">Các lưu ý sinh viên cần tuân thủ khi đăng ký.</p>
+              </div>
+            </div>
+            <div className="max-h-[258px] flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-4 pr-3">
+              {registrationRulesMarkdown.trim()
+                ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+                : <p className="text-xs italic text-slate-400">Khoa chưa cập nhật quy định đăng ký.</p>}
+            </div>
+          </section>
         </div>
 
         {myRegsError ? (
