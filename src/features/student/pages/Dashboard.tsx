@@ -889,6 +889,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             >
               Kế hoạch triển khai
             </button>
+            <a
+              href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <FileText size={14} className="text-slate-500" /> Mẫu báo cáo
+            </a>
             {user.role === 'admin' && (
               <>
                 <button
