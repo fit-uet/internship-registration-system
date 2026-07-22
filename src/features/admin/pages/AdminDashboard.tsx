@@ -110,7 +110,7 @@ export function AdminDashboard({ token, user: propUser }: { token: string; user?
                   color: 'hover:border-purple-300 hover:bg-purple-50/30'
                 },
                 {
-                  title: 'Mail merge & SMS',
+                  title: 'Thông báo và Email',
                   desc: 'Lịch sử thông báo, gửi email hàng loạt cho công ty.',
                   path: '/admin/notifications',
                   icon: <Clock className="text-amber-600" size={20} />,
