@@ -975,64 +975,64 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
+            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Đăng ký thực tập</div>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                <ClipboardList size={15} />
-              </div>
+            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0 shadow-xs">
+              <ClipboardList size={16} />
             </div>
-            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{registrationSummary}</div>
+            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
+              Đăng ký thực tập
+            </div>
+            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-1">{registrationSummary}</div>
             {hasRegistered && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-auto pt-2.5 text-[11px] font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
+            {hasRegistered && <div className="mt-auto pt-2 text-[11px] font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
+            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Nơi thực tập chính thức</div>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
-                <CheckCircle2 size={15} />
-              </div>
+            <div className={`absolute top-4.5 right-4 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+              <CheckCircle2 size={16} />
             </div>
-            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-auto pt-2.5 text-[11px] font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
+            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
+              Nơi thực tập chính thức
+            </div>
+            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
+            {hasRegistered && <div className="mt-auto pt-2 text-[11px] font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/grades')}
-            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
+            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Giảng viên hướng dẫn</div>
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-650 shrink-0">
-                <UserCheck size={15} />
-              </div>
+            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 shadow-xs">
+              <UserCheck size={16} />
             </div>
-            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{advisorSummary}</div>
-            <div className="mt-auto pt-2.5 text-[11px] font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={12} /></div>
+            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
+              Giảng viên hướng dẫn
+            </div>
+            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{advisorSummary}</div>
+            <div className="mt-auto pt-2 text-[11px] font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={12} /></div>
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
-            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
+            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Báo cáo</div>
-              <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-650 shrink-0">
-                <FileCheck size={15} />
-              </div>
+            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600 shrink-0 shadow-xs">
+              <FileCheck size={16} />
             </div>
-            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{finalReportSummary}</div>
+            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
+              Báo cáo Final
+            </div>
+            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-1">{finalReportSummary}</div>
             {finalReport?.submitted_at && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
-            <div className="mt-auto pt-2.5 text-[11px] font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={12} /></div>
+            <div className="mt-auto pt-2 text-[11px] font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={12} /></div>
           </button>
         </div>
 
