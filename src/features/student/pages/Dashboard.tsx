@@ -887,8 +887,66 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         </div>
       )}
 
-      {/* Campaign overview and student workflow */}
-      <div className="space-y-5">
+      {/* Campaign overview with supporting information in a compact left sidebar. */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="space-y-4 lg:sticky lg:top-24">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="campaign-status-title">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Clock size={16} />
+                </div>
+                <h3 id="campaign-status-title" className="text-[13px] font-bold text-slate-900">Trạng thái hệ thống</h3>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">GMT+7</span>
+            </div>
+
+            <div className="grid gap-2.5">
+              {visibleCampaignStatusItems.map(item => (
+                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${campaignStatusDot(item.status)}`} />
+                      <span className="truncate text-xs font-bold text-slate-800">{item.label}</span>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${campaignStatusColor(item.status)}`}>
+                      {campaignStatusText(item.status)}
+                    </span>
+                  </div>
+                  <div className="mt-2.5 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-2 text-[10px] leading-4">
+                    <div>
+                      <div className="font-semibold text-slate-400">Mở</div>
+                      <div className="mt-0.5 font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-400">Đóng</div>
+                      <div className="mt-0.5 font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 select-none">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <ClipboardList size={16} />
+                </div>
+                <span className="text-[13px] font-bold text-slate-900">Quy định đăng ký</span>
+              </div>
+              <ChevronDown size={16} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="max-h-72 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-4">
+              {registrationRulesMarkdown.trim()
+                ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+                : <p className="text-xs italic text-slate-400">Khoa chưa cập nhật quy định đăng ký.</p>}
+            </div>
+          </details>
+        </aside>
+
+        <div className="min-w-0 space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Thực tập {campaign.year}</h2>
           {user?.role === 'admin' && (
@@ -918,7 +976,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
@@ -982,63 +1040,6 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             {finalReport?.submitted_at && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
             <div className="mt-auto pt-2.5 text-[11px] font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={12} /></div>
           </button>
-        </div>
-
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.45fr)]">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="campaign-status-title">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <Clock size={16} />
-                </div>
-                <h3 id="campaign-status-title" className="text-[13px] font-bold text-slate-900">Trạng thái hệ thống</h3>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">GMT+7</span>
-            </div>
-
-            <div className={`grid gap-2.5 ${visibleCampaignStatusItems.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-              {visibleCampaignStatusItems.map(item => (
-                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${campaignStatusDot(item.status)}`} />
-                      <span className="truncate text-xs font-bold text-slate-800">{item.label}</span>
-                    </div>
-                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${campaignStatusColor(item.status)}`}>
-                      {campaignStatusText(item.status)}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-2 text-[11px]">
-                    <div>
-                      <span className="font-semibold text-slate-400">Mở: </span>
-                      <span className="font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-slate-400">Đóng: </span>
-                      <span className="font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <details className="group self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 select-none">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                  <ClipboardList size={16} />
-                </div>
-                <span className="text-[13px] font-bold text-slate-900">Quy định đăng ký</span>
-              </div>
-              <ChevronDown size={16} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="max-h-56 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-4">
-              {registrationRulesMarkdown.trim()
-                ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-                : <p className="text-xs italic text-slate-400">Khoa chưa cập nhật quy định đăng ký.</p>}
-            </div>
-          </details>
         </div>
 
         {myRegsError ? (
@@ -1715,6 +1716,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
 
         </div>}
+        </div>
       </div>
 
       {/* Withdraw Modal */}
