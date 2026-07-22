@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -9,6 +9,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [approvedCompanyNames, setApprovedCompanyNames] = useState<string[]>([]);
   const [adminStudents, setAdminStudents] = useState<any[]>([]);
   const [adminLecturerNames, setAdminLecturerNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
   useEffect(() => {
     fetchRegistrations();
     fetchRegistrationCompanies();
+    fetchApprovedCompanyNames();
     fetchAdminStudents();
     fetchAdminLecturers();
   }, []);
@@ -81,6 +83,23 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       setCompanies(Array.isArray(data) ? data : []);
     } catch (e) {
       setCompanies([]);
+    }
+  };
+
+  const fetchApprovedCompanyNames = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/approved-companies`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Không thể tải danh sách công ty gợi ý');
+      setApprovedCompanyNames(
+        (Array.isArray(data) ? data : [])
+          .map(item => String(item?.name || '').trim())
+          .filter(Boolean)
+      );
+    } catch (e) {
+      setApprovedCompanyNames([]);
     }
   };
 
@@ -553,6 +572,20 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
 
   const uniqueCourses = Array.from(new Set(registrations.map(r => r.course_code).filter(Boolean)));
   const uniqueCompanies = Array.from(new Set(registrations.map(r => r.company_name).filter(Boolean)));
+  const otherCompanyNameSuggestions = useMemo(() => {
+    const uniqueNames = new Map<string, string>();
+    const names = [
+      ...approvedCompanyNames,
+      ...registrations.map(registration => String(registration.other_company_name || '').trim()),
+    ];
+
+    names.filter(Boolean).forEach(name => {
+      const normalizedName = name.toLocaleLowerCase('vi');
+      if (!uniqueNames.has(normalizedName)) uniqueNames.set(normalizedName, name);
+    });
+
+    return Array.from(uniqueNames.values()).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [approvedCompanyNames, registrations]);
 
   const filteredRegistrations = sortedRegistrations.filter(reg => {
     const term = searchTerm.toLowerCase();
@@ -1200,12 +1233,21 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                     <div className="md:col-span-2">
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Tên công ty tự liên hệ *</label>
                       <input
+                        list="admin-edit-other-company-names"
                         value={editRegistrationForm.other_company_name}
                         onChange={e => setEditRegistrationForm({ ...editRegistrationForm, other_company_name: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tên công ty"
+                        placeholder="Nhập để tìm hoặc thêm tên công ty"
                         required={editingIsOtherCompany}
                       />
+                      <datalist id="admin-edit-other-company-names">
+                        {otherCompanyNameSuggestions.map(companyName => (
+                          <option key={companyName} value={companyName} />
+                        ))}
+                      </datalist>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Gợi ý từ danh sách công ty đã được duyệt và các đăng ký trước đây.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">Vị trí thực tập</label>
