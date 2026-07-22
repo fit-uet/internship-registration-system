@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { User as UserIcon, Users, CheckCircle2, Download, FileText, Bell, CircleHelp, MessageCircle } from 'lucide-react';
+import { User as UserIcon, Users, CheckCircle2, Download, FileText, Bell, CircleHelp, MessageCircle, GraduationCap } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, saveXlsx, CACHE_TTL, readJsonCache, clearJsonCache, cachedJsonFetch, PageDescriptionTooltip } from '../../../shared';
 
 export function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
   const [students, setStudents] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
 
@@ -34,6 +35,10 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
 
   useEffect(() => {
     fetchStudents();
+    fetch(`${API_BASE}/api/lecturer/grades`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => setGrades(Array.isArray(data) ? data : []))
+      .catch(() => setGrades([]));
   }, [token]);
 
   const formatBytes = (bytes: number) => {
@@ -45,6 +50,14 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
   const advisedStudentCount = new Set(students.map((student: any) => student.user_id).filter(Boolean)).size;
   const uncontactedCount = students.filter((student: any) => !student.contacted_at).length;
   const groupLecturerId = students.find((student: any) => student.lecturer_id)?.lecturer_id;
+
+  const registeredCount = advisedStudentCount;
+  const confirmedCount = students.filter((s: any) => s.confirmed_at || s.internship_place || s.internship_type).length;
+  const reportCount = students.filter((s: any) => s.report_submitted_at || ['submitted', 'accepted', 'needs_revision'].includes(s.report_status)).length;
+  const gradedCount = students.filter((s: any) =>
+    s.grade_status === 'submitted' || s.grade_status === 'draft' || (s.final_score !== null && s.final_score !== undefined && s.final_score !== '') ||
+    grades.some((g: any) => Number(g.user_id) === Number(s.user_id) && (g.grade_status === 'submitted' || g.grade_status === 'draft' || (g.final_score !== null && g.final_score !== undefined && g.final_score !== '')))
+  ).length;
 
   const downloadReport = async (student: any) => {
     const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
@@ -186,6 +199,68 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
           </button>
         </div>
       </div>
+
+      {/* Thống kê sinh viên phụ trách */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Số SV đăng ký</span>
+            <div className="p-2 bg-sky-50 rounded-xl text-sky-600">
+              <Users size={18} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-3xl font-bold text-slate-800">{registeredCount}</span>
+            <span className="text-[11px] font-medium text-slate-400">tổng số</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider">Số SV xác nhận</span>
+            <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+              <CheckCircle2 size={18} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-3xl font-bold text-blue-700">{confirmedCount}</span>
+            <span className="text-[11px] font-medium text-slate-400">
+              {registeredCount ? `${Math.round((confirmedCount / registeredCount) * 100)}%` : '0%'}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-amber-600 text-xs font-semibold uppercase tracking-wider">Số SV nộp báo cáo</span>
+            <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+              <FileText size={18} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-3xl font-bold text-amber-700">{reportCount}</span>
+            <span className="text-[11px] font-medium text-slate-400">
+              {registeredCount ? `${Math.round((reportCount / registeredCount) * 100)}%` : '0%'}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-emerald-600 text-xs font-semibold uppercase tracking-wider">Số SV có điểm</span>
+            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+              <GraduationCap size={18} />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-3xl font-bold text-emerald-700">{gradedCount}</span>
+            <span className="text-[11px] font-medium text-slate-400">
+              {registeredCount ? `${Math.round((gradedCount / registeredCount) * 100)}%` : '0%'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/60">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">

@@ -1660,13 +1660,15 @@ async function route(request: Request, env: Env) {
                    f.internship_type, f.confirmed_at,
                    CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
                    r.other_company_role, r.other_company_contact,
-                   fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at
+                   fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at,
+                   g.status as grade_status, g.final_score, g.progress_score, g.report_score, g.company_score, g.locked_at as grade_locked_at
             FROM advisor_assignments aa
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
             LEFT JOIN companies c ON c.id = f.company_id
             LEFT JOIN registrations r ON r.id = f.registration_id
             LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
+            LEFT JOIN grades g ON g.user_id = aa.user_id
             WHERE aa.lecturer_id = ?
             ORDER BY u.student_id ASC`,
       args: [Number(lecturer.id)],
