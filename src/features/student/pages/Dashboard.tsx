@@ -773,6 +773,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: (!campaign.final_report_open_at && !campaign.final_report_close_at) ? 'unconfigured' : finalReportWindowStatus,
     },
   ];
+  const visibleCampaignStatusItems = campaignStatusItems.some(item => item.status === 'open')
+    ? campaignStatusItems.filter(item => item.status === 'open')
+    : campaignStatusItems.slice(0, 1);
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
     ? 'bg-green-50 text-green-700 border-green-100'
@@ -886,12 +889,8 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
       {/* Campaign overview and student workflow */}
       <div className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-600">Tổng quan học phần</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">Thực tập {campaign.year}</h2>
-            <p className="mt-1 text-sm text-slate-500">Theo dõi tiến trình và hoàn thành các bước thực tập theo đúng thời hạn.</p>
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Thực tập {campaign.year}</h2>
           {user?.role === 'admin' && (
             <div className="flex items-center gap-2">
               <button
@@ -924,89 +923,83 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             type="button"
             onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
+            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Đăng ký thực tập</div>
+              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Đăng ký thực tập</div>
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                 <ClipboardList size={15} />
               </div>
             </div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800">{registrationSummary}</div>
-            {hasRegistered && <div className="mt-1 text-xs text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-auto pt-3 text-xs font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={13} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
+            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{registrationSummary}</div>
+            {hasRegistered && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
+            {hasRegistered && <div className="mt-auto pt-2.5 text-[11px] font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
             disabled={!hasRegistered}
-            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
+            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
+              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Nơi thực tập chính thức</div>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
                 <CheckCircle2 size={15} />
               </div>
             </div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-auto pt-3 text-xs font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={13} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
+            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
+            {hasRegistered && <div className="mt-auto pt-2.5 text-[11px] font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/grades')}
-            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
+            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Giảng viên hướng dẫn</div>
+              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Giảng viên hướng dẫn</div>
               <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-650 shrink-0">
                 <UserCheck size={15} />
               </div>
             </div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800 line-clamp-2">{advisorSummary}</div>
-            <div className="mt-auto pt-3 text-xs font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={13} /></div>
+            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{advisorSummary}</div>
+            <div className="mt-auto pt-2.5 text-[11px] font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={12} /></div>
           </button>
 
           <button
             type="button"
             onClick={() => navigate('/reports/final')}
-            className={`group flex min-h-40 flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
+            className={`group flex min-h-[132px] flex-col rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Báo cáo</div>
+              <div className="text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-slate-400">Báo cáo</div>
               <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-650 shrink-0">
                 <FileCheck size={15} />
               </div>
             </div>
-            <div className="mt-2.5 text-sm font-bold text-slate-800">{finalReportSummary}</div>
-            {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
-            <div className="mt-auto pt-3 text-xs font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={13} /></div>
+            <div className="mt-2 text-[13px] font-bold leading-5 text-slate-800">{finalReportSummary}</div>
+            {finalReport?.submitted_at && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
+            <div className="mt-auto pt-2.5 text-[11px] font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={12} /></div>
           </button>
         </div>
 
-        {/* Operational information stays secondary to the four-step workflow. */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3" aria-labelledby="campaign-status-title">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <Clock size={18} />
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.45fr)]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="campaign-status-title">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Clock size={16} />
                 </div>
-                <div>
-                  <h3 id="campaign-status-title" className="text-sm font-bold text-slate-900">Trạng thái hệ thống</h3>
-                  <p className="mt-0.5 text-xs text-slate-500">Lịch mở và đóng các chức năng trong đợt thực tập.</p>
-                </div>
+                <h3 id="campaign-status-title" className="text-[13px] font-bold text-slate-900">Trạng thái hệ thống</h3>
               </div>
-              <span className="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex">
-                GMT+7
-              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">GMT+7</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {campaignStatusItems.map(item => (
-                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-                  <div className="flex items-center justify-between gap-3">
+            <div className={`grid gap-2.5 ${visibleCampaignStatusItems.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+              {visibleCampaignStatusItems.map(item => (
+                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${campaignStatusDot(item.status)}`} />
                       <span className="truncate text-xs font-bold text-slate-800">{item.label}</span>
@@ -1015,14 +1008,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       {campaignStatusText(item.status)}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-2.5 text-[11px]">
-                    <div className="min-w-0">
-                      <div className="font-semibold uppercase tracking-wide text-slate-400">Mở</div>
-                      <div className="mt-0.5 break-words font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
+                  <div className="mt-2.5 grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-2 text-[11px]">
+                    <div>
+                      <span className="font-semibold text-slate-400">Mở: </span>
+                      <span className="font-medium text-slate-600">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</span>
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold uppercase tracking-wide text-slate-400">Đóng</div>
-                      <div className="mt-0.5 break-words font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
+                    <div>
+                      <span className="font-semibold text-slate-400">Đóng: </span>
+                      <span className="font-medium text-slate-600">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</span>
                     </div>
                   </div>
                 </div>
@@ -1030,22 +1023,22 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
           </section>
 
-          <section className="flex min-h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2" aria-labelledby="registration-rules-title">
-            <div className="mb-4 flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <ClipboardList size={18} />
+          <details className="group self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 select-none">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  <ClipboardList size={16} />
+                </div>
+                <span className="text-[13px] font-bold text-slate-900">Quy định đăng ký</span>
               </div>
-              <div>
-                <h3 id="registration-rules-title" className="text-sm font-bold text-slate-900">Quy định đăng ký</h3>
-                <p className="mt-0.5 text-xs text-slate-500">Các lưu ý sinh viên cần tuân thủ khi đăng ký.</p>
-              </div>
-            </div>
-            <div className="max-h-[258px] flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-4 pr-3">
+              <ChevronDown size={16} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="max-h-56 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-4">
               {registrationRulesMarkdown.trim()
                 ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
                 : <p className="text-xs italic text-slate-400">Khoa chưa cập nhật quy định đăng ký.</p>}
             </div>
-          </section>
+          </details>
         </div>
 
         {myRegsError ? (
