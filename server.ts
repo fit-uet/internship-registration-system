@@ -4735,7 +4735,8 @@ async function startServer() {
               SET company_id = ?, note = ?, status = ?,
                   review_comment = CASE WHEN status != ? THEN NULL ELSE review_comment END,
                   preference_order = ?,
-                  other_company_name = ?, other_company_role = ?, other_company_contact = ?
+                  other_company_name = ?, other_company_role = ?, other_company_contact = ?,
+                  created_at = datetime('now', '+7 hours')
               WHERE id = ?`,
         args: [companyId, note || null, status, status, preferenceOrder, otherCompanyName || null, otherCompanyRole || null, otherCompanyContact || null, id],
       });
