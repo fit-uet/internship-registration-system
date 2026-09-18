@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Download, CheckCircle2, AlertCircle, Loader2,
-  ExternalLink, FileText, ChevronDown, ChevronUp,
+  ExternalLink, FileText, Check
 } from 'lucide-react';
+import { saveAs } from 'file-saver';
 import { API_BASE } from '../../../shared';
 
 /**
- * Dữ liệu tối thiểu cần truyền vào panel
+ * Dữ liệu cần truyền vào panel xem báo cáo và chấm điểm
  */
 export interface ReviewTarget {
   user_id: number;
@@ -40,19 +41,19 @@ interface Props {
   onGradeChange?: () => void;          // callback reload danh sách sau khi lưu/nộp điểm
 }
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const reportStatusLabel = (s?: string) =>
   s === 'accepted' ? 'Đã chấp nhận'
   : s === 'needs_revision' ? 'Cần nộp lại'
-  : s === 'submitted' ? 'Đã nộp'
+  : s === 'submitted' ? 'Đã nộp báo cáo'
   : 'Chưa nộp';
 
-const reportStatusColor = (s?: string) =>
+const reportStatusBadgeClass = (s?: string) =>
   s === 'accepted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
   : s === 'needs_revision' ? 'bg-orange-50 border-orange-200 text-orange-700'
   : s === 'submitted' ? 'bg-blue-50 border-blue-200 text-blue-700'
-  : 'bg-slate-50 border-slate-200 text-slate-500';
+  : 'bg-slate-50 border-slate-200 text-slate-600';
 
 const formatBytes = (b?: number) => {
   if (!b) return '';
@@ -64,7 +65,7 @@ const calcFinal = (p: string, r: string, c: string) => {
   const pv = p === '' ? null : Number(p);
   const rv = r === '' ? null : Number(r);
   const cv = c === '' ? null : Number(c);
-  if ([pv, rv, cv].some(v => v === null || !Number.isFinite(v) || v < 0 || v > 10)) return null;
+  if ([pv, rv, cv].some(v => v === null || !Number.isFinite(v) || (v as number) < 0 || (v as number) > 10)) return null;
   return ((pv as number) * 0.2 + (rv as number) * 0.2 + (cv as number) * 0.6).toFixed(2);
 };
 
@@ -77,7 +78,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
   const [pdfError, setPdfError] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
 
-  // Tab (mobile)
+  // Tab (mobile only)
   const [activeTab, setActiveTab] = useState<'report' | 'grade'>('report');
 
   // Report status
@@ -86,7 +87,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
   const [reportSaving, setReportSaving] = useState(false);
 
   // Grade form
-  const isPrimary = target.is_primary !== false; // default true nếu không truyền
+  const isPrimary = target.is_primary !== false;
   const locked = !!target.locked_at;
   const [progress, setProgress] = useState(String(target.progress_score ?? ''));
   const [report, setReport] = useState(String(target.report_score ?? ''));
@@ -153,7 +154,6 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return alert('Không tải được báo cáo.');
-    const { saveAs } = await import('file-saver');
     saveAs(await res.blob(), target.report_filename || 'final-report.pdf');
   }, [target.user_id, target.report_filename, token]);
 
@@ -192,7 +192,6 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
   };
 
   const saveGrade = async (submit: boolean) => {
-    // Validate
     const allValid = [
       validateScore(progress, 'progress'),
       validateScore(report, 'report'),
@@ -220,7 +219,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { alert(data.error || 'Lưu điểm thất bại.'); return; }
-      setGradeSuccess(submit ? 'Đã nộp điểm cho Khoa!' : 'Đã lưu nháp.');
+      setGradeSuccess(submit ? 'Đã nộp điểm cho Khoa thành công!' : 'Đã lưu nháp điểm.');
       onGradeChange?.();
       setTimeout(() => setGradeSuccess(null), 3000);
     } finally {
@@ -230,207 +229,302 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    /* Overlay */
+    /* Modal Backdrop */
     <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* ── Panel container ── */}
-      <div className="flex flex-col flex-1 min-h-0 m-2 md:m-4 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/60 bg-[#0f172a]">
+      {/* Modal Container */}
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full h-[95vh] max-w-7xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
 
-        {/* ── Header ── */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-slate-900 border-b border-slate-700/60 flex-shrink-0">
-          <FileText size={18} className="text-blue-400 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-white text-sm truncate">{target.student_name}</span>
-              {target.student_id && (
-                <span className="font-mono text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-md">{target.student_id}</span>
-              )}
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${reportStatusColor(target.report_status)}`}>
-                {reportStatusLabel(target.report_status)}
-              </span>
-              {locked && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-red-950/50 border-red-800 text-red-400">
-                  Điểm đã khoá
-                </span>
-              )}
+        {/* ── Modal Header ── */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+              <FileText size={20} />
             </div>
-            {target.internship_place && (
-              <div className="text-xs text-slate-400 mt-0.5 truncate">{target.internship_place}</div>
-            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 truncate">{target.student_name}</h2>
+                {target.student_id && (
+                  <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                    {target.student_id}
+                  </span>
+                )}
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${reportStatusBadgeClass(target.report_status)}`}>
+                  {reportStatusLabel(target.report_status)}
+                </span>
+                {locked && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 border-red-200 text-red-700">
+                    Điểm đã khóa
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 truncate">
+                {target.class_name && <span>{target.class_name}</span>}
+                {target.course_code && <span>· {target.course_code}</span>}
+                {target.internship_place && <span>· {target.internship_place}</span>}
+              </div>
+            </div>
           </div>
 
-          {/* Actions */}
+          {/* Header Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {target.report_status && (
               <button
                 onClick={handleDownload}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
-                <Download size={13} /> Tải PDF
+                <Download size={14} /> Tải PDF
               </button>
             )}
             <button
               onClick={onClose}
-              aria-label="Đóng panel"
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+              aria-label="Đóng"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Đóng (Esc)"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* ── Mobile tab bar ── */}
-        <div className="flex md:hidden border-b border-slate-700/60 bg-slate-900 flex-shrink-0">
-          {(['report', 'grade'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-                activeTab === tab
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tab === 'report' ? '📄 Báo cáo' : '✏️ Chấm điểm'}
-            </button>
-          ))}
+        {/* ── Mobile Tab Switcher ── */}
+        <div className="flex md:hidden border-b border-slate-200 bg-slate-50/80 flex-shrink-0 px-2 pt-1 gap-1">
+          <button
+            onClick={() => setActiveTab('report')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+              activeTab === 'report'
+                ? 'bg-white text-blue-700 border-t border-x border-slate-200 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Báo cáo PDF
+          </button>
+          <button
+            onClick={() => setActiveTab('grade')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+              activeTab === 'grade'
+                ? 'bg-white text-blue-700 border-t border-x border-slate-200 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Chấm điểm & Duyệt
+          </button>
         </div>
 
-        {/* ── Body: split-pane ── */}
+        {/* ── Modal Body: Split-pane ── */}
         <div className="flex flex-1 min-h-0">
 
-          {/* ── LEFT: PDF Viewer ── */}
+          {/* ── LEFT PANE: PDF Viewer ── */}
           <div
             className={`
-              flex-col bg-[#1e1e1e] border-r border-slate-700/60
+              flex-col bg-slate-100 border-r border-slate-200
               ${activeTab === 'report' ? 'flex' : 'hidden'} md:flex
-              w-full md:w-[62%]
+              w-full md:w-[58%] lg:w-[62%] relative
             `}
           >
             {pdfLoading && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-400">
-                <Loader2 size={32} className="animate-spin text-blue-400" />
-                <span className="text-sm">Đang tải báo cáo PDF...</span>
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-500">
+                <Loader2 size={32} className="animate-spin text-blue-600" />
+                <span className="text-xs font-medium">Đang tải tài liệu PDF...</span>
               </div>
             )}
+
             {pdfError && !pdfLoading && (
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-                <AlertCircle size={40} className="text-red-400" />
-                <div className="text-sm text-slate-300">
-                  Không thể hiển thị PDF inline.
-                  <div className="text-xs text-slate-500 mt-1">{pdfError}</div>
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+                  <AlertCircle size={24} />
                 </div>
+                <div className="text-sm font-semibold text-slate-800">Không thể mở xem trực tiếp PDF</div>
+                <div className="text-xs text-slate-500 max-w-sm">{pdfError}</div>
                 {target.report_status && (
-                  <a
-                    href="#"
-                    onClick={e => { e.preventDefault(); handleDownload(); }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  <button
+                    onClick={handleDownload}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   >
-                    <Download size={14} /> Tải PDF về máy
-                  </a>
+                    <Download size={14} /> Tải file PDF về máy
+                  </button>
                 )}
               </div>
             )}
+
             {pdfUrl && !pdfLoading && (
               <div className="flex flex-col flex-1 min-h-0 relative">
-                {/* toolbar nhỏ */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[#2d2d2d] border-b border-slate-700/40 text-xs text-slate-400 flex-shrink-0">
-                  <span className="truncate max-w-xs">{target.report_filename}</span>
-                  {target.report_file_size && (
-                    <span className="flex-shrink-0 text-slate-500">· {formatBytes(target.report_file_size)}</span>
-                  )}
+                {/* Minimal PDF sub-header */}
+                <div className="flex items-center justify-between px-4 py-2 bg-white/90 backdrop-blur-xs border-b border-slate-200 text-xs text-slate-600 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 min-w-0 truncate">
+                    <span className="font-semibold text-slate-800 truncate">{target.report_filename || 'Báo cáo thực tập'}</span>
+                    {target.report_file_size ? (
+                      <span className="text-slate-400 flex-shrink-0">({formatBytes(target.report_file_size)})</span>
+                    ) : null}
+                    {target.report_submitted_at && (
+                      <span className="text-slate-400 hidden lg:inline flex-shrink-0 ml-1">
+                        · Nộp: {new Date(target.report_submitted_at).toLocaleString('vi-VN')}
+                      </span>
+                    )}
+                  </div>
                   <a
                     href={pdfUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto flex items-center gap-1 text-blue-400 hover:text-blue-300 flex-shrink-0"
-                    title="Mở trong tab mới"
+                    className="ml-3 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold flex-shrink-0 transition-colors"
+                    title="Mở PDF trong tab mới của trình duyệt"
                   >
-                    <ExternalLink size={12} /> Mở tab mới
+                    <ExternalLink size={13} /> Mở tab mới
                   </a>
                 </div>
+
+                {/* PDF iframe */}
                 <iframe
                   src={pdfUrl}
                   title={`Báo cáo - ${target.student_name}`}
-                  className="flex-1 w-full border-0"
+                  className="flex-1 w-full border-0 bg-white"
                   style={{ minHeight: 0 }}
                 />
               </div>
             )}
-            {/* Nếu chưa có báo cáo */}
+
             {!pdfLoading && !pdfUrl && !pdfError && (
-              <div className="flex flex-1 items-center justify-center text-slate-500 text-sm">
+              <div className="flex flex-1 items-center justify-center text-slate-400 text-xs font-medium">
                 Sinh viên chưa nộp báo cáo.
               </div>
             )}
           </div>
 
-          {/* ── RIGHT: Grading Panel ── */}
+          {/* ── RIGHT PANE: Review & Grading ── */}
           <div
             className={`
               flex-col bg-white overflow-y-auto
               ${activeTab === 'grade' ? 'flex' : 'hidden'} md:flex
-              w-full md:w-[38%]
+              w-full md:w-[42%] lg:w-[38%]
             `}
           >
             <div className="p-5 space-y-5">
 
-              {/* Thông tin sinh viên */}
-              <section>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Thông tin sinh viên</h3>
-                <dl className="space-y-1.5 text-xs">
-                  {[
-                    ['Lớp khoá học', target.class_name],
-                    ['Môn học', target.course_code],
-                    ['Nơi thực tập', target.internship_place],
-                    ['Tên file', target.report_filename],
-                    ['Dung lượng', formatBytes(target.report_file_size) || undefined],
-                    ['Ngày nộp', target.report_submitted_at
-                      ? new Date(target.report_submitted_at).toLocaleString('vi-VN')
-                      : undefined],
-                  ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={String(label)} className="flex gap-2">
-                      <dt className="text-slate-400 flex-shrink-0 w-24">{label}</dt>
-                      <dd className="text-slate-700 font-medium break-all">{value}</dd>
+              {/* 1. DUYỆT BÁO CÁO */}
+              {target.report_status && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Trạng thái báo cáo</span>
+                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${reportStatusBadgeClass(target.report_status)}`}>
+                      {reportStatusLabel(target.report_status)}
+                    </span>
+                  </div>
+
+                  {target.report_status === 'accepted' ? (
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                        <span>Báo cáo đã được duyệt chấp nhận</span>
+                      </div>
+                      {isPrimary && (
+                        <button
+                          onClick={() => setShowRevisionInput(true)}
+                          className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+                        >
+                          Yêu cầu sửa lại
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </dl>
-              </section>
+                  ) : (
+                    <>
+                      {target.lecturer_comment && (
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-800">
+                          <span className="font-semibold">Lý do yêu cầu nộp lại:</span> {target.lecturer_comment}
+                        </div>
+                      )}
 
-              <hr className="border-slate-100" />
-
-              {/* Form điểm */}
-              <section>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-                  Điểm thực tập
-                  {!isPrimary && (
-                    <span className="ml-2 normal-case font-medium text-orange-500">(Chỉ GVHD chính nhập điểm)</span>
+                      {isPrimary && !showRevisionInput && (
+                        <div className="flex gap-2">
+                          <button
+                            disabled={reportSaving}
+                            onClick={() => updateReportStatus('accepted')}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {reportSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                            Chấp nhận báo cáo
+                          </button>
+                          <button
+                            disabled={reportSaving}
+                            onClick={() => setShowRevisionInput(true)}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <AlertCircle size={13} />
+                            Yêu cầu nộp lại
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
-                </h3>
+
+                  {/* Form yêu cầu nộp lại */}
+                  {showRevisionInput && (
+                    <div className="space-y-2 pt-1">
+                      <textarea
+                        autoFocus
+                        value={revisionNote}
+                        onChange={e => setRevisionNote(e.target.value)}
+                        rows={2}
+                        placeholder="Nhập lý do hoặc nội dung sinh viên cần chỉnh sửa..."
+                        className="w-full rounded-lg border border-orange-300 bg-white p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-orange-100 resize-none"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
+                          className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          disabled={reportSaving || !revisionNote.trim()}
+                          onClick={() => updateReportStatus('needs_revision')}
+                          className="px-3.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {reportSaving && <Loader2 size={12} className="animate-spin inline mr-1" />}
+                          Gửi yêu cầu
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. CHẤM ĐIỂM THỰC TẬP */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Điểm đánh giá thực tập</h3>
+                  {!isPrimary && (
+                    <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      Chỉ GVHD chính nhập điểm
+                    </span>
+                  )}
+                </div>
 
                 {locked && (
-                  <div className="mb-3 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 font-semibold flex items-center gap-2">
-                    <AlertCircle size={13} /> Điểm đã bị Khoa khoá — chỉ được xem.
+                  <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 font-semibold flex items-center gap-2">
+                    <AlertCircle size={15} /> Điểm đã bị Khoa khóa — chỉ được xem, không thể sửa.
                   </div>
                 )}
 
                 {gradeSuccess && (
-                  <div className="mb-3 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-700 font-semibold flex items-center gap-2">
-                    <CheckCircle2 size={13} /> {gradeSuccess}
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700 font-semibold flex items-center gap-2">
+                    <CheckCircle2 size={15} /> {gradeSuccess}
                   </div>
                 )}
 
-                <div className="space-y-3">
+                {/* 3 Điểm thành phần */}
+                <div className="grid grid-cols-3 gap-2.5">
                   {[
-                    { label: '20% Định kỳ', value: progress, set: setProgress, field: 'progress' },
-                    { label: '20% Báo cáo', value: report, set: setReport, field: 'report' },
-                    { label: '60% Công ty / GVHD', value: company, set: setCompany, field: 'company' },
-                  ].map(({ label, value, set, field }) => (
-                    <div key={field}>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+                    { label: 'Định kỳ', weight: '20%', value: progress, set: setProgress, field: 'progress' },
+                    { label: 'Báo cáo', weight: '20%', value: report, set: setReport, field: 'report' },
+                    { label: 'Đơn vị / GV', weight: '60%', value: company, set: setCompany, field: 'company' },
+                  ].map(({ label, weight, value, set, field }) => (
+                    <div key={field} className="space-y-1">
+                      <div className="flex items-baseline justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700">{label}</span>
+                        <span className="text-slate-400 text-[10px]">{weight}</span>
+                      </div>
                       <input
                         type="number"
                         min="0"
@@ -447,149 +541,76 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                         }}
                         onBlur={e => validateScore(e.target.value, field)}
                         placeholder="0 – 10"
-                        className={`w-full rounded-xl px-3 py-2 text-sm outline-none transition-all border ${
+                        className={`w-full rounded-xl px-2 py-2 text-center text-sm font-semibold outline-none transition-all border ${
                           scoreErrors[field]
-                            ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-100'
-                            : 'border-slate-200 bg-slate-50/60 focus:ring-2 focus:ring-blue-100 focus:border-blue-400'
-                        } disabled:bg-slate-50 disabled:text-slate-400`}
+                            ? 'border-red-400 bg-red-50 text-red-900 focus:ring-2 focus:ring-red-100'
+                            : 'border-slate-200 bg-slate-50/70 text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                        } disabled:bg-slate-100 disabled:text-slate-400`}
                       />
                       {scoreErrors[field] && (
-                        <p className="mt-1 text-[10px] text-red-600">{scoreErrors[field]}</p>
+                        <p className="text-[10px] text-red-600 text-center">{scoreErrors[field]}</p>
                       )}
                     </div>
                   ))}
-
-                  {/* Điểm tổng */}
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Tổng kết</span>
-                    <span className={`text-xl font-bold ${finalScore ? 'text-emerald-600' : 'text-slate-300'}`}>
-                      {finalScore ?? '—'}
-                    </span>
-                  </div>
-
-                  {/* Ghi chú */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Nhận xét / Ghi chú</label>
-                    <textarea
-                      disabled={locked || !isPrimary}
-                      value={noteText}
-                      onChange={e => setNoteText(e.target.value)}
-                      rows={3}
-                      placeholder="Nhận xét về quá trình thực tập..."
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all resize-none disabled:bg-slate-50 disabled:text-slate-400"
-                    />
-                  </div>
-
-                  {/* Action buttons */}
-                  {isPrimary && !locked && (
-                    <div className="flex gap-2">
-                      <button
-                        disabled={gradeSaving !== null}
-                        onClick={() => saveGrade(false)}
-                        className="flex-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {gradeSaving === 'draft' ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
-                        Lưu nháp
-                      </button>
-                      <button
-                        disabled={gradeSaving !== null}
-                        onClick={() => saveGrade(true)}
-                        className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {gradeSaving === 'submit' ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
-                        Nộp điểm cho Khoa
-                      </button>
-                    </div>
-                  )}
                 </div>
-              </section>
 
-              {/* Duyệt báo cáo */}
-              {target.report_status && target.report_status !== 'accepted' && (
-                <>
-                  <hr className="border-slate-100" />
-                  <section>
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Duyệt báo cáo</h3>
-
-                    {target.lecturer_comment && (
-                      <div className="mb-3 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2 text-xs text-orange-700">
-                        <span className="font-semibold">Ghi chú cũ:</span> {target.lecturer_comment}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-2">
-                      <button
-                        disabled={reportSaving}
-                        onClick={() => updateReportStatus('accepted')}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                      >
-                        {reportSaving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                        Chấp nhận (OK)
-                      </button>
-
-                      {!showRevisionInput ? (
-                        <button
-                          disabled={reportSaving}
-                          onClick={() => setShowRevisionInput(true)}
-                          className="flex items-center justify-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition-colors disabled:opacity-50"
-                        >
-                          <AlertCircle size={13} /> Yêu cầu nộp lại
-                        </button>
-                      ) : (
-                        <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3 space-y-2">
-                          <textarea
-                            autoFocus
-                            value={revisionNote}
-                            onChange={e => setRevisionNote(e.target.value)}
-                            rows={3}
-                            placeholder="Lý do yêu cầu nộp lại..."
-                            className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-orange-100 resize-none"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              disabled={reportSaving || !revisionNote.trim()}
-                              onClick={() => updateReportStatus('needs_revision')}
-                              className="flex-1 rounded-lg border border-orange-300 bg-orange-500 text-white px-3 py-1.5 text-xs font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
-                            >
-                              {reportSaving ? <Loader2 size={12} className="inline animate-spin mr-1" /> : null}
-                              Gửi yêu cầu
-                            </button>
-                            <button
-                              onClick={() => { setShowRevisionInput(false); setRevisionNote(''); }}
-                              className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-                            >
-                              Huỷ
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                </>
-              )}
-
-              {/* Đã chấp nhận */}
-              {target.report_status === 'accepted' && (
-                <>
-                  <hr className="border-slate-100" />
-                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-xs font-semibold text-emerald-700">
-                    <CheckCircle2 size={14} /> Báo cáo đã được chấp nhận
+                {/* Điểm tổng kết */}
+                <div className="rounded-xl bg-gradient-to-r from-blue-50/70 to-indigo-50/50 border border-blue-100 p-3.5 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">Điểm tổng kết</div>
+                    <div className="text-[11px] text-slate-500">20% Định kỳ + 20% Báo cáo + 60% Đơn vị</div>
                   </div>
-                </>
-              )}
+                  <div className={`text-2xl font-extrabold ${finalScore ? 'text-blue-700' : 'text-slate-300'}`}>
+                    {finalScore ?? '—'}
+                  </div>
+                </div>
 
-              {/* Mô tả cho đồng hướng dẫn */}
-              {!isPrimary && (
-                <>
-                  <hr className="border-slate-100" />
-                  <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
-                    Bạn là đồng hướng dẫn — chỉ có GVHD chính mới có thể nhập điểm và duyệt báo cáo trên hệ thống.
+                {/* Ghi chú / Nhận xét */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Nhận xét của GVHD</label>
+                  <textarea
+                    disabled={locked || !isPrimary}
+                    value={noteText}
+                    onChange={e => setNoteText(e.target.value)}
+                    rows={3}
+                    placeholder="Nhận xét về thái độ, kỹ năng, kết quả thực tập..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-800 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none disabled:bg-slate-100 disabled:text-slate-400"
+                  />
+                </div>
+
+                {/* Buttons Lưu / Nộp */}
+                {isPrimary && !locked && (
+                  <div className="flex gap-2.5 pt-1">
+                    <button
+                      disabled={gradeSaving !== null}
+                      onClick={() => saveGrade(false)}
+                      className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {gradeSaving === 'draft' && <Loader2 size={13} className="animate-spin inline mr-1" />}
+                      Lưu nháp
+                    </button>
+                    <button
+                      disabled={gradeSaving !== null}
+                      onClick={() => saveGrade(true)}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-[#075fc7] hover:bg-[#084c9e] text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {gradeSaving === 'submit' && <Loader2 size={13} className="animate-spin inline mr-1" />}
+                      Nộp điểm cho Khoa
+                    </button>
+                  </div>
+                )}
+
+                {/* Thông báo cho đồng hướng dẫn */}
+                {!isPrimary && (
+                  <p className="text-xs text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-200 leading-relaxed">
+                    Thầy/Cô là đồng hướng dẫn — chỉ có GVHD chính mới nhập điểm và duyệt báo cáo trên hệ thống.
                   </p>
-                </>
-              )}
+                )}
+              </div>
 
             </div>
           </div>
+
         </div>
       </div>
     </div>

@@ -384,20 +384,38 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className={`text-xs font-semibold ${student.report_status === 'accepted' ? 'text-emerald-700' : student.report_status === 'needs_revision' ? 'text-orange-700' : student.report_status ? 'text-blue-700' : 'text-slate-400'}`}>
-                      {statusLabel(student.report_status)}
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                        student.report_status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        student.report_status === 'needs_revision' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                        student.report_status ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {statusLabel(student.report_status)}
+                      </span>
+                      {student.report_filename && (
+                        <>
+                          <div className="text-[10px] text-slate-500 line-clamp-1 max-w-[170px]" title={student.report_filename}>
+                            {student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openReview(student)}
+                              className="inline-flex items-center gap-1 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-blue-200 bg-blue-50 shadow-xs"
+                            >
+                              <FileText size={12} /> Xem & Chấm
+                            </button>
+                            <button
+                              onClick={() => downloadReport(student)}
+                              title="Tải file PDF"
+                              className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs"
+                            >
+                              <Download size={13} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {student.report_filename && (
-                      <div className="mt-1 space-y-1">
-                        <div className="text-[10px] text-slate-500 line-clamp-1">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
-                        <div className="flex flex-wrap gap-1">
-                          <button onClick={() => openReview(student)} className="flex items-center gap-1 text-indigo-700 hover:bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-indigo-200 bg-indigo-50/80"><BookOpen size={10} /> Xem & Chấm</button>
-                          <button onClick={() => downloadReport(student)} className="text-slate-600 hover:bg-slate-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Tải</button>
-                          <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">OK</button>
-                          <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Nộp lại</button>
-                        </div>
-                      </div>
-                    )}
                   </td>
                   <td className="p-4 text-xs leading-relaxed text-slate-600">
                     <div>{student.phone || '-'}</div>

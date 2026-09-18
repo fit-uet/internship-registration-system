@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { CheckCircle2, RefreshCw, BookOpen } from 'lucide-react';
+import { CheckCircle2, RefreshCw, FileText, Download } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, Button, PageDescriptionTooltip, PageHeader } from '../../../shared';
 import { ReportReviewPanel, type ReviewTarget } from './ReportReviewPanel';
@@ -221,31 +221,43 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
                       </td>
                       <td className="p-4 text-xs text-slate-600 max-w-[200px]">{row.internship_place || '-'}</td>
                       <td className="p-4 text-xs">
-                        <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>
-                          {statusLabel(row.report_status)}
-                        </div>
-                        <div className={`mt-1 font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>
-                          {gradeStatusLabel(row.grade_status)}
-                        </div>
-                        {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
-                        <div className="mt-2 flex flex-col gap-1">
-                          {/* Nút chính: Xem & Chấm */}
-                          {hasReport && (
-                            <button
-                              onClick={() => openReview(row)}
-                              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
-                            >
-                              <BookOpen size={11} /> Xem & Chấm
-                            </button>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                            row.report_status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            row.report_status === 'needs_revision' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                            row.report_status ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-slate-50 text-slate-500 border-slate-200'
+                          }`}>
+                            {statusLabel(row.report_status)}
+                          </span>
+                          <span className={`text-[11px] font-medium ${
+                            row.grade_status === 'submitted' ? 'text-emerald-600' :
+                            row.grade_status === 'draft' ? 'text-orange-600' :
+                            'text-slate-400'
+                          }`}>
+                            {gradeStatusLabel(row.grade_status)}
+                          </span>
+                          {row.locked_at && (
+                            <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
+                              Đã khóa
+                            </span>
                           )}
-                          {/* Nút tải phụ */}
                           {hasReport && (
-                            <button
-                              onClick={() => downloadReport(row)}
-                              className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                            >
-                              Tải PDF
-                            </button>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <button
+                                onClick={() => openReview(row)}
+                                className="inline-flex items-center gap-1 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-blue-200 bg-blue-50 shadow-xs"
+                              >
+                                <FileText size={12} /> Xem & Chấm
+                              </button>
+                              <button
+                                onClick={() => downloadReport(row)}
+                                title="Tải file PDF"
+                                className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs"
+                              >
+                                <Download size={13} />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
