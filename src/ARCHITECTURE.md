@@ -28,13 +28,21 @@ src/
 5. New screens should be added as one file under the appropriate `pages` directory and exported from that feature's `index.ts`.
 6. Authorization must still be enforced by the API. Frontend route guards only control navigation and presentation.
 
-## UI design system
+## UI design system (Apple HIG Standard)
 
-- Global visual tokens and cross-screen element rules live in `index.css`.
-- Reusable UI primitives live in `shared/ui` and are exported through `shared/index.tsx`.
-- Use `Button`, `Surface`, `PageHeader` and `FormField` for new screens instead of repeating long Tailwind class strings.
-- Product screens should use the shared blue brand palette; green, amber and red are reserved for semantic success, warning and error states.
-- Controls use a 40 px default height, 12 px radius and one shared focus ring. Cards use a 16 px radius and the shared surface shadow.
-- Every route is rendered inside `feature-page`, which provides consistent typography, forms, tables, focus behavior and responsive spacing across roles.
+The entire application adheres to the **Apple Human Interface Guidelines (HIG)** design philosophy while preserving the signature FIT UET blue header gradient:
+
+- **Comprehensive Design Specification**: Detailed guidelines live in [`docs/UI_DESIGN_SYSTEM.md`](docs/UI_DESIGN_SYSTEM.md).
+- **Global Tokens**: Defined in `src/index.css` following Apple System Palette:
+  - Canvas: Apple System Gray 6 (`#F5F5F7`).
+  - Cards / Surfaces: Pure White (`#FFFFFF`) with 16 px squircle radius (`rounded-2xl`), hairline border (`rgba(0,0,0,0.08)` or `#E5E5EA`), and soft multi-layered ambient shadows.
+  - Header: Preserved FIT UET gradient (`linear-gradient(110deg, #064889 0%, #075fc7 62%, #1473e6 100%)`).
+  - Typography: San Francisco scale (`-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif`) with strict hierarchy from Large Title down to Caption.
+- **Zero Redundancy**: Avoid repeating headers, duplicate badges, or redundant sub-toolbars on the same view.
+- **Controls & Components**:
+  - Buttons use 36-40 px height, 10-12 px squircle radius, and subtle active scale feedback (`active:scale-[0.98]`).
+  - Tables use macOS Inset Table styling (subtle header, hairline horizontal dividers, smooth 120ms hover highlight).
+  - Floating sheets and modal reviews use single-line headers, blurred backdrops (`backdrop-blur-md`), and edge-to-edge content viewers.
+- **Reusable UI primitives**: Live in `src/shared/ui` and are exported through `src/shared/index.tsx`.
 
 The backend remains compatible with both the Node server and Cloudflare Worker entry points; this refactor intentionally does not change API contracts or business behavior.

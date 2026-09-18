@@ -884,33 +884,30 @@ Hiện tại, giảng viên phải nhấn “Tải” để tải file PDF về 
 - Trên màn nhỏ (< 768px): chuyển sang tab-toggle giữa “Báo cáo” và “Chấm điểm” thay vì split.
 - Có nút đóng (×) rõ ràng để quay lại danh sách.
 
-**Thiết kế UI chi tiết — Review Panel:**
+**Thiết kế UI chi tiết — Review Panel (Chuẩn Apple HIG Floating Sheet):**
 
-Header (sticky, toàn chiều rộng):
-- Tên sinh viên + MSSV + nơi thực tập.
-- Badge trạng thái báo cáo (Đã nộp / Đã chấp nhận / Cần nộp lại).
-- Nút “Tải PDF” và nút “×” đóng panel.
+Header (mỏng, đơn dòng ~48px, cố định trên đỉnh):
+- Tên sinh viên (Bold 14px) · MSSV (Badge xám bo góc) · Lớp sinh viên · Badge trạng thái báo cáo (Đã duyệt / Cần nộp lại / Đã nộp).
+- Phía bên phải: Nút "Mở tab mới" (ExternalLink), nút "Tải PDF", nút "Đóng (×)".
+- Tuyệt đối không lặp lại tên trường/khoa hay lồng biểu tượng cồng kềnh.
 
-Bên trái — PDF Viewer:
+Bên trái — PDF Viewer (Tràn viền, tối đa diện tích hiển thị):
+- Chiếm 62–65% chiều rộng màn hình.
 - Fetch PDF qua `/api/reports/final/:userId/view` với Authorization header → `URL.createObjectURL(blob)` → gán vào `<iframe>`.
-- Hiển thị spinner trong khi chờ tải; sau khi tải xong thay bằng iframe.
-- Fallback: nếu trình duyệt không hỗ trợ embed PDF, hiển thị nút “Mở PDF trong tab mới”.
-- Background tối (#1e1e1e) để nền trắng của PDF nổi bật.
+- Nền xám sáng nhã nhặn (`bg-slate-100`), tài liệu PDF hiển thị tràn viền (Edge-to-Edge).
+- **Không đặt thanh công cụ phụ đè lên PDF** (tránh lặp lại tên file/dung lượng vốn đã có trong trình đọc PDF gốc của trình duyệt).
+- Fallback: Nếu trình duyệt không render được iframe, hiển thị nút “Tải file PDF về máy”.
 
-Bên phải — Grading Panel (sticky, scroll độc lập):
-- **Thông tin sinh viên** (read-only, nhỏ gọn):
-  - Lớp khoá học, môn học, nơi thực tập.
-  - Ngày nộp báo cáo, tên file, dung lượng.
-- **Form điểm** (chỉ GVHD chính mới sửa được):
-  - Ba ô nhập điểm: Định kỳ (20%), Báo cáo (20%), Công ty/GVHD (60%).
-  - Điểm tổng kết tính realtime ngay bên dưới.
-  - Ô ghi chú (textarea).
-  - Hai nút action: **Lưu nháp** và **Nộp điểm cho Khoa**.
-- **Khu vực duyệt báo cáo** (ngay dưới form điểm, tách bằng divider):
-  - Nút **Chấp nhận (OK)**: đổi trạng thái báo cáo → `accepted`.
-  - Nút **Yêu cầu nộp lại**: mở textarea nhỏ để nhập lý do → đổi trạng thái → `needs_revision`.
-  - Hiển thị comment cũ nếu đã có.
-- Khi điểm bị khoá (`locked`): form chuyển sang chế độ read-only, hiển thị badge “Đã khoá bởi Khoa”.
+Bên phải — Grading Panel (35–38% chiều rộng, chuẩn Apple Inset Group):
+- **Duyệt báo cáo**:
+  - Nếu đã duyệt: Hiển thị 1 dòng trạng thái tinh gọn kèm nút "Yêu cầu sửa" (chỉ khi GVHD chính cần đổi ý).
+  - Nếu chờ duyệt: Hiển thị 2 nút bấm chuẩn Apple: **Chấp nhận báo cáo** (xanh lá) và **Yêu cầu nộp lại** (cam).
+- **Form điểm thực tập** (GVHD chính nhập điểm):
+  - Lưới 3 cột ngang nhỏ gọn: Định kỳ (20%), Báo cáo (20%), Đơn vị/GV (60%).
+  - Điểm tổng kết: Hiển thị 1 dòng sạch sẽ, điểm số nổi bật tính tự động realtime.
+  - Ghi chú/Nhận xét: Textarea tối giản, không chiếm diện tích cuộn.
+  - Cụm nút bấm chuẩn Apple: **Lưu nháp** (Secondary) và **Nộp điểm cho Khoa** (Primary SF Blue).
+- Toàn bộ nội dung cột phải vừa vặn trong 1 màn hình chuẩn, không cần cuộn trang.
 
 **Thiết kế API bổ sung:**
 
@@ -1208,6 +1205,37 @@ Sau khi `UPDATE registrations` thành công trong `PUT /api/admin/registrations/
 5. Sinh viên nhận notification `advisor_assigned` khi GVHD thay đổi.
 6. Đăng ký "Công ty khác" hoặc công ty chính thức không bị ảnh hưởng.
 7. Sinh viên chưa có `final_internships` không bị tạo `advisor_assignments` ngay lập tức.
+
+## 10. Tiêu chuẩn thiết kế giao diện (Apple HIG UI Design System)
+
+Hệ thống được thiết kế và chuẩn hóa toàn diện theo **Triết lý Thiết kế Apple Human Interface Guidelines (HIG)**, áp dụng đồng bộ cho tất cả các màn hình và tất cả các vai trò (Sinh viên, Giảng viên, Quản trị viên), đồng thời bảo lưu thanh Header màu xanh đặc trưng của FIT UET.
+
+> 📘 **Tài liệu chi tiết:** Xem đặc tả thiết kế đầy đủ tại [`docs/UI_DESIGN_SYSTEM.md`](docs/UI_DESIGN_SYSTEM.md).
+
+### 10.1. Ba nguyên lý cốt lõi
+1. **Clarity (Sự rõ ràng & Zero Redundancy):**
+   - Loại bỏ triệt để các thông tin dư thừa lặp lại trên cùng màn hình.
+   - Phân cấp thị giác tự nhiên bằng kích cỡ chữ (Typography scale), độ đậm font và khoảng trắng (negative space) thay vì lạm dụng viền hộp lồng hộp.
+2. **Deference (Tôn trọng nội dung):**
+   - Giao diện làm nền tảng tôn vinh dữ liệu (bảng điểm, danh sách thực tập, tài liệu PDF).
+   - Giữ nguyên Header xanh nhận diện thương hiệu (`linear-gradient(110deg, #064889 0%, #075fc7 62%, #1473e6 100%)`).
+   - Nền canvas xám nhẹ Apple System Gray 6 (`#F5F5F7`), thẻ nội dung màu trắng thuần khiết (`#FFFFFF`).
+3. **Depth (Chiều sâu & Phân lớp vật liệu):**
+   - Bo góc mềm mại kiểu Apple Squircle (`10px` cho nút, `12px` cho input, `16px - 20px` cho card và table, `24px` cho modal sheet).
+   - Bóng đổ Ambient đa tầng siêu mịn, không dùng bóng đen gắt.
+   - Phủ mờ (Backdrop blur) trên modal và menu trôi nổi.
+
+### 10.2. Quy chuẩn thành phần chính
+- **Nút bấm (Buttons):** 
+  - Nút chính (Primary): Màu xanh SF Blue (`#0071E3`), bo góc `10px - 12px`, hiệu ứng nhấn lún `active:scale-[0.98]`.
+  - Nút phụ (Secondary/Tinted): Nền trắng viền hairline hoặc nền màu pastel mềm (`bg-blue-50`, `bg-emerald-50`).
+- **Bảng dữ liệu (Tables):** Kiểu dáng macOS Inset Table với header xám nhạt tối giản, đường phân cách ngang siêu mảnh (`#E5E5EA`), không dùng viền dọc rối mắt.
+- **Cửa sổ xem & chấm báo cáo (Review Sheet):** Header mỏng 1 dòng, PDF xem tràn viền không bị thanh công cụ phụ che khuất, bảng điểm 3 cột nhỏ gọn tính tự động realtime.
+
+### 10.3. Áp dụng theo từng Roles
+- **Sinh viên:** Thẻ trạng thái tổng quan trực quan, quy trình nộp báo cáo và đăng ký đơn giản, rõ ràng, dễ dùng trên cả mobile và desktop.
+- **Giảng viên:** Danh sách sinh viên phụ trách tinh gọn; nút "Xem & Chấm" mở trực tiếp modal sheet chia đôi màn hình; nhập điểm nhanh chóng, chính xác.
+- **Admin:** Thanh tìm kiếm phong cách macOS Spotlight, bộ lọc danh mục trực quan, các bảng quản trị lớn hiển thị thoáng đãng và xuất/nhập XLSX tiện lợi.
 
 ## 11. Nhận xét tổng quan
 

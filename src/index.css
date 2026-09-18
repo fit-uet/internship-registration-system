@@ -1,39 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Inter, ui-sans-serif, system-ui, sans-serif;
   --color-brand-50: #eff6ff;
   --color-brand-100: #dbeafe;
-  --color-brand-500: #1473e6;
-  --color-brand-600: #075fc7;
-  --color-brand-700: #084c9e;
+  --color-brand-500: #0071e3;
+  --color-brand-600: #0077ed;
+  --color-brand-700: #0060c2;
   --color-brand-900: #0b2f5b;
 }
 
 :root {
   color-scheme: light;
-  --ui-brand: #075fc7;
-  --ui-brand-hover: #084c9e;
-  --ui-brand-soft: #eff6ff;
-  --ui-success: #087f5b;
-  --ui-success-soft: #ecfdf5;
-  --ui-danger: #dc2626;
-  --ui-danger-soft: #fff1f2;
-  --ui-warning: #b45309;
-  --ui-warning-soft: #fffbeb;
-  --ui-canvas: #f5f7fb;
+  --ui-brand: #0071e3;
+  --ui-brand-hover: #0077ed;
+  --ui-brand-soft: #ebf4ff;
+  --ui-success: #34c759;
+  --ui-success-soft: #ebf9ee;
+  --ui-danger: #ff3b30;
+  --ui-danger-soft: #fff2f1;
+  --ui-warning: #ff9500;
+  --ui-warning-soft: #fff8eb;
+  --ui-canvas: #f5f5f7;
   --ui-surface: #ffffff;
-  --ui-surface-subtle: #f8fafc;
-  --ui-border: #dce3ed;
-  --ui-border-strong: #cbd5e1;
-  --ui-text: #172033;
-  --ui-text-muted: #64748b;
-  --ui-text-subtle: #94a3b8;
+  --ui-surface-subtle: #f9f9fb;
+  --ui-border: #e5e5ea;
+  --ui-border-strong: #d1d1d6;
+  --ui-text: #1d1d1f;
+  --ui-text-muted: #6e6e73;
+  --ui-text-subtle: #86868b;
   --ui-radius-control: 0.75rem;
   --ui-radius-card: 1rem;
-  --ui-shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.045);
-  --ui-shadow-float: 0 18px 45px rgb(15 23 42 / 0.16);
-  --ui-ring: 0 0 0 3px rgb(20 115 230 / 0.16);
+  --ui-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.03);
+  --ui-shadow-float: 0 12px 36px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --ui-ring: 0 0 0 3px rgba(0, 113, 227, 0.16);
 }
 
 * {
