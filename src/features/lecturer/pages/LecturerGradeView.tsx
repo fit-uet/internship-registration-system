@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { CheckCircle2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, RefreshCw, BookOpen } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, Button, PageDescriptionTooltip, PageHeader } from '../../../shared';
+import { ReportReviewPanel, type ReviewTarget } from './ReportReviewPanel';
 
 const SCORE_FIELDS = ['progress_score', 'report_score', 'company_score'] as const;
 type ScoreField = typeof SCORE_FIELDS[number];
@@ -14,6 +15,7 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
   const [loadingGrades, setLoadingGrades] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
 
   const fetchGrades = () => {
     setLoadingGrades(true);
@@ -34,9 +36,7 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
       .finally(() => setLoadingGrades(false));
   };
 
-  useEffect(() => {
-    fetchGrades();
-  }, [token]);
+  useEffect(() => { fetchGrades(); }, [token]);
 
   const statusLabel = (status?: string) => status === 'accepted' ? 'Đã chấp nhận' : status === 'needs_revision' ? 'Cần nộp lại' : status === 'submitted' ? 'Đã nộp' : 'Chưa nộp';
   const gradeStatusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có';
@@ -53,23 +53,12 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
   };
 
   const scoreErrorKey = (userId: number, field: ScoreField) => `${userId}:${field}`;
-
   const clearScoreError = (userId: number, field: ScoreField) => {
     const errorKey = scoreErrorKey(userId, field);
-    setScoreErrors(prev => {
-      if (!prev[errorKey]) return prev;
-      const next = { ...prev };
-      delete next[errorKey];
-      return next;
-    });
+    setScoreErrors(prev => { if (!prev[errorKey]) return prev; const next = { ...prev }; delete next[errorKey]; return next; });
   };
-
   const updateScoreEdit = (userId: number, field: ScoreField, value: string) => {
-    if (value === '') {
-      clearScoreError(userId, field);
-      updateGradeEdit(userId, field, value);
-      return;
-    }
+    if (value === '') { clearScoreError(userId, field); updateGradeEdit(userId, field, value); return; }
     const score = Number(value);
     if (!Number.isFinite(score) || score < 0 || score > 10) {
       setScoreErrors(prev => ({ ...prev, [scoreErrorKey(userId, field)]: 'Điểm chỉ được từ 0 đến 10.' }));
@@ -107,15 +96,38 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Lưu điểm thất bại.');
       fetchGrades();
-    } finally {
-      setSavingKey(null);
-    }
+    } finally { setSavingKey(null); }
   };
 
   const downloadReport = async (row: any) => {
     const res = await fetch(`${API_BASE}/api/reports/final/${row.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return alert('Không tải được báo cáo.');
     saveAs(await res.blob(), `${row.student_id || 'final'}-final-report.pdf`);
+  };
+
+  // Mở review panel cho một sinh viên
+  const openReview = (row: any) => {
+    const edit = gradeEdits[String(row.user_id)] || {};
+    setReviewTarget({
+      user_id: row.user_id,
+      student_name: row.student_name,
+      student_id: row.student_id,
+      class_name: row.class_name,
+      course_code: row.course_code,
+      internship_place: row.internship_place,
+      report_status: row.report_status,
+      report_filename: row.report_filename,
+      report_file_size: row.report_file_size,
+      report_submitted_at: row.report_submitted_at,
+      lecturer_comment: row.lecturer_comment,
+      progress_score: edit.progress_score,
+      report_score: edit.report_score,
+      company_score: edit.company_score,
+      comment: edit.comment,
+      grade_status: row.grade_status,
+      locked_at: row.locked_at,
+      is_primary: true, // trang này chỉ hiện với GVHD chính
+    });
   };
 
   const stats = {
@@ -127,131 +139,159 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <PageHeader
-        title={<>Chấm điểm thực tập <PageDescriptionTooltip description={
-          <>
-            <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
-            <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo, 60% đánh giá công ty/GVHD.</p>
-          </>
-        } /></>}
-        description="Nhập, lưu nháp và nộp điểm thực tập cho sinh viên được hướng dẫn chính."
-        icon={<CheckCircle2 size={20} />}
-        actions={
-          <>
-            <Button onClick={() => navigate(user.role === 'admin' ? '/admin' : '/')} size="sm">
-              &larr; {user.role === 'admin' ? 'Quay lại Quản trị' : 'Quay lại trang chủ'}
-            </Button>
-            <Button onClick={fetchGrades} disabled={loadingGrades} size="sm" leadingIcon={<RefreshCw size={14} className={loadingGrades ? 'animate-spin' : ''} />}>
-              Tải lại
-            </Button>
-          </>
-        }
-      />
+    <>
+      {/* ── Review Panel overlay ── */}
+      {reviewTarget && (
+        <ReportReviewPanel
+          target={reviewTarget}
+          token={token}
+          onClose={() => setReviewTarget(null)}
+          onReportStatusChange={fetchGrades}
+          onGradeChange={fetchGrades}
+        />
+      )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          ['Tổng sinh viên', stats.total, 'text-slate-900'],
-          ['Chưa có điểm', stats.missing, 'text-slate-600'],
-          ['Nháp', stats.draft, 'text-orange-700'],
-          ['Đã nộp', stats.submitted, 'text-emerald-700'],
-          ['Đã khóa', stats.locked, 'text-red-700'],
-        ].map(([label, value, color]) => (
-          <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
-            <div className={`mt-2 text-2xl font-bold ${color}`}>{value}</div>
-          </div>
-        ))}
-      </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title={<>Chấm điểm thực tập <PageDescriptionTooltip description={
+            <>
+              <p>Chỉ giảng viên hướng dẫn chính được nhập và nộp điểm. Đồng hướng dẫn vẫn có thể xem sinh viên phụ trách và báo cáo ở trang chủ, nhưng không chấm điểm trên hệ thống.</p>
+              <p className="mt-1 font-semibold">Công thức: 20% định kỳ, 20% báo cáo, 60% đánh giá công ty/GVHD.</p>
+            </>
+          } /></>}
+          description="Nhấn «Xem & Chấm» để xem báo cáo PDF và nhập điểm cùng một màn hình."
+          icon={<CheckCircle2 size={20} />}
+          actions={
+            <>
+              <Button onClick={() => navigate(user.role === 'admin' ? '/admin' : '/')} size="sm">
+                &larr; {user.role === 'admin' ? 'Quay lại Quản trị' : 'Quay lại trang chủ'}
+              </Button>
+              <Button onClick={fetchGrades} disabled={loadingGrades} size="sm" leadingIcon={<RefreshCw size={14} className={loadingGrades ? 'animate-spin' : ''} />}>
+                Tải lại
+              </Button>
+            </>
+          }
+        />
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs text-slate-600">
-            <thead>
-              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
-                <th className="p-4">Sinh viên</th>
-                <th className="p-4">Nơi thực tập</th>
-                <th className="p-4">Báo cáo</th>
-                <th className="p-4">20% định kỳ</th>
-                <th className="p-4">20% final</th>
-                <th className="p-4">60% đánh giá</th>
-                <th className="p-4">Tổng</th>
-                <th className="p-4">Ghi chú / Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loadingGrades ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Đang tải bảng điểm...</td></tr>
-              ) : grades.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên mà Thầy/Cô là giảng viên hướng dẫn chính. Nếu chỉ là đồng hướng dẫn, Thầy/Cô không nhập điểm trên hệ thống.</td></tr>
-              ) : grades.map((row: any) => {
-                const edit = gradeEdits[String(row.user_id)] || {};
-                const disabled = !!row.locked_at;
-                return (
-                  <tr key={row.user_id} className="hover:bg-slate-50/50 transition-colors align-top">
-                    <td className="p-4">
-                      <div className="font-semibold text-slate-800">{row.student_name}</div>
-                      <div className="text-xs text-slate-500 font-mono mt-0.5">{row.student_id || '-'}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{row.class_name || '-'}</div>
-                    </td>
-                    <td className="p-4 text-xs text-slate-600 max-w-[220px]">{row.internship_place || '-'}</td>
-                    <td className="p-4 text-xs">
-                      <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>{statusLabel(row.report_status)}</div>
-                      <div className={`mt-1 font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{gradeStatusLabel(row.grade_status)}</div>
-                      {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
-                      {row.report_status && (
-                        <button onClick={() => downloadReport(row)} className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer shadow-sm">
-                          Tải báo cáo
-                        </button>
-                      )}
-                    </td>
-                    {SCORE_FIELDS.map(field => {
-                      const errorKey = scoreErrorKey(row.user_id, field);
-                      const error = scoreErrors[errorKey];
-                      return <td key={field} className="p-4">
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          step="0.1"
-                          inputMode="decimal"
-                          disabled={disabled}
-                          value={edit[field] ?? ''}
-                          onChange={e => updateScoreEdit(row.user_id, field, e.target.value)}
-                          aria-invalid={Boolean(error)}
-                          aria-describedby={error ? `${errorKey}-error` : undefined}
-                          className={`w-20 rounded-xl px-2 py-1.5 text-xs text-center outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner ${error ? 'border border-red-400 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border border-slate-200 focus:ring-2 focus:ring-green-100 focus:border-green-500'}`}
-                        />
-                        {error && <div id={`${errorKey}-error`} className="mt-1 max-w-24 text-[10px] leading-tight text-red-600">{error}</div>}
-                      </td>;
-                    })}
-                    <td className="p-4 font-bold text-green-700">{previewFinalScore(edit)}</td>
-                    <td className="p-4">
-                      <div className="flex flex-col gap-2 min-w-[180px]">
-                        <input
-                          disabled={disabled}
-                          value={edit.comment ?? ''}
-                          onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)}
-                          placeholder="Nhận xét / ghi chú"
-                          className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-                            {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
-                          </button>
-                          <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-                            {savingKey === `${row.user_id}:submit` ? 'Đang nộp...' : 'Nộp điểm'}
-                          </button>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            ['Tổng sinh viên', stats.total, 'text-slate-900'],
+            ['Chưa có điểm', stats.missing, 'text-slate-600'],
+            ['Nháp', stats.draft, 'text-orange-700'],
+            ['Đã nộp', stats.submitted, 'text-emerald-700'],
+            ['Đã khóa', stats.locked, 'text-red-700'],
+          ].map(([label, value, color]) => (
+            <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+              <div className={`mt-2 text-2xl font-bold ${color}`}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs text-slate-600">
+              <thead>
+                <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                  <th className="p-4">Sinh viên</th>
+                  <th className="p-4">Nơi thực tập</th>
+                  <th className="p-4">Báo cáo</th>
+                  <th className="p-4">20% định kỳ</th>
+                  <th className="p-4">20% final</th>
+                  <th className="p-4">60% đánh giá</th>
+                  <th className="p-4">Tổng</th>
+                  <th className="p-4">Ghi chú / Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loadingGrades ? (
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Đang tải bảng điểm...</td></tr>
+                ) : grades.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Chưa có sinh viên mà Thầy/Cô là giảng viên hướng dẫn chính. Nếu chỉ là đồng hướng dẫn, Thầy/Cô không nhập điểm trên hệ thống.</td></tr>
+                ) : grades.map((row: any) => {
+                  const edit = gradeEdits[String(row.user_id)] || {};
+                  const disabled = !!row.locked_at;
+                  const hasReport = !!row.report_status;
+                  return (
+                    <tr key={row.user_id} className="hover:bg-slate-50/50 transition-colors align-top">
+                      <td className="p-4">
+                        <div className="font-semibold text-slate-800">{row.student_name}</div>
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">{row.student_id || '-'}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{row.class_name || '-'}</div>
+                      </td>
+                      <td className="p-4 text-xs text-slate-600 max-w-[200px]">{row.internship_place || '-'}</td>
+                      <td className="p-4 text-xs">
+                        <div className={row.report_status === 'accepted' ? 'text-emerald-700 font-semibold' : row.report_status ? 'text-blue-700 font-semibold' : 'text-slate-400'}>
+                          {statusLabel(row.report_status)}
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        <div className={`mt-1 font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>
+                          {gradeStatusLabel(row.grade_status)}
+                        </div>
+                        {row.locked_at && <div className="text-red-700 mt-1 font-semibold">Đã khóa</div>}
+                        <div className="mt-2 flex flex-col gap-1">
+                          {/* Nút chính: Xem & Chấm */}
+                          {hasReport && (
+                            <button
+                              onClick={() => openReview(row)}
+                              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
+                            >
+                              <BookOpen size={11} /> Xem & Chấm
+                            </button>
+                          )}
+                          {/* Nút tải phụ */}
+                          {hasReport && (
+                            <button
+                              onClick={() => downloadReport(row)}
+                              className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                            >
+                              Tải PDF
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      {SCORE_FIELDS.map(field => {
+                        const errorKey = scoreErrorKey(row.user_id, field);
+                        const error = scoreErrors[errorKey];
+                        return <td key={field} className="p-4">
+                          <input
+                            type="number" min="0" max="10" step="0.1" inputMode="decimal"
+                            disabled={disabled}
+                            value={edit[field] ?? ''}
+                            onChange={e => updateScoreEdit(row.user_id, field, e.target.value)}
+                            aria-invalid={Boolean(error)}
+                            className={`w-20 rounded-xl px-2 py-1.5 text-xs text-center outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner ${error ? 'border border-red-400 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border border-slate-200 focus:ring-2 focus:ring-green-100 focus:border-green-500'}`}
+                          />
+                          {error && <div className="mt-1 max-w-24 text-[10px] leading-tight text-red-600">{error}</div>}
+                        </td>;
+                      })}
+                      <td className="p-4 font-bold text-green-700">{previewFinalScore(edit)}</td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-2 min-w-[180px]">
+                          <input
+                            disabled={disabled}
+                            value={edit.comment ?? ''}
+                            onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)}
+                            placeholder="Nhận xét / ghi chú"
+                            className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                              {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
+                            </button>
+                            <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                              {savingKey === `${row.user_id}:submit` ? 'Đang nộp...' : 'Nộp điểm'}
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

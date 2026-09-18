@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { User as UserIcon, Users, CheckCircle2, Download, FileText, Bell, CircleHelp, MessageCircle, GraduationCap } from 'lucide-react';
+import { User as UserIcon, Users, CheckCircle2, Download, FileText, Bell, CircleHelp, MessageCircle, GraduationCap, BookOpen } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, saveXlsx, PageDescriptionTooltip } from '../../../shared';
+import { ReportReviewPanel, type ReviewTarget } from './ReportReviewPanel';
 
 export function LecturerHome({ user, token }: { user: any, token: string }) {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
   const [grades, setGrades] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
 
   const fetchStudents = async () => {
     setLoadingStudents(true);
@@ -62,6 +64,24 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     const res = await fetch(`${API_BASE}/api/reports/final/${student.user_id}/download`, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return alert('Không tải được báo cáo.');
     saveAs(await res.blob(), student.report_filename || 'final-report.pdf');
+  };
+
+  const openReview = (student: any) => {
+    setReviewTarget({
+      user_id: student.user_id,
+      student_name: student.student_name,
+      student_id: student.student_id,
+      class_name: student.class_name,
+      course_code: student.course_code,
+      internship_place: student.internship_place,
+      report_status: student.report_status,
+      report_filename: student.report_filename,
+      report_file_size: student.report_file_size,
+      report_submitted_at: student.report_submitted_at,
+      lecturer_comment: student.lecturer_comment,
+      // Điểm: không có sẵn ở trang này, để trống — panel sẽ dùng form riêng
+      is_primary: student.advisor_role === 'primary',
+    });
   };
 
   const updateReportStatus = async (student: any, status: string) => {
@@ -148,7 +168,17 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <>
+      {reviewTarget && (
+        <ReportReviewPanel
+          target={reviewTarget}
+          token={token}
+          onClose={() => setReviewTarget(null)}
+          onReportStatusChange={fetchStudents}
+          onGradeChange={fetchStudents}
+        />
+      )}
+      <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
         <div className="flex items-start gap-4">
           {user.picture ? (
@@ -361,7 +391,8 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
                       <div className="mt-1 space-y-1">
                         <div className="text-[10px] text-slate-500 line-clamp-1">{student.report_filename} · {formatBytes(Number(student.report_file_size || 0))}</div>
                         <div className="flex flex-wrap gap-1">
-                          <button onClick={() => downloadReport(student)} className="text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Tải</button>
+                          <button onClick={() => openReview(student)} className="flex items-center gap-1 text-indigo-700 hover:bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-indigo-200 bg-indigo-50/80"><BookOpen size={10} /> Xem & Chấm</button>
+                          <button onClick={() => downloadReport(student)} className="text-slate-600 hover:bg-slate-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Tải</button>
                           <button onClick={() => updateReportStatus(student, 'accepted')} className="text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">OK</button>
                           <button onClick={() => updateReportStatus(student, 'needs_revision')} className="text-orange-700 hover:bg-orange-50 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors cursor-pointer border border-slate-200 bg-white">Nộp lại</button>
                         </div>
@@ -386,7 +417,8 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
             </tbody>
           </table>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

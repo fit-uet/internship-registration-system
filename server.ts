@@ -3197,6 +3197,26 @@ async function startServer() {
     }
   });
 
+  // Trả về PDF với Content-Disposition: inline để trình duyệt render trực tiếp trong iframe
+  app.get('/api/reports/final/:userId/view', requireAuth, async (req: any, res: any) => {
+    const userId = Number(req.params.userId);
+    if (!(await canAccessStudentReport(req.user, userId))) return res.status(403).json({ error: 'Forbidden' });
+    const report = (await db.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    if (!report) return res.status(404).json({ error: 'Chưa có báo cáo.' });
+    res.setHeader('content-type', 'application/pdf');
+    res.setHeader('content-disposition', `inline; filename="${encodeURIComponent(report.original_filename)}"`);
+    // Cho phép iframe cùng origin nhúng file
+    res.setHeader('x-frame-options', 'SAMEORIGIN');
+    try {
+      const streamed = await streamReportObject(report.object_key, res);
+      if (!streamed && !res.headersSent) return res.status(404).json({ error: 'Không tìm thấy file báo cáo.' });
+    } catch (e: any) {
+      if (!res.headersSent) return res.status(500).json({ error: 'Không tải được file báo cáo: ' + e.message });
+      res.destroy(e);
+    }
+  });
+
+
   app.put('/api/reports/final/:userId/status', requireAuth, async (req: any, res: any) => {
     const userId = Number(req.params.userId);
     if (req.user.role !== 'admin' && req.user.role !== 'lecturer') return res.status(403).json({ error: 'Forbidden' });
