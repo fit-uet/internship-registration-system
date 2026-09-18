@@ -1491,56 +1491,61 @@ async function initDb() {
   const defaultClasses = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('classes_list', '${defaultClasses}')`);
 
-  const defaultPlan = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
+  const defaultPlan = `## KẾ HOẠCH TRIỂN KHAI HỌC PHẦN THỰC TẬP
 
-**Khoa CNTT thông báo triển khai Thực tập học kỳ như sau:**
+Khoa Công nghệ Thông tin thông báo triển khai các học phần Thực tập dành cho sinh viên từ khóa **K68 trở về trước**, bao gồm các học phần:
 
-**I. Lịch triển khai**
+1. **Thực tập Doanh nghiệp** (INT4002)
+2. **Thực tập Chuyên ngành** (INT3508)
+3. **Thực tập Doanh nghiệp Nhật Bản** (INT4003)
 
-Đây là đợt thực tập chính thức để hoàn thiện học phần Thực tập dành cho sinh viên Khoa CNTT.
-Để **đăng ký đi thực tập và được công nhận điểm học phần** này, các sinh viên cần phải tuân thủ quy trình sau:
+---
 
-1. Đăng ký với Khoa CNTT để xin đi thực tập đợt này trên trang **Hệ thống Đăng ký thực tập** (sau đây gọi là Website TTCN). Sinh viên nào chưa đăng ký thông tin trên hệ thống coi như chưa đăng ký đi thực tập đợt này. **Chú ý: cần làm thêm bước 6 để được công nhận điểm học phần Thực tập**.
-2. Theo dõi các thông tin tuyển thực tập trên Website TTCN. Các sinh viên chủ động đăng ký (tối đa 5 công ty) và làm các thủ tục xin thực tập theo hướng dẫn của công ty mà mình đăng ký. Sinh viên sẽ chỉ thực tập tại 1 công ty để lấy điểm. Các sinh viên chưa tìm được thực tập tại công ty có thể xin thực tập tại trường cùng giảng viên hướng dẫn (xem bước 3).
-3. Mỗi sinh viên thực tập tại trường sẽ được một giảng viên của Khoa hỗ trợ và chấm báo cáo thực tập (giảng viên hướng dẫn).
-4. Các sinh viên được nhận làm thực tập phải cập nhật trạng thái hoặc xác nhận lại theo yêu cầu. Trong quá trình thực tập, sinh viên phải báo cáo định kỳ, nếu không sẽ bị trừ điểm.
-5. Các sinh viên không được nhận làm thực tập tại các công ty và có nhu cầu thực tập tại trường với giảng viên (ở mục 3) có thể cập nhật thông tin trong hệ thống bằng cách đăng ký Nơi thực tập là "Trường Đại học Công nghệ" và ghi rõ tên Giảng viên hướng dẫn.
-6. Để được công nhận điểm học phần Thực tâp chuyên ngành, các sinh viên cần đăng ký lớp môn học này trên website **http://daotao.vnu.edu.vn** khi có yêu cầu đăng ký từ Phòng Đào tạo. **Chú ý: nếu không đăng ký theo thông báo mở lớp môn học của Phòng Đào tạo trên, sinh viên sẽ không được công nhận điểm học phần Thực tập** **kỳ này.**
+### 🔹 Thời hạn đăng ký
+- **Thời gian:** Từ **18/05** đến **8h00, ngày 25/05/2026**
+- 👉 **_Lưu ý quan trọng:_** Danh sách sinh viên đăng ký trên hệ thống sẽ được sử dụng làm danh sách chính thức để Khoa/Nhà trường thực hiện đăng ký học phần trên cổng đào tạo. Vì vậy, đề nghị sinh viên cân nhắc kỹ trước khi đăng ký và điền đầy đủ, chính xác thông tin theo yêu cầu.
 
-**Các mốc thời gian cụ thể cần chú ý**
+---
 
-| STT | Công việc | Thời gian dự kiến |
-| --- | --- | --- |
-| 1. | Sinh viên đăng ký thông tin cá nhân trên website TTCN. | Xem thông báo |
-| 2. | Sinh viên tìm hiểu các thông tin tuyển thực tập trên website và đăng ký thực tập tại công ty **CÓ TRONG DANH SÁCH** (tối đa 5 công ty). | Xem thông báo |
-| 3. | Khoa/Công ty nhận danh sách sinh viên đăng ký, sinh viên tham gia phỏng vấn (nếu có). | - |
-| 4. | Các sinh viên không tìm được cơ hội thực tập tại công ty sẽ tiếp tục làm thực tập tại trường cùng giảng viên hướng dẫn. | - |
-| 5. | Sinh viên đi thực tập (đảm bảo tổng thời lượng tối thiểu tương đương 6 tuần fulltime). Sinh viên phải báo cáo định kỳ với giảng viên hướng dẫn. | - |
-| 6. | Sinh viên nộp báo cáo thực tập và giảng viên / công ty hướng dẫn sẽ đánh giá cho điểm. | - |
+### 📌 Mốc thời gian quan trọng
 
-**II. Các hướng dẫn liên quan đến quá trình đăng ký và thực tập**
+| STT | Mốc thời gian | Nội dung công việc |
+| :---: | :--- | :--- |
+| **1** | **25/05 – 31/05** | Khoa gửi danh sách sinh viên đăng ký đến các doanh nghiệp để tiến hành phỏng vấn (nếu có). |
+| **2** | **25/05 – 31/05** | Khoa phân công giảng viên hướng dẫn thực tập cho sinh viên. |
+| **3** | **10/06 – 17/06/2026** | Sinh viên chủ động liên hệ với Thầy/Cô hướng dẫn để trao đổi, nhận hướng dẫn về nội dung thực tập, kế hoạch thực hiện và các yêu cầu liên quan đến học phần. |
+| **4** | **15/06 – 31/08** | **Sinh viên bắt đầu kỳ thực tập tại doanh nghiệp.**<br>_Lưu ý:_ Thời gian thực tập tại mỗi công ty có thể khác nhau, nhưng phải đảm bảo **tối thiểu 6 tuần làm việc full-time**. Sinh viên cần báo cáo định kỳ với giảng viên hướng dẫn. |
+| **5** | **15/07 – 30/09** | Các sinh viên không tìm được cơ hội thực tập tại doanh nghiệp sẽ thực hiện **thực tập tại trường** cùng Thầy/Cô hướng dẫn hoặc với đối tác khác do Khoa sắp xếp. |
+| **6** | **01/10 – 10/10** | **Sinh viên nộp báo cáo thực tập;** giảng viên hướng dẫn thực hiện đánh giá và chấm điểm. |
+| **7** | **11/10 – 20/10** | Giảng viên nộp điểm về Khoa để tổng hợp và nhập hệ thống. |
 
-**2.1. Về việc đăng ký thực tập của sinh viên trên website TTCN**
+---
 
-* Phải điền đầy đủ các thông tin trên website. Quy trình như sau:
-  * Truy cập vào trang **Hệ thống Đăng ký thực tập**.
-  * Đăng nhập vào hệ thống bằng tài khoản email **@vnu.edu.vn** (qua nút Đăng nhập với Google).
-  * Điền đầy đủ thông tin cá nhân trong form đăng ký (Mã SV, Lớp khóa học, Ngày sinh). Nếu thiếu thông tin hoặc thông tin bị sai, **sinh viên phải chịu hoàn toàn trách nhiệm**.
-  * Mục **Danh sách nơi thực tập** sẽ liệt kê các công ty nhận thực tập.
-  * Tích chọn các công ty mà mình muốn làm thực tập (tối đa 5 công ty). Có thể tra cứu thông tin công ty bằng cách nhấp vào tên công ty.
-  * Ấn nút **Đăng ký** để hoàn tất nộp nguyện vọng.
-  * **Lưu ý**: Sinh viên có thể thay đổi nguyện vọng bằng cách ấn nút "Hủy tất cả đăng ký" và thao tác đăng ký lại từ đầu, miễn là hệ thống còn mở trong thời hạn cho phép.
+### 📄 Mẫu báo cáo & Hướng dẫn hoàn thành học phần
 
-**2.2. Về các yêu cầu đối với sinh viên**
+Mỗi sinh viên cần viết **01 báo cáo thực tập** theo mẫu Khoa quy định:  
+👉 **Tải biểu mẫu báo cáo của Khoa:** [TẠI ĐÂY (Google Drive)](https://drive.google.com/drive/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3?usp=sharing)
 
-* Nếu sinh viên thực tập ở công ty thì đề tài sẽ do phía công ty giao. Nếu sinh viên thực tập ở trường thì giảng viên hướng dẫn là người giao đề tài.
-* Sinh viên cần thường xuyên báo cáo tiến độ với giảng viên hướng dẫn, theo lịch giảng viên đưa ra.
-* Mỗi sinh viên cần viết 01 báo cáo thực tập theo mẫu Khoa qui định. Sinh viên Ngành KHMT cần viết báo cáo bằng tiếng Anh. Nếu đi thực tập theo nhóm thì có thể viết chung 1 quyển báo cáo, tuy nhiên trong đó phải ghi rõ sự phân công công việc giữa các thành viên trong nhóm.
-* Trong trường hợp cần thiết, giảng viên có thể liên lạc với người hướng dẫn phía công ty (chẳng hạn để trợ giúp sinh viên hoặc đánh giá kết quả làm việc của sinh viên cho chính xác). Sinh viên có trách nhiệm cung cấp thông tin liên hệ của người hướng dẫn phía công ty.
-* Cách tính điểm TTCN:
-  * 20% điểm báo cáo định kỳ
-  * 20% điểm nội dung của bản báo cáo thực tập theo mẫu
-  * 60% điểm đánh giá của phía công ty (nếu thực tập tại công ty) hoặc giảng viên hướng dẫn (thực tập tại trường).`;
+#### 📝 Sinh viên cần nộp những gì để hoàn thành môn thực tập?
+
+Để hoàn thành học phần Thực tập và được công nhận điểm, sinh viên cần thực hiện:
+
+1. **Nộp Báo cáo thực tập (Bản mềm - PDF) trên hệ thống:**
+   - Sinh viên nộp bản báo cáo hoàn chỉnh (định dạng **PDF, tối đa 10 MB**) trực tiếp trên hệ thống trong thời gian mở nộp (**01/10 – 10/10**).
+   - Bản báo cáo này là cơ sở để Giảng viên hướng dẫn đánh giá và cho **Điểm tiến độ (20%)** và **Điểm báo cáo (20%)**.
+
+2. **Nộp Trang nhận xét & Đánh giá kết quả thực tập (Có chữ ký & dấu công ty):**
+   - Trong mẫu báo cáo thực tập của Khoa có sẵn **Trang nhận xét / Phiếu đánh giá kết quả thực tập**.
+   - **Nếu thực tập tại Doanh nghiệp:** Sinh viên in riêng trang nhận xét này để xin điểm đánh giá, nhận xét chi tiết và chữ ký của người hướng dẫn trực tiếp tại doanh nghiệp, kèm **dấu xác nhận của công ty/doanh nghiệp**. Sau đó, nộp bản nhận xét này cho Giảng viên hướng dẫn của Khoa để Thầy/Cô ghi nhận và nhập **Điểm đánh giá của doanh nghiệp (60%)** vào hệ thống.
+   - **Nếu thực tập tại Trường:** Giảng viên hướng dẫn tại trường sẽ trực tiếp theo dõi, nhận xét và đánh giá cho điểm phần này.
+
+---
+
+### 📊 Cơ cấu điểm đánh giá học phần
+
+- **20%:** Điểm báo cáo định kỳ / tiến độ (sinh viên chủ động liên hệ và báo cáo tiến độ với GVHD).
+- **20%:** Điểm nội dung của bản báo cáo thực tập theo mẫu quy định (nộp bản mềm trên hệ thống).
+- **60%:** Điểm đánh giá của phía doanh nghiệp (theo trang nhận xét có chữ ký & dấu công ty) hoặc của Giảng viên hướng dẫn (nếu thực tập tại trường).`;
   await db.executeMultiple(`INSERT OR IGNORE INTO settings (key, value) VALUES ('implementation_plan_md', '${defaultPlan.replace(/'/g, "''")}')`);
 
   try { await db.executeMultiple('ALTER TABLE companies ADD COLUMN contact_email TEXT'); } catch (e) { }
@@ -1896,6 +1901,122 @@ async function startServer() {
     FROM chat_group_messages cgm
     JOIN users u ON u.id = cgm.sender_user_id
   `;
+
+  /**
+   * Đồng bộ advisor_assignments cho sinh viên khi admin sửa GVHD trong đăng ký
+   * "Trường Đại học Công nghệ". Chỉ chạy khi sinh viên đã có final_internships.
+   *
+   * @param userId           - ID sinh viên
+   * @param newPrimaryName   - Tên GVHD chính mới (chuỗi rỗng = xóa phân công)
+   * @param newCoName        - Tên GVHD đồng hướng dẫn mới (chuỗi rỗng = xóa)
+   * @param actorUserId      - ID người thực hiện (admin)
+   * @returns warningMessage nếu có tên nhưng không tìm thấy trong lecturers
+   */
+  async function syncAdvisorFromSchoolRegistration(
+    userId: number,
+    newPrimaryName: string,
+    newCoName: string,
+    actorUserId: number,
+  ): Promise<{ warning?: string }> {
+    // Chỉ đồng bộ khi sinh viên đã có final_internships
+    const final = (await db.execute({
+      sql: 'SELECT id FROM final_internships WHERE user_id = ?',
+      args: [userId],
+    })).rows[0];
+    if (!final) return {};
+
+    const student = (await db.execute({
+      sql: 'SELECT email, personal_email FROM users WHERE id = ?',
+      args: [userId],
+    })).rows[0] as any;
+
+    const warnings: string[] = [];
+
+    // Hàm xử lý sync cho một role (primary / co)
+    async function syncRole(newName: string, role: 'primary' | 'co') {
+      // Lấy phân công hiện tại của role này
+      const existingRows = (await db.execute({
+        sql: 'SELECT * FROM advisor_assignments WHERE user_id = ? AND role = ?',
+        args: [userId, role],
+      })).rows as any[];
+
+      const trimmedName = newName.trim();
+
+      if (!trimmedName) {
+        // Xóa phân công cũ nếu có
+        for (const existing of existingRows) {
+          await db.execute({
+            sql: `INSERT INTO advisor_assignment_history
+                    (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+                  VALUES (?, ?, ?, ?, 'deleted', ?, ?, datetime('now', '+7 hours'))`,
+            args: [Number(existing.id), userId, Number(existing.lecturer_id), role, actorUserId, 'Xóa GVHD từ chỉnh sửa đăng ký'],
+          });
+          await db.execute({ sql: 'DELETE FROM advisor_assignments WHERE id = ?', args: [Number(existing.id)] });
+        }
+        return;
+      }
+
+      // Resolve lecturer_id từ tên
+      const lecturerRow = (await db.execute({
+        sql: 'SELECT id, name, email FROM lecturers WHERE name = ? LIMIT 1',
+        args: [trimmedName],
+      })).rows[0] as any;
+
+      if (!lecturerRow) {
+        warnings.push(`Không tìm thấy giảng viên "${trimmedName}" trong danh sách; bỏ qua đồng bộ ${role === 'primary' ? 'GVHD chính' : 'đồng hướng dẫn'}.`);
+        return;
+      }
+
+      const lecturerId = Number(lecturerRow.id);
+
+      // Nếu phân công hiện tại đã đúng giảng viên này, không làm gì
+      if (existingRows.length === 1 && Number(existingRows[0].lecturer_id) === lecturerId) return;
+
+      // Xóa phân công cũ (nếu khác)
+      for (const existing of existingRows) {
+        await db.execute({
+          sql: `INSERT INTO advisor_assignment_history
+                  (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+                VALUES (?, ?, ?, ?, 'replaced', ?, ?, datetime('now', '+7 hours'))`,
+          args: [
+            Number(existing.id), userId, Number(existing.lecturer_id), role,
+            actorUserId, `Thay bằng ${trimmedName} từ chỉnh sửa đăng ký`,
+          ],
+        });
+        await db.execute({ sql: 'DELETE FROM advisor_assignments WHERE id = ?', args: [Number(existing.id)] });
+      }
+
+      // Tạo phân công mới
+      const result = await db.execute({
+        sql: `INSERT INTO advisor_assignments (user_id, lecturer_id, role, assigned_by, note, assigned_at)
+              VALUES (?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+        args: [userId, lecturerId, role, actorUserId, 'Đồng bộ từ chỉnh sửa đăng ký'],
+      });
+      await db.execute({
+        sql: `INSERT INTO advisor_assignment_history
+                (assignment_id, user_id, lecturer_id, role, action, actor_id, note, created_at)
+              VALUES (?, ?, ?, ?, 'created', ?, ?, datetime('now', '+7 hours'))`,
+        args: [
+          Number(result.lastInsertRowid), userId, lecturerId, role,
+          actorUserId, 'Đồng bộ từ chỉnh sửa đăng ký',
+        ],
+      });
+
+      // Thông báo cho sinh viên
+      await createNotification({
+        user_id: userId,
+        recipient_email: student?.personal_email || student?.email,
+        type: 'advisor_assigned',
+        subject: 'Giảng viên hướng dẫn của bạn đã được cập nhật',
+        body: `${role === 'primary' ? 'GVHD chính' : 'Đồng hướng dẫn'} của bạn đã được cập nhật thành: ${lecturerRow.name}${lecturerRow.email ? ` (${lecturerRow.email})` : ''}.`,
+      });
+    }
+
+    await syncRole(newPrimaryName, 'primary');
+    await syncRole(newCoName, 'co');
+
+    return warnings.length > 0 ? { warning: warnings.join(' ') } : {};
+  }
 
   async function ensureSchoolFinalInternshipFromRegistration(userId: number, actorUserId?: number) {
     const final = (await db.execute({
@@ -4791,6 +4912,16 @@ async function startServer() {
         });
       } else {
         await ensureSchoolFinalInternshipFromRegistration(Number(current.user_id), req.user.id);
+        // Đồng bộ advisor_assignments khi GVHD thay đổi (chỉ áp dụng với đăng ký Trường Đại học Công nghệ)
+        if (isSchoolInternship) {
+          const syncResult = await syncAdvisorFromSchoolRegistration(
+            Number(current.user_id),
+            otherCompanyContact,
+            otherCompanyRole,
+            Number(req.user.id),
+          );
+          if (syncResult.warning) console.warn(`[syncAdvisor] userId=${current.user_id}: ${syncResult.warning}`);
+        }
       }
 
       res.json({ success: true, status });

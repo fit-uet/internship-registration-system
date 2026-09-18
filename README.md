@@ -232,6 +232,15 @@ Trường chính:
 
 Với thực tập tại trường, tên giảng viên hướng dẫn khai báo trong giai đoạn đăng ký cũ có thể còn nằm trong `other_company_contact`. Đây chỉ là dữ liệu nguồn để đồng bộ một lần sang luồng GVHD, không phải nguồn dữ liệu chính thức.
 
+**Quy tắc đồng bộ GVHD khi admin sửa đăng ký (áp dụng với đăng ký "Trường Đại học Công nghệ"):**
+
+- Khi admin sửa trường GVHD (`other_company_contact`) hoặc GVHD đồng hướng dẫn (`other_company_role`) trong một đăng ký "Trường Đại học Công nghệ", backend phải đồng bộ ngay vào `advisor_assignments` cho sinh viên tương ứng.
+- Nếu sinh viên đã có `final_internships`, đồng bộ cần upsert lại bản ghi `advisor_assignments` với GVHD mới (xóa phân công cũ cùng `role`, tạo phân công mới).
+- Nếu sinh viên chưa có `final_internships`, chỉ cập nhật `registrations.other_company_contact` như hiện tại và tạo `final_internships` mới nếu hợp lệ; `advisor_assignments` sẽ được tạo sau khi `final_internships` tồn tại.
+- Đồng bộ GVHD không được thực hiện nếu tên GVHD mới không tìm thấy trong bảng `lecturers`; trong trường hợp này API trả về lỗi rõ ràng.
+- Khi đồng bộ, backend ghi lịch sử vào `advisor_assignment_history` với `action = 'replaced'` nếu đã có phân công cũ.
+- Thông báo email `advisor_assigned` được tạo khi phân công GVHD thay đổi.
+
 ### `final_internships`
 
 Lưu 1 nơi thực tập chính thức của sinh viên sau giai đoạn xác nhận.
@@ -251,6 +260,7 @@ Vai trò dữ liệu:
 - Là nguồn chính thức duy nhất cho GVHD chính và đồng hướng dẫn.
 - Trang giảng viên, trang điểm thực tập, xuất XLSX theo giảng viên và số lượng sinh viên hướng dẫn đều đọc từ bảng này.
 - Có thể được tạo từ thao tác duyệt đề xuất GVHD, gán thủ công, import, hoặc tự phân công theo quota.
+- **Phải được đồng bộ ngay khi admin sửa GVHD trong bảng `registrations`** (xem quy tắc đồng bộ tại mục `registrations` ở trên).
 
 ### `advisor_requests`
 
@@ -1091,6 +1101,49 @@ Thiết kế UI admin:
 
 - Không có ngoại lệ dung lượng báo cáo final trong giai đoạn hiện tại. File PDF lớn hơn 10 MB bị từ chối và sinh viên phải nén lại.
 - Chỉ tiêu mặc định GVHD được cấu hình trong `Cài đặt hệ thống`: `GS/PGS` mặc định 5, `TS` mặc định 8, `ThS/khác` mặc định 10. Quota riêng từng giảng viên nếu có sẽ ghi đè mặc định này. Hệ thống vẫn ghi nhận đăng ký GVHD đã được đồng ý khi vượt quota và chỉ cảnh báo trực tiếp cho sinh viên, không tạo thông báo hoặc email.
+
+### 10.1. Bug: Admin sửa GVHD trong đăng ký không cập nhật trang sinh viên
+
+**Mô tả vấn đề:**
+
+Khi admin sửa trường GVHD (`other_company_contact`) trong một đăng ký "Trường Đại học Công nghệ" qua API `PUT /api/admin/registrations/:id`, thay đổi chỉ ghi vào bảng `registrations`. Trang điểm thực tập của sinh viên (`/api/grades/my`) đọc GVHD từ bảng `advisor_assignments`, không đọc từ `registrations`. Do đó sinh viên vẫn thấy GVHD cũ.
+
+**Nguyên nhân kỹ thuật:**
+
+- Hàm `ensureSchoolFinalInternshipFromRegistration` dùng `ON CONFLICT(user_id) DO NOTHING` nên không cập nhật khi `final_internships` đã tồn tại.
+- API `PUT /api/admin/registrations/:id` không gọi logic nào để đồng bộ `advisor_assignments` sau khi cập nhật GVHD.
+- Màn hình sinh viên (`StudentGradeView`) đọc `primary_advisors` từ `advisor_assignments` qua `GROUP_CONCAT`, hoàn toàn độc lập với `registrations.other_company_contact`.
+
+**Thiết kế fix:**
+
+Sau khi `UPDATE registrations` thành công trong `PUT /api/admin/registrations/:id`, nếu đây là đăng ký "Trường Đại học Công nghệ" và sinh viên đã có `final_internships`, thực hiện đồng bộ `advisor_assignments`:
+
+1. Tra cứu `lecturer_id` từ `lecturers.name` theo `other_company_contact` (GVHD chính mới).
+2. Nếu tìm thấy:
+   - Xóa phân công `primary` hiện tại của sinh viên trong `advisor_assignments` (nếu có).
+   - Ghi lịch sử xóa vào `advisor_assignment_history` với `action = 'replaced'`.
+   - Insert phân công mới vào `advisor_assignments`.
+   - Ghi lịch sử tạo vào `advisor_assignment_history` với `action = 'created'`.
+   - Tạo notification `advisor_assigned` cho sinh viên.
+3. Nếu `other_company_contact` bị xóa (chuỗi rỗng): xóa phân công `primary` hiện tại.
+4. Tương tự với GVHD đồng hướng dẫn (`other_company_role`) và `role = 'co'`.
+5. Nếu `other_company_contact` có giá trị nhưng không tìm thấy trong `lecturers`, **không block API**, chỉ bỏ qua bước đồng bộ và ghi log cảnh báo. Lý do: admin có thể đang nhập tên không khớp chính xác, không nên làm hỏng luồng cập nhật đăng ký.
+
+**Phạm vi ảnh hưởng:**
+
+- `server.ts`: Hàm xử lý `PUT /api/admin/registrations/:id` (dòng ~4694).
+- Không thay đổi schema database.
+- Không thay đổi frontend.
+
+**Tiêu chí nghiệm thu:**
+
+1. Admin sửa GVHD trong đăng ký → sinh viên thấy GVHD mới ngay trên trang Điểm thực tập.
+2. Admin xóa GVHD (để trống) → sinh viên thấy "Chưa phân công".
+3. Admin đổi GVHD từ A sang B → `advisor_assignments` của sinh viên chỉ còn B (không còn A).
+4. Lịch sử `advisor_assignment_history` ghi đúng `action = 'replaced'` khi đổi GVHD.
+5. Sinh viên nhận notification `advisor_assigned` khi GVHD thay đổi.
+6. Đăng ký "Công ty khác" hoặc công ty chính thức không bị ảnh hưởng.
+7. Sinh viên chưa có `final_internships` không bị tạo `advisor_assignments` ngay lập tức.
 
 ## 11. Nhận xét tổng quan
 
