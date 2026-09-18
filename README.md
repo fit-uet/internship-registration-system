@@ -851,19 +851,78 @@ Thiết kế UI:
   - Nếu file > 10 MB, báo rõ “Vui lòng nén PDF xuống tối đa 10 MB”.
 - Giảng viên:
   - Cột trạng thái báo cáo trong danh sách sinh viên phụ trách.
-  - Nút tải PDF.
-  - Ghi chú “cần nộp lại” nếu cần.
+  - **Xem PDF inline trực tiếp trên hệ thống** (xem mục 9.5.1 — Inline PDF Viewer).
+  - Nút tải PDF về máy vẫn giữ nguyên như tuỳ chọn phụ.
+  - Ghi chú “cần nộp lại” từ panel chấm điểm tích hợp.
 - Admin:
   - Bảng tổng hợp trạng thái nộp báo cáo.
   - Bộ lọc chưa nộp/đã nộp/cần nộp lại/đã chấp nhận.
   - Xuất XLSX và tải PDF từng sinh viên.
+  - Admin cũng có thể mở inline viewer để xem báo cáo.
 
 Tiêu chí nghiệm thu:
 
 - File > 10 MB bị từ chối ở cả frontend và backend.
 - Sinh viên không xem/tải được báo cáo của sinh viên khác.
-- Giảng viên chỉ tải được báo cáo của sinh viên mình phụ trách.
-- Admin tải được tất cả.
+- Giảng viên chỉ xem/tải được báo cáo của sinh viên mình phụ trách.
+- Admin xem/tải được tất cả.
+- Giảng viên có thể xem PDF và chấm điểm cùng lúc mà không cần rời trang.
+
+### 9.5.1. Inline PDF Viewer — Xem và chấm báo cáo cùng lúc
+
+**Bối cảnh và vấn đề:**
+
+Hiện tại, giảng viên phải nhấn “Tải” để tải file PDF về máy, mở bằng ứng dụng ngoài, xem nội dung, rồi quay lại hệ thống để nhập điểm. Quy trình này gây gián đoạn và tốn thời gian, đặc biệt khi phụ trách nhiều sinh viên.
+
+**Yêu cầu:**
+
+- Giảng viên nhấn vào tên báo cáo của một sinh viên → mở **review panel** (full-screen overlay).
+- Panel chia đôi màn hình theo chiều ngang:
+  - **Bên trái (60–65%)**: iframe nhúng PDF qua blob URL, scroll được, hỗ trợ zoom của trình duyệt.
+  - **Bên phải (35–40%)**: thông tin sinh viên (read-only) + form chấm điểm.
+- Hai bên độc lập nhau về scroll; giảng viên có thể scroll báo cáo trong khi form điểm luôn hiển thị cố định.
+- Trên màn nhỏ (< 768px): chuyển sang tab-toggle giữa “Báo cáo” và “Chấm điểm” thay vì split.
+- Có nút đóng (×) rõ ràng để quay lại danh sách.
+
+**Thiết kế UI chi tiết — Review Panel:**
+
+Header (sticky, toàn chiều rộng):
+- Tên sinh viên + MSSV + nơi thực tập.
+- Badge trạng thái báo cáo (Đã nộp / Đã chấp nhận / Cần nộp lại).
+- Nút “Tải PDF” và nút “×” đóng panel.
+
+Bên trái — PDF Viewer:
+- Fetch PDF qua `/api/reports/final/:userId/view` với Authorization header → `URL.createObjectURL(blob)` → gán vào `<iframe>`.
+- Hiển thị spinner trong khi chờ tải; sau khi tải xong thay bằng iframe.
+- Fallback: nếu trình duyệt không hỗ trợ embed PDF, hiển thị nút “Mở PDF trong tab mới”.
+- Background tối (#1e1e1e) để nền trắng của PDF nổi bật.
+
+Bên phải — Grading Panel (sticky, scroll độc lập):
+- **Thông tin sinh viên** (read-only, nhỏ gọn):
+  - Lớp khoá học, môn học, nơi thực tập.
+  - Ngày nộp báo cáo, tên file, dung lượng.
+- **Form điểm** (chỉ GVHD chính mới sửa được):
+  - Ba ô nhập điểm: Định kỳ (20%), Báo cáo (20%), Công ty/GVHD (60%).
+  - Điểm tổng kết tính realtime ngay bên dưới.
+  - Ô ghi chú (textarea).
+  - Hai nút action: **Lưu nháp** và **Nộp điểm cho Khoa**.
+- **Khu vực duyệt báo cáo** (ngay dưới form điểm, tách bằng divider):
+  - Nút **Chấp nhận (OK)**: đổi trạng thái báo cáo → `accepted`.
+  - Nút **Yêu cầu nộp lại**: mở textarea nhỏ để nhập lý do → đổi trạng thái → `needs_revision`.
+  - Hiển thị comment cũ nếu đã có.
+- Khi điểm bị khoá (`locked`): form chuyển sang chế độ read-only, hiển thị badge “Đã khoá bởi Khoa”.
+
+**Thiết kế API bổ sung:**
+
+- `GET /api/reports/final/:userId/view`: trả về file PDF với header `Content-Disposition: inline; filename="..."` thay vì `attachment` như endpoint `/download`, để trình duyệt render trực tiếp trong iframe mà không download. Quyền truy cập giữ nguyên (sinh viên chủ sở hữu, giảng viên phụ trách, admin).
+
+**Lưu ý kỹ thuật:**
+
+- Blob URL approach: `fetch` với `Authorization` header → `URL.createObjectURL(blob)` → gán src cho `<iframe>`. Cách này vượt qua giới hạn của iframe không gửi được header xác thực.
+- Bắt buộc `URL.revokeObjectURL()` khi đóng panel để tránh memory leak.
+- PDF.js (Mozilla) là lựa chọn mạnh hơn nếu cần kiểm soát trang, zoom, annotation; tuy nhiên bundle nặng hơn (~1.5 MB). Ưu tiên dùng iframe/blob URL trước, bổ sung PDF.js sau nếu cần.
+- Render Free tier có thể có latency khi tải file lớn; hiển thị spinner phải đủ thông tin.
+- Trên Safari iOS, PDF trong iframe có thể bị chặn; fallback “Mở trong tab mới” bắt buộc phải có.
 
 ### 9.6. P4 - Chấm điểm và xuất bảng điểm
 
@@ -914,16 +973,17 @@ Thiết kế UI:
 - Giảng viên:
   - Bảng “Chấm điểm thực tập” trong trang giảng viên.
   - Chỉ GVHD chính nhập/sửa/nộp điểm.
-  - Hiển thị trạng thái báo cáo final để hỗ trợ chấm điểm báo cáo.
-  - Chặn sửa khi điểm đã bị admin khóa.
-  - Tự tính điểm tổng kết khi nhập.
-  - Cảnh báo thiếu báo cáo final hoặc chưa xác nhận nơi thực tập.
-  - Nút “Nộp điểm cho Khoa”.
+  - **Nhấn vào tên sinh viên hoặc nút “Xem & Chấm” → mở inline review panel** (xem 9.5.1) tích hợp xem PDF và nhập điểm cùng màn hình. Luồng chấm điểm và duyệt báo cáo gộp vào một nơi.
+  - Chặn sửa khi điểm đã bị admin khoá (panel vẫn mở được để xem báo cáo, form chuyển read-only).
+  - Tự tính điểm tổng kết realtime khi nhập.
+  - Cảnh báo thiếu báo cáo final hoặc chưa xác nhận nơi thực tập ngay trong panel.
+  - Nút “Nộp điểm cho Khoa” nằm trong panel.
 - Admin:
   - Site “Bảng điểm”.
   - Lọc theo chưa có/nháp/đã nộp.
-  - Dashboard tổng hợp: chưa có điểm, nháp, đã nộp, đã khóa.
-  - Khóa/mở khóa điểm từng sinh viên.
+  - Dashboard tổng hợp: chưa có điểm, nháp, đã nộp, đã khoá.
+  - Khoá/mở khoá điểm từng sinh viên.
+  - Admin cũng mở được inline review panel để xem báo cáo (form điểm ở chế độ read-only với admin).
   - Xuất XLSX để tổng hợp và nhập hệ thống.
 
 Tiêu chí nghiệm thu:
@@ -932,6 +992,10 @@ Tiêu chí nghiệm thu:
 - Công thức 20/20/60 tính đúng.
 - Giảng viên chỉ nhập điểm sinh viên mình phụ trách.
 - Admin xuất được bảng điểm cuối kỳ.
+- Giảng viên có thể scroll báo cáo PDF trong khi form điểm luôn hiển thị cố định.
+- Trên màn hình nhỏ (< 768px), panel chuyển sang tab-toggle, không bị vỡ layout.
+- Nút đóng panel hoạt động và trả về đúng vị trí danh sách.
+- Khi điểm bị khoá, form chuyển read-only nhưng vẫn mở được panel xem báo cáo.
 
 ### 9.7. P5 - Email tự động và lịch sử thông báo
 
