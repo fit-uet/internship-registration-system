@@ -246,14 +246,14 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
                             <div className="mt-1 flex items-center gap-1.5">
                               <button
                                 onClick={() => openReview(row)}
-                                className="inline-flex items-center gap-1 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-blue-200 bg-blue-50 shadow-xs"
+                                className="inline-flex items-center gap-1 text-[#0071e3] hover:bg-[#ebf4ff] px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-[#dbeafe] bg-[#ebf4ff]/70 shadow-xs active:scale-[0.98]"
                               >
                                 <FileText size={12} /> Xem & Chấm
                               </button>
                               <button
                                 onClick={() => downloadReport(row)}
                                 title="Tải file PDF"
-                                className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs"
+                                className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs active:scale-[0.98]"
                               >
                                 <Download size={13} />
                               </button>
@@ -271,12 +271,12 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
                             value={edit[field] ?? ''}
                             onChange={e => updateScoreEdit(row.user_id, field, e.target.value)}
                             aria-invalid={Boolean(error)}
-                            className={`w-20 rounded-xl px-2 py-1.5 text-xs text-center outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner ${error ? 'border border-red-400 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border border-slate-200 focus:ring-2 focus:ring-green-100 focus:border-green-500'}`}
+                            className={`w-20 rounded-xl px-2 py-1.5 text-xs font-semibold text-center outline-none transition-all disabled:bg-slate-100/60 disabled:text-slate-400 bg-white shadow-xs ${error ? 'border border-[#ff3b30] focus:ring-2 focus:ring-[#ff3b30]/20' : 'border border-[#d1d1d6] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20'}`}
                           />
                           {error && <div className="mt-1 max-w-24 text-[10px] leading-tight text-red-600">{error}</div>}
                         </td>;
                       })}
-                      <td className="p-4 font-bold text-green-700">{previewFinalScore(edit)}</td>
+                      <td className="p-4 font-bold text-[#1b7f37] text-sm">{previewFinalScore(edit)}</td>
                       <td className="p-4">
                         <div className="flex flex-col gap-2 min-w-[180px]">
                           <input
@@ -284,13 +284,13 @@ export function LecturerGradeView({ token, user }: { token: string, user: any })
                             value={edit.comment ?? ''}
                             onChange={e => updateGradeEdit(row.user_id, 'comment', e.target.value)}
                             placeholder="Nhận xét / ghi chú"
-                            className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-green-100 focus:border-green-500 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-400 bg-slate-50/50 shadow-inner"
+                            className="border border-[#d1d1d6] rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all disabled:bg-slate-100/60 disabled:text-slate-400 bg-white shadow-xs"
                           />
                           <div className="flex flex-wrap gap-2">
-                            <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                            <button disabled={disabled || savingKey === `${row.user_id}:draft`} onClick={() => saveGrade(row, false)} className="rounded-xl border border-[#e5e5ea] bg-white px-3 py-1.5 text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs active:scale-[0.98]">
                               {savingKey === `${row.user_id}:draft` ? 'Đang lưu...' : 'Lưu nháp'}
                             </button>
-                            <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                            <button disabled={disabled || savingKey === `${row.user_id}:submit`} onClick={() => saveGrade(row, true)} className="rounded-xl bg-[#0071e3] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0077ed] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs active:scale-[0.98]">
                               {savingKey === `${row.user_id}:submit` ? 'Đang nộp...' : 'Nộp điểm'}
                             </button>
                           </div>

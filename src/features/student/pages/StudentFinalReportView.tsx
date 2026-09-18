@@ -120,13 +120,13 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FileText className="text-indigo-600" /> Báo cáo
+          <button onClick={() => navigate('/')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer mb-3">&larr; Quay lại trang chủ</button>
+          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="text-blue-600" size={24} /> Báo cáo thực tập
             <PageDescriptionTooltip description="Nộp báo cáo thực tập để giảng viên hướng dẫn đánh giá và chấm điểm." />
           </h2>
         </div>
-        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${finalReportWindowStatus === 'open' ? 'bg-green-50 border-green-150 text-green-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-orange-50 border-orange-150 text-orange-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-150 text-red-800'}`}>
+        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold shadow-xs ${finalReportWindowStatus === 'open' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : finalReportWindowStatus === 'not_open_yet' ? 'bg-amber-50 border-amber-200 text-amber-800' : finalReportWindowStatus === 'unconfigured' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-200 text-red-800'}`}>
           <div className="font-bold text-xs uppercase tracking-wider">{finalReportWindowStatus === 'open' ? 'Đang mở nộp' : finalReportWindowStatus === 'not_open_yet' ? 'Chưa mở nộp' : finalReportWindowStatus === 'unconfigured' ? 'Chưa cấu hình' : 'Đã hết hạn'}</div>
           {finalReportWindowStatus === 'unconfigured'
             ? <div className="text-xs mt-1 font-normal text-slate-500">Khoa chưa cấu hình thời gian nộp báo cáo.</div>
@@ -134,10 +134,10 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Nơi thực tập chính thức</div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Nơi thực tập chính thức</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">
               {finalInternship
                 ? finalInternship.internship_type === 'school'
@@ -148,8 +148,8 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
                 : 'Chưa xác nhận'}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Trạng thái báo cáo</div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Trạng thái báo cáo</div>
             <div className="mt-2 text-sm font-semibold text-slate-900">{reportStatusLabelLocal(finalReport?.status)}</div>
             {finalReport?.submitted_at && <div className="mt-1 text-xs text-slate-500">{new Date(finalReport.submitted_at).toLocaleString('vi-VN')}</div>}
           </div>
@@ -160,25 +160,25 @@ export function StudentFinalReportView({ token, user }: { token: string, user: a
             Bạn cần xác nhận nơi thực tập chính thức trước khi nộp báo cáo.
           </div>
         ) : (
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
             {finalReport ? (
-              <div className="text-sm text-indigo-950 space-y-1">
-                <div>File đã nộp: <strong>{finalReport.original_filename}</strong> ({formatBytesLocal(Number(finalReport.file_size || 0))})</div>
+              <div className="text-sm text-slate-800 space-y-1">
+                <div>File đã nộp: <strong className="text-blue-900">{finalReport.original_filename}</strong> ({formatBytesLocal(Number(finalReport.file_size || 0))})</div>
                 {finalReport.lecturer_comment && <div className="text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</div>}
               </div>
             ) : (
-              <div className="text-sm text-indigo-950">Chưa có file báo cáo.</div>
+              <div className="text-sm text-slate-600">Chưa có file báo cáo.</div>
             )}
           </div>
         )}
 
         <div className="flex flex-col sm:flex-row gap-2.5">
           {finalReport && (
-            <button onClick={downloadMyFinalReport} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:shadow">
+            <button onClick={downloadMyFinalReport} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer">
               <Download size={14} /> Tải PDF đã nộp
             </button>
           )}
-          <label className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${finalInternship && finalReportWindowStatus === 'open' && !uploading ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-250'}`}>
+          <label className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${finalInternship && finalReportWindowStatus === 'open' && !uploading ? 'bg-[#0071e3] hover:bg-[#0077ed] text-white cursor-pointer active:scale-[0.98]' : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'}`}>
             {uploading ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
             {finalReport ? 'Nộp lại PDF' : 'Nộp PDF'}
             <input type="file" accept="application/pdf,.pdf" disabled={!finalInternship || finalReportWindowStatus !== 'open' || uploading} className="hidden" onChange={uploadFinalReport} />

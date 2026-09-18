@@ -81,12 +81,20 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại</button>
+      <div>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+        >
+          &larr; Quay lại
+        </button>
       </div>
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <UserIcon className="text-blue-600" /> Cập nhật Hồ sơ cá nhân
+      <div className="bg-white p-8 rounded-2xl shadow-xs border border-slate-200/80">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-6 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-[#0071e3] flex items-center justify-center">
+            <UserIcon size={18} />
+          </div>
+          Cập nhật Hồ sơ cá nhân
           {isStaff && (
             <PageDescriptionTooltip
               description={
@@ -101,18 +109,24 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
 
         <form onSubmit={handleSave} className="space-y-5">
           {/* Avatar + info banner */}
-          <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-4 mb-6 p-4 bg-[#f5f5f7]/60 rounded-2xl border border-black/[0.04]">
             {user.picture ? (
-              <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+              <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-xs object-cover" />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[#004a99] font-bold shadow-sm"><UserIcon size={24} /></div>
+              <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[#004a99] font-bold shadow-xs">
+                <UserIcon size={24} />
+              </div>
             )}
             <div>
-              <p className="font-semibold text-slate-800 text-base">{user.email}</p>
+              <p className="font-semibold text-slate-900 text-base">{user.email}</p>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-[10px] text-slate-500 bg-slate-200 inline-block px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">{user.role}</p>
+                <p className="text-[10px] text-slate-600 bg-slate-200/70 inline-block px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
+                  {user.role}
+                </p>
                 {user.is_lecturer ? (
-                  <p className="text-[10px] text-teal-700 bg-teal-50 border border-teal-100 inline-block px-2 py-0.5 rounded-full font-semibold">Giảng viên</p>
+                  <p className="text-[10px] text-teal-700 bg-teal-50 border border-teal-200/60 inline-block px-2 py-0.5 rounded-full font-semibold">
+                    Giảng viên
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -122,22 +136,22 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
             /* ── ADMIN / LECTURER VIEW ── */
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
                 <input
                   type="text"
                   value={user.email}
                   disabled
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-400 cursor-not-allowed font-medium"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-100/70 text-slate-400 cursor-not-allowed font-medium"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                 />
               </div>
             </div>
@@ -146,65 +160,65 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mã sinh viên <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mã sinh viên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     required
                     value={formData.student_id}
                     onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-mono font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ngày sinh <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Ngày sinh <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     max={new Date().toISOString().split('T')[0]}
                     required
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Số điện thoại</label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Số điện thoại</label>
                   <input
                     type="tel"
                     pattern="^(0|\+84)[35789][0-9]{8}$"
                     title="Vui lòng nhập số điện thoại hợp lệ (10 số, VD: 0912345678)"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                     placeholder="VD: 0912345678"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email cá nhân (khác VNU)</label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email cá nhân (khác VNU)</label>
                   <input
                     type="email"
                     value={formData.personal_email}
                     onChange={(e) => setFormData({ ...formData, personal_email: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                     placeholder="VD: abc@gmail.com"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lớp khóa học <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lớp khóa học <span className="text-red-500">*</span></label>
                   <select
                     required
                     value={formData.class_name}
                     onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                   >
                     <option value="">-- Chọn lớp khóa học --</option>
                     {classesList.map(c => (
@@ -213,12 +227,12 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Học phần thực tập <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Học phần thực tập <span className="text-red-500">*</span></label>
                   <select
                     required
                     value={formData.course_code}
                     onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
                   >
                     <option value="">-- Chọn học phần --</option>
                     <option value="Thực tập Doanh nghiệp INT4002">Thực tập Doanh nghiệp INT4002</option>
@@ -230,11 +244,11 @@ export function Profile({ user, setUser, token }: { user: any, setUser: any, tok
             </>
           )}
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
+          <div className="pt-5 border-t border-slate-100 flex justify-end">
             <button
               type="submit"
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={14} /> {saving ? 'Đang lưu...' : 'Lưu Hồ sơ'}
             </button>

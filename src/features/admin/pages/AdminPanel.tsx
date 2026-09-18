@@ -650,7 +650,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={openAddRegistration}
-              className="bg-emerald-600 text-white px-3.5 py-2 rounded-xl hover:bg-emerald-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
+              className="bg-[#0071e3] text-white px-3.5 py-2 rounded-xl hover:bg-[#0077ed] text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer active:scale-[0.98]"
             >
               <Plus size={14} /> Thêm đăng ký
             </button>
@@ -658,14 +658,14 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
               <button
                 onClick={handleSendFilteredRegistrationComment}
                 disabled={filteredRegistrations.length === 0}
-                className="bg-amber-600 text-white px-3.5 py-2 rounded-xl hover:bg-amber-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 transition-colors cursor-pointer"
+                className="bg-[#fff8eb] text-[#b25e00] border border-[#ffe7ba] px-3.5 py-2 rounded-xl hover:bg-[#ffe7ba] text-xs font-semibold shadow-xs flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 transition-all cursor-pointer active:scale-[0.98]"
               >
                 <Send size={14} /> Gửi nhận xét
               </button>
             </span>
             <button
               onClick={handleApproveAll}
-              className="bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
+              className="bg-[#ebf4ff] text-[#0071e3] border border-[#dbeafe] px-3.5 py-2 rounded-xl hover:bg-[#dbeafe] text-xs font-semibold shadow-xs flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer active:scale-[0.98]"
             >
               <CheckCircle2 size={14} /> Duyệt tất cả
             </button>
@@ -673,22 +673,22 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
             <div className="relative">
               <button
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="bg-emerald-600 text-white px-3.5 py-2 rounded-xl hover:bg-emerald-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
+                className="bg-white text-[#1d1d1f] border border-[#e5e5ea] px-3.5 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer active:scale-[0.98]"
               >
                 <Download size={14} /> Xuất dữ liệu <ChevronDown size={12} />
               </button>
               {isExportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                    <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
-                      <FileText size={16} className="text-emerald-600" /> Xuất danh sách đang lọc (XLSX)
+                  <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-black/[0.08] py-1.5 z-50 overflow-hidden text-slate-800 origin-top-right">
+                    <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
+                      <FileText size={15} className="text-emerald-600" /> Xuất danh sách đang lọc (XLSX)
                     </button>
-                    <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
-                      <Download size={16} className="text-blue-600" /> Xuất theo môn học (ZIP)
+                    <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
+                      <Download size={15} className="text-blue-600" /> Xuất theo môn học (ZIP)
                     </button>
-                    <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors w-full text-left cursor-pointer">
-                      <Download size={16} className="text-blue-600" /> Xuất theo công ty (ZIP)
+                    <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors w-full text-left cursor-pointer">
+                      <Download size={15} className="text-blue-600" /> Xuất theo công ty (ZIP)
                     </button>
                   </div>
                 </>
@@ -698,7 +698,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
             <button
               onClick={handleSaveToGoogleSheets}
               disabled={savingToSheet}
-              className="bg-blue-600 text-white px-3.5 py-2 rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-sm flex items-center gap-1.5 whitespace-nowrap disabled:opacity-70 disabled:cursor-wait transition-colors cursor-pointer"
+              className="bg-white text-[#1d1d1f] border border-[#e5e5ea] px-3.5 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 disabled:cursor-wait transition-all cursor-pointer active:scale-[0.98]"
             >
               {savingToSheet ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
               {savingToSheet ? 'Đang lưu...' : 'Lưu Google Sheets'}
@@ -707,7 +707,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
         </div>
 
         {/* Row 2: Search & Filters */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-slate-150">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
@@ -715,7 +715,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
               placeholder="Tìm sinh viên, lớp, công ty..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+              className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
             />
           </div>
 
@@ -723,7 +723,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
             <select
               value={filterCourse}
               onChange={(e) => setFilterCourse(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
+              className="px-3 py-2 border border-[#e5e5ea] bg-white text-[#1d1d1f] rounded-xl text-xs font-semibold shadow-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all cursor-pointer"
             >
               <option value="">Tất cả học phần</option>
               {uniqueCourses.map(course => (
@@ -734,7 +734,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-xs font-semibold shadow-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all cursor-pointer"
+              className="px-3 py-2 border border-[#e5e5ea] bg-white text-[#1d1d1f] rounded-xl text-xs font-semibold shadow-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all cursor-pointer"
             >
               <option value="">Tất cả trạng thái</option>
               <option value="pending">Chờ duyệt</option>

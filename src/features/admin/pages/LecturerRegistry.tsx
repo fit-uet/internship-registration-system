@@ -555,63 +555,86 @@ Khoa Công nghệ Thông tin`);
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <UserIcon className="text-teal-600" /> Quản lý Giảng viên
+          <button
+            onClick={() => navigate('/admin')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản trị
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <UserIcon className="text-[#0071e3]" size={24} /> Quản lý Giảng viên
             <PageDescriptionTooltip description="Import chỉ cập nhật danh sách giảng viên, không xóa đăng ký hoặc phân công hiện có." />
           </h2>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-3.5 flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             type="text"
             placeholder="Tìm tên, email, đơn vị..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3] w-4 h-4 disabled:opacity-60 cursor-pointer" />
             Cập nhật dữ liệu trùng
           </label>
-          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-black/[0.08] hover:bg-[#f5f5f7] bg-white text-[#1d1d1f] active:scale-[0.98] ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
             {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={() => { setMailMergeScope('filtered'); setMailMergeOpen(true); }} disabled={importing} className="bg-slate-700 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={() => { setMailMergeScope('filtered'); setMailMergeOpen(true); }}
+            disabled={importing}
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             <Send size={14} /> Mail merge
           </button>
-          <button onClick={() => { setMailMergeScope('selected'); setMailMergeOpen(true); }} disabled={importing || selectedLecturerIds.length === 0} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
-            <Send size={14} /> Mail merge đã chọn ({selectedLecturerIds.length})
-          </button>
-          <button onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')} disabled={importing || driveBusy} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          {selectedLecturerIds.length > 0 && (
+            <button
+              onClick={() => { setMailMergeScope('selected'); setMailMergeOpen(true); }}
+              disabled={importing}
+              className="bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#6d28d9] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]"
+            >
+              <Send size={14} /> Mail merge đã chọn ({selectedLecturerIds.length})
+            </button>
+          )}
+          <button
+            onClick={() => createDriveLinksForLecturers(selectedLecturerIds.length ? 'selected' : 'filtered')}
+            disabled={importing || driveBusy}
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             {driveBusy ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {selectedLecturerIds.length ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={exportXlsx}
+            disabled={importing}
+            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
 
       {importing && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-xl border border-green-200 bg-[#ebf9ee] px-4 py-3 text-sm text-[#1b7f37]">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
       )}
 
-      <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-4 flex flex-wrap gap-3 items-center shadow-sm">
+      <div className="bg-white border border-black/[0.08] rounded-2xl p-4 flex flex-wrap gap-2.5 items-center shadow-xs">
         <input
           type="text"
           placeholder="Họ và tên giảng viên..."
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
+          className="flex-1 min-w-[180px] max-w-xs border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
         <input
@@ -619,7 +642,7 @@ Khoa Công nghệ Thông tin`);
           placeholder="Email (tuỳ chọn)"
           value={newEmail}
           onChange={e => setNewEmail(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
+          className="flex-1 min-w-[180px] max-w-xs border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
         <input
@@ -627,19 +650,22 @@ Khoa Công nghệ Thông tin`);
           placeholder="Đơn vị công tác (tuỳ chọn)"
           value={newWorkUnit}
           onChange={e => setNewWorkUnit(e.target.value)}
-          className="flex-1 min-w-[180px] max-w-xs border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
+          className="flex-1 min-w-[180px] max-w-xs border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
-        <button onClick={handleAdd} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer">
-          <Plus size={14} /> Thêm Giảng viên
+        <button
+          onClick={handleAdd}
+          className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]"
+        >
+          <Plus size={15} /> Thêm Giảng viên
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-black/[0.08] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+          <table className="w-full text-left border-collapse text-xs text-slate-600">
+            <thead className="bg-[#f9f9fb] text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+              <tr>
                 <th className="p-4 w-10">
                   <input
                     type="checkbox"

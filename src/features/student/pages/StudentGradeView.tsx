@@ -55,7 +55,7 @@ export function StudentGradeView({ token }: { token: string }) {
       <div>
         <button
           onClick={() => navigate('/')}
-          className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer mb-3"
         >
           &larr; Quay lại trang chủ
         </button>
@@ -66,15 +66,15 @@ export function StudentGradeView({ token }: { token: string }) {
         />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">
           <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-500">Nơi thực tập</div>
+            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Nơi thực tập</div>
             <div className="mt-2 text-base font-semibold text-slate-900">{grade?.internship_place || 'Chưa xác nhận'}</div>
             {grade?.confirmed_at && <div className="mt-1 text-xs text-slate-500">Xác nhận: {new Date(grade.confirmed_at).toLocaleString('vi-VN')}</div>}
           </div>
           <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-500">Giảng viên hướng dẫn</div>
+            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Giảng viên hướng dẫn</div>
             <div className="mt-2 text-base font-semibold text-slate-900">{grade?.primary_advisors || 'Chưa phân công'}</div>
             {renderAdvisorEmails(grade?.primary_advisor_emails)}
             {grade?.co_advisors && (
@@ -85,8 +85,8 @@ export function StudentGradeView({ token }: { token: string }) {
             )}
           </div>
           <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-500">Trạng thái điểm</div>
-            <div className={`mt-2 text-base font-bold ${grade?.grade_status === 'submitted' ? 'text-emerald-700' : grade?.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-500'}`}>
+            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Trạng thái điểm</div>
+            <div className={`mt-2 text-base font-bold ${grade?.grade_status === 'submitted' ? 'text-emerald-700' : grade?.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>
               {statusLabel(grade?.grade_status)}
             </div>
             {grade?.grade_submitted_at && <div className="mt-1 text-xs text-slate-500">Nộp lúc: {new Date(grade.grade_submitted_at).toLocaleString('vi-VN')}</div>}
@@ -96,12 +96,12 @@ export function StudentGradeView({ token }: { token: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {scoreCards.map(card => (
-          <div key={card.label} className={`rounded-2xl border p-5 shadow-sm ${card.highlight ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+          <div key={card.label} className={`rounded-2xl border p-5 shadow-sm transition-all ${card.highlight ? 'bg-emerald-50/70 border-emerald-200' : 'bg-white border-slate-200/90'}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-slate-700">{card.label}</div>
-              <div className="text-xs rounded-full bg-slate-100 text-slate-600 px-2 py-1">{card.note}</div>
+              <div className="text-xs rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 font-medium">{card.note}</div>
             </div>
-            <div className={`mt-4 text-4xl font-bold ${card.highlight ? 'text-green-700' : 'text-slate-900'}`}>{scoreText(card.value)}</div>
+            <div className={`mt-4 text-4xl font-extrabold tracking-tight ${card.highlight ? 'text-emerald-700' : 'text-slate-900'}`}>{scoreText(card.value)}</div>
           </div>
         ))}
       </div>

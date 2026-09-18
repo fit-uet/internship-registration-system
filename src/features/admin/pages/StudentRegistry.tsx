@@ -251,144 +251,166 @@ export function StudentRegistry({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Users className="text-blue-600" /> CSDL Sinh viên
+          <button
+            onClick={() => navigate('/admin')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản trị
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <Users className="text-[#0071e3]" size={24} /> CSDL Sinh viên
             <PageDescriptionTooltip description="Danh sách sinh viên và các thông tin cơ bản trong cơ sở dữ liệu hệ thống." />
           </h2>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-3.5 flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             type="text"
             placeholder="Tìm theo Mã SV, Tên, Lớp..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:opacity-60 cursor-pointer animate-none" />
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3] w-4 h-4 disabled:opacity-60 cursor-pointer animate-none" />
             Ghi đè SV
           </label>
-          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-black/[0.08] hover:bg-[#f5f5f7] bg-white text-[#1d1d1f] active:scale-[0.98] ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
             {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
-          <button onClick={() => setShowAddForm(prev => !prev)} disabled={importing} className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={() => setShowAddForm(prev => !prev)}
+            disabled={importing}
+            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             {showAddForm ? <X size={14} /> : <Plus size={14} />} {showAddForm ? 'Đóng' : 'Thêm sinh viên'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={exportXlsx}
+            disabled={importing}
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
       {showAddForm && (
-        <form onSubmit={handleAddStudent} className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-inner">
+        <form onSubmit={handleAddStudent} className="mb-6 rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-650 mb-1">Mã SV *</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Mã SV *</label>
               <input
                 value={newStudent.student_id}
                 onChange={e => setNewStudent({ ...newStudent, student_id: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
                 placeholder="24021400"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-650 mb-1">Họ và tên *</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Họ và tên *</label>
               <input
                 value={newStudent.name}
                 onChange={e => setNewStudent({ ...newStudent, name: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
                 placeholder="Nguyễn Văn A"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-650 mb-1">Ngày sinh</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Ngày sinh</label>
               <input
                 type="date"
                 value={newStudent.dob}
                 onChange={e => setNewStudent({ ...newStudent, dob: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-650 mb-1">SĐT</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">SĐT</label>
               <input
                 value={newStudent.phone}
                 onChange={e => setNewStudent({ ...newStudent, phone: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
                 placeholder="09..."
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-650 mb-1">Lớp khoá học</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Lớp khoá học</label>
               <input
                 value={newStudent.class_name}
                 onChange={e => setNewStudent({ ...newStudent, class_name: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
                 placeholder="QH-2024-I/CQ..."
               />
             </div>
             <div className="md:col-span-3">
-              <label className="block text-xs font-semibold text-slate-650 mb-1">Email cá nhân</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Email cá nhân</label>
               <input
                 type="email"
                 value={newStudent.personal_email}
                 onChange={e => setNewStudent({ ...newStudent, personal_email: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800"
+                className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all font-semibold text-slate-900 shadow-xs"
                 placeholder="email@example.com"
               />
             </div>
             <div className="md:col-span-3 flex items-end justify-end gap-2">
-              <button type="button" onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }} disabled={savingStudent} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50">
+              <button
+                type="button"
+                onClick={() => { setNewStudent(emptyStudentForm); setShowAddForm(false); }}
+                disabled={savingStudent}
+                className="bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
                 Huỷ
               </button>
-              <button type="submit" disabled={savingStudent} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+              <button
+                type="submit"
+                disabled={savingStudent}
+                className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
                 {savingStudent ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
                 {savingStudent ? 'Đang lưu...' : 'Lưu sinh viên'}
               </button>
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-400 font-medium">Email VNU được tạo tự động theo dạng MSSV@vnu.edu.vn. Sinh viên ngoài khóa đang mở sẽ được xem là ngoại lệ nếu MSSV/email này tồn tại trong danh sách.</p>
+          <p className="mt-3 text-[11px] text-slate-400 font-medium">Email VNU được tạo tự động theo dạng MSSV@vnu.edu.vn. Sinh viên ngoài khóa đang mở sẽ được xem là ngoại lệ nếu MSSV/email này tồn tại trong danh sách.</p>
         </form>
       )}
       {importing && (
-        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div aria-live="polite" className="mb-6 flex items-center gap-3 rounded-xl border border-green-200 bg-[#ebf9ee] px-4 py-3 text-sm text-[#1b7f37]">
           <RefreshCw size={18} className="animate-spin shrink-0" />
           <span>{importMessage || 'Hệ thống đang import dữ liệu, vui lòng đợi...'}</span>
         </div>
       )}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-black/[0.08] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse text-xs text-slate-600">
             <thead>
-              <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
-                <th className="p-4 whitespace-nowrap">STT</th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('student_id')}>
+              <tr className="bg-[#f9f9fb] text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+                <th className="p-3.5 whitespace-nowrap">STT</th>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('student_id')}>
                   Mã SV {sortConfig?.key === 'student_id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
                   Họ và tên {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('dob')}>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('dob')}>
                   Ngày sinh {sortConfig?.key === 'dob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('phone')}>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('phone')}>
                   SĐT {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('personal_email')}>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('personal_email')}>
                   Email cá nhân {sortConfig?.key === 'personal_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('class_name')}>
+                <th className="p-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('class_name')}>
                   Lớp khoá học {sortConfig?.key === 'class_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="p-4 whitespace-nowrap text-right">Thao tác</th>
+                <th className="p-3.5 whitespace-nowrap text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -402,82 +424,82 @@ export function StudentRegistry({ token }: { token: string }) {
                 const selector = studentSelector(s);
                 const isEditing = editingStudentKey === selector;
                 return (
-                  <tr key={selector} className="hover:bg-slate-50/50 transition-colors align-top">
-                    <td className="p-4 text-xs font-medium text-slate-500">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
+                  <tr key={selector} className="hover:bg-[#f5f5f7] transition-colors align-top">
+                    <td className="p-3.5 text-xs text-slate-400">{(pagination.safePage - 1) * pageSize + idx + 1}</td>
                     {isEditing ? (
                       <>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             value={editStudent.student_id}
                             onChange={e => setEditStudent({ ...editStudent, student_id: e.target.value })}
-                            className="w-28 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-28 border border-[#0071e3] rounded-xl px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             value={editStudent.name}
                             onChange={e => setEditStudent({ ...editStudent, name: e.target.value })}
-                            className="w-48 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-44 border border-[#0071e3] rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             type="date"
                             value={editStudent.dob}
                             onChange={e => setEditStudent({ ...editStudent, dob: e.target.value })}
-                            className="w-36 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-36 border border-[#0071e3] rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             value={editStudent.phone}
                             onChange={e => setEditStudent({ ...editStudent, phone: e.target.value })}
-                            className="w-32 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-32 border border-[#0071e3] rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             type="email"
                             value={editStudent.personal_email}
                             onChange={e => setEditStudent({ ...editStudent, personal_email: e.target.value })}
-                            className="w-52 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-48 border border-[#0071e3] rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3">
+                        <td className="p-2.5">
                           <input
                             value={editStudent.class_name}
                             onChange={e => setEditStudent({ ...editStudent, class_name: e.target.value })}
-                            className="w-44 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all bg-slate-50"
+                            className="w-40 border border-[#0071e3] rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all bg-white shadow-xs"
                           />
                         </td>
-                        <td className="p-3 text-right">
+                        <td className="p-2.5 text-right">
                           <div className="flex justify-end gap-1">
-                            <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-blue-600 hover:bg-blue-50 p-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer" title="Lưu">
-                              {savingStudent ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                            <button onClick={handleUpdateStudent} disabled={savingStudent} className="text-[#1b7f37] hover:bg-[#ebf9ee] p-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer" title="Lưu">
+                              {savingStudent ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
                             </button>
-                            <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-500 hover:bg-slate-100 p-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer" title="Huỷ">
-                              <X size={16} />
+                            <button onClick={cancelEditStudent} disabled={savingStudent} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer" title="Huỷ">
+                              <X size={15} />
                             </button>
                           </div>
                         </td>
                       </>
                     ) : (
                       <>
-                        <td className="p-4 text-xs font-mono font-semibold text-slate-800">{s.student_id}</td>
-                        <td className="p-4 text-xs font-semibold text-slate-800">{s.name}</td>
-                        <td className="p-4 text-xs text-slate-600">{s.dob}</td>
-                        <td className="p-4 text-xs text-slate-600">{s.phone || '-'}</td>
-                        <td className="p-4 text-xs text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-blue-600 hover:underline">{s.personal_email}</a> : '-'}</td>
-                        <td className="p-4 text-xs text-slate-600">
-                          <span className="bg-slate-50 border border-slate-150 text-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold">{s.class_name}</span>
+                        <td className="p-3.5 text-xs font-mono font-medium text-slate-800">{s.student_id}</td>
+                        <td className="p-3.5 text-xs font-semibold text-slate-900">{s.name}</td>
+                        <td className="p-3.5 text-xs text-slate-600">{s.dob}</td>
+                        <td className="p-3.5 text-xs text-slate-600">{s.phone || '-'}</td>
+                        <td className="p-3.5 text-xs text-slate-600">{s.personal_email ? <a href={`mailto:${s.personal_email}`} className="text-[#0071e3] hover:underline">{s.personal_email}</a> : '-'}</td>
+                        <td className="p-3.5 text-xs text-slate-600">
+                          <span className="bg-[#f5f5f7] border border-black/[0.06] text-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-semibold">{s.class_name}</span>
                         </td>
-                        <td className="p-4 text-xs text-right">
+                        <td className="p-3.5 text-xs text-right">
                           <div className="flex justify-end gap-1">
-                            <button onClick={() => startEditStudent(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-xl transition-colors cursor-pointer" title="Sửa">
-                              <Edit2 size={16} />
+                            <button onClick={() => startEditStudent(s)} className="text-[#0071e3] hover:bg-[#ebf4ff] p-1.5 rounded-lg transition-colors cursor-pointer" title="Sửa">
+                              <Edit2 size={15} />
                             </button>
-                            <button onClick={() => handleDelete(selector)} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors cursor-pointer" title="Xóa">
-                              <Trash2 size={16} />
+                            <button onClick={() => handleDelete(selector)} className="text-[#ff3b30] hover:bg-[#fff2f1] p-1.5 rounded-lg transition-colors cursor-pointer" title="Xóa">
+                              <Trash2 size={15} />
                             </button>
                           </div>
                         </td>

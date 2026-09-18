@@ -163,7 +163,7 @@ function App() {
                     {isNotificationOpen && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsNotificationOpen(false)}></div>
-                        <div className="absolute right-0 mt-2 w-[min(92vw,420px)] bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden text-slate-800 origin-top-right">
+                        <div className="absolute right-0 mt-2 w-[min(92vw,420px)] bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-black/[0.08] z-50 overflow-hidden text-slate-800 origin-top-right">
                           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                             <div className="font-bold text-slate-900 flex items-center gap-2"><Bell size={16} className="text-amber-600" /> Thông báo</div>
                             <Link to="/notifications" onClick={() => setIsNotificationOpen(false)} className="text-xs font-semibold text-blue-600 hover:underline">Xem tất cả</Link>
@@ -182,67 +182,67 @@ function App() {
                         <p className="text-[10px] text-blue-100 opacity-80 group-hover:opacity-100 transition-all">{user.email}</p>
                       </div>
                       {user.picture ? (
-                        <img src={user.picture} alt="Avatar" className="w-8 h-8 rounded-full border-2 border-emerald-400 shadow-inner group-hover:border-emerald-300 transition-colors" />
+                        <img src={user.picture} alt="Avatar" className="w-8 h-8 rounded-full border-2 border-white/60 shadow-sm group-hover:border-white transition-colors object-cover" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-emerald-400 flex items-center justify-center text-[#004a99] font-bold shadow-inner group-hover:border-emerald-300 transition-colors"><UserIcon size={14} /></div>
+                        <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center text-white font-bold shadow-sm group-hover:border-white transition-colors"><UserIcon size={14} /></div>
                       )}
                     </button>
 
                     {isMenuOpen && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 overflow-hidden text-slate-800 origin-top-right">
-                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                            <UserIcon size={16} className="text-blue-600" /> Cập nhật hồ sơ
+                        <div className="absolute right-0 mt-2 w-52 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-black/[0.08] py-1.5 z-50 overflow-hidden text-slate-800 origin-top-right">
+                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                            <UserIcon size={15} className="text-blue-600" /> Cập nhật hồ sơ
                           </Link>
                           {user.role === 'student' && (
                             <>
-                              <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <FileText size={16} className="text-indigo-600" /> Báo cáo
+                              <Link to="/reports/final" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <FileText size={15} className="text-blue-600" /> Báo cáo thực tập
                               </Link>
-                              <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CheckCircle2 size={16} className="text-green-600" /> Điểm thực tập
+                              <Link to="/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <CheckCircle2 size={15} className="text-emerald-600" /> Điểm thực tập
                               </Link>
                             </>
                           )}
                           {user.role === 'lecturer' && (
                             <>
-                              <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
+                              <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <UserIcon size={15} className="text-blue-600" /> Trang giảng viên
                               </Link>
-                              <Link to="/lecturer-guide" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CircleHelp size={16} className="text-indigo-600" /> Hướng dẫn sử dụng
+                              <Link to="/lecturer-guide" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <CircleHelp size={15} className="text-slate-500" /> Hướng dẫn sử dụng
                               </Link>
-                              <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
+                              <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <CheckCircle2 size={15} className="text-emerald-600" /> Chấm điểm thực tập
                               </Link>
                             </>
                           )}
                           {user.role === 'admin' && (
                             <>
-                              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                <LayoutDashboard size={16} className="text-sky-500" /> Trang quản trị
+                              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                <LayoutDashboard size={15} className="text-blue-600" /> Trang quản trị
                               </Link>
                               {user.is_lecturer && (
                                 <>
-                                  <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                    <UserIcon size={16} className="text-teal-600" /> Trang giảng viên
+                                  <Link to="/lecturer" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                    <UserIcon size={15} className="text-blue-600" /> Trang giảng viên
                                   </Link>
-                                  <Link to="/lecturer-guide" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                    <CircleHelp size={16} className="text-indigo-600" /> Hướng dẫn sử dụng
+                                  <Link to="/lecturer-guide" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                    <CircleHelp size={15} className="text-slate-500" /> Hướng dẫn sử dụng
                                   </Link>
-                                  <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                                    <CheckCircle2 size={16} className="text-green-600" /> Chấm điểm thực tập
+                                  <Link to="/lecturer/grades" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                                    <CheckCircle2 size={15} className="text-emerald-600" /> Chấm điểm thực tập
                                   </Link>
                                 </>
                               )}
                             </>
                           )}
-                          <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-sm font-medium transition-colors border-b border-slate-50">
-                            <CircleHelp size={16} className="text-amber-600" /> FAQ
+                          <Link to="/faq" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50">
+                            <CircleHelp size={15} className="text-amber-600" /> FAQ
                           </Link>
-                          <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-sm font-medium text-red-600 w-full text-left transition-colors">
-                            <LogOut size={16} /> Đăng xuất
+                          <button onClick={() => { setIsMenuOpen(false); logout(); }} className="flex items-center gap-2 px-4 py-2.5 hover:bg-red-50 text-xs font-medium text-red-600 w-full text-left transition-colors cursor-pointer">
+                            <LogOut size={15} /> Đăng xuất
                           </button>
                         </div>
                       </>
@@ -256,17 +256,17 @@ function App() {
           {/* Main Content */}
           <main className="app-main flex-1 px-6 py-8">
             {!token ? (
-              <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100 shadow-sm">
-                  <LogIn className="text-blue-600" size={28} />
+              <div className="max-w-md mx-auto mt-16 bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80 text-center">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-blue-100/60 shadow-xs">
+                  <LogIn className="text-[#0071e3]" size={26} />
                 </div>
-                <h2 className="text-2xl font-extrabold text-slate-800 mb-2 tracking-tight">Đăng nhập</h2>
-                <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
-                  Hệ thống đăng ký Thực tập.<br />
-                  Yêu cầu đăng nhập bằng VNU mail <strong className="text-blue-600 font-bold">@vnu.edu.vn</strong>
+                <h2 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">Đăng nhập</h2>
+                <p className="text-slate-500 text-xs mb-6 leading-relaxed">
+                  Hệ thống đăng ký và quản lý Thực tập FIT UET.<br />
+                  Yêu cầu đăng nhập bằng VNU mail <strong className="text-[#0071e3] font-semibold">@vnu.edu.vn</strong>
                 </p>
 
-                <div className="flex justify-center border border-slate-200 p-4 bg-slate-50/50 rounded-2xl shadow-inner">
+                <div className="flex justify-center border border-slate-100 p-4 bg-slate-50/70 rounded-xl">
                   <GoogleLogin
                     onSuccess={handleLoginSuccess}
                     onError={() => setLoginError('Lỗi đăng nhập từ Google.')}

@@ -144,81 +144,98 @@ export function ApprovedCompanyRegistry({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <button onClick={() => navigate('/admin/companies')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản lý công ty</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Shield className="text-teal-600" size={26} /> Danh sách công ty thẩm định nội bộ
+          <button
+            onClick={() => navigate('/admin/companies')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản lý công ty
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <Shield className="text-[#0071e3]" size={24} /> Danh sách công ty thẩm định nội bộ
             <PageDescriptionTooltip description={<>Danh sách này dùng để tự động duyệt công ty sinh viên tự liên hệ, không công khai cho sinh viên. Tổng: <strong>{companies.length}</strong></>} />
           </h2>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-3.5 flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm tên, nguồn..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-slate-50/50 shadow-inner" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Tìm tên, nguồn..."
+            className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
+          />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3] w-4 h-4 disabled:opacity-60 cursor-pointer" />
             Ghi đè
           </label>
-          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-black/[0.08] hover:bg-[#f5f5f7] bg-white text-[#1d1d1f] active:scale-[0.98] ${importing ? 'bg-slate-100 text-slate-400 cursor-wait pointer-events-none' : ''}`}>
             {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleImport} onClick={(e) => { (e.target as HTMLInputElement).value = ''; }} />
           </label>
-          <button onClick={exportXlsx} disabled={loading || importing} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={exportXlsx}
+            disabled={loading || importing}
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             <Download size={14} /> Xuất XLSX
           </button>
         </div>
       </div>
 
-      <div className="bg-teal-50/50 border border-teal-100 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 shadow-sm">
+      <div className="bg-white border border-black/[0.08] rounded-2xl p-4 flex flex-col sm:flex-row gap-3 shadow-xs">
         <input
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
           placeholder="Tên công ty đã thẩm định"
-          className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none bg-white transition-all shadow-inner"
+          className="flex-1 border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
         />
-        <button onClick={handleAdd} className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-          <Plus size={14} /> Thêm công ty
+        <button
+          onClick={handleAdd}
+          className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+        >
+          <Plus size={15} /> Thêm công ty
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 text-slate-700 text-xs border-b border-slate-200">
-              <th className="p-3 font-semibold w-12">STT</th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>Tên công ty<SortIcon col="name" /></th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100 w-40" onClick={() => handleSort('source')}>Nguồn<SortIcon col="source" /></th>
-              <th className="p-3 font-semibold cursor-pointer hover:bg-slate-100 w-44" onClick={() => handleSort('created_at')}>Ngày tạo<SortIcon col="created_at" /></th>
-              <th className="p-3 font-semibold text-right w-28">Thao tác</th>
+      <div className="bg-white border border-black/[0.08] rounded-2xl overflow-hidden shadow-xs">
+        <table className="w-full text-left border-collapse text-xs text-slate-600">
+          <thead className="bg-[#f9f9fb] text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+            <tr>
+              <th className="p-3 w-12">STT</th>
+              <th className="p-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>Tên công ty<SortIcon col="name" /></th>
+              <th className="p-3 cursor-pointer hover:bg-slate-100 transition-colors w-40" onClick={() => handleSort('source')}>Nguồn<SortIcon col="source" /></th>
+              <th className="p-3 cursor-pointer hover:bg-slate-100 transition-colors w-44" onClick={() => handleSort('created_at')}>Ngày tạo<SortIcon col="created_at" /></th>
+              <th className="p-3 text-right w-28">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginatedApprovedCompanies.map((c, idx) => (
-              <tr key={c.id} className="hover:bg-slate-50 text-sm">
-                <td className="p-3 text-slate-500">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
+              <tr key={c.id} className="hover:bg-[#f5f5f7] transition-colors">
+                <td className="p-3 text-slate-400">{(safeCurrentPage - 1) * pageSize + idx + 1}</td>
                 <td className="p-3">
                   {editingId === c.id ? (
-                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-teal-200 rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-500 outline-none transition-all bg-white font-semibold text-slate-800" />
+                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-[#0071e3] rounded-xl px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all bg-white font-semibold text-slate-800 shadow-xs" />
                   ) : (
-                    <span className="font-medium text-slate-800">{c.name}</span>
+                    <span className="font-semibold text-slate-900">{c.name}</span>
                   )}
                 </td>
-                <td className="p-3 text-slate-600">{c.source || 'manual'}</td>
-                <td className="p-3 text-slate-650 whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString('vi-VN') : '-'}</td>
+                <td className="p-3 text-slate-500">{c.source || 'manual'}</td>
+                <td className="p-3 text-slate-400 whitespace-nowrap text-[11px]">{c.created_at ? new Date(c.created_at).toLocaleString('vi-VN') : '-'}</td>
                 <td className="p-3 text-right">
                   {editingId === c.id ? (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleUpdate(c.id)} className="text-green-600 hover:bg-green-50 p-2 rounded-xl transition-colors cursor-pointer" title="Lưu"><Save size={16} /></button>
-                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-2 rounded-xl transition-colors cursor-pointer" title="Hủy"><X size={16} /></button>
+                      <button onClick={() => handleUpdate(c.id)} className="text-[#1b7f37] hover:bg-[#ebf9ee] p-1.5 rounded-lg transition-colors cursor-pointer" title="Lưu"><Save size={15} /></button>
+                      <button onClick={() => setEditingId(null)} className="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer" title="Hủy"><X size={15} /></button>
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-xl transition-colors cursor-pointer" title="Sửa"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors cursor-pointer" title="Xóa"><Trash2 size={16} /></button>
+                      <button onClick={() => { setEditingId(c.id); setEditName(c.name || ''); }} className="text-[#0071e3] hover:bg-[#ebf4ff] p-1.5 rounded-lg transition-colors cursor-pointer" title="Sửa"><Edit2 size={15} /></button>
+                      <button onClick={() => handleDelete(c.id, c.name)} className="text-[#ff3b30] hover:bg-[#fff2f1] p-1.5 rounded-lg transition-colors cursor-pointer" title="Xóa"><Trash2 size={15} /></button>
                     </div>
                   )}
                 </td>
@@ -227,10 +244,10 @@ export function ApprovedCompanyRegistry({ token }: { token: string }) {
           </tbody>
         </table>
         {!loading && filteredAndSorted.length === 0 && (
-          <div className="text-center py-12 text-slate-500 text-sm">Không có công ty thẩm định phù hợp.</div>
+          <div className="text-center py-12 text-slate-400 text-sm">Không có công ty thẩm định phù hợp.</div>
         )}
         {loading && (
-          <div className="text-center py-12 text-slate-500 text-sm">Đang tải danh sách...</div>
+          <div className="text-center py-12 text-slate-400 text-sm">Đang tải danh sách...</div>
         )}
         <PaginationControls
           total={filteredAndSorted.length}

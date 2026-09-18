@@ -179,52 +179,56 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
         />
       )}
       <div className="max-w-6xl mx-auto space-y-6">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
-        <div className="flex items-start gap-4">
-          {user.picture ? (
-            <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700">
-              <UserIcon size={26} />
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            {user.picture ? (
+              <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm object-cover" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
+                <UserIcon size={26} />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1 flex items-center gap-1.5">
+                <GraduationCap size={14} className="text-blue-600" /> Giảng viên hướng dẫn
+              </p>
+              <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+              <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-700 mb-1">Giảng viên</p>
-            <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
-            <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
           </div>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-2.5">
-          <button
-            onClick={() => navigate('/profile')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <UserIcon size={14} /> Cập nhật hồ sơ
-          </button>
-          <button
-            onClick={() => navigate('/plan')}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <FileText size={14} /> Kế hoạch triển khai
-          </button>
-          <button
-            onClick={() => navigate('/lecturer-guide')}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <CircleHelp size={14} /> Hướng dẫn sử dụng
-          </button>
-          <button
-            onClick={() => navigate('/notifications')}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <Bell size={14} /> Thông báo
-          </button>
-          <button
-            onClick={() => navigate('/lecturer/grades')}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
-          >
-            <CheckCircle2 size={14} /> Chấm điểm thực tập
-          </button>
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              onClick={() => navigate('/lecturer/grades')}
+              className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+            >
+              <CheckCircle2 size={14} /> Chấm điểm thực tập
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+            >
+              <UserIcon size={14} className="text-slate-500" /> Cập nhật hồ sơ
+            </button>
+            <button
+              onClick={() => navigate('/plan')}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+            >
+              <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+            </button>
+            <button
+              onClick={() => navigate('/lecturer-guide')}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+            >
+              <CircleHelp size={14} className="text-slate-500" /> Hướng dẫn sử dụng
+            </button>
+            <button
+              onClick={() => navigate('/notifications')}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+            >
+              <Bell size={14} className="text-slate-500" /> Thông báo
+            </button>
+          </div>
         </div>
       </div>
 
@@ -290,32 +294,32 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/60">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/75">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h3 className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
                 <span>Sinh viên phụ trách</span>
-                <span className="inline-flex items-center rounded-full bg-white border border-teal-100 px-2.5 py-0.5 text-xs font-bold text-teal-700">
+                <span className="inline-flex items-center rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                   Tổng số SV hướng dẫn: {advisedStudentCount}
                 </span>
                 <PageDescriptionTooltip description="Danh sách sinh viên đã được Khoa phân công cho giảng viên." />
               </h3>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className={`rounded-xl border px-3 py-2 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+              <div className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${uncontactedCount > 0 ? 'bg-[#fff2f1] border-[#ffd8d6] text-[#d70015]' : 'bg-[#ebf9ee] border-[#d1f2d9] text-[#1b7f37]'}`}>
                 {uncontactedCount > 0 ? `Chưa liên hệ: ${uncontactedCount}` : 'Tất cả đã liên hệ'}
               </div>
               <button
                 onClick={exportLecturerStudentsXlsx}
                 disabled={loadingStudents || students.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
               >
                 <Download size={14} /> Xuất XLSX
               </button>
               <button
                 onClick={() => groupLecturerId && navigate(`/chat/group/${groupLecturerId}`)}
                 disabled={!groupLecturerId}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-blue-100/80 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
               >
                 <Users size={14} /> Chat nhóm
               </button>
@@ -401,14 +405,14 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => openReview(student)}
-                              className="inline-flex items-center gap-1 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-blue-200 bg-blue-50 shadow-xs"
+                              className="inline-flex items-center gap-1 text-[#0071e3] hover:bg-[#ebf4ff] px-2.5 py-1 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-[#dbeafe] bg-[#ebf4ff]/70 shadow-xs active:scale-[0.98]"
                             >
                               <FileText size={12} /> Xem & Chấm
                             </button>
                             <button
                               onClick={() => downloadReport(student)}
                               title="Tải file PDF"
-                              className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs"
+                              className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 bg-white shadow-xs active:scale-[0.98]"
                             >
                               <Download size={13} />
                             </button>
@@ -425,7 +429,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
                   <td className="p-4">
                     <button
                       onClick={() => navigate(`/chat/${student.user_id}/${student.lecturer_id}`)}
-                      className="inline-flex items-center gap-1 rounded-xl bg-sky-50 border border-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100/70 transition-colors cursor-pointer shadow-sm"
+                      className="inline-flex items-center gap-1 rounded-xl bg-[#ebf4ff] border border-[#dbeafe] px-2.5 py-1 text-xs font-semibold text-[#0071e3] hover:bg-[#dbeafe] transition-colors cursor-pointer shadow-xs active:scale-[0.98]"
                     >
                       <MessageCircle size={14} /> Chat
                     </button>

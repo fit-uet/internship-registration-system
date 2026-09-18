@@ -665,63 +665,73 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Building2 className="text-orange-600" /> Quản lý Công ty
+          <button
+            onClick={() => navigate('/admin')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản trị
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <Building2 className="text-[#0071e3]" size={24} /> Quản lý Công ty
             <PageDescriptionTooltip description="Danh sách công ty đã đăng ký trên hệ thống thực tập." />
           </h2>
         </div>
       </div>
 
       {/* Toolbar & Search */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-3.5 flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             type="text"
             placeholder="Tìm theo tên, địa chỉ, email..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 w-4 h-4 disabled:opacity-60 cursor-pointer" />
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl px-3 py-2">
+            <input type="checkbox" checked={override} disabled={importing} onChange={e => setOverride(e.target.checked)} className="rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3] w-4 h-4 disabled:opacity-60 cursor-pointer" />
             Ghi đè
           </label>
-          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 ${importing ? 'cursor-wait pointer-events-none' : ''}`}>
+          <label className={`px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer border border-black/[0.08] hover:bg-[#f5f5f7] bg-white text-[#1d1d1f] active:scale-[0.98] ${importing ? 'cursor-wait pointer-events-none' : ''}`}>
             {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} {importing ? 'Đang import...' : 'Import XLSX'}
             <input type="file" accept=".xlsx,.xls,.csv" disabled={importing} className="hidden" onChange={handleFileUpload} onClick={(e) => { (e.target as any).value = null }} />
           </label>
           <button
             onClick={() => navigate('/admin/approved-companies')}
-            className="bg-teal-600 text-white px-3.5 py-2 rounded-xl hover:bg-teal-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            className="bg-[#ebf4ff] hover:bg-[#d9ecff] text-[#0071e3] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]"
           >
             <Shield size={14} /> Công ty thẩm định
           </button>
           <button
             onClick={() => setMailMergeOpen(true)}
-            className="bg-indigo-600 text-white px-3.5 py-2 rounded-xl hover:bg-indigo-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]"
           >
             <Send size={14} /> Mail merge
           </button>
-          <button
-            onClick={openSelectedMailMerge}
-            disabled={selectedCompanyKeys.length === 0}
-            className="bg-violet-600 text-white px-3.5 py-2 rounded-xl hover:bg-violet-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            title="Tạo mail merge cho các công ty đang được chọn"
-          >
-            <Send size={14} /> Mail merge đã chọn ({selectedCompanyKeys.length})
-          </button>
+          {selectedCompanyKeys.length > 0 && (
+            <button
+              onClick={openSelectedMailMerge}
+              className="bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#6d28d9] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]"
+              title="Tạo mail merge cho các công ty đang được chọn"
+            >
+              <Send size={14} /> Mail merge đã chọn ({selectedCompanyKeys.length})
+            </button>
+          )}
           <button
             onClick={createDriveLinksForFilteredOfficial}
             disabled={mailMergeSending}
-            className="bg-sky-600 text-white px-3.5 py-2 rounded-xl hover:bg-sky-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait cursor-pointer"
+            className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait cursor-pointer active:scale-[0.98]"
           >
             {mailMergeSending ? <RefreshCw size={14} className="animate-spin" /> : <FileText size={14} />} {selectedCompanyKeys.length > 0 ? 'Tạo link Drive đã chọn' : 'Tạo link Drive'}
           </button>
-          <button onClick={exportXlsx} disabled={importing} className="bg-blue-600 text-white px-3.5 py-2 rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+          <button
+            onClick={exportXlsx}
+            disabled={importing}
+            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+          >
             <Download size={14} /> Xuất XLSX
           </button>
         </div>
@@ -876,41 +886,45 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       )}
 
       {/* Add company form */}
-      {/* Add company form */}
       {!showAddForm ? (
         <div className="mb-6">
-          <button onClick={() => setShowAddForm(true)} className="bg-orange-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm cursor-pointer">
-            <Plus size={16} /> Thêm Công ty
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-[0.98]"
+          >
+            <Plus size={15} /> Thêm Công ty
           </button>
         </div>
       ) : (
-        <div className="mb-6 bg-orange-50 border border-orange-150 rounded-2xl p-5 space-y-3 shadow-sm">
+        <div className="mb-6 bg-white border border-black/[0.08] rounded-2xl p-5 space-y-3.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-orange-950 flex items-center gap-2"><Plus size={16} /> Thêm công ty mới</h3>
+            <h3 className="font-bold text-sm text-[#1d1d1f] flex items-center gap-2">
+              <Plus size={16} className="text-[#0071e3]" /> Thêm công ty mới
+            </h3>
             <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={18} /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-            <input type="number" min="1" placeholder="Chỉ tiêu tiếp nhận" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-            <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-            <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-            <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-            <input placeholder="Địa chỉ" value={newCompany.address} onChange={e => setNewCompany({ ...newCompany, address: e.target.value })} className="border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
+            <input placeholder="Tên doanh nghiệp *" value={newCompany.name} onChange={e => setNewCompany({ ...newCompany, name: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+            <input type="number" min="1" placeholder="Chỉ tiêu tiếp nhận" value={newCompany.slots} onChange={e => setNewCompany({ ...newCompany, slots: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+            <input placeholder="Email liên hệ" value={newCompany.contact_email} onChange={e => setNewCompany({ ...newCompany, contact_email: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+            <input placeholder="Người liên hệ" value={newCompany.contact_name} onChange={e => setNewCompany({ ...newCompany, contact_name: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+            <input placeholder="Số điện thoại" value={newCompany.phone} onChange={e => setNewCompany({ ...newCompany, phone: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+            <input placeholder="Địa chỉ" value={newCompany.address} onChange={e => setNewCompany({ ...newCompany, address: e.target.value })} className="border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
           </div>
-          <input placeholder="Link tuyển dụng" value={newCompany.recruitment_link} onChange={e => setNewCompany({ ...newCompany, recruitment_link: e.target.value })} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-orange-200 bg-white" />
-          <div className="flex justify-end gap-2 pt-2 border-t border-orange-100">
-            <button onClick={() => setShowAddForm(false)} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer">Hủy</button>
-            <button onClick={handleAdd} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-700 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
-              <Plus size={16} /> Lưu công ty
+          <input placeholder="Link tuyển dụng" value={newCompany.recruitment_link} onChange={e => setNewCompany({ ...newCompany, recruitment_link: e.target.value })} className="w-full border border-[#e5e5ea] rounded-xl px-3.5 py-2 text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs" />
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <button onClick={() => setShowAddForm(false)} className="bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all active:scale-[0.98] cursor-pointer">Hủy</button>
+            <button onClick={handleAdd} className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-[0.98]">
+              <Plus size={15} /> Lưu công ty
             </button>
           </div>
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs text-slate-600">
-            <thead className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase">
+            <thead className="bg-[#f9f9fb] text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
               <tr>
                 <th className="p-3 font-semibold w-10">
                   <input

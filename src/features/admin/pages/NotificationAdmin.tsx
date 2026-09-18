@@ -267,68 +267,121 @@ export function NotificationAdmin({ token }: { token: string }) {
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <button onClick={() => navigate('/admin')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại Quản trị</button>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Clock className="text-amber-600" /> Lịch sử thông báo</h2>
+          <button
+            onClick={() => navigate('/admin')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản trị
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <Clock className="text-[#0071e3]" size={24} /> Lịch sử thông báo
+          </h2>
           {stats && (
             <p className="text-xs font-medium text-slate-500 mt-1.5">
-              Provider: <span className="text-slate-800 font-semibold">{stats.provider}</span> · Đã gửi hôm nay: <span className="text-slate-800 font-semibold">{stats.sent_today}/{stats.daily_cap}</span> · Đang chờ: <span className="text-amber-600 font-semibold">{stats.statuses?.queued || 0}</span> · Batch: <span className="text-slate-800 font-semibold">{stats.batch_size}</span>
+              Provider: <span className="text-slate-800 font-semibold">{stats.provider}</span> · Đã gửi hôm nay: <span className="text-slate-800 font-semibold">{stats.sent_today}/{stats.daily_cap}</span> · Đang chờ: <span className="text-[#b45309] font-semibold">{stats.statuses?.queued || 0}</span> · Batch: <span className="text-slate-800 font-semibold">{stats.batch_size}</span>
             </p>
           )}
         </div>
-        <button onClick={exportXlsx} className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap">
+        <button
+          onClick={exportXlsx}
+          className="w-full sm:w-auto justify-center bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap"
+        >
           <Download size={14} /> Xuất XLSX
         </button>
       </div>
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-5 space-y-4">
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-2.5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gửi email</div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Gửi email</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-              <button onClick={() => sendQueued('all', 'quota')} disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today} className="justify-center bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={() => sendQueued('all', 'quota')}
+                disabled={sendingQueue || !stats?.statuses?.queued || !stats?.remaining_today}
+                className="justify-center bg-[#0071e3] hover:bg-[#0077ed] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 <Send size={14} /> Gửi theo quota
               </button>
-              <button onClick={() => sendQueued('filtered', 'quota')} disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0} className="justify-center bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={() => sendQueued('filtered', 'quota')}
+                disabled={sendingQueue || filtered.filter(row => row.status === 'queued').length === 0}
+                className="justify-center bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 <Send size={14} /> Gửi lọc
               </button>
             </div>
           </div>
           <div className="space-y-2.5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xoá thông báo</div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Xoá thông báo</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
-              <button onClick={() => deleteNotifications('selected')} disabled={deletingNotifications || selectedCount === 0} className="justify-center bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={() => deleteNotifications('selected')}
+                disabled={deletingNotifications || selectedCount === 0}
+                className="justify-center bg-[#fff2f1] hover:bg-[#ffe5e3] text-[#ff3b30] border border-[#ffd8d6] px-3 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 {deletingNotifications ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />} Đã chọn
               </button>
-              <button onClick={() => deleteNotifications('filtered')} disabled={deletingNotifications || sortedFiltered.length === 0} className="justify-center bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={() => deleteNotifications('filtered')}
+                disabled={deletingNotifications || sortedFiltered.length === 0}
+                className="justify-center bg-[#fff2f1] hover:bg-[#ffe5e3] text-[#ff3b30] border border-[#ffd8d6] px-3 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 <Trash2 size={14} /> Đang lọc
               </button>
-              <button onClick={() => deleteNotifications('queued')} disabled={deletingNotifications || !stats?.statuses?.queued} className="justify-center bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={() => deleteNotifications('queued')}
+                disabled={deletingNotifications || !stats?.statuses?.queued}
+                className="justify-center bg-white hover:bg-[#f5f5f7] text-[#ff3b30] border border-black/[0.08] px-3 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 <Trash2 size={14} /> Hàng đợi
               </button>
             </div>
           </div>
           <div className="space-y-2.5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tạo thông báo hệ thống</div>
+            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Tạo thông báo hệ thống</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-              <button onClick={createFinalConfirmationOpen} disabled={creatingReminders} className="justify-center bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={createFinalConfirmationOpen}
+                disabled={creatingReminders}
+                className="justify-center bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 <CheckCircle2 size={14} /> Mở xác nhận
               </button>
-              <button onClick={createFinalReportReminders} disabled={creatingReminders} className="justify-center bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <button
+                onClick={createFinalReportReminders}
+                disabled={creatingReminders}
+                className="justify-center bg-white hover:bg-[#f5f5f7] text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              >
                 {creatingReminders ? <RefreshCw size={14} className="animate-spin" /> : <Clock size={14} />} Nhắc báo cáo
               </button>
             </div>
           </div>
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row gap-3">
+
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-3.5 flex flex-col md:flex-row gap-2.5">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm email, sinh viên, tiêu đề..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none transition-all bg-slate-50/50 shadow-inner" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+          <input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Tìm email, sinh viên, tiêu đề..."
+            className="w-full pl-9 pr-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
+          />
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none">
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+          className="border border-[#e5e5ea] rounded-xl px-3 py-2 text-xs font-semibold bg-white text-[#1d1d1f] shadow-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] cursor-pointer"
+        >
           <option value="">Tất cả loại</option>
           {types.map(type => <option key={type} value={type}>{notificationTypeLabel(type)}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold bg-white text-slate-700 focus:ring-2 focus:ring-amber-100 focus:border-amber-500 outline-none">
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="border border-[#e5e5ea] rounded-xl px-3 py-2 text-xs font-semibold bg-white text-[#1d1d1f] shadow-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] cursor-pointer"
+        >
           <option value="">Tất cả trạng thái</option>
           <option value="queued">Queued</option>
           <option value="sent">Sent</option>
@@ -336,10 +389,11 @@ export function NotificationAdmin({ token }: { token: string }) {
           <option value="website_only">Chỉ website</option>
         </select>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-3">
+
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-5 space-y-3.5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 flex-wrap">
+            <h3 className="font-bold text-[#1d1d1f] text-sm flex items-center gap-1.5 flex-wrap">
               <span>Soạn thông báo thủ công</span>
               <PageDescriptionTooltip description="Thông báo được tạo vào hàng đợi; dùng nút “Gửi theo quota” để gửi email thật." />
             </h3>
@@ -353,7 +407,7 @@ export function NotificationAdmin({ token }: { token: string }) {
                 target,
               }));
             }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-[#e5e5ea] rounded-xl px-3 py-2 text-xs font-medium bg-white text-[#1d1d1f] shadow-xs outline-none focus:border-[#0071e3]"
           >
             <option value="system_all">Cả hệ thống (1 bản ghi website)</option>
             <option value="students_with_registration">Sinh viên đã đăng ký</option>
@@ -368,13 +422,13 @@ export function NotificationAdmin({ token }: { token: string }) {
         <select
           value={manualNotice.delivery_mode}
           onChange={e => setManualNotice(prev => ({ ...prev, delivery_mode: e.target.value }))}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+          className="w-full border border-[#e5e5ea] rounded-xl px-3 py-2 text-xs font-medium bg-white text-[#1d1d1f] shadow-xs outline-none focus:border-[#0071e3]"
         >
           <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
           <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
         </select>
         {manualNotice.target === 'system_all' && (
-          <p className="text-xs text-slate-500 -mt-1">
+          <p className="text-[11px] text-slate-400 -mt-1 font-medium">
             Phần hiển thị trên website của thông báo cả hệ thống luôn được lưu bằng 1 bản ghi nội dung. Nếu chọn gửi email, hệ thống sẽ tạo thêm hàng đợi email theo từng tài khoản.
           </p>
         )}
@@ -383,32 +437,37 @@ export function NotificationAdmin({ token }: { token: string }) {
             value={manualNotice.recipient}
             onChange={e => setManualNotice(prev => ({ ...prev, recipient: e.target.value }))}
             placeholder="Email VNU/email cá nhân hoặc mã sinh viên"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3.5 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
           />
         )}
         <input
           value={manualNotice.subject}
           onChange={e => setManualNotice(prev => ({ ...prev, subject: e.target.value }))}
           placeholder="Tiêu đề email/thông báo"
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+          className="w-full px-3.5 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs"
         />
         <textarea
           value={manualNotice.body}
           onChange={e => setManualNotice(prev => ({ ...prev, body: e.target.value }))}
           placeholder="Nội dung thông báo..."
-          rows={5}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 resize-y"
+          rows={4}
+          className="w-full px-3.5 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs resize-y"
         />
         <div className="flex justify-end">
-          <button onClick={createManualNotice} disabled={creatingManual} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-sm flex items-center gap-2 disabled:opacity-60">
-            {creatingManual ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />} Tạo thông báo
+          <button
+            onClick={createManualNotice}
+            disabled={creatingManual}
+            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50"
+          >
+            {creatingManual ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Tạo thông báo
           </button>
         </div>
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-600">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-[#f9f9fb] text-[10px] uppercase font-semibold text-slate-700 tracking-wider border-b border-slate-100 select-none">
               <tr>
                 <th className="px-4 py-3 w-10">
                   <input
@@ -416,27 +475,27 @@ export function NotificationAdmin({ token }: { token: string }) {
                     checked={pageSelected}
                     disabled={paginatedIds.length === 0}
                     onChange={e => toggleCurrentPageSelection(e.target.checked)}
-                    className="rounded border-slate-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
+                    className="rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3] disabled:opacity-40 cursor-pointer"
                     title="Chọn thông báo trong trang hiện tại"
                   />
                 </th>
                 <th className="px-4 py-3">
-                  <button onClick={() => sortNotifications('recipient')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                  <button onClick={() => sortNotifications('recipient')} className="font-semibold hover:text-slate-900 flex items-center gap-1 cursor-pointer">
                     Người nhận{sortLabel('recipient')}
                   </button>
                 </th>
                 <th className="px-4 py-3">
-                  <button onClick={() => sortNotifications('type')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                  <button onClick={() => sortNotifications('type')} className="font-semibold hover:text-slate-900 flex items-center gap-1 cursor-pointer">
                     Loại{sortLabel('type')}
                   </button>
                 </th>
                 <th className="px-4 py-3">
-                  <button onClick={() => sortNotifications('created_at')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                  <button onClick={() => sortNotifications('created_at')} className="font-semibold hover:text-slate-900 flex items-center gap-1 cursor-pointer">
                     Nội dung / Tạo lúc{sortLabel('created_at')}
                   </button>
                 </th>
                 <th className="px-4 py-3">
-                  <button onClick={() => sortNotifications('status')} className="font-bold hover:text-slate-900 flex items-center gap-1">
+                  <button onClick={() => sortNotifications('status')} className="font-semibold hover:text-slate-900 flex items-center gap-1 cursor-pointer">
                     Trạng thái{sortLabel('status')}
                   </button>
                 </th>
@@ -445,38 +504,44 @@ export function NotificationAdmin({ token }: { token: string }) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sortedFiltered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Không có thông báo phù hợp.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">Không có thông báo phù hợp.</td></tr>
               ) : paginatedRows.map(row => (
-                <tr key={row.id} className="hover:bg-slate-50 align-top">
-                  <td className="px-4 py-4">
+                <tr key={row.id} className="hover:bg-[#f5f5f7] transition-colors align-top">
+                  <td className="px-4 py-3.5">
                     <input
                       type="checkbox"
                       checked={selectedNotificationIds.includes(Number(row.id))}
                       onChange={e => toggleNotificationSelection(Number(row.id), e.target.checked)}
-                      className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+                      className="rounded border-slate-300 text-[#ff3b30] focus:ring-[#ff3b30] cursor-pointer"
                       title="Chọn để xoá"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3.5">
                     <div className="font-semibold text-slate-900">{row.recipient_email}</div>
-                    <div className="text-xs text-slate-500">{row.user_name || '-'} {row.student_id ? `· ${row.student_id}` : ''}</div>
+                    <div className="text-[11px] text-slate-400">{row.user_name || '-'} {row.student_id ? `· ${row.student_id}` : ''}</div>
                   </td>
-                  <td className="px-4 py-4"><span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2 py-1 rounded">{notificationTypeLabel(row.type)}</span></td>
-                  <td className="px-4 py-4 max-w-xl">
-                    <div className="font-semibold text-slate-800">{row.subject}</div>
-                    <div className="text-xs text-slate-500 whitespace-pre-wrap mt-1">{row.body}</div>
-                    <div className="text-xs text-slate-400 mt-2">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
+                  <td className="px-4 py-3.5">
+                    <span className="text-[10px] font-semibold bg-[#f5f5f7] text-slate-700 px-2 py-0.5 rounded-md border border-black/[0.06]">
+                      {notificationTypeLabel(row.type)}
+                    </span>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className={`font-semibold ${row.status === 'sent' ? 'text-emerald-700' : row.status === 'failed' ? 'text-red-700' : row.status === 'website_only' ? 'text-blue-700' : 'text-orange-700'}`}>{row.status}</div>
-                    {row.error && <div className="text-xs text-red-600 mt-1">{row.error}</div>}
-                    {row.sent_at && <div className="text-xs text-slate-500">{new Date(row.sent_at).toLocaleString('vi-VN')}</div>}
+                  <td className="px-4 py-3.5 max-w-xl">
+                    <div className="font-semibold text-slate-900">{row.subject}</div>
+                    <div className="text-xs text-slate-600 whitespace-pre-wrap mt-1 leading-relaxed">{row.body}</div>
+                    <div className="text-[11px] text-slate-400 mt-1.5">{row.created_at ? new Date(row.created_at).toLocaleString('vi-VN') : '-'}</div>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => markStatus(row.id, 'sent')} className="text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-semibold">Đã gửi</button>
-                      <button onClick={() => markStatus(row.id, 'failed')} className="text-red-700 hover:bg-red-50 px-2 py-1 rounded text-xs font-semibold">Lỗi</button>
-                      <button onClick={() => markStatus(row.id, 'queued')} className="text-orange-700 hover:bg-orange-50 px-2 py-1 rounded text-xs font-semibold">Queue</button>
+                  <td className="px-4 py-3.5">
+                    <div className={`font-semibold text-xs ${row.status === 'sent' ? 'text-[#1b7f37]' : row.status === 'failed' ? 'text-[#ff3b30]' : row.status === 'website_only' ? 'text-[#0071e3]' : 'text-[#b45309]'}`}>
+                      {row.status}
+                    </div>
+                    {row.error && <div className="text-[11px] text-[#ff3b30] mt-1">{row.error}</div>}
+                    {row.sent_at && <div className="text-[11px] text-slate-400 mt-0.5">{new Date(row.sent_at).toLocaleString('vi-VN')}</div>}
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button onClick={() => markStatus(row.id, 'sent')} className="text-[#1b7f37] hover:bg-[#ebf9ee] px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer">Đã gửi</button>
+                      <button onClick={() => markStatus(row.id, 'failed')} className="text-[#ff3b30] hover:bg-[#fff2f1] px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer">Lỗi</button>
+                      <button onClick={() => markStatus(row.id, 'queued')} className="text-[#b45309] hover:bg-[#fff8eb] px-2 py-0.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer">Queue</button>
                     </div>
                   </td>
                 </tr>

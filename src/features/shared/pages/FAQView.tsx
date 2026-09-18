@@ -61,23 +61,23 @@ export function FAQView({ user, token }: { user: any, token: string }) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer mb-2">&larr; Quay lại trang chủ</button>
+      <button onClick={() => navigate('/')} className="bg-white text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer mb-2 active:scale-[0.98]">&larr; Quay lại trang chủ</button>
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-amber-50/60">
+        <div className="px-6 py-5 border-b border-slate-100 bg-[#f9f9fb]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <CircleHelp className="text-amber-600" /> FAQ
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <CircleHelp className="text-[#0071e3]" /> FAQ
                 <PageDescriptionTooltip description={<>Nội dung câu hỏi thường gặp dành cho vai trò <strong>{roleLabel}</strong>.</>} />
               </h2>
             </div>
             {user?.role === 'admin' && (
               <div className="flex flex-wrap items-center gap-2">
-                <button onClick={() => navigate('/admin/faq-questions')} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                <button onClick={() => navigate('/admin/faq-questions')} className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]">
                   <Send size={14} /> Trả lời câu hỏi
                 </button>
-                <button onClick={() => navigate('/admin/faq')} className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
-                  <Edit2 size={14} /> Cài đặt FAQ
+                <button onClick={() => navigate('/admin/faq')} className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer active:scale-[0.98]">
+                  <Edit2 size={14} className="text-slate-500" /> Cài đặt FAQ
                 </button>
               </div>
             )}
@@ -128,11 +128,11 @@ export function FAQView({ user, token }: { user: any, token: string }) {
               rows={4}
               maxLength={2000}
               placeholder="Nhập câu hỏi của bạn..."
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-y"
+              className="w-full px-4 py-3 border border-[#d1d1d6] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-white shadow-xs resize-y"
             />
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <span className="text-xs text-slate-400 font-medium">{newQuestion.length}/2000 ký tự</span>
-              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={submitQuestion} disabled={submittingQuestion || !newQuestion.trim()} className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]">
                 {submittingQuestion ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} Gửi câu hỏi
               </button>
             </div>

@@ -21,9 +21,61 @@ const DB_BATCH_SIZE = 100;
 const MAX_REPORT_BYTES = 10 * 1024 * 1024;
 const DEFAULT_ALLOWED_REGISTRATION_COHORTS = 'K66,K67,K68';
 const DEFAULT_CLASSES = 'QH-2023-I/CQ-I-IT1, QH-2023-I/CQ-I-IT2, QH-2023-I/CQ-I-IT3, QH-2023-I/CQ-I-IS, QH-2023-I/CQ-I-CS1, QH-2023-I/CQ-I-CS2, QH-2023-I/CQ-I-CS3, QH-2023-I/CQ-I-CS4, QH-2023-I/CQ-I-CN';
-const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI THỰC TẬP HỌC KỲ
+const DEFAULT_PLAN = `## KẾ HOẠCH TRIỂN KHAI HỌC PHẦN THỰC TẬP
 
-Khoa CNTT thông báo triển khai Thực tập học kỳ. Sinh viên đăng nhập bằng email @vnu.edu.vn, cập nhật hồ sơ và đăng ký tối đa 5 nguyện vọng thực tập trong thời gian hệ thống mở.`;
+Khoa Công nghệ Thông tin thông báo triển khai các học phần Thực tập dành cho sinh viên từ khóa **K68 trở về trước**, bao gồm các học phần:
+
+1. **Thực tập Doanh nghiệp** (INT4002)
+2. **Thực tập Chuyên ngành** (INT3508)
+3. **Thực tập Doanh nghiệp Nhật Bản** (INT4003)
+
+---
+
+### 🔹 Thời hạn đăng ký
+- **Thời gian:** Từ **18/05** đến **8h00, ngày 25/05/2026**
+- 👉 **_Lưu ý quan trọng:_** Danh sách sinh viên đăng ký trên hệ thống sẽ được sử dụng làm danh sách chính thức để Khoa/Nhà trường thực hiện đăng ký học phần trên cổng đào tạo. Vì vậy, đề nghị sinh viên cân nhắc kỹ trước khi đăng ký và điền đầy đủ, chính xác thông tin theo yêu cầu.
+
+---
+
+### 📌 Mốc thời gian quan trọng
+
+| STT | Mốc thời gian | Nội dung công việc |
+| :---: | :--- | :--- |
+| **1** | **25/05 – 31/05** | Khoa gửi danh sách sinh viên đăng ký đến các doanh nghiệp để tiến hành phỏng vấn (nếu có). |
+| **2** | **25/05 – 31/05** | Khoa phân công giảng viên hướng dẫn thực tập cho sinh viên. |
+| **3** | **10/06 – 17/06/2026** | Sinh viên chủ động liên hệ với Thầy/Cô hướng dẫn để trao đổi, nhận hướng dẫn về nội dung thực tập, kế hoạch thực hiện và các yêu cầu liên quan đến học phần. |
+| **4** | **15/06 – 31/08** | **Sinh viên bắt đầu kỳ thực tập tại doanh nghiệp.**<br>_Lưu ý:_ Thời gian thực tập tại mỗi công ty có thể khác nhau, nhưng phải đảm bảo **tối thiểu 6 tuần làm việc full-time**. Sinh viên cần báo cáo định kỳ với giảng viên hướng dẫn. |
+| **5** | **15/07 – 30/09** | Các sinh viên không tìm được cơ hội thực tập tại doanh nghiệp sẽ thực hiện **thực tập tại trường** cùng Thầy/Cô hướng dẫn hoặc với đối tác khác do Khoa sắp xếp. |
+| **6** | **01/10 – 10/10** | **Sinh viên nộp báo cáo thực tập;** giảng viên hướng dẫn thực hiện đánh giá và chấm điểm. |
+| **7** | **11/10 – 20/10** | Giảng viên nộp điểm về Khoa để tổng hợp và nhập hệ thống. |
+
+---
+
+### 📄 Mẫu báo cáo & Hướng dẫn hoàn thành học phần
+
+Mỗi sinh viên cần viết **01 báo cáo thực tập** theo mẫu Khoa quy định:  
+👉 **Tải biểu mẫu báo cáo của Khoa:** [TẠI ĐÂY (Google Drive)](https://drive.google.com/drive/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3?usp=sharing)
+
+#### 📝 Sinh viên cần nộp những gì để hoàn thành môn thực tập?
+
+Để hoàn thành học phần Thực tập và được công nhận điểm, sinh viên cần thực hiện:
+
+1. **Nộp Báo cáo thực tập (Bản mềm - PDF) trên hệ thống:**
+   - Sinh viên nộp bản báo cáo hoàn chỉnh (định dạng **PDF, tối đa 10 MB**) trực tiếp trên hệ thống trong thời gian mở nộp (**01/10 – 10/10**).
+   - Bản báo cáo này là cơ sở để Giảng viên hướng dẫn đánh giá và cho **Điểm tiến độ (20%)** và **Điểm báo cáo (20%)**.
+
+2. **Nộp Trang nhận xét & Đánh giá kết quả thực tập (Có chữ ký & dấu công ty):**
+   - Trong mẫu báo cáo thực tập của Khoa có sẵn **Trang nhận xét / Phiếu đánh giá kết quả thực tập**.
+   - **Nếu thực tập tại Doanh nghiệp:** Sinh viên in riêng trang nhận xét này để xin điểm đánh giá, nhận xét chi tiết và chữ ký của người hướng dẫn trực tiếp tại doanh nghiệp, kèm **dấu xác nhận của công ty/doanh nghiệp**. Sau đó, nộp bản nhận xét này cho Giảng viên hướng dẫn của Khoa để Thầy/Cô ghi nhận và nhập **Điểm đánh giá của doanh nghiệp (60%)** vào hệ thống.
+   - **Nếu thực tập tại Trường:** Giảng viên hướng dẫn tại trường sẽ trực tiếp theo dõi, nhận xét và đánh giá cho điểm phần này.
+
+---
+
+### 📊 Cơ cấu điểm đánh giá học phần
+
+- **20%:** Điểm báo cáo định kỳ / tiến độ (sinh viên chủ động liên hệ và báo cáo tiến độ với GVHD).
+- **20%:** Điểm nội dung của bản báo cáo thực tập theo mẫu quy định (nộp bản mềm trên hệ thống).
+- **60%:** Điểm đánh giá của phía doanh nghiệp (theo trang nhận xét có chữ ký & dấu công ty) hoặc của Giảng viên hướng dẫn (nếu thực tập tại trường).`;
 const DEFAULT_REGISTRATION_RULES = [
   'Chỉ dành cho sinh viên nhận được thông báo.',
   'Mỗi sinh viên chọn tối đa 05 nơi thực tập.',
@@ -42,8 +94,9 @@ Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực t�
 ### 3. Nếu không trúng tuyển công ty nào thì sao?
 Em có thể đăng ký thực tập tại trường hoặc nhờ Khoa phân công giảng viên hướng dẫn.
 
-### 4. Báo cáo nộp ở đâu?
-Em nộp PDF final trên hệ thống, tối đa 10 MB.`;
+### 4. Báo cáo nộp ở đâu và cần nộp những gì để hoàn thành học phần?
+- **Nộp bản mềm:** Sinh viên nộp PDF báo cáo trên hệ thống (tối đa 10 MB) để GVHD chấm Điểm tiến độ (20%) và Điểm báo cáo (20%).
+- **Trang nhận xét đánh giá:** Nếu thực tập tại doanh nghiệp, in trang nhận xét trong mẫu báo cáo để xin điểm, nhận xét, chữ ký của người hướng dẫn và đóng dấu công ty, sau đó nộp cho GVHD để nhập Điểm doanh nghiệp (60%).`;
 const DEFAULT_LECTURER_FAQ = `## FAQ cho giảng viên
 
 ### 1. Giảng viên xem danh sách sinh viên ở đâu?

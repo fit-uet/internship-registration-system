@@ -262,29 +262,37 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <MessageCircle className="text-sky-600" /> Trao đổi với {user.role === 'student' ? 'giảng viên hướng dẫn' : 'sinh viên'}
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-[#0071e3] flex items-center justify-center">
+              <MessageCircle size={18} />
+            </div>
+            Trao đổi với {user.role === 'student' ? 'giảng viên hướng dẫn' : 'sinh viên'}
             <PageDescriptionTooltip description="Tin nhắn chỉ mở cho các phân công giảng viên hướng dẫn trong hệ thống, gồm chat riêng và chat nhóm theo từng giảng viên." />
           </h2>
         </div>
-        <button onClick={fetchThreads} disabled={loadingThreads} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50">
-          <RefreshCw size={14} className={loadingThreads ? 'animate-spin' : ''} /> Tải lại
+        <button
+          onClick={fetchThreads}
+          disabled={loadingThreads}
+          className="bg-white text-slate-700 border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] active:scale-[0.98] text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={`text-slate-500 ${loadingThreads ? 'animate-spin' : ''}`} /> Tải lại
         </button>
       </div>
 
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-xl border border-red-200/80 bg-[#fff2f1] p-4 text-xs font-medium text-[#d70015]">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[620px]">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-            <div className="font-bold text-slate-800">Cuộc trò chuyện</div>
-            <div className="text-xs text-slate-500 mt-1">{threads.length} thread</div>
+        {/* Left Thread List */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden flex flex-col">
+          <div className="px-5 py-3.5 border-b border-slate-100 bg-[#fbfbfd]">
+            <div className="font-bold text-slate-900 text-sm">Cuộc trò chuyện</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{threads.length} hội thoại</div>
           </div>
-          <div className="divide-y divide-slate-100 max-h-[560px] overflow-y-auto">
+          <div className="divide-y divide-slate-100 max-h-[560px] overflow-y-auto flex-1">
             {loadingThreads ? (
-              <div className="p-6 text-sm text-slate-500 text-center">Đang tải...</div>
+              <div className="p-8 text-xs text-slate-400 text-center font-medium">Đang tải...</div>
             ) : threads.length === 0 ? (
-              <div className="p-6 text-sm text-slate-500 text-center">Chưa có giảng viên/sinh viên được phân công để trao đổi.</div>
+              <div className="p-8 text-xs text-slate-400 text-center font-medium">Chưa có giảng viên/sinh viên được phân công để trao đổi.</div>
             ) : threads.map((thread: any) => {
               const key = threadKey(thread);
               const active = key === selectedKey;
@@ -292,16 +300,22 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
                 <button
                   key={key}
                   onClick={() => openThread(thread)}
-                  className={`w-full text-left p-4 transition-colors ${active ? 'bg-sky-50' : 'hover:bg-slate-50'}`}
+                  className={`w-full text-left p-4 transition-all cursor-pointer ${
+                    active ? 'bg-[#ebf4ff] text-[#0071e3]' : 'hover:bg-[#f5f5f7] text-slate-800'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-slate-900 truncate">{threadTitle(thread)}</div>
-                      <div className="text-xs text-slate-500 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
-                      <div className="text-xs text-slate-400 mt-2 truncate">{thread.last_message || (thread.last_attachment_name ? `File: ${thread.last_attachment_name}` : 'Chưa có tin nhắn.')}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className={`font-semibold text-xs truncate ${active ? 'text-[#0071e3]' : 'text-slate-900'}`}>
+                        {threadTitle(thread)}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 truncate">{threadSubtitle(thread) || '-'}</div>
+                      <div className="text-[11px] text-slate-500 mt-1.5 truncate">
+                        {thread.last_message || (thread.last_attachment_name ? `File: ${thread.last_attachment_name}` : 'Chưa có tin nhắn.')}
+                      </div>
                     </div>
                     {Number(thread.unread_count || 0) > 0 && (
-                      <span className="min-w-5 h-5 px-1 rounded-full bg-sky-600 text-white text-[11px] font-bold flex items-center justify-center">
+                      <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#0071e3] text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-xs">
                         {Number(thread.unread_count) > 99 ? '99+' : thread.unread_count}
                       </span>
                     )}
@@ -312,42 +326,55 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[620px]">
+        {/* Right Chat Window */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[620px]">
           {selectedThread ? (
             <>
-              <div className="px-5 py-4 border-b border-slate-100 bg-sky-50/70">
-                <div className="font-bold text-slate-900">{threadTitle(selectedThread)}</div>
-                <div className="text-xs text-slate-500 mt-1">{threadSubtitle(selectedThread) || '-'}</div>
+              <div className="px-5 py-3.5 border-b border-slate-100 bg-[#fbfbfd]">
+                <div className="font-bold text-slate-900 text-sm">{threadTitle(selectedThread)}</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{threadSubtitle(selectedThread) || '-'}</div>
               </div>
-              <div className="flex-1 p-5 overflow-y-auto bg-slate-50/50 space-y-3">
+              <div className="flex-1 p-5 overflow-y-auto bg-[#f5f5f7]/30 space-y-3">
                 {loadingMessages ? (
-                  <div className="text-sm text-slate-500 text-center py-10">Đang tải tin nhắn...</div>
+                  <div className="text-xs text-slate-400 text-center py-10 font-medium">Đang tải tin nhắn...</div>
                 ) : messages.length === 0 ? (
-                  <div className="text-sm text-slate-500 text-center py-10">Chưa có tin nhắn. Bạn có thể bắt đầu trao đổi ở ô bên dưới.</div>
+                  <div className="text-xs text-slate-400 text-center py-10 font-medium">Chưa có tin nhắn. Bạn có thể bắt đầu trao đổi ở ô bên dưới.</div>
                 ) : messages.map((message: any) => {
                   const mine = Number(message.sender_user_id) === Number(user.id);
                   const uiKey = messageUiKey(message);
                   return (
                     <div key={uiKey} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${mine ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
-                        <div className={`text-[11px] font-semibold mb-1 ${mine ? 'text-sky-100' : 'text-slate-500'}`}>
+                      <div className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-xs ${
+                        mine
+                          ? 'bg-[#0071e3] text-white'
+                          : 'bg-white border border-black/[0.06] text-slate-800'
+                      }`}>
+                        <div className={`text-[10px] font-semibold mb-1 ${mine ? 'text-white/80' : 'text-slate-400'}`}>
                           {mine ? 'Bạn' : message.sender_name}
                         </div>
-                        <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.body}</div>
+                        <div className="text-xs whitespace-pre-wrap leading-relaxed">{message.body}</div>
                         {message.has_attachment ? (
-                          <div className="mt-3 space-y-2">
-                            <div className={`flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${mine ? 'border-sky-300 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                          <div className="mt-2.5 space-y-2">
+                            <div className={`flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                              mine
+                                ? 'border-white/20 bg-white/10 text-white'
+                                : 'border-black/[0.08] bg-[#f5f5f7] text-slate-700'
+                            }`}>
                               <Paperclip size={14} className="shrink-0" />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate">{message.attachment_name || 'File đính kèm'}</span>
-                                <span className={`block text-[10px] font-medium ${mine ? 'text-sky-100' : 'text-slate-400'}`}>{formatChatBytes(Number(message.attachment_size || 0))}</span>
+                                <span className={`block text-[10px] font-medium ${mine ? 'text-white/70' : 'text-slate-400'}`}>
+                                  {formatChatBytes(Number(message.attachment_size || 0))}
+                                </span>
                               </span>
                               {canPreviewAttachment(message) && (
                                 <button
                                   type="button"
                                   onClick={() => toggleAttachmentPreview(message)}
                                   disabled={!!previewLoadingIds[uiKey]}
-                                  className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ${mine ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'} disabled:opacity-60`}
+                                  className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold ${
+                                    mine ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-black/[0.08]'
+                                  } disabled:opacity-60 cursor-pointer`}
                                 >
                                   {previewLoadingIds[uiKey] ? 'Đang tải' : attachmentPreviewUrls[uiKey] ? 'Ẩn' : 'Xem'}
                                 </button>
@@ -355,14 +382,14 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
                               <button
                                 type="button"
                                 onClick={() => downloadChatAttachment(message)}
-                                className={`shrink-0 rounded-lg p-1 ${mine ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+                                className={`shrink-0 rounded-lg p-1 transition-colors cursor-pointer ${mine ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'}`}
                                 title="Tải file"
                               >
                                 <Download size={14} />
                               </button>
                             </div>
                             {attachmentPreviewUrls[uiKey] && (
-                              <div className={`overflow-hidden rounded-xl border ${mine ? 'border-sky-300 bg-white/10' : 'border-slate-200 bg-white'}`}>
+                              <div className={`overflow-hidden rounded-xl border ${mine ? 'border-white/20 bg-white/10' : 'border-black/[0.08] bg-white'}`}>
                                 {String(message.attachment_mime || '').toLowerCase().startsWith('image/') ? (
                                   <img src={attachmentPreviewUrls[uiKey]} alt={message.attachment_name || 'Preview'} className="max-h-72 w-full object-contain" />
                                 ) : (
@@ -372,14 +399,14 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
                             )}
                           </div>
                         ) : null}
-                        <div className={`mt-2 flex items-center gap-2 text-[10px] ${mine ? 'justify-end text-sky-100' : 'text-slate-400'}`}>
+                        <div className={`mt-2 flex items-center gap-2 text-[10px] ${mine ? 'justify-end text-white/70' : 'text-slate-400'}`}>
                           <span>{message.created_at ? new Date(message.created_at).toLocaleString('vi-VN') : '-'}</span>
                           {mine && (
                             <button
                               type="button"
                               onClick={() => retractMessage(message)}
                               disabled={!!deletingMessageIds[uiKey]}
-                              className="rounded-md px-1.5 py-0.5 font-semibold text-white/90 hover:bg-white/15 disabled:opacity-60"
+                              className="rounded-md px-1.5 py-0.5 font-semibold text-white/80 hover:bg-white/20 disabled:opacity-60 cursor-pointer transition-colors"
                             >
                               {deletingMessageIds[uiKey] ? 'Đang thu hồi' : 'Thu hồi'}
                             </button>
@@ -392,29 +419,33 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
               </div>
               <form onSubmit={sendMessage} className="p-4 border-t border-slate-100 bg-white">
                 {selectedFile && (
-                  <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#bfe0ff]/80 bg-[#ebf4ff] px-3.5 py-2 text-xs text-[#005bb5]">
                     <div className="min-w-0 flex items-center gap-2">
                       <Paperclip size={14} className="shrink-0" />
                       <span className="truncate font-semibold">{selectedFile.name}</span>
-                      <span className="shrink-0 text-sky-600">{formatChatBytes(selectedFile.size)}</span>
+                      <span className="shrink-0 text-[#0071e3] font-medium">{formatChatBytes(selectedFile.size)}</span>
                     </div>
-                    <button type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="rounded-lg p-1 text-sky-700 hover:bg-sky-100">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="rounded-lg p-1 text-[#005bb5] hover:bg-[#bfe0ff]/50 cursor-pointer"
+                    >
                       <X size={14} />
                     </button>
                   </div>
                 )}
                 {uploadProgress !== null && (
-                  <div className="mb-3 rounded-xl border border-sky-100 bg-white px-3 py-2">
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-sky-700">
+                  <div className="mb-3 rounded-xl border border-[#bfe0ff]/80 bg-white px-3.5 py-2 shadow-xs">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-[#0071e3]">
                       <span>Đang tải file lên</span>
                       <span>{uploadProgress}%</span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-sky-50">
-                      <div className="h-full rounded-full bg-sky-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#ebf4ff]">
+                      <div className="h-full rounded-full bg-[#0071e3] transition-all" style={{ width: `${uploadProgress}%` }} />
                     </div>
                   </div>
                 )}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -426,7 +457,7 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={sending}
-                    className="w-10 h-10 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                    className="w-10 h-10 shrink-0 inline-flex items-center justify-center rounded-xl border border-black/[0.08] bg-white text-slate-600 hover:bg-[#f5f5f7] active:scale-[0.96] disabled:opacity-50 transition-all cursor-pointer shadow-xs"
                     title="Đính kèm file"
                   >
                     <Paperclip size={16} />
@@ -436,10 +467,13 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
                     onChange={e => setDraft(e.target.value)}
                     maxLength={2000}
                     rows={2}
-                    className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-sky-100 focus:border-sky-500 outline-none transition-all bg-slate-50/50 shadow-inner resize-none placeholder-slate-400"
+                    className="flex-1 bg-[#f5f5f7]/70 focus:bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner resize-none placeholder-slate-400 leading-relaxed"
                     placeholder="Nhập tin nhắn..."
                   />
-                  <button disabled={sending || (!draft.trim() && !selectedFile)} className="h-10 px-4 shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm">
+                  <button
+                    disabled={sending || (!draft.trim() && !selectedFile)}
+                    className="h-10 px-5 shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0071e3] text-xs font-semibold text-white hover:bg-[#0077ed] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+                  >
                     <Send size={14} /> Gửi
                   </button>
                 </div>
@@ -450,7 +484,7 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-slate-500">
+            <div className="flex-1 flex items-center justify-center p-8 text-center text-xs text-slate-400 font-medium">
               Chọn một cuộc trò chuyện để bắt đầu.
             </div>
           )}

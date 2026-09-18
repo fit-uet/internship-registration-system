@@ -858,13 +858,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={() => navigate('/profile')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
-                <UserIcon size={14} /> Cập nhật hồ sơ
+                <UserIcon size={14} className="text-slate-500" /> Cập nhật hồ sơ
               </button>
               <button
                 onClick={() => navigate('/plan')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
                 <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
               </button>
@@ -872,13 +872,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
                 <FileText size={14} className="text-slate-500" /> Mẫu báo cáo
               </a>
               <button
                 onClick={() => navigate('/faq')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow"
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
                 <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
               </button>

@@ -90,49 +90,60 @@ export function AdminRegistry({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={<>Quản lý Quản trị viên <PageDescriptionTooltip description="Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên." /></>}
-        description="Quản lý quyền truy cập quản trị và vai trò giảng viên đi kèm."
-        icon={<Shield size={20} />}
-        actions={<Button onClick={() => navigate('/admin')} size="sm">&larr; Quay lại Quản trị</Button>}
-      />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <button
+            onClick={() => navigate('/admin')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            &larr; Quay lại Quản trị
+          </button>
+          <h2 className="text-2xl font-bold text-[#1d1d1f] flex items-center gap-2">
+            <Shield className="text-[#0071e3]" size={24} /> Quản lý Quản trị viên
+            <PageDescriptionTooltip description="Danh sách các tài khoản có quyền Admin. Admin có thể đồng thời là Giảng viên." />
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">Quản lý quyền truy cập quản trị và vai trò giảng viên đi kèm.</p>
+        </div>
+      </div>
 
       {/* Add admin */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><Plus size={16} className="text-purple-500" /> Thêm Quản trị viên mới</h3>
-        <div className="flex gap-3">
+      <div className="bg-white border border-black/[0.08] rounded-2xl shadow-xs p-5 space-y-3.5">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+          <Plus size={16} className="text-[#0071e3]" /> Thêm Quản trị viên mới
+        </h3>
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <input
             type="email"
             placeholder="VD: nguyenvanan@vnu.edu.vn"
             value={newAdminEmail}
             onChange={(e) => setNewAdminEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddAdmin()}
-            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-100 focus:border-purple-500 outline-none transition-all bg-slate-50/50 shadow-inner"
+            className="flex-1 px-4 py-2 border border-[#e5e5ea] rounded-xl text-xs bg-[#f5f5f7] focus:bg-white focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20 outline-none transition-all shadow-xs text-[#1d1d1f]"
           />
           <button
             onClick={handleAddAdmin}
-            className="flex items-center gap-1.5 bg-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold hover:bg-purple-800 shadow-sm transition-colors cursor-pointer whitespace-nowrap"
+            className="flex items-center justify-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]"
           >
-            <Plus size={14} /> Thêm Admin
+            <Plus size={15} /> Thêm Admin
           </button>
         </div>
-        <p className="text-xs text-slate-400">Chỉ chấp nhận email có đuôi @vnu.edu.vn. Người dùng phải đăng nhập lại để quyền Admin có hiệu lực.</p>
+        <p className="text-[11px] text-slate-400 font-medium">Chỉ chấp nhận email có đuôi @vnu.edu.vn. Người dùng phải đăng nhập lại để quyền Admin có hiệu lực.</p>
       </div>
 
-      <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 text-xs font-medium text-purple-800 leading-relaxed shadow-sm">
-        <strong>Lưu ý:</strong> Tích vào ô <strong>"Là Giảng viên"</strong> sẽ tự động đồng bộ tên của Admin đó vào danh sách Giảng viên để sinh viên có thể chọn khi đăng ký thực tập tại Trường.
+      <div className="bg-[#ebf4ff] border border-[#cce4ff] rounded-2xl p-4 text-xs font-medium text-[#0071e3] leading-relaxed shadow-xs">
+        <strong>Lưu ý:</strong> Bật công tắc <strong>"Là Giảng viên"</strong> sẽ tự động đồng bộ tên của Admin đó vào danh sách Giảng viên để sinh viên có thể chọn khi đăng ký thực tập tại Trường.
       </div>
 
       {/* Admin list */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-white border border-black/[0.08] rounded-2xl overflow-hidden shadow-xs">
+        <table className="w-full text-left border-collapse text-xs text-slate-600">
           <thead>
-            <tr className="bg-slate-50/75 text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
-              <th className="p-4 w-12 text-center">STT</th>
-              <th className="p-4">Họ và Tên</th>
-              <th className="p-4">Email</th>
-              <th className="p-4 text-center">Là Giảng viên</th>
-              <th className="p-4 text-center w-24">Xóa</th>
+            <tr className="bg-[#f9f9fb] text-slate-700 font-semibold border-b border-slate-100 text-[10px] tracking-wider uppercase select-none">
+              <th className="p-3.5 w-12 text-center">STT</th>
+              <th className="p-3.5">Họ và Tên</th>
+              <th className="p-3.5">Email</th>
+              <th className="p-3.5 text-center">Là Giảng viên</th>
+              <th className="p-3.5 text-center w-24">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -142,42 +153,42 @@ export function AdminRegistry({ token }: { token: string }) {
               <tr><td colSpan={5} className="text-center py-10 text-slate-400">Chưa có admin nào</td></tr>
             ) : (
               admins.map((admin, idx) => (
-                <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 text-sm text-slate-500 text-center">{idx + 1}</td>
-                  <td className="p-4">
+                <tr key={admin.id} className="hover:bg-[#f5f5f7] transition-colors">
+                  <td className="p-3.5 text-slate-400 text-center">{idx + 1}</td>
+                  <td className="p-3.5">
                     <div className="flex items-center gap-3">
                       {admin.picture ? (
-                        <img src={admin.picture} alt={admin.name} className="w-8 h-8 rounded-full" />
+                        <img src={admin.picture} alt={admin.name} className="w-8 h-8 rounded-full border border-black/[0.08]" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                          <UserIcon size={14} className="text-purple-600" />
+                        <div className="w-8 h-8 rounded-full bg-[#ebf4ff] flex items-center justify-center text-[#0071e3]">
+                          <UserIcon size={14} />
                         </div>
                       )}
-                      <span className="font-semibold text-slate-800 text-sm">{admin.name || <span className="text-slate-400 font-normal italic">Chưa đăng nhập</span>}</span>
+                      <span className="font-semibold text-slate-900 text-xs">{admin.name || <span className="text-slate-400 font-normal italic">Chưa đăng nhập</span>}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-slate-600">{admin.email}</td>
-                  <td className="p-4 text-center">
+                  <td className="p-3.5 text-slate-600">{admin.email}</td>
+                  <td className="p-3.5 text-center">
                     <button
                       onClick={() => toggleLecturer(admin)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${admin.is_lecturer ? 'bg-teal-500' : 'bg-slate-200'
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${admin.is_lecturer ? 'bg-[#34c759]' : 'bg-[#e5e5ea]'
                         }`}
                       title={admin.is_lecturer ? 'Click để bỏ khỏi danh sách GV' : 'Click để thêm vào danh sách GV'}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${admin.is_lecturer ? 'translate-x-6' : 'translate-x-1'
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs transition-transform ${admin.is_lecturer ? 'translate-x-4.5' : 'translate-x-1'
                         }`} />
                     </button>
                     {admin.is_lecturer ? (
-                      <span className="ml-2 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">GV</span>
+                      <span className="ml-2 text-[10px] font-semibold text-[#1b7f37] bg-[#ebf9ee] px-2 py-0.5 rounded-full">GV</span>
                     ) : null}
                   </td>
-                  <td className="p-4 text-center">
+                  <td className="p-3.5 text-center">
                     <button
                       onClick={() => handleRemoveAdmin(admin.id)}
-                      className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                      className="text-[#ff3b30] hover:bg-[#fff2f1] p-1.5 rounded-lg transition-colors cursor-pointer"
                       title="Xóa quyền admin"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   </td>
                 </tr>
