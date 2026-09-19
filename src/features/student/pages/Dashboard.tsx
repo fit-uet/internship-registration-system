@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, companyDescriptionText, isAuthExpiredResponse, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
+import { Badge, type BadgeVariant } from '../../../shared/ui';
+
+
 
 export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, setUser: any, token: string, onAuthExpired: () => void }) {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -800,14 +803,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   ];
   const visibleCampaignStatusItems = campaignStatusItems;
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
-  const campaignStatusColor = (status: string) => status === 'open'
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : status === 'not_open_yet'
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : status === 'unconfigured'
-        ? 'bg-slate-50 text-slate-600 border-slate-200'
-        : 'bg-slate-100 text-slate-600 border-slate-200';
-  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-emerald-500' : status === 'not_open_yet' ? 'bg-amber-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-slate-400';
+  const campaignBadgeVariant = (status: string): BadgeVariant => {
+    if (status === 'open') return 'success';
+    if (status === 'not_open_yet') return 'warning';
+    return 'neutral';
+  };
   const openCampaigns = campaignStatusItems.filter(item => item.status === 'open');
   const advisorCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký GVHD');
   const registrationCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký nguyện vọng' || item.label === 'Đăng ký thực tập');
@@ -852,7 +852,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       : 'Chưa có GVHD';
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
-  const stageTabs = [
+  const stageTabs: Array<{
+    id: 'registration' | 'confirmation' | 'advisor' | 'report';
+    step: string;
+    title: string;
+    isDone: boolean;
+    status: string;
+    variant: BadgeVariant;
+  }> = [
     {
       id: 'registration',
       step: '1',
@@ -861,9 +868,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: hasRegistered
         ? 'Đã ghi nhận'
         : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký'),
-      statusBadgeClass: hasRegistered
-        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        : (registrationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
+      variant: hasRegistered
+        ? 'success'
+        : (registrationWindowStatus === 'open' ? 'info' : 'neutral'),
     },
     {
       id: 'confirmation',
@@ -873,9 +880,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: finalInternship
         ? 'Đã xác nhận'
         : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận'),
-      statusBadgeClass: finalInternship
-        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        : (confirmationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
+      variant: finalInternship
+        ? 'success'
+        : (confirmationWindowStatus === 'open' ? 'info' : 'warning'),
     },
     {
       id: 'advisor',
@@ -885,9 +892,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: myAdvisors.length > 0
         ? 'Đã phân công'
         : (advisorRequest ? 'Chờ duyệt' : 'Chưa có'),
-      statusBadgeClass: myAdvisors.length > 0
-        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        : (advisorRequest ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
+      variant: myAdvisors.length > 0
+        ? 'success'
+        : (advisorRequest ? 'warning' : 'neutral'),
     },
     {
       id: 'report',
@@ -897,11 +904,12 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: finalReport?.status === 'accepted'
         ? 'Đã duyệt'
         : (finalReport ? 'Đã nộp' : (finalReportWindowStatus === 'open' ? 'Đang mở' : 'Chưa nộp')),
-      statusBadgeClass: finalReport?.status === 'accepted'
-        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        : (finalReport ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
+      variant: finalReport?.status === 'accepted'
+        ? 'success'
+        : (finalReport ? 'info' : (finalReportWindowStatus === 'open' ? 'info' : 'neutral')),
     },
   ];
+
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -985,11 +993,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 <div key={item.label} className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-xs font-semibold text-slate-800 truncate">{item.label}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 border ${campaignStatusColor(item.status)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${campaignStatusDot(item.status)}`} />
+                    <Badge variant={campaignBadgeVariant(item.status)} size="sm">
                       {campaignStatusText(item.status)}
-                    </span>
+                    </Badge>
                   </div>
+
                   <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
                     <span>Hạn:</span>
                     <span className="font-medium text-slate-700">
@@ -1050,9 +1058,10 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       </span>
                       <span className="text-xs truncate">{tab.title}</span>
                     </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${tab.statusBadgeClass}`}>
+                    <Badge variant={tab.variant} size="sm">
                       {tab.status}
-                    </span>
+                    </Badge>
+
                   </button>
                 );
               })}
@@ -1081,13 +1090,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 </div>
                 <div>
                   {finalReport?.status === 'accepted' ? (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Đã duyệt báo cáo</span>
+                    <Badge variant="success" size="md">Đã duyệt báo cáo</Badge>
                   ) : finalReport ? (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Đã nộp báo cáo</span>
+                    <Badge variant="info" size="md">Đã nộp báo cáo</Badge>
                   ) : (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Chưa nộp</span>
+                    <Badge variant="warning" size="md">Chưa nộp</Badge>
                   )}
                 </div>
+
               </div>
 
               {finalReport ? (
@@ -1240,15 +1250,12 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                               </div>
                             )}
                           </div>
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${
-                            reg.status === 'approved'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : reg.status === 'rejected'
-                                ? 'bg-red-50 text-red-600 border-red-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}>
-                            {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
-                          </span>
+                          <Badge
+                            variant={reg.status === 'approved' ? 'success' : reg.status === 'rejected' ? 'error' : 'warning'}
+                            size="sm"
+                          >
+                            {reg.status === 'pending' ? 'Chờ duyệt' : reg.status === 'approved' ? 'Đã duyệt' : 'Từ chối'}
+                          </Badge>
                         </div>
                       ))}
                     </div>
@@ -1266,10 +1273,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                         <h3 className="text-lg font-bold text-slate-900">Chỉnh sửa nguyện vọng</h3>
                         <p className="text-xs text-slate-500 mt-1">Chọn thêm hoặc bỏ bớt nơi thực tập từ danh sách bên dưới</p>
                       </div>
-                      <div className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 shrink-0">
+                      <Badge variant="info" size="md" dot={false}>
                         Đang chọn {selectedWishCount}/5
-                      </div>
+                      </Badge>
                     </div>
+
 
                     {selectedPreferencePreview.length > 0 && (
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
@@ -1323,10 +1331,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-800 text-sm">Danh mục nơi thực tập</span>
                   {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
-                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
+                    <Badge variant="info" size="sm" dot={false}>
                       Đã chọn: {selectedWishCount}/5
-                    </span>
+                    </Badge>
                   )}
+
                 </div>
                 <div className="flex gap-2 items-center">
                   <input
@@ -1425,10 +1434,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 </p>
               </div>
               {finalInternship && (
-                <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                <Badge variant="success" size="md">
                   Đã xác nhận
-                </span>
+                </Badge>
               )}
+
             </div>
 
             {finalInternship ? (
@@ -1512,15 +1522,23 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   Hạn đăng ký GVHD: {campaign.advisor_request_close_at ? formatGMT7(campaign.advisor_request_close_at) : 'Chưa thiết lập'} (GMT+7)
                 </p>
               </div>
-              {canEditAdvisorRequest && (
-                <button
-                  type="button"
-                  onClick={() => setIsAdvisorEditOpen(prev => !prev)}
-                  className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer shadow-xs hover:shadow active:scale-[0.98]"
-                >
-                  {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Đăng ký / Đổi GVHD'}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {myAdvisors.length > 0 ? (
+                  <Badge variant="success" size="md">Đã phân công</Badge>
+                ) : advisorRequest ? (
+                  <Badge variant="warning" size="md">Chờ duyệt</Badge>
+                ) : null}
+                {canEditAdvisorRequest && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvisorEditOpen(prev => !prev)}
+                    className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer shadow-xs hover:shadow active:scale-[0.98]"
+                  >
+                    {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Đăng ký / Đổi GVHD'}
+                  </button>
+                )}
+              </div>
+
             </div>
 
             {hasAdvisorSelection ? (

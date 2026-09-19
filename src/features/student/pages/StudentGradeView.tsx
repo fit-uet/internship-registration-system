@@ -15,6 +15,8 @@ import {
   Share2,
 } from 'lucide-react';
 import { API_BASE, PageDescriptionTooltip } from '../../../shared';
+import { Badge } from '../../../shared/ui';
+
 
 export function StudentGradeView({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -146,26 +148,20 @@ export function StudentGradeView({ token }: { token: string }) {
               <span className="text-[11px] font-bold tracking-widest text-[#86868b] uppercase">
                 Điểm tổng kết
               </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border shadow-xs ${
+              <Badge
+                variant={
                   grade?.grade_status === 'submitted'
-                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/70'
+                    ? 'success'
                     : grade?.grade_status === 'draft'
-                    ? 'bg-[#fff8eb] text-[#b25e00] border-amber-200/70'
-                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
-                }`}
+                    ? 'warning'
+                    : 'neutral'
+                }
+                size="sm"
+                pulse={grade?.grade_status === 'submitted'}
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    grade?.grade_status === 'submitted'
-                      ? 'bg-[#34c759] animate-pulse'
-                      : grade?.grade_status === 'draft'
-                      ? 'bg-[#ff9500]'
-                      : 'bg-[#86868b]'
-                  }`}
-                />
                 {statusLabel(grade?.grade_status)}
-              </span>
+              </Badge>
+
             </div>
 
             {/* Apple Circular Score Ring */}

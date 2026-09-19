@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, CACHE_TTL, cachedJsonFetch, PageDescriptionTooltip } from '../../../shared';
+import { Badge } from '../../../shared/ui';
+
 
 export function StudentFinalReportView({ token, user }: { token: string; user: any }) {
   const [campaign, setCampaign] = useState<any>({});
@@ -184,30 +186,21 @@ export function StudentFinalReportView({ token, user }: { token: string; user: a
               <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
                 <FileCheck size={18} className="text-[#0071e3]" /> Trạng thái nộp bài
               </h3>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+              <Badge
+                variant={
                   finalReport?.status === 'accepted'
-                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/70'
+                    ? 'success'
                     : finalReport?.status === 'submitted'
-                    ? 'bg-[#ebf4ff] text-[#0071e3] border-blue-200/70'
+                    ? 'info'
                     : finalReport?.status === 'needs_revision'
-                    ? 'bg-[#fff2f1] text-[#d70015] border-red-200/70'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
-                }`}
+                    ? 'error'
+                    : 'neutral'
+                }
+                size="md"
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    finalReport?.status === 'accepted'
-                      ? 'bg-[#1d833f]'
-                      : finalReport?.status === 'submitted'
-                      ? 'bg-[#0071e3]'
-                      : finalReport?.status === 'needs_revision'
-                      ? 'bg-[#d70015]'
-                      : 'bg-slate-400'
-                  }`}
-                />
                 {reportStatusLabelLocal(finalReport?.status)}
-              </span>
+              </Badge>
+
             </div>
 
             {!finalInternship ? (
@@ -301,16 +294,17 @@ export function StudentFinalReportView({ token, user }: { token: string; user: a
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Thời hạn nộp báo cáo</h4>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+              <Badge
+                variant={
                   finalReportWindowStatus === 'open'
-                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/70'
+                    ? 'success'
                     : finalReportWindowStatus === 'not_open_yet'
-                    ? 'bg-[#fff8eb] text-[#b25e00] border-amber-200/70'
+                    ? 'warning'
                     : finalReportWindowStatus === 'unconfigured'
-                    ? 'bg-slate-100 text-slate-600 border-slate-200'
-                    : 'bg-[#fff2f1] text-[#d70015] border-red-200/70'
-                }`}
+                    ? 'neutral'
+                    : 'error'
+                }
+                size="sm"
               >
                 {finalReportWindowStatus === 'open'
                   ? 'Đang mở nộp'
@@ -319,7 +313,8 @@ export function StudentFinalReportView({ token, user }: { token: string; user: a
                   : finalReportWindowStatus === 'unconfigured'
                   ? 'Chưa cấu hình'
                   : 'Đã hết hạn'}
-              </span>
+              </Badge>
+
             </div>
 
             <div className="space-y-2 text-xs">
