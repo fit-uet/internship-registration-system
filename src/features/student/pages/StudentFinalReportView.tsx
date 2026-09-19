@@ -162,7 +162,7 @@ export function StudentFinalReportView({ token, user }: { token: string; user: a
               <FileText size={18} />
             </div>
             Báo cáo thực tập tốt nghiệp
-            <PageDescriptionTooltip description="Nộp bản mềm báo cáo thực tập định dạng PDF (tối đa 10 MB) để giảng viên hướng dẫn đánh giá và cho điểm." />
+            <PageDescriptionTooltip description="Nộp 01 file báo cáo PDF hoàn chỉnh (đã scan gộp trang Phiếu đánh giá có dấu mộc công ty) để GVHD chấm và nhập điểm." />
           </h2>
         </div>
         <a
@@ -345,18 +345,18 @@ export function StudentFinalReportView({ token, user }: { token: string; user: a
             <h4 className="font-bold text-sm text-[#004085] flex items-center gap-2">
               <CheckCircle2 size={16} className="text-[#0071e3]" /> Cần nộp những gì để hoàn thành?
             </h4>
-            <ol className="list-decimal pl-4 space-y-2 text-[11px]">
+            <ol className="list-decimal pl-4 space-y-2.5 text-[11px]">
               <li>
-                <strong>Nộp bản mềm (PDF):</strong> Nộp file báo cáo hoàn chỉnh trực tiếp tại màn hình này để GVHD chấm{' '}
-                <strong>Điểm định kỳ (20%)</strong> và <strong>Điểm báo cáo (20%)</strong>.
+                <strong>Phiếu đánh giá & dấu công ty (60%):</strong> In riêng trang <em>Phiếu đánh giá</em> trong mẫu báo cáo của Khoa để xin nhận xét, điểm số và chữ ký của người hướng dẫn tại doanh nghiệp kèm <strong>dấu tròn của công ty</strong> (hoặc do GVHD trực tiếp đánh giá nếu TT tại Lab trường).
               </li>
               <li>
-                <strong>Nộp phiếu nhận xét doanh nghiệp (60%):</strong> In riêng trang nhận xét trong mẫu báo cáo để xin chữ ký
-                người hướng dẫn tại công ty và <strong>đóng dấu mộc công ty</strong>, sau đó gửi cho GVHD của Khoa để nhập{' '}
-                <strong>Điểm doanh nghiệp (60%)</strong>.
+                <strong>Scan & gộp vào bản mềm (PDF):</strong> Chụp hoặc scan rõ nét trang Phiếu đánh giá đã có dấu công ty và <strong>gộp (merge) trực tiếp vào file báo cáo PDF</strong>.
               </li>
               <li>
-                <strong>Thời gian thực tập:</strong> Đảm bảo tối thiểu 06 tuần làm việc full-time tại doanh nghiệp.
+                <strong>Nộp 01 file PDF duy nhất trên hệ thống:</strong> Nộp file PDF báo cáo hoàn chỉnh (đã bao gồm trang Phiếu đánh giá có dấu mộc) tại màn hình này để GVHD chấm toàn bộ 3 đầu điểm (20% định kỳ, 20% báo cáo, 60% doanh nghiệp). Sinh viên <strong>không cần nộp thêm phiếu giấy</strong>.
+              </li>
+              <li>
+                <strong>Thời gian thực tập:</strong> Đảm bảo tối thiểu 06 tuần làm việc full-time tại đơn vị thực tập (hoặc tương đương).
               </li>
             </ol>
           </div>

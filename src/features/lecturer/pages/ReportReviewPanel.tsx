@@ -500,6 +500,10 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                   ))}
                 </div>
 
+                <p className="text-[10px] text-slate-400 text-center leading-tight">
+                  Điểm Đơn vị (60%) căn cứ theo Phiếu đánh giá có dấu công ty được scan gộp trong file PDF báo cáo của sinh viên.
+                </p>
+
                 {/* Điểm tổng kết */}
                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-600">Điểm tổng kết:</span>

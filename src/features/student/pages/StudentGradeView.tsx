@@ -353,7 +353,7 @@ export function StudentGradeView({ token }: { token: string }) {
                     />
                   </div>
                   <p className="text-[11px] text-[#86868b] mt-1.5 leading-normal">
-                    Điểm theo trang nhận xét có chữ ký & dấu tròn công ty (hoặc GVHD nếu TT tại Lab trường).
+                    Điểm theo Phiếu đánh giá có chữ ký & dấu công ty được scan gộp trong file báo cáo (hoặc GVHD nếu TT tại Lab trường).
                   </p>
                 </div>
               </div>

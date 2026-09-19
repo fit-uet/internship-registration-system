@@ -60,14 +60,15 @@ Mỗi sinh viên cần viết **01 báo cáo thực tập** theo mẫu Khoa quy 
 
 Để hoàn thành học phần Thực tập và được công nhận điểm, sinh viên cần thực hiện:
 
-1. **Nộp Báo cáo thực tập (Bản mềm - PDF) trên hệ thống:**
-   - Sinh viên nộp bản báo cáo hoàn chỉnh (định dạng **PDF, tối đa 10 MB**) trực tiếp trên hệ thống trong thời gian mở nộp (**01/10 – 10/10**).
-   - Bản báo cáo này là cơ sở để Giảng viên hướng dẫn đánh giá và cho **Điểm tiến độ (20%)** và **Điểm báo cáo (20%)**.
-
-2. **Nộp Trang nhận xét & Đánh giá kết quả thực tập (Có chữ ký & dấu công ty):**
+1. **Phiếu đánh giá kết quả thực tập (Có chữ ký & dấu công ty - 60%):**
    - Trong mẫu báo cáo thực tập của Khoa có sẵn **Trang nhận xét / Phiếu đánh giá kết quả thực tập**.
-   - **Nếu thực tập tại Doanh nghiệp:** Sinh viên in riêng trang nhận xét này để xin điểm đánh giá, nhận xét chi tiết và chữ ký của người hướng dẫn trực tiếp tại doanh nghiệp, kèm **dấu xác nhận của công ty/doanh nghiệp**. Sau đó, nộp bản nhận xét này cho Giảng viên hướng dẫn của Khoa để Thầy/Cô ghi nhận và nhập **Điểm đánh giá của doanh nghiệp (60%)** vào hệ thống.
+   - **Nếu thực tập tại Doanh nghiệp:** Sinh viên chỉ cần in riêng trang Phiếu đánh giá này để xin điểm số, nhận xét chi tiết và chữ ký của người hướng dẫn tại doanh nghiệp, kèm **dấu tròn xác nhận của công ty/doanh nghiệp**.
+   - Sau đó, sinh viên scan (hoặc chụp rõ nét) trang Phiếu đánh giá này và **gộp (merge) trực tiếp vào trong bản mềm (file PDF)** của báo cáo thực tập.
    - **Nếu thực tập tại Trường:** Giảng viên hướng dẫn tại trường sẽ trực tiếp theo dõi, nhận xét và đánh giá cho điểm phần này.
+
+2. **Nộp Báo cáo thực tập hoàn chỉnh (Bản mềm - 01 file PDF duy nhất):**
+   - Sinh viên nộp bản báo cáo hoàn chỉnh (định dạng **PDF, tối đa 10 MB**, đã bao gồm trang Phiếu đánh giá có chữ ký và con dấu) trực tiếp trên hệ thống trong thời gian mở nộp (**01/10 – 10/10**).
+   - Bản báo cáo này là cơ sở để Giảng viên hướng dẫn đánh giá và nhập đầy đủ cả 3 đầu điểm trên hệ thống: **Điểm tiến độ (20%)**, **Điểm báo cáo (20%)** và **Điểm đánh giá doanh nghiệp (60%)**. Sinh viên không cần nộp thêm phiếu giấy riêng.
 
 ---
 
@@ -75,7 +76,7 @@ Mỗi sinh viên cần viết **01 báo cáo thực tập** theo mẫu Khoa quy 
 
 - **20%:** Điểm báo cáo định kỳ / tiến độ (sinh viên chủ động liên hệ và báo cáo tiến độ với GVHD).
 - **20%:** Điểm nội dung của bản báo cáo thực tập theo mẫu quy định (nộp bản mềm trên hệ thống).
-- **60%:** Điểm đánh giá của phía doanh nghiệp (theo trang nhận xét có chữ ký & dấu công ty) hoặc của Giảng viên hướng dẫn (nếu thực tập tại trường).`;
+- **60%:** Điểm đánh giá của phía doanh nghiệp (theo Phiếu đánh giá có chữ ký & dấu công ty được scan gộp trong file báo cáo) hoặc của Giảng viên hướng dẫn (nếu thực tập tại trường).`;
 const DEFAULT_REGISTRATION_RULES = [
   'Chỉ dành cho sinh viên nhận được thông báo.',
   'Mỗi sinh viên chọn tối đa 05 nơi thực tập.',
@@ -95,8 +96,8 @@ Em cần đăng nhập hệ thống và xác nhận đúng một nơi thực t�
 Em có thể đăng ký thực tập tại trường hoặc nhờ Khoa phân công giảng viên hướng dẫn.
 
 ### 4. Báo cáo nộp ở đâu và cần nộp những gì để hoàn thành học phần?
-- **Nộp bản mềm:** Sinh viên nộp PDF báo cáo trên hệ thống (tối đa 10 MB) để GVHD chấm Điểm tiến độ (20%) và Điểm báo cáo (20%).
-- **Trang nhận xét đánh giá:** Nếu thực tập tại doanh nghiệp, in trang nhận xét trong mẫu báo cáo để xin điểm, nhận xét, chữ ký của người hướng dẫn và đóng dấu công ty, sau đó nộp cho GVHD để nhập Điểm doanh nghiệp (60%).`;
+- **Phiếu đánh giá doanh nghiệp:** Sinh viên chỉ cần in riêng trang Phiếu đánh giá trong mẫu báo cáo của Khoa để xin điểm, nhận xét, chữ ký của người hướng dẫn và dấu của công ty. Sau đó scan và gộp trực tiếp vào file báo cáo PDF.
+- **Nộp bản mềm trên hệ thống:** Nộp 01 file báo cáo PDF hoàn chỉnh (đã kèm trang Phiếu đánh giá) trực tiếp trên hệ thống để GVHD chấm cả 3 đầu điểm (20% tiến độ, 20% báo cáo, 60% doanh nghiệp). Không cần nộp phiếu giấy riêng.`;
 const DEFAULT_LECTURER_FAQ = `## FAQ cho giảng viên
 
 ### 1. Giảng viên xem danh sách sinh viên ở đâu?
