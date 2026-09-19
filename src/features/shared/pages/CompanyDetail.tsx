@@ -1,9 +1,23 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Building2, RefreshCw, Save, X, Edit2 } from 'lucide-react';
+import {
+  Building2,
+  RefreshCw,
+  Save,
+  X,
+  Edit2,
+  ChevronLeft,
+  Mail,
+  Phone,
+  MapPin,
+  ExternalLink,
+  Users,
+  BookOpen,
+  CheckCircle2,
+} from 'lucide-react';
 import { API_BASE, companyDescriptionText, companyDisplayDescription } from '../../../shared';
 
-export function CompanyDetail({ user, token }: { user: any, token: string }) {
+export function CompanyDetail({ user, token }: { user: any; token: string }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [company, setCompany] = useState<any>(null);
@@ -15,8 +29,8 @@ export function CompanyDetail({ user, token }: { user: any, token: string }) {
   const loadCompany = () => {
     setLoading(true);
     fetch(`${API_BASE}/api/companies/${id}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setCompany(data);
         setEditForm({
           name: data?.name || '',
@@ -32,7 +46,7 @@ export function CompanyDetail({ user, token }: { user: any, token: string }) {
         });
         setLoading(false);
       })
-      .catch(e => {
+      .catch((e) => {
         console.error(e);
         setLoading(false);
       });
@@ -66,208 +80,333 @@ export function CompanyDetail({ user, token }: { user: any, token: string }) {
     }
   };
 
-  if (loading) return <div className="text-center py-20 text-slate-500 font-medium">Đang tải dữ liệu...</div>;
-  if (!company || company.error) return <div className="text-center py-20 text-red-500 font-medium">Không tìm thấy công ty!</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 text-[#86868b]">
+        <div className="w-8 h-8 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin mb-3" />
+        <span className="text-xs font-medium">Đang tải thông tin doanh nghiệp...</span>
+      </div>
+    );
+  }
+
+  if (!company || company.error) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#ff3b30]/10 text-[#ff3b30] flex items-center justify-center mx-auto">
+          <Building2 size={24} />
+        </div>
+        <h2 className="text-xl font-bold text-[#1d1d1f]">Không tìm thấy doanh nghiệp</h2>
+        <p className="text-xs text-[#86868b]">Doanh nghiệp không tồn tại hoặc đã bị xóa khỏi hệ thống.</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] transition-all cursor-pointer"
+        >
+          Quay lại
+        </button>
+      </div>
+    );
+  }
+
   const description = companyDisplayDescription(company.description);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="max-w-5xl mx-auto space-y-7 pb-12">
+      {/* Apple Navigation & Top Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+          className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-[#86868b] bg-white border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
         >
-          &larr; Quay lại
+          <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          Quay lại
         </button>
+
         {user?.role === 'admin' && !editing && (
           <button
             onClick={() => setEditing(true)}
-            className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer w-fit"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all cursor-pointer shadow-xs"
           >
-            <Edit2 size={14} /> Chỉnh sửa công ty
+            <Edit2 size={13} />
+            Chỉnh sửa thông tin
           </button>
         )}
       </div>
 
+      {/* Admin Edit Modal / Sheet */}
       {user?.role === 'admin' && editing && editForm && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">Chỉnh sửa thông tin công ty</h2>
+        <div className="bg-white rounded-3xl p-7 border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-black/[0.04]">
+            <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight flex items-center gap-2">
+              <Edit2 size={16} className="text-[#0071e3]" />
+              Chỉnh sửa thông tin doanh nghiệp
+            </h2>
             <button
-              onClick={() => { setEditing(false); setEditForm({ ...company, description: companyDescriptionText(company.description) || '' }); }}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              onClick={() => {
+                setEditing(false);
+                setEditForm({ ...company, description: companyDescriptionText(company.description) || '' });
+              }}
+              className="text-[#86868b] hover:text-[#1d1d1f] p-1.5 rounded-full hover:bg-[#f5f5f7] transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tên công ty *</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Tên công ty / Đơn vị *
+              </label>
               <input
                 value={editForm.name}
-                onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner font-semibold text-slate-800"
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#1d1d1f] outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all"
               />
             </div>
+
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mô tả công ty</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Mô tả giới thiệu
+              </label>
               <textarea
                 value={editForm.description}
-                onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                rows={4}
-                placeholder="Chưa rõ"
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner leading-relaxed"
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+                placeholder="Giới thiệu chung về doanh nghiệp..."
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all leading-relaxed resize-y"
               />
             </div>
+
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Chỉ tiêu tiếp nhận</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Chỉ tiêu tiếp nhận (Số lượng SV)
+              </label>
               <input
                 type="number"
-                min={1}
                 value={editForm.slots}
-                onChange={e => setEditForm({ ...editForm, slots: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, slots: parseInt(e.target.value) || 0 })}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all font-semibold"
               />
             </div>
+
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Người liên hệ</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Người liên hệ
+              </label>
               <input
                 value={editForm.contact_name}
-                onChange={e => setEditForm({ ...editForm, contact_name: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, contact_name: e.target.value })}
+                placeholder="Họ tên người phụ trách tuyển dụng..."
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all"
               />
             </div>
+
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email liên hệ</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Email liên hệ
+              </label>
               <input
                 value={editForm.contact_email}
-                onChange={e => setEditForm({ ...editForm, contact_email: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all"
               />
             </div>
+
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Điện thoại liên hệ</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Số điện thoại
+              </label>
               <input
                 value={editForm.phone}
-                onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all"
               />
             </div>
+
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Địa chỉ</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Địa chỉ văn phòng
+              </label>
               <input
                 value={editForm.address}
-                onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all"
               />
             </div>
+
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Link chi tiết tuyển dụng</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Link tuyển dụng / JD chi tiết
+              </label>
               <input
                 value={editForm.recruitment_link}
-                onChange={e => setEditForm({ ...editForm, recruitment_link: e.target.value })}
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner"
+                onChange={(e) => setEditForm({ ...editForm, recruitment_link: e.target.value })}
+                placeholder="https://..."
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all font-mono"
               />
             </div>
+
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lịch sử & Tổ chức</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Lịch sử & Quy mô tổ chức
+              </label>
               <textarea
                 value={editForm.history}
-                onChange={e => setEditForm({ ...editForm, history: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, history: e.target.value })}
                 rows={3}
-                placeholder="Chưa cập nhật"
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner leading-relaxed"
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all leading-relaxed resize-y"
               />
             </div>
+
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Yêu cầu & Tiêu chí</label>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#86868b] mb-1.5">
+                Yêu cầu & Tiêu chí tiếp nhận
+              </label>
               <textarea
                 value={editForm.qualifications}
-                onChange={e => setEditForm({ ...editForm, qualifications: e.target.value })}
-                rows={4}
-                placeholder="Chưa cập nhật"
-                className="w-full bg-[#f5f5f7]/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner leading-relaxed"
+                onChange={(e) => setEditForm({ ...editForm, qualifications: e.target.value })}
+                rows={3}
+                className="w-full bg-[#fbfbfd] focus:bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all leading-relaxed resize-y"
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2.5 mt-5 pt-4 border-t border-slate-100">
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-black/[0.04]">
             <button
-              onClick={() => { setEditing(false); setEditForm({ ...company, description: companyDescriptionText(company.description) || '' }); }}
+              onClick={() => {
+                setEditing(false);
+                setEditForm({ ...company, description: companyDescriptionText(company.description) || '' });
+              }}
               disabled={saving}
-              className="px-4 py-2 rounded-xl border border-black/[0.08] text-xs font-semibold text-slate-700 bg-white hover:bg-[#f5f5f7] active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+              className="px-4 py-2 rounded-full border border-black/[0.08] text-xs font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] cursor-pointer"
             >
               Hủy
             </button>
             <button
               onClick={saveCompany}
               disabled={saving}
-              className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all cursor-pointer shadow-xs disabled:opacity-50"
             >
-              {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu thay đổi
+              {saving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
+              Lưu thay đổi
             </button>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-8 border border-slate-200/80 shadow-xs relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 text-slate-100/60 pointer-events-none">
-          <Building2 size={120} />
-        </div>
-        <div className="relative z-10">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">{company.name}</h1>
-          <p className="text-base text-slate-600 mb-6 leading-relaxed">{description}</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div>
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Thông tin chung</h3>
-              <ul className="space-y-4">
-                <li className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 font-medium mb-0.5">Email liên hệ:</span>
-                  <span className="text-sm font-semibold text-slate-800">
-                    {company.contact_name && <span className="font-bold">{company.contact_name} - </span>}
-                    {company.contact_email || 'Chưa cập nhật'}
-                  </span>
-                </li>
-                <li className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 font-medium mb-0.5">Điện thoại liên hệ:</span>
-                  <span className="text-sm font-semibold text-slate-800">
-                    {company.contact_name && <span className="font-bold">{company.contact_name} - </span>}
-                    {company.phone || 'Chưa cập nhật'}
-                  </span>
-                </li>
-                <li className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 font-medium mb-0.5">Địa chỉ:</span>
-                  <span className="text-sm font-semibold text-slate-800">{company.address || 'Chưa cập nhật'}</span>
-                </li>
-                <li className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 font-medium mb-0.5">Chi tiết tuyển dụng:</span>
-                  <span className="text-sm font-semibold text-[#0071e3]">
-                    {company.recruitment_link ? (
-                      <a href={company.recruitment_link} target="_blank" rel="noopener noreferrer" className="hover:underline break-all">
-                        {company.recruitment_link}
-                      </a>
-                    ) : 'Chưa cập nhật'}
-                  </span>
-                </li>
-                <li className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 font-medium mb-0.5">Chỉ tiêu tiếp nhận:</span>
-                  <span className="text-sm font-semibold text-slate-800">{company.slots} sinh viên</span>
-                </li>
-              </ul>
+      {/* Apple Enterprise Profile Showcase Card */}
+      <div className="bg-white rounded-3xl p-8 sm:p-10 border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] relative overflow-hidden">
+        {/* Header Strip */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-8 border-b border-black/[0.05]">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 rounded-3xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shrink-0 shadow-inner">
+              <Building2 size={32} />
             </div>
             <div>
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Lịch sử & Tổ chức</h3>
-              <p className="text-xs text-slate-700 leading-relaxed bg-[#f5f5f7]/60 p-4 rounded-xl border border-black/[0.04]">
-                {company.history || 'Chưa cập nhật'}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold bg-[#34c759]/10 text-[#1d833f]">
+                  <CheckCircle2 size={12} /> Đối tác thực tập FIT UET
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-semibold bg-[#f5f5f7] text-[#1d1d1f]">
+                  <Users size={12} className="text-[#86868b]" /> Chỉ tiêu: {company.slots} sinh viên
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#1d1d1f] tracking-tight">{company.name}</h1>
+              <p className="text-xs sm:text-sm text-[#6e6e73] mt-2 max-w-2xl leading-relaxed">{description}</p>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-6">
-            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Yêu cầu & Tiêu chí</h3>
-            <p className="text-xs text-[#004085] leading-relaxed bg-[#ebf4ff] p-5 rounded-xl border border-[#bfe0ff]/80">
-              {company.qualifications || 'Chưa cập nhật'}
-            </p>
+          {company.recruitment_link && (
+            <a
+              href={company.recruitment_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-xs cursor-pointer whitespace-nowrap self-start"
+            >
+              <span>Xem trang tuyển dụng</span>
+              <ExternalLink size={13} />
+            </a>
+          )}
+        </div>
+
+        {/* Master Details Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 items-start">
+          {/* Left: Contact Specifications (col-span-5) */}
+          <div className="lg:col-span-5 space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#86868b]">Thông tin liên hệ & Địa điểm</h3>
+            <div className="bg-[#fbfbfd] border border-black/[0.04] rounded-2xl p-5 divide-y divide-black/[0.04] text-xs">
+              <div className="py-2.5 first:pt-0 flex items-start gap-3">
+                <Mail size={15} className="text-[#0071e3] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-[#86868b]">Email tuyển dụng</span>
+                  <div className="font-semibold text-[#1d1d1f] mt-0.5 truncate">
+                    {company.contact_email ? (
+                      <a href={`mailto:${company.contact_email}`} className="text-[#0071e3] hover:underline">
+                        {company.contact_email}
+                      </a>
+                    ) : (
+                      'Chưa cập nhật'
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="py-2.5 flex items-start gap-3">
+                <Phone size={15} className="text-[#34c759] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-[#86868b]">Điện thoại</span>
+                  <div className="font-semibold text-[#1d1d1f] mt-0.5">
+                    {company.phone ? (
+                      <a href={`tel:${company.phone}`} className="hover:underline">
+                        {company.phone}
+                      </a>
+                    ) : (
+                      'Chưa cập nhật'
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="py-2.5 flex items-start gap-3">
+                <Users size={15} className="text-[#af52de] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-[#86868b]">Người phụ trách</span>
+                  <div className="font-semibold text-[#1d1d1f] mt-0.5">{company.contact_name || 'Chưa cập nhật'}</div>
+                </div>
+              </div>
+
+              <div className="py-2.5 last:pb-0 flex items-start gap-3">
+                <MapPin size={15} className="text-[#ff9500] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-bold text-[#86868b]">Địa chỉ trụ sở</span>
+                  <div className="font-semibold text-[#1d1d1f] mt-0.5 leading-normal">{company.address || 'Chưa cập nhật'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: History & Qualifications (col-span-7) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* History Card */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#86868b] mb-3 flex items-center gap-1.5">
+                <BookOpen size={14} className="text-[#0071e3]" />
+                Lịch sử & Quy mô tổ chức
+              </h3>
+              <div className="bg-[#fbfbfd] border border-black/[0.04] rounded-2xl p-5 text-xs text-[#1d1d1f] leading-relaxed whitespace-pre-wrap">
+                {company.history || 'Đơn vị chưa cập nhật thông tin chi tiết về lịch sử phát triển và quy mô.'}
+              </div>
+            </div>
+
+            {/* Qualifications Card */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#86868b] mb-3 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-[#34c759]" />
+                Yêu cầu & Tiêu chí tiếp nhận sinh viên
+              </h3>
+              <div className="bg-[#0071e3]/[0.04] border border-[#0071e3]/15 rounded-2xl p-5 text-xs text-[#005bb5] leading-relaxed whitespace-pre-wrap font-medium">
+                {company.qualifications || 'Đơn vị tiếp nhận sinh viên theo quy chế đào tạo chung của Khoa CNTT.'}
+              </div>
+            </div>
           </div>
         </div>
       </div>

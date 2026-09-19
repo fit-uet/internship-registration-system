@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { RefreshCw, Save, Shield } from 'lucide-react';
+import { RefreshCw, Save, Shield, ChevronLeft, RotateCcw, Code2, Eye } from 'lucide-react';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, PageDescriptionTooltip } from '../../../shared';
 
 export function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
@@ -11,8 +11,8 @@ export function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
 
   useEffect(() => {
     fetch(`${API_BASE}/api/settings/registration-rules`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => setRules(data?.registration_rules_md || DEFAULT_REGISTRATION_RULES))
+      .then((res) => res.json())
+      .then((data) => setRules(data?.registration_rules_md || DEFAULT_REGISTRATION_RULES))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -34,61 +34,112 @@ export function RegistrationRulesSettingsAdmin({ token }: { token: string }) {
     }
   };
 
-  if (loading) return <div className="text-center py-20 text-slate-500 font-medium">Đang tải quy định đăng ký...</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 text-[#86868b]">
+        <div className="w-8 h-8 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin mb-3" />
+        <span className="text-xs font-medium">Đang tải quy định đăng ký...</span>
+      </div>
+    );
+  }
+
+  const charCount = rules.length;
+  const lineCount = rules.split('\n').length;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      {/* Apple Large Title & Navigation Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <button
             onClick={() => navigate('/admin')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-[#86868b] bg-white border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
           >
-            &larr; Quay lại Quản trị
+            <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            Quản trị hệ thống
           </button>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-500/10 text-slate-700 flex items-center justify-center">
-              <Shield size={18} />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shadow-inner shrink-0">
+              <Shield size={22} />
             </div>
-            Cài đặt Quy định đăng ký
-            <PageDescriptionTooltip description="Chỉnh nội dung quy định hiển thị cho sinh viên bằng Markdown." />
-          </h2>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1d1d1f] tracking-tight flex items-center gap-2">
+                Cài đặt Quy định đăng ký
+                <PageDescriptionTooltip description="Chỉnh sửa nội dung quy định học phần hiển thị cho sinh viên trên hệ thống bằng định dạng Markdown." />
+              </h1>
+              <p className="text-xs text-[#86868b] mt-0.5 font-medium">
+                Quy chế, điều kiện tín chỉ & hướng dẫn đăng ký thực tập
+              </p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={saveRules}
-          disabled={saving}
-          className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
-        >
-          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu quy định
-        </button>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setRules(DEFAULT_REGISTRATION_RULES)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] hover:bg-[#f5f5f7] shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+          >
+            <RotateCcw size={13} className="text-[#86868b]" />
+            Khôi phục mặc định
+          </button>
+          <button
+            onClick={saveRules}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(0,113,227,0.3)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+            Lưu quy định
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-          <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nội dung Quy định đăng ký</label>
-              <button
-                onClick={() => setRules(DEFAULT_REGISTRATION_RULES)}
-                className="text-xs font-semibold text-slate-700 bg-white border border-black/[0.08] px-3 py-1.5 rounded-xl hover:bg-[#f5f5f7] shadow-xs active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
-              >
-                Khôi phục mặc định
-              </button>
+      {/* Editor & Preview Split Workspace */}
+      <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-black/[0.05]">
+          {/* Left: Code / Markdown Editor Pane */}
+          <div className="p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
+                <Code2 size={14} className="text-[#0071e3]" />
+                Mã nguồn Markdown
+              </span>
+              <span className="text-[11px] font-mono text-[#86868b]">
+                {lineCount} dòng · {charCount} ký tự
+              </span>
             </div>
+
             <textarea
               value={rules}
-              onChange={e => setRules(e.target.value)}
-              className="w-full min-h-[480px] border border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all font-mono bg-[#f5f5f7]/50 focus:bg-white shadow-inner resize-y leading-relaxed text-slate-800"
-              placeholder="Nhập nội dung quy định bằng Markdown..."
+              onChange={(e) => setRules(e.target.value)}
+              placeholder="Nhập nội dung quy định theo định dạng Markdown..."
+              className="w-full flex-1 min-h-[560px] border border-black/[0.08] rounded-2xl p-4 text-xs font-mono bg-[#fbfbfd] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner leading-relaxed text-[#1d1d1f] resize-y"
             />
           </div>
-          <div className="p-5 bg-[#fbfbfd]">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
-              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-4">Quy định Đăng ký</h2>
-              {String(rules || '').trim()
-                ? <RegistrationRulesMarkdown content={rules} />
-                : <p className="text-xs text-slate-400 italic">Chưa có quy định nào.</p>}
+
+          {/* Right: Apple Live Document Preview Pane */}
+          <div className="p-6 bg-[#fbfbfd] flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
+                <Eye size={14} className="text-[#34c759]" />
+                Xem trước thực tế (Giao diện sinh viên)
+              </span>
+              <span className="text-[11px] font-semibold text-[#0071e3] bg-[#0071e3]/10 px-2.5 py-0.5 rounded-full">
+                Trang chủ sinh viên
+              </span>
+            </div>
+
+            <div className="flex-1 min-h-[560px] bg-white border border-black/[0.06] rounded-2xl p-6 shadow-xs overflow-y-auto max-h-[660px]">
+              <h3 className="text-xs font-bold text-[#1d1d1f] uppercase tracking-wider mb-4 pb-2 border-b border-black/[0.04]">
+                Quy định Thực tập tốt nghiệp
+              </h3>
+              {String(rules || '').trim() ? (
+                <div className="text-xs text-[#1d1d1f] leading-relaxed">
+                  <RegistrationRulesMarkdown content={rules} />
+                </div>
+              ) : (
+                <p className="text-xs text-[#86868b] italic">Chưa có quy định nào.</p>
+              )}
             </div>
           </div>
         </div>

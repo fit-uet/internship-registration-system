@@ -2,8 +2,17 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
-import { Upload, RefreshCw, Save, CircleHelp } from 'lucide-react';
-import { API_BASE, DEFAULT_STUDENT_FAQ, DEFAULT_LECTURER_FAQ, convertDocxFileToMarkdown, CACHE_TTL, clearJsonCache, cachedJsonFetch, PageDescriptionTooltip } from '../../../shared';
+import { Upload, RefreshCw, Save, CircleHelp, ChevronLeft, Eye, Code2, RotateCcw } from 'lucide-react';
+import {
+  API_BASE,
+  DEFAULT_STUDENT_FAQ,
+  DEFAULT_LECTURER_FAQ,
+  convertDocxFileToMarkdown,
+  CACHE_TTL,
+  clearJsonCache,
+  cachedJsonFetch,
+  PageDescriptionTooltip,
+} from '../../../shared';
 import { SegmentedControl } from '../../../shared/ui/SegmentedControl';
 
 export function FAQSettingsAdmin({ token }: { token: string }) {
@@ -20,7 +29,7 @@ export function FAQSettingsAdmin({ token }: { token: string }) {
       ttlMs: CACHE_TTL.markdown,
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(data => {
+      .then((data) => {
         if (data && !data.error) {
           setFaq({
             faq_student_md: data.faq_student_md || DEFAULT_STUDENT_FAQ,
@@ -42,7 +51,7 @@ export function FAQSettingsAdmin({ token }: { token: string }) {
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Lưu FAQ thất bại.');
       clearJsonCache('markdown:faq');
-      alert('Đã lưu FAQ.');
+      alert('Đã lưu nội dung FAQ.');
     } catch (e) {
       alert('Không thể kết nối đến máy chủ.');
     } finally {
@@ -72,89 +81,141 @@ export function FAQSettingsAdmin({ token }: { token: string }) {
     }
   };
 
-  if (loading) return <div className="text-center py-20 text-slate-500 font-medium">Đang tải cấu hình FAQ...</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 text-[#86868b]">
+        <div className="w-8 h-8 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin mb-3" />
+        <span className="text-xs font-medium">Đang tải cấu hình FAQ...</span>
+      </div>
+    );
+  }
+
+  const currentContent = faq[activeKey] || '';
+  const charCount = currentContent.length;
+  const lineCount = currentContent.split('\n').length;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      {/* Apple Large Title & Navigation Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <button
             onClick={() => navigate('/admin')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-600 bg-white border border-black/[0.08] shadow-xs hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-[#86868b] bg-white border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
           >
-            &larr; Quay lại Quản trị
+            <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            Quản trị hệ thống
           </button>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-              <CircleHelp size={18} />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#ff9500]/10 text-[#ff9500] flex items-center justify-center shadow-inner shrink-0">
+              <CircleHelp size={22} />
             </div>
-            Cài đặt FAQ
-            <PageDescriptionTooltip description="Chọn nhóm người dùng và chỉnh nội dung FAQ hiển thị cho sinh viên hoặc giảng viên." />
-          </h2>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1d1d1f] tracking-tight flex items-center gap-2">
+                Cài đặt FAQ
+                <PageDescriptionTooltip description="Chọn nhóm người dùng và chỉnh nội dung FAQ hiển thị cho sinh viên hoặc giảng viên bằng Markdown." />
+              </h1>
+              <p className="text-xs text-[#86868b] mt-0.5 font-medium">
+                Biên soạn câu hỏi thường gặp cho Sinh viên & Giảng viên
+              </p>
+            </div>
+          </div>
         </div>
+
+        {/* Primary Save Button */}
         <button
           onClick={saveFaq}
           disabled={saving}
-          className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(0,113,227,0.3)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap self-start sm:self-auto"
         >
-          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />} Lưu FAQ
+          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+          Lưu thay đổi FAQ
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-[#fbfbfd] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Editor & Preview Split Workspace */}
+      <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+        {/* Apple Segmented Strip & Action Bar */}
+        <div className="px-6 py-4 border-b border-black/[0.05] bg-[#fbfbfd] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <SegmentedControl
             value={activeTab}
             onChange={(val) => setActiveTab(val as 'student' | 'lecturer')}
-            options={[
-              { key: 'student', label: 'FAQ sinh viên' },
-              { key: 'lecturer', label: 'FAQ giảng viên' },
+            items={[
+              { value: 'student', label: 'FAQ Sinh viên' },
+              { value: 'lecturer', label: 'FAQ Giảng viên' },
             ]}
           />
+
           <div className="flex flex-wrap items-center gap-2">
             <label
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border shadow-xs active:scale-[0.98] ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98] ${
                 importingDocx
-                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                  : 'bg-white text-slate-700 border-black/[0.08] hover:bg-[#f5f5f7]'
+                  ? 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04] cursor-not-allowed'
+                  : 'bg-white text-[#1d1d1f] border-black/[0.08] hover:bg-[#f5f5f7]'
               }`}
             >
-              <Upload size={14} className="text-slate-500" />
-              {importingDocx ? 'Đang đọc file...' : 'Import Word'}
+              <Upload size={13} className="text-[#86868b]" />
+              {importingDocx ? 'Đang phân tích Word...' : 'Import file Word (.docx)'}
               <input
                 type="file"
                 accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
                 disabled={importingDocx}
                 onChange={handleImportDocx}
-                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+                onClick={(e) => {
+                  (e.target as HTMLInputElement).value = '';
+                }}
               />
             </label>
+
             <button
               onClick={() => setFaq((prev: any) => ({ ...prev, [activeKey]: activeDefault }))}
-              className="text-xs font-semibold text-slate-700 bg-white border border-black/[0.08] px-3.5 py-1.5 rounded-xl hover:bg-[#f5f5f7] shadow-xs active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] hover:bg-[#f5f5f7] shadow-[0_1px_2px_rgba(0,0,0,0.04)] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
             >
-              Khôi phục nội dung mặc định
+              <RotateCcw size={12} className="text-[#86868b]" />
+              Khôi phục mặc định
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-          <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-100">
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              {activeTab === 'student' ? 'Nội dung FAQ sinh viên' : 'Nội dung FAQ giảng viên'}
-            </label>
+
+        {/* Master-Detail Split Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-black/[0.05]">
+          {/* Left: Code / Markdown Editor Pane */}
+          <div className="p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
+                <Code2 size={14} className="text-[#0071e3]" />
+                Mã nguồn Markdown ({activeTab === 'student' ? 'Sinh viên' : 'Giảng viên'})
+              </span>
+              <span className="text-[11px] font-mono text-[#86868b]">
+                {lineCount} dòng · {charCount} ký tự
+              </span>
+            </div>
+
             <textarea
-              value={faq[activeKey] || ''}
-              onChange={e => setFaq((prev: any) => ({ ...prev, [activeKey]: e.target.value }))}
-              className="w-full min-h-[520px] border border-slate-200 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all font-mono bg-[#f5f5f7]/50 focus:bg-white shadow-inner resize-y leading-relaxed text-slate-800"
+              value={currentContent}
+              onChange={(e) => setFaq((prev: any) => ({ ...prev, [activeKey]: e.target.value }))}
+              placeholder="Nhập nội dung FAQ theo định dạng Markdown..."
+              className="w-full flex-1 min-h-[540px] border border-black/[0.08] rounded-2xl p-4 text-xs font-mono bg-[#fbfbfd] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all shadow-inner leading-relaxed text-[#1d1d1f] resize-y"
             />
           </div>
-          <div className="p-5 bg-[#fbfbfd]">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">Xem trước</div>
-            <div className="prose prose-slate prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {faq[activeKey] || ''}
-              </ReactMarkdown>
+
+          {/* Right: Apple Live Document Preview Pane */}
+          <div className="p-6 bg-[#fbfbfd] flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b] flex items-center gap-1.5">
+                <Eye size={14} className="text-[#34c759]" />
+                Xem trước thực tế (Apple Support Style)
+              </span>
+              <span className="text-[11px] font-semibold text-[#34c759] bg-[#ebf9ee] px-2.5 py-0.5 rounded-full">
+                Hiển thị người dùng
+              </span>
+            </div>
+
+            <div className="flex-1 min-h-[540px] bg-white border border-black/[0.06] rounded-2xl p-6 shadow-xs overflow-y-auto max-h-[640px]">
+              <div className="prose prose-slate prose-sm max-w-none text-[#1d1d1f]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
+              </div>
             </div>
           </div>
         </div>

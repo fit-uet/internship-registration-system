@@ -1,28 +1,52 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { CheckCircle2 } from 'lucide-react';
-import { API_BASE, Button, PageHeader } from '../../../shared';
+import {
+  Building2,
+  GraduationCap,
+  FileText,
+  MessageCircle,
+  Mail,
+  Lock,
+  Clock,
+  Award,
+  AlertCircle,
+  Sparkles,
+  ChevronLeft,
+  Share2,
+} from 'lucide-react';
+import { API_BASE, PageDescriptionTooltip } from '../../../shared';
 
 export function StudentGradeView({ token }: { token: string }) {
   const navigate = useNavigate();
   const [grade, setGrade] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const statusLabel = (status?: string) => status === 'submitted' ? 'Đã nộp' : status === 'draft' ? 'Nháp' : 'Chưa có điểm';
-  const scoreText = (value: any) => value === null || value === undefined || value === '' ? '-' : value;
-  const splitCsv = (value?: string) => String(value || '').split(',').map(item => item.trim()).filter(Boolean);
-  const renderAdvisorEmails = (emails?: string) => {
-    const items = splitCsv(emails);
-    if (items.length === 0) return null;
-    return (
-      <div className="mt-1 flex flex-wrap gap-1.5">
-        {items.map(email => (
-          <a key={email} href={`mailto:${email}`} className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 hover:underline">
-            {email}
-          </a>
-        ))}
-      </div>
-    );
+  const statusLabel = (status?: string) => {
+    if (status === 'submitted') return 'Đã công bố chính thức';
+    if (status === 'draft') return 'Đang chấm (Bản nháp)';
+    return 'Chưa có điểm';
+  };
+
+  const scoreText = (value: any) => (value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(1));
+
+  const splitCsv = (value?: string) =>
+    String(value || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const getLetterGrade = (score: number | null | undefined) => {
+    if (score === null || score === undefined || isNaN(Number(score))) return { letter: '—', gpa: '—', label: 'Chưa có điểm' };
+    const s = Number(score);
+    if (s >= 9.0) return { letter: 'A+', gpa: '4.0', label: 'Xuất sắc' };
+    if (s >= 8.5) return { letter: 'A', gpa: '4.0', label: 'Giỏi' };
+    if (s >= 8.0) return { letter: 'B+', gpa: '3.5', label: 'Khá giỏi' };
+    if (s >= 7.0) return { letter: 'B', gpa: '3.0', label: 'Khá' };
+    if (s >= 6.5) return { letter: 'C+', gpa: '2.5', label: 'Trung bình khá' };
+    if (s >= 5.5) return { letter: 'C', gpa: '2.0', label: 'Trung bình' };
+    if (s >= 5.0) return { letter: 'D+', gpa: '1.5', label: 'Trung bình yếu' };
+    if (s >= 4.0) return { letter: 'D', gpa: '1.0', label: 'Đạt' };
+    return { letter: 'F', gpa: '0.0', label: 'Không đạt' };
   };
 
   useEffect(() => {
@@ -41,84 +65,443 @@ export function StudentGradeView({ token }: { token: string }) {
     fetchGrade();
   }, [token]);
 
-  if (loading) return <div className="text-center py-20 text-slate-500">Đang tải điểm thực tập...</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 text-[#86868b]">
+        <div className="w-9 h-9 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin mb-3.5" />
+        <span className="text-xs font-medium tracking-wide">Đang tải bảng điểm học phần...</span>
+      </div>
+    );
+  }
 
-  const scoreCards = [
-    { label: 'Điểm định kỳ', value: grade?.progress_score, note: '20%' },
-    { label: 'Điểm báo cáo', value: grade?.report_score, note: '20%' },
-    { label: 'Điểm công ty/GVHD', value: grade?.company_score, note: '60%' },
-    { label: 'Điểm tổng kết', value: grade?.final_score, note: 'Tạm tính', highlight: true },
-  ];
+  const finalScoreNum = grade?.final_score !== null && grade?.final_score !== undefined ? Number(grade.final_score) : null;
+  const progressScoreNum = grade?.progress_score !== null && grade?.progress_score !== undefined ? Number(grade.progress_score) : null;
+  const reportScoreNum = grade?.report_score !== null && grade?.report_score !== undefined ? Number(grade.report_score) : null;
+  const companyScoreNum = grade?.company_score !== null && grade?.company_score !== undefined ? Number(grade.company_score) : null;
+
+  const letterInfo = getLetterGrade(finalScoreNum);
+  const primaryEmails = splitCsv(grade?.primary_advisor_emails);
+  const coEmails = splitCsv(grade?.co_advisor_emails);
+
+  // SVG Ring calculations (radius 64, circumference 2 * pi * 64 ≈ 402.12)
+  const radius = 64;
+  const circumference = 2 * Math.PI * radius;
+  const percent = finalScoreNum !== null ? Math.min(100, Math.max(0, finalScoreNum * 10)) : 0;
+  const strokeDashoffset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer mb-3"
-        >
-          &larr; Quay lại trang chủ
-        </button>
-        <PageHeader
-          title="Điểm thực tập"
-          description="Theo dõi kết quả đánh giá và trạng thái nộp điểm của học phần."
-          icon={<CheckCircle2 size={20} />}
-        />
+    <div className="max-w-6xl mx-auto space-y-7 pb-12">
+      {/* Apple Navigation & Large Title Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <button
+            onClick={() => navigate('/')}
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-[#86868b] bg-white border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-[#1d1d1f] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer mb-3"
+          >
+            <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            Trang chủ
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shadow-inner shrink-0">
+              <Award size={22} />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1d1d1f] tracking-tight flex items-center gap-2">
+                Kết quả & Điểm học phần
+                <PageDescriptionTooltip description="Xem bảng điểm chi tiết theo 3 đầu điểm trọng số (20% - 20% - 60%) và nhận xét từ giảng viên hướng dẫn." />
+              </h1>
+              <p className="text-xs text-[#86868b] mt-0.5 font-medium">
+                Học phần Thực tập thực tế · Khoa Công nghệ Thông tin (FIT - UET)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => navigate('/chat')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <MessageCircle size={14} className="text-[#0071e3]" />
+            Trao đổi với GVHD
+          </button>
+          <button
+            onClick={() => navigate('/reports/final')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <FileText size={14} className="text-[#86868b]" />
+            Báo cáo đã nộp
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-          <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Nơi thực tập</div>
-            <div className="mt-2 text-base font-semibold text-slate-900">{grade?.internship_place || 'Chưa xác nhận'}</div>
-            {grade?.confirmed_at && <div className="mt-1 text-xs text-slate-500">Xác nhận: {new Date(grade.confirmed_at).toLocaleString('vi-VN')}</div>}
+      {/* Hero Grade Showcase - Apple Bento Composition */}
+      <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12">
+          {/* Hero Left: Circular Ring & Achievement Identity */}
+          <div className="lg:col-span-5 p-8 sm:p-10 bg-gradient-to-br from-[#0071e3]/[0.03] via-[#34c759]/[0.02] to-transparent border-b lg:border-b-0 lg:border-r border-black/[0.05] flex flex-col justify-between items-center text-center">
+            {/* Status Capsule */}
+            <div className="w-full flex items-center justify-between mb-6">
+              <span className="text-[11px] font-bold tracking-widest text-[#86868b] uppercase">
+                Điểm tổng kết
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border shadow-xs ${
+                  grade?.grade_status === 'submitted'
+                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/70'
+                    : grade?.grade_status === 'draft'
+                    ? 'bg-[#fff8eb] text-[#b25e00] border-amber-200/70'
+                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    grade?.grade_status === 'submitted'
+                      ? 'bg-[#34c759] animate-pulse'
+                      : grade?.grade_status === 'draft'
+                      ? 'bg-[#ff9500]'
+                      : 'bg-[#86868b]'
+                  }`}
+                />
+                {statusLabel(grade?.grade_status)}
+              </span>
+            </div>
+
+            {/* Apple Circular Score Ring */}
+            <div className="relative my-2 flex items-center justify-center">
+              <svg className="w-48 h-48 -rotate-90 transform" viewBox="0 0 160 160">
+                {/* Background Track */}
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  stroke="#f2f2f7"
+                  strokeWidth="12"
+                  fill="transparent"
+                />
+                {/* Score Progress Ring */}
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={radius}
+                  stroke={finalScoreNum && finalScoreNum >= 8.5 ? '#34c759' : '#0071e3'}
+                  strokeWidth="12"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+
+              {/* Centered Score */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-5xl font-black text-[#1d1d1f] tracking-tight leading-none">
+                  {scoreText(grade?.final_score)}
+                </span>
+                <span className="text-xs font-semibold text-[#86868b] mt-1.5 tracking-wider">
+                  / 10.0
+                </span>
+              </div>
+            </div>
+
+            {/* Classification & GPA Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              <span className="px-3.5 py-1.5 rounded-xl bg-[#1d1d1f] text-white font-extrabold text-xs shadow-xs tracking-tight">
+                Điểm chữ: {letterInfo.letter}
+              </span>
+              <span className="px-3.5 py-1.5 rounded-xl bg-white border border-black/[0.08] text-[#1d1d1f] font-semibold text-xs shadow-xs">
+                GPA: {letterInfo.gpa} · {letterInfo.label}
+              </span>
+            </div>
+
+            {/* Bottom Status Seal */}
+            <div className="w-full pt-6 mt-6 border-t border-black/[0.05] flex items-center justify-between text-xs text-[#86868b]">
+              <div className="flex items-center gap-1.5 text-left">
+                {grade?.locked_at ? (
+                  <>
+                    <Lock size={13} className="text-[#34c759] shrink-0" />
+                    <span className="font-semibold text-[#1d833f]">Khoa đã chốt điểm chính thức</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock size={13} className="text-[#86868b] shrink-0" />
+                    <span>
+                      {grade?.grade_submitted_at
+                        ? `Cập nhật: ${new Date(grade.grade_submitted_at).toLocaleDateString('vi-VN')}`
+                        : 'Chờ giảng viên nhập điểm'}
+                    </span>
+                  </>
+                )}
+              </div>
+              <span className="text-[11px] font-medium text-[#86868b]">Hệ số 10</span>
+            </div>
           </div>
-          <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Giảng viên hướng dẫn</div>
-            <div className="mt-2 text-base font-semibold text-slate-900">{grade?.primary_advisors || 'Chưa phân công'}</div>
-            {renderAdvisorEmails(grade?.primary_advisor_emails)}
-            {grade?.co_advisors && (
-              <div className="mt-2">
-                <div className="text-xs text-slate-500">Đồng hướng dẫn: {grade.co_advisors}</div>
-                {renderAdvisorEmails(grade?.co_advisor_emails)}
+
+          {/* Hero Right: Weighted Breakdown Meters */}
+          <div className="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-6 pb-3 border-b border-black/[0.04]">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center">
+                    <Sparkles size={15} />
+                  </div>
+                  <h2 className="text-sm font-bold text-[#1d1d1f] tracking-tight">
+                    Cơ cấu 3 đầu điểm thành phần
+                  </h2>
+                </div>
+                <span className="text-[11px] font-semibold text-[#86868b] bg-[#f5f5f7] px-2.5 py-1 rounded-full">
+                  Quy chế Đào tạo FIT UET
+                </span>
+              </div>
+
+              {/* Progress Meters */}
+              <div className="space-y-6">
+                {/* 1. Progress Score - 20% */}
+                <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.03]">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-[11px] font-bold flex items-center justify-center">
+                        1
+                      </span>
+                      <span className="font-bold text-[#1d1d1f]">
+                        Điểm định kỳ / Tiến độ <span className="font-normal text-[#86868b]">(Tỉ trọng 20%)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-mono font-extrabold text-sm text-[#1d1d1f]">
+                        {scoreText(grade?.progress_score)}
+                      </span>
+                      {progressScoreNum !== null && (
+                        <span className="text-[11px] text-[#86868b] font-medium">
+                          ({((progressScoreNum * 0.2)).toFixed(2)} đ)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#f2f2f7] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#0071e3] transition-all duration-700 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, (progressScoreNum ?? 0) * 10))}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-[#86868b] mt-1.5 leading-normal">
+                    Đánh giá quá trình liên hệ, báo cáo tiến độ định kỳ với Giảng viên hướng dẫn.
+                  </p>
+                </div>
+
+                {/* 2. Report Score - 20% */}
+                <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.03]">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-[11px] font-bold flex items-center justify-center">
+                        2
+                      </span>
+                      <span className="font-bold text-[#1d1d1f]">
+                        Điểm báo cáo thực tập <span className="font-normal text-[#86868b]">(Tỉ trọng 20%)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-mono font-extrabold text-sm text-[#1d1d1f]">
+                        {scoreText(grade?.report_score)}
+                      </span>
+                      {reportScoreNum !== null && (
+                        <span className="text-[11px] text-[#86868b] font-medium">
+                          ({((reportScoreNum * 0.2)).toFixed(2)} đ)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#f2f2f7] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#0071e3] transition-all duration-700 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, (reportScoreNum ?? 0) * 10))}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-[#86868b] mt-1.5 leading-normal">
+                    Đánh giá nội dung, cấu trúc và chất lượng quyển báo cáo PDF nộp trên hệ thống.
+                  </p>
+                </div>
+
+                {/* 3. Company Score - 60% */}
+                <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.03]">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-[#34c759]/10 text-[#34c759] text-[11px] font-bold flex items-center justify-center">
+                        3
+                      </span>
+                      <span className="font-bold text-[#1d1d1f]">
+                        Điểm công ty / Đơn vị thực tập <span className="font-normal text-[#86868b]">(Tỉ trọng 60%)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-mono font-extrabold text-sm text-[#1d1d1f]">
+                        {scoreText(grade?.company_score)}
+                      </span>
+                      {companyScoreNum !== null && (
+                        <span className="text-[11px] text-[#86868b] font-medium">
+                          ({((companyScoreNum * 0.6)).toFixed(2)} đ)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#f2f2f7] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#34c759] transition-all duration-700 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(0, (companyScoreNum ?? 0) * 10))}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-[#86868b] mt-1.5 leading-normal">
+                    Điểm theo trang nhận xét có chữ ký & dấu tròn công ty (hoặc GVHD nếu TT tại Lab trường).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Apple Formula Pill */}
+            <div className="mt-6 pt-4 border-t border-black/[0.04] text-[11px] text-[#6e6e73] font-mono bg-[#f5f5f7]/70 px-4 py-2.5 rounded-xl flex items-center justify-between">
+              <span>Công thức:</span>
+              <strong className="text-[#1d1d1f]">Điểm tổng kết = (Tiến độ × 0.2) + (Báo cáo × 0.2) + (Doanh nghiệp × 0.6)</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Two-Column Master-Detail Inset Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Comments & Official Notice */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Lecturer Comments Card */}
+          <div className="bg-white border border-black/[0.06] rounded-3xl p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-black/[0.04]">
+              <h3 className="text-sm font-bold text-[#1d1d1f] tracking-tight flex items-center gap-2">
+                <MessageCircle size={16} className="text-[#0071e3]" />
+                Nhận xét của Giảng viên hướng dẫn
+              </h3>
+              {grade?.grading_lecturer_name && (
+                <span className="text-xs font-semibold text-[#86868b]">
+                  GV chấm: <strong className="text-[#1d1d1f]">{grade.grading_lecturer_name}</strong>
+                </span>
+              )}
+            </div>
+
+            {grade?.comment ? (
+              <div className="bg-[#fbfbfd] border border-black/[0.04] rounded-2xl p-5 text-xs text-[#1d1d1f] leading-relaxed whitespace-pre-wrap font-medium">
+                "{grade.comment}"
+              </div>
+            ) : (
+              <div className="bg-[#f5f5f7]/60 rounded-2xl p-7 text-center text-xs text-[#86868b] font-medium">
+                Giảng viên chưa để lại nhận xét văn bản bổ sung.
               </div>
             )}
           </div>
-          <div className="p-5">
-            <div className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Trạng thái điểm</div>
-            <div className={`mt-2 text-base font-bold ${grade?.grade_status === 'submitted' ? 'text-emerald-700' : grade?.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>
-              {statusLabel(grade?.grade_status)}
+
+          {/* Feedback & Inquiries Callout */}
+          <div className="bg-[#0071e3]/[0.05] border border-[#0071e3]/15 rounded-3xl p-6 text-xs text-[#005bb5] leading-relaxed">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle size={17} />
+              </div>
+              <div className="space-y-1">
+                <strong className="block font-bold text-[#004085] text-sm">
+                  Quy định thắc mắc & Phúc khảo điểm số
+                </strong>
+                <p className="text-[#005bb5]">
+                  Nếu có câu hỏi hoặc cần giải trình về kết quả đánh giá học phần, sinh viên vui lòng chủ động liên hệ với Giảng viên hướng dẫn qua tính năng <strong>Trao đổi</strong> trên hệ thống hoặc email trong thời hạn 07 ngày kể từ khi công bố điểm.
+                </p>
+              </div>
             </div>
-            {grade?.grade_submitted_at && <div className="mt-1 text-xs text-slate-500">Nộp lúc: {new Date(grade.grade_submitted_at).toLocaleString('vi-VN')}</div>}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {scoreCards.map(card => (
-          <div key={card.label} className={`rounded-2xl border p-5 shadow-sm transition-all ${card.highlight ? 'bg-emerald-50/70 border-emerald-200' : 'bg-white border-slate-200/90'}`}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-700">{card.label}</div>
-              <div className="text-xs rounded-full bg-slate-100 text-slate-600 px-2 py-0.5 font-medium">{card.note}</div>
+        {/* Right Column: Inset Grouped Internship Passport */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="bg-white border border-black/[0.06] rounded-3xl p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <h3 className="text-sm font-bold text-[#1d1d1f] tracking-tight mb-4 pb-3 border-b border-black/[0.04] flex items-center gap-2">
+              <GraduationCap size={17} className="text-[#1d1d1f]" />
+              Hồ sơ phân công & Nơi thực tập
+            </h3>
+
+            <div className="divide-y divide-black/[0.04] text-xs">
+              {/* Internship Company */}
+              <div className="py-3.5 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                  <Building2 size={17} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                    Nơi thực tập
+                  </span>
+                  <div className="font-bold text-[#1d1d1f] text-sm mt-0.5 truncate">
+                    {grade?.internship_place || 'Chưa xác nhận'}
+                  </div>
+                  {grade?.confirmed_at && (
+                    <div className="text-[11px] text-[#86868b] mt-0.5">
+                      Xác nhận: {new Date(grade.confirmed_at).toLocaleDateString('vi-VN')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Primary Advisor */}
+              <div className="py-3.5 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-2xl bg-[#34c759]/10 text-[#34c759] flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                  <GraduationCap size={17} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                    GVHD chính
+                  </span>
+                  <div className="font-bold text-[#1d1d1f] text-sm mt-0.5">
+                    {grade?.primary_advisors || 'Chưa phân công'}
+                  </div>
+                  {primaryEmails.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {primaryEmails.map((email) => (
+                        <a
+                          key={email}
+                          href={`mailto:${email}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071e3]/10 text-[#0071e3] hover:bg-[#0071e3]/20 transition-colors"
+                        >
+                          <Mail size={10} /> {email}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Co-advisors if any */}
+              {grade?.co_advisors && (
+                <div className="py-3.5 flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#af52de]/10 text-[#af52de] flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                    <GraduationCap size={17} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                      Đồng hướng dẫn
+                    </span>
+                    <div className="font-bold text-[#1d1d1f] text-sm mt-0.5">{grade.co_advisors}</div>
+                    {coEmails.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {coEmails.map((email) => (
+                          <a
+                            key={email}
+                            href={`mailto:${email}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#af52de]/10 text-[#af52de] hover:bg-[#af52de]/20 transition-colors"
+                          >
+                            <Mail size={10} /> {email}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className={`mt-4 text-4xl font-extrabold tracking-tight ${card.highlight ? 'text-emerald-700' : 'text-slate-900'}`}>{scoreText(card.value)}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-        <h3 className="font-bold text-slate-800 mb-3">Thông tin bổ sung</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <div className="text-xs uppercase font-semibold text-slate-500">Người nhập điểm</div>
-            <div className="mt-1 font-medium text-slate-800">{grade?.grading_lecturer_name || '-'}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase font-semibold text-slate-500">Ghi chú</div>
-            <div className="mt-1 whitespace-pre-wrap text-slate-700">{grade?.comment || '-'}</div>
           </div>
         </div>
-        {grade?.locked_at && <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-800">Điểm đã được Khoa khóa.</div>}
       </div>
     </div>
   );

@@ -831,95 +831,288 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Student User Profile Card - Synchronized with Lecturer & Admin UI */}
+      {/* Apple ID Style Student Profile Showcase */}
       {user && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6">
+        <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-7">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               {user.picture ? (
-                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm" />
+                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-3xl border border-black/[0.06] shadow-sm object-cover" />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
-                  <UserIcon size={26} />
+                <div className="w-16 h-16 rounded-3xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shadow-inner font-bold text-xl">
+                  <UserIcon size={28} />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1 flex items-center gap-1.5">
-                  <GraduationCap size={14} className="text-blue-600" /> Sinh viên thực tập
-                </p>
-                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
-                <p className="text-sm text-slate-500 mt-1 break-all">
-                  {user.email}
-                  {user.student_id ? ` · MSSV: ${user.student_id}` : ''}
-                  {user.class_name ? ` · Lớp: ${user.class_name}` : ''}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#0071e3]/10 text-[#0071e3]">
+                    <GraduationCap size={12} /> Sinh viên thực tập
+                  </span>
+                  <span className="text-xs text-[#86868b] font-medium">FIT UET · {campaign.year}</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1d1d1f] tracking-tight truncate">{user.name}</h2>
+                <p className="text-xs sm:text-sm text-[#86868b] mt-1 flex flex-wrap items-center gap-2">
+                  <span>{user.email}</span>
+                  {user.student_id && <span>· MSSV: <strong className="text-[#1d1d1f] font-mono">{user.student_id}</strong></span>}
+                  {user.class_name && <span>· Lớp: <strong className="text-[#1d1d1f]">{user.class_name}</strong></span>}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => navigate('/profile')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <UserIcon size={14} className="text-slate-500" /> Cập nhật hồ sơ
+                <UserIcon size={13} className="text-[#86868b]" /> Cập nhật hồ sơ
               </button>
               <button
                 onClick={() => navigate('/plan')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+                <FileText size={13} className="text-[#86868b]" /> Kế hoạch triển khai
               </button>
               <a
                 href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <FileText size={14} className="text-slate-500" /> Mẫu báo cáo
+                <FileText size={13} className="text-[#86868b]" /> Mẫu báo cáo
               </a>
               <button
                 onClick={() => navigate('/faq')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
+                <CircleHelp size={13} className="text-[#86868b]" /> FAQ
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Campaign overview with supporting information in a compact left sidebar. */}
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="space-y-4 lg:sticky lg:top-24">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="campaign-status-title">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 id="campaign-status-title" className="text-base font-bold text-slate-900">Trạng thái hệ thống</h3>
+      {/* Apple 4-Stage Lifecycle Milestone Stepper (Full Width Hub) */}
+      <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-7 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/[0.04]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center font-bold">
+              <LayoutDashboard size={16} />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">Lộ trình học phần Thực tập {campaign.year}</h2>
+              <p className="text-xs text-[#86868b]">4 giai đoạn xuyên suốt kỳ thực tập tốt nghiệp</p>
+            </div>
+          </div>
+          {user?.role !== 'admin' && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#0071e3]/20 bg-[#0071e3]/10 px-3.5 py-1.5 text-xs font-semibold text-[#0071e3]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0071e3] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0071e3]" />
+              </span>
+              Việc cần làm: {activeCampaignTitle}
+            </div>
+          )}
+          {user?.role === 'admin' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/admin')}
+                className="bg-[#1d1d1f] hover:bg-black text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <LayoutDashboard size={13} /> Danh sách đăng ký
+              </button>
+              <button
+                onClick={() => navigate('/admin/final-internships')}
+                className="bg-[#34c759] hover:bg-emerald-600 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <CheckCircle2 size={13} /> Danh sách xác nhận
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 4 Connected Milestone Cards */}
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Milestone 1 */}
+          <div
+            onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 ${
+              hasRegistered ? 'cursor-pointer hover:border-[#0071e3]/40 hover:shadow-md' : 'cursor-default'
+            } ${
+              showRegistrationTask || showRegistrationDetails
+                ? 'border-[#0071e3]/40 bg-[#0071e3]/[0.02] ring-2 ring-[#0071e3]/10'
+                : 'border-black/[0.06] bg-[#fbfbfd]'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="w-6 h-6 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-xs font-extrabold flex items-center justify-center">
+                  1
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  hasRegistered
+                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                    : 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
+                }`}>
+                  {hasRegistered ? 'Đã ghi nhận' : 'Chưa đăng ký'}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Đăng ký nguyện vọng</div>
+              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-1 font-medium">{registrationSummary}</div>
+              {hasRegistered && (
+                <div className="mt-1 text-[11px] text-[#86868b]">
+                  {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}
+                </div>
+              )}
+            </div>
+            {hasRegistered && (
+              <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#0071e3] inline-flex items-center gap-1">
+                {showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}
+                <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90 transition-transform' : 'transition-transform'} />
+              </div>
+            )}
+          </div>
+
+          {/* Milestone 2 */}
+          <div
+            onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 ${
+              hasRegistered ? 'cursor-pointer hover:border-[#34c759]/40 hover:shadow-md' : 'cursor-default'
+            } ${
+              showConfirmationTask || showConfirmationDetails
+                ? 'border-[#34c759]/40 bg-[#34c759]/[0.02] ring-2 ring-[#34c759]/10'
+                : 'border-black/[0.06] bg-[#fbfbfd]'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="w-6 h-6 rounded-full bg-[#34c759]/10 text-[#34c759] text-xs font-extrabold flex items-center justify-center">
+                  2
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  finalInternship
+                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
+                }`}>
+                  {finalInternship ? 'Đã xác nhận' : 'Chờ xác nhận'}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Nơi thực tập chính thức</div>
+              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-2 font-medium">{finalInternshipSummary}</div>
+            </div>
+            {hasRegistered && (
+              <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#34c759] inline-flex items-center gap-1">
+                {showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}
+                <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90 transition-transform' : 'transition-transform'} />
+              </div>
+            )}
+          </div>
+
+          {/* Milestone 3 */}
+          <div
+            onClick={() => navigate('/grades')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer hover:border-[#af52de]/40 hover:shadow-md ${
+              showAdvisorTask
+                ? 'border-[#af52de]/40 bg-[#af52de]/[0.02] ring-2 ring-[#af52de]/10'
+                : 'border-black/[0.06] bg-[#fbfbfd]'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="w-6 h-6 rounded-full bg-[#af52de]/10 text-[#af52de] text-xs font-extrabold flex items-center justify-center">
+                  3
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  primaryAdvisor
+                    ? 'bg-[#af52de]/10 text-[#af52de] border-[#af52de]/20'
+                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
+                }`}>
+                  {primaryAdvisor ? 'Đã phân công' : 'Chờ phân công'}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Giảng viên hướng dẫn</div>
+              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-2 font-medium">{advisorSummary}</div>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#af52de] inline-flex items-center gap-1">
+              Xem chi tiết & điểm số
+              <ChevronRight size={12} />
+            </div>
+          </div>
+
+          {/* Milestone 4 */}
+          <div
+            onClick={() => navigate('/reports/final')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer hover:border-[#0071e3]/40 hover:shadow-md ${
+              activeCampaignKey === 'final_report'
+                ? 'border-[#0071e3]/40 bg-[#0071e3]/[0.02] ring-2 ring-[#0071e3]/10'
+                : 'border-black/[0.06] bg-[#fbfbfd]'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="w-6 h-6 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-xs font-extrabold flex items-center justify-center">
+                  4
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  finalReport
+                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
+                }`}>
+                  {finalReportSummary}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Báo cáo Final & Điểm</div>
+              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-1 font-medium">{finalReportSummary}</div>
+              {finalReport?.submitted_at && (
+                <div className="mt-1 text-[11px] text-[#86868b]">
+                  {new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}
+                </div>
+              )}
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#0071e3] inline-flex items-center gap-1">
+              Mở trang nộp báo cáo
+              <ChevronRight size={12} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Master-Detail Bento Grid: Left (Timeline & Rules) - Right (Active Stage Workspace & Enterprise Table) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (col-span-4): Timeline & Rules */}
+        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+          <section className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <div className="mb-4 flex items-center justify-between gap-3 pb-3 border-b border-black/[0.04]">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-[#0071e3]" />
+                <h3 className="text-sm font-bold text-[#1d1d1f] tracking-tight">Tiến độ & Hạn chót</h3>
+              </div>
+              <span className="text-[10px] font-semibold text-[#86868b] uppercase tracking-wider">GMT+7</span>
             </div>
 
-            <div className="grid gap-3">
+            <div className="space-y-3">
               {visibleCampaignStatusItems.map(item => (
-                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="relative flex h-3 w-3 shrink-0">
+                <div key={item.label} className="rounded-2xl border border-black/[0.04] bg-[#fbfbfd] p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5 shrink-0">
                         {item.status === 'open' && (
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         )}
-                        <span className={`relative inline-flex h-3 w-3 rounded-full ${campaignStatusDot(item.status)}`} />
+                        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${campaignStatusDot(item.status)}`} />
                       </span>
-                      <span className="truncate text-base font-bold text-slate-900">{item.label}</span>
+                      <span className="truncate text-xs font-bold text-[#1d1d1f]">{item.label}</span>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${campaignStatusColor(item.status)}`}>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${campaignStatusColor(item.status)}`}>
                       {campaignStatusText(item.status)}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-200/80 pt-3 text-xs">
+                  <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-black/[0.04] pt-2.5 text-[11px]">
                     <div>
-                      <div className="font-semibold text-slate-400">Mở</div>
-                      <div className="mt-1 text-sm font-bold text-slate-800">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
+                      <span className="text-[#86868b]">Mở:</span>
+                      <div className="font-semibold text-[#1d1d1f] mt-0.5">{item.openAt ? formatGMT7(item.openAt) : 'Chưa thiết lập'}</div>
                     </div>
                     <div>
-                      <div className="font-semibold text-slate-400">Đóng</div>
-                      <div className="mt-1 text-sm font-bold text-slate-800">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
+                      <span className="text-[#86868b]">Đóng:</span>
+                      <div className="font-semibold text-[#1d1d1f] mt-0.5">{item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}</div>
                     </div>
                   </div>
                 </div>
@@ -927,114 +1120,24 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
           </section>
 
-          <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 select-none">
-              <span className="text-base font-bold text-slate-900">Quy định đăng ký</span>
-              <ChevronDown size={18} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+          <details className="group overflow-hidden rounded-3xl border border-black/[0.06] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 select-none font-bold text-sm text-[#1d1d1f]">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-[#86868b]" />
+                <span>Quy định thực tập</span>
+              </div>
+              <ChevronDown size={16} className="shrink-0 text-[#86868b] transition-transform group-open:rotate-180" />
             </summary>
-            <div className="max-h-72 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-4">
+            <div className="max-h-72 overflow-y-auto border-t border-black/[0.04] bg-[#fbfbfd] p-5 text-xs text-[#1d1d1f] leading-relaxed">
               {registrationRulesMarkdown.trim()
                 ? <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
-                : <p className="text-xs italic text-slate-400">Khoa chưa cập nhật quy định đăng ký.</p>}
+                : <p className="text-xs italic text-[#86868b]">Khoa chưa cập nhật quy định đăng ký.</p>}
             </div>
           </details>
         </aside>
 
-        <div className="min-w-0 space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Thực tập {campaign.year}</h2>
-          {user?.role === 'admin' && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/admin')}
-                className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <LayoutDashboard size={14} /> Danh sách đăng ký
-              </button>
-              <button
-                onClick={() => navigate('/admin/final-internships')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <CheckCircle2 size={14} /> Danh sách xác nhận
-              </button>
-            </div>
-          )}
-          {user?.role !== 'admin' && (
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
-              </span>
-              Việc cần làm: {activeCampaignTitle}
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <button
-            type="button"
-            onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
-            disabled={!hasRegistered}
-            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md' : 'cursor-default'} ${showRegistrationTask || showRegistrationDetails ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-200'}`}
-          >
-            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0 shadow-xs">
-              <ClipboardList size={16} />
-            </div>
-            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
-              Đăng ký thực tập
-            </div>
-            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-1">{registrationSummary}</div>
-            {hasRegistered && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</div>}
-            {hasRegistered && <div className="mt-auto pt-2 text-[11px] font-bold text-blue-600 inline-flex items-center gap-1">{showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'} <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90' : ''} /></div>}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
-            disabled={!hasRegistered}
-            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 ${hasRegistered ? 'cursor-pointer hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md' : 'cursor-default'} ${showConfirmationTask || showConfirmationDetails ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'}`}
-          >
-            <div className={`absolute top-4.5 right-4 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-xs ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
-              <CheckCircle2 size={16} />
-            </div>
-            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
-              Nơi thực tập chính thức
-            </div>
-            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{finalInternshipSummary}</div>
-            {hasRegistered && <div className="mt-auto pt-2 text-[11px] font-bold text-emerald-600 inline-flex items-center gap-1">{showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'} <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90' : ''} /></div>}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/grades')}
-            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md ${showAdvisorTask ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-slate-200'}`}
-          >
-            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 shadow-xs">
-              <UserCheck size={16} />
-            </div>
-            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
-              Giảng viên hướng dẫn
-            </div>
-            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-2">{advisorSummary}</div>
-            <div className="mt-auto pt-2 text-[11px] font-bold text-indigo-600 inline-flex items-center gap-1">Xem chi tiết & điểm số <ChevronRight size={12} /></div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/reports/final')}
-            className={`group relative flex min-h-[140px] flex-col rounded-2xl border bg-white p-4.5 pr-14 text-left shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md ${activeCampaignKey === 'final_report' ? 'border-violet-200 ring-1 ring-violet-100' : 'border-slate-200'}`}
-          >
-            <div className="absolute top-4.5 right-4 w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600 shrink-0 shadow-xs">
-              <FileCheck size={16} />
-            </div>
-            <div className="text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-400 min-h-[32px] flex items-center">
-              Báo cáo Final
-            </div>
-            <div className="mt-1 text-[13px] font-bold leading-5 text-slate-800 line-clamp-1">{finalReportSummary}</div>
-            {finalReport?.submitted_at && <div className="mt-0.5 text-[11px] leading-4 text-slate-500">{new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}</div>}
-            <div className="mt-auto pt-2 text-[11px] font-bold text-violet-600 inline-flex items-center gap-1">Mở trang nộp báo cáo <ChevronRight size={12} /></div>
-          </button>
-        </div>
+        {/* Right Column (col-span-8): Active Stage Workspace & Enterprise Directory */}
+        <div className="lg:col-span-8 min-w-0 space-y-6">
 
         {myRegsError ? (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-sm">
