@@ -4,7 +4,7 @@ import {
   Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle,
   ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2,
   Clock, Send, Lock, ClipboardList, UserCheck, FileCheck, User as UserIcon,
-  GraduationCap, Bell, CircleHelp, Building2, Calendar, Award, ExternalLink, Sparkles, Mail
+  GraduationCap, Bell, CircleHelp, Building2, Calendar, Award, ExternalLink, Sparkles, Mail, Shield
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, companyDescriptionText, isAuthExpiredResponse, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
@@ -853,136 +853,206 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* 1. Clean Student Profile Header (No bulky box, no extra icons) */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* 1. Main Header & 4 Stages Card (Fully Consistent with Admin/Lecturer Dashboard) */}
       {user && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.06]">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#1d1d1f] tracking-tight">{user.name}</h1>
-            <div className="text-xs text-[#86868b] mt-1 flex flex-wrap items-center gap-2 font-medium">
-              <span>MSSV: <strong className="text-[#1d1d1f] font-mono">{user.student_id || studentIdFromEmail}</strong></span>
-              <span>·</span>
-              <span>Lớp: <strong className="text-[#1d1d1f]">{user.class_name || 'Chưa cập nhật'}</strong></span>
-              <span>·</span>
-              <span>{user.email}</span>
-              <span>·</span>
-              <span className="font-semibold text-[#0071e3]">Kỳ {campaign.year}</span>
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+          {/* Profile Header Row */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              {user.picture ? (
+                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm object-cover" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
+                  <GraduationCap size={26} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1 flex items-center gap-1.5">
+                  <GraduationCap size={14} className="text-blue-600" /> Sinh viên thực tập · Kỳ {campaign.year}
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+                <p className="text-sm text-slate-500 mt-1 break-all">
+                  MSSV: <span className="font-semibold text-slate-800">{user.student_id || studentIdFromEmail}</span> · Lớp: <span className="font-semibold text-slate-800">{user.class_name || 'Chưa cập nhật'}</span> · {user.email}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                onClick={() => navigate('/profile')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+              >
+                <UserIcon size={14} className="text-slate-500" /> Cập nhật hồ sơ
+              </button>
+              <button
+                onClick={() => navigate('/plan')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+              >
+                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+              </button>
+              <button
+                onClick={() => navigate('/faq')}
+                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+              >
+                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
+              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                >
+                  <Shield size={14} /> Quản trị Khoa
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="px-3 py-1.5 rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition-colors cursor-pointer"
-            >
-              Hồ sơ
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/plan')}
-              className="px-3 py-1.5 rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition-colors cursor-pointer"
-            >
-              Kế hoạch
-            </button>
-            <a
-              href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition-colors cursor-pointer"
-            >
-              Mẫu báo cáo ↗
-            </a>
-            <button
-              type="button"
-              onClick={() => navigate('/faq')}
-              className="px-3 py-1.5 rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition-colors cursor-pointer"
-            >
-              FAQ
-            </button>
-            {user?.role === 'admin' && (
+
+          {/* 4 Giai đoạn thực tập - Stat Cards Style đồng bộ với Admin/Giảng viên */}
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Đăng ký nguyện vọng */}
               <button
                 type="button"
-                onClick={() => navigate('/admin')}
-                className="ml-2 px-3 py-1.5 rounded-lg bg-[#1d1d1f] text-white text-xs font-semibold cursor-pointer"
+                onClick={() => setSelectedMilestoneTab('registration')}
+                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  currentTab === 'registration'
+                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
+                }`}
               >
-                Quản trị Khoa
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                    1. Đăng ký nguyện vọng
+                  </span>
+                  <div className="p-2 bg-sky-50 rounded-xl text-sky-600">
+                    <Send size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-2xl font-bold text-slate-900 truncate">
+                    {hasRegistered ? `${myRegs.length} nơi` : '0 nơi'}
+                  </span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    hasRegistered
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : registrationWindowStatus === 'open'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {hasRegistered ? 'Đã ghi nhận' : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký')}
+                  </span>
+                </div>
               </button>
-            )}
+
+              {/* 2. Xác nhận nơi thực tập */}
+              <button
+                type="button"
+                onClick={() => setSelectedMilestoneTab('confirmation')}
+                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  currentTab === 'confirmation'
+                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider">
+                    2. Nơi thực tập
+                  </span>
+                  <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                    <Building2 size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-xl font-bold text-blue-700 truncate" title={finalInternshipSummary}>
+                    {finalInternship ? (finalInternship.internship_type === 'school' ? 'Tại trường' : finalInternship.company_name) : 'Chưa có'}
+                  </span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
+                    finalInternship
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : confirmationWindowStatus === 'open'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {finalInternship ? 'Đã xác nhận' : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận')}
+                  </span>
+                </div>
+              </button>
+
+              {/* 3. Giảng viên hướng dẫn */}
+              <button
+                type="button"
+                onClick={() => setSelectedMilestoneTab('advisor')}
+                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  currentTab === 'advisor'
+                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-indigo-600 text-xs font-semibold uppercase tracking-wider">
+                    3. Giảng viên HD
+                  </span>
+                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                    <GraduationCap size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-xl font-bold text-slate-900 truncate" title={primaryAdvisor?.lecturer_name || advisorSummary}>
+                    {primaryAdvisor?.lecturer_name || (myAdvisors.length > 0 ? myAdvisors[0].lecturer_name : (advisorRequest?.request_type === 'faculty_assign' ? 'Khoa phân công' : 'Chưa có'))}
+                  </span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
+                    myAdvisors.length > 0
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : advisorRequest
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {myAdvisors.length > 0 ? 'Đã phân công' : (advisorRequest ? 'Chờ duyệt' : 'Chưa có')}
+                  </span>
+                </div>
+              </button>
+
+              {/* 4. Nộp báo cáo & Điểm */}
+              <button
+                type="button"
+                onClick={() => setSelectedMilestoneTab('report')}
+                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  currentTab === 'report'
+                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-emerald-600 text-xs font-semibold uppercase tracking-wider">
+                    4. Báo cáo & Điểm
+                  </span>
+                  <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                    <Award size={18} />
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <span className="text-2xl font-bold text-[#1b7f37]">
+                    {myGrade?.final_score !== null && myGrade?.final_score !== undefined
+                      ? Number(myGrade.final_score).toFixed(1)
+                      : (finalReport ? 'Đã nộp' : '—')}
+                  </span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
+                    finalReport?.status === 'accepted'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : finalReport
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {finalReport?.status === 'accepted' ? 'Đã duyệt' : (finalReport ? 'Đã nộp' : 'Chưa nộp')}
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 2. Unified 4-Stage Stepper Navigation Bar (Merged Stepper + Tabs, Zero Clutter) */}
-      <div className="bg-white border border-black/[0.06] rounded-2xl p-1.5 shadow-xs">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-          {[
-            {
-              id: 'registration',
-              step: '1',
-              title: 'Đăng ký nguyện vọng',
-              status: hasRegistered ? 'Đã ghi nhận' : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký'),
-              detail: registrationSummary,
-            },
-            {
-              id: 'confirmation',
-              step: '2',
-              title: 'Xác nhận nơi thực tập',
-              status: finalInternship ? 'Đã xác nhận' : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận'),
-              detail: finalInternshipSummary,
-            },
-            {
-              id: 'advisor',
-              step: '3',
-              title: 'Giảng viên hướng dẫn',
-              status: myAdvisors.length > 0 ? 'Đã phân công' : (advisorRequest ? 'Chờ duyệt' : 'Chưa có'),
-              detail: advisorSummary,
-            },
-            {
-              id: 'report',
-              step: '4',
-              title: 'Nộp báo cáo & Điểm',
-              status: finalReport?.status === 'accepted' ? 'Đã duyệt' : (finalReport ? 'Đã nộp' : (finalReportWindowStatus === 'open' ? 'Đang mở' : 'Chưa nộp')),
-              detail: myGrade?.final_score !== null && myGrade?.final_score !== undefined
-                ? `Điểm: ${Number(myGrade.final_score).toFixed(1)} (${getLetterGrade(myGrade.final_score).letter})`
-                : (finalReport ? 'Đã nộp báo cáo' : 'Chưa nộp'),
-            },
-          ].map((item) => {
-            const isSelected = currentTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setSelectedMilestoneTab(item.id as any)}
-                className={`p-3 rounded-xl text-left transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#f5f5f7] border border-black/[0.08] shadow-xs'
-                    : 'hover:bg-[#fbfbfd] border border-transparent'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className={`text-xs font-bold ${isSelected ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
-                    {item.step}. {item.title}
-                  </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    item.status.includes('Đã') || item.status.includes('duyệt') || item.status.includes('chấp nhận')
-                      ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                      : item.status.includes('Đang')
-                      ? 'bg-blue-50 text-blue-700 font-semibold'
-                      : 'bg-black/[0.04] text-[#86868b]'
-                  }`}>
-                    {item.status}
-                  </span>
-                </div>
-                <div className="text-xs font-semibold text-[#1d1d1f] truncate">
-                  {item.detail}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Main Stage Workspace (Clean 1-Column Apple Layout) */}
+      {/* 2. Main Stage Workspace */}
       <main className="space-y-6">
         {myRegsError && (
           <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 leading-relaxed shadow-xs">
@@ -994,36 +1064,36 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         {/* GIAI ĐOẠN 4: NỘP BÁO CÁO & ĐIỂM */}
         {currentTab === 'report' && (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-black/[0.06] bg-white p-6 sm:p-7 shadow-xs space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.04]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
                 <div>
-                  <h2 className="text-base font-bold text-[#1d1d1f]">Báo cáo thực tập tốt nghiệp</h2>
-                  <p className="text-xs text-[#86868b] mt-0.5">
+                  <h3 className="text-lg font-bold text-slate-900">Báo cáo thực tập tốt nghiệp</h3>
+                  <p className="text-xs text-slate-500 mt-1">
                     Hạn nộp: {campaign.final_report_close_at ? formatGMT7(campaign.final_report_close_at) : 'Chưa thiết lập'} (GMT+7)
                   </p>
                 </div>
                 <div>
                   {finalReport?.status === 'accepted' ? (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">Đã duyệt báo cáo</span>
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Đã duyệt báo cáo</span>
                   ) : finalReport ? (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700">Đã nộp báo cáo</span>
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Đã nộp báo cáo</span>
                   ) : (
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700">Chưa nộp</span>
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Chưa nộp</span>
                   )}
                 </div>
               </div>
 
               {finalReport ? (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-[#fbfbfd] border border-black/[0.04] gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-slate-50/60 border border-slate-200 gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-[#1d1d1f] truncate" title={finalReport.original_filename}>
+                    <div className="text-sm font-bold text-slate-900 truncate" title={finalReport.original_filename}>
                       {finalReport.original_filename}
                     </div>
-                    <div className="text-[11px] text-[#86868b] mt-0.5">
+                    <div className="text-xs text-slate-500 mt-0.5">
                       {formatBytes(Number(finalReport.file_size || 0))} · Nộp lúc {finalReport.submitted_at ? new Date(finalReport.submitted_at).toLocaleString('vi-VN') : '-'}
                     </div>
                     {finalReport.lecturer_comment && (
-                      <div className="mt-2.5 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-100">
+                      <div className="mt-2.5 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
                         <strong>Nhận xét GVHD:</strong> {finalReport.lecturer_comment}
                       </div>
                     )}
@@ -1032,11 +1102,12 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     <button
                       type="button"
                       onClick={downloadMyFinalReport}
-                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-black/[0.08] text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors cursor-pointer"
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
                     >
-                      Tải PDF
+                      <Download size={14} className="text-slate-500" /> Tải PDF
                     </button>
-                    <label className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors cursor-pointer">
+                    <label className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]">
+                      <Upload size={14} />
                       {uploadingReport ? 'Đang nộp...' : 'Nộp lại'}
                       <input
                         type="file"
@@ -1049,9 +1120,10 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   </div>
                 </div>
               ) : (
-                <div className="p-8 text-center border border-dashed border-black/[0.1] rounded-xl space-y-2.5">
-                  <p className="text-xs text-[#86868b]">Bạn chưa nộp file báo cáo thực tập tốt nghiệp.</p>
-                  <label className="inline-block px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] cursor-pointer">
+                <div className="p-8 text-center border border-dashed border-slate-250 rounded-xl space-y-2.5 bg-slate-50/40">
+                  <p className="text-xs text-slate-500">Bạn chưa nộp file báo cáo thực tập tốt nghiệp.</p>
+                  <label className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] cursor-pointer shadow-xs hover:shadow transition-all active:scale-[0.98]">
+                    <Upload size={14} />
                     {uploadingReport ? 'Đang tải lên...' : 'Chọn file PDF để nộp'}
                     <input
                       type="file"
@@ -1065,47 +1137,47 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               )}
 
               {/* Score Section */}
-              <div className="pt-2 border-t border-black/[0.04]">
+              <div className="pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-[#1d1d1f]">Kết quả đánh giá học phần</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Kết quả đánh giá học phần</span>
                   <button
                     type="button"
                     onClick={() => navigate('/grades')}
-                    className="text-xs font-semibold text-[#0071e3] hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                   >
                     Bảng điểm chi tiết →
                   </button>
                 </div>
                 {myGrade?.final_score !== null && myGrade?.final_score !== undefined ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    <div className="p-3 rounded-xl bg-[#fbfbfd] border border-black/[0.04]">
-                      <div className="text-[11px] text-[#86868b]">Tổng kết</div>
-                      <div className="text-xl font-bold text-[#1d1d1f] mt-0.5">{Number(myGrade.final_score).toFixed(1)}</div>
-                      <div className="text-[10px] text-emerald-600 font-semibold">{getLetterGrade(myGrade.final_score).letter} · GPA {getLetterGrade(myGrade.final_score).gpa}</div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="text-xs text-slate-500 font-medium">Tổng kết</div>
+                      <div className="text-2xl font-bold text-slate-900 mt-0.5">{Number(myGrade.final_score).toFixed(1)}</div>
+                      <div className="text-[11px] text-emerald-600 font-semibold">{getLetterGrade(myGrade.final_score).letter} · GPA {getLetterGrade(myGrade.final_score).gpa}</div>
                     </div>
-                    <div className="p-3 rounded-xl bg-[#fbfbfd] border border-black/[0.04]">
-                      <div className="text-[11px] text-[#86868b]">Quá trình (20%)</div>
-                      <div className="text-sm font-semibold text-[#1d1d1f] mt-1">{scoreText(myGrade.progress_score)}</div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="text-xs text-slate-500 font-medium">Quá trình (20%)</div>
+                      <div className="text-base font-semibold text-slate-900 mt-1">{scoreText(myGrade.progress_score)}</div>
                     </div>
-                    <div className="p-3 rounded-xl bg-[#fbfbfd] border border-black/[0.04]">
-                      <div className="text-[11px] text-[#86868b]">Báo cáo (20%)</div>
-                      <div className="text-sm font-semibold text-[#1d1d1f] mt-1">{scoreText(myGrade.report_score)}</div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="text-xs text-slate-500 font-medium">Báo cáo (20%)</div>
+                      <div className="text-base font-semibold text-slate-900 mt-1">{scoreText(myGrade.report_score)}</div>
                     </div>
-                    <div className="p-3 rounded-xl bg-[#fbfbfd] border border-black/[0.04]">
-                      <div className="text-[11px] text-[#86868b]">Đơn vị (60%)</div>
-                      <div className="text-sm font-semibold text-[#1d1d1f] mt-1">{scoreText(myGrade.company_score)}</div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="text-xs text-slate-500 font-medium">Đơn vị (60%)</div>
+                      <div className="text-base font-semibold text-slate-900 mt-1">{scoreText(myGrade.company_score)}</div>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-[#86868b]">
+                  <div className="text-xs text-slate-500 font-medium">
                     Báo cáo đang trong quá trình chấm điểm.
                   </div>
                 )}
               </div>
 
               {/* Clean, accurate note */}
-              <div className="p-3.5 rounded-xl bg-[#f5f5f7] text-xs text-[#6e6e73] leading-relaxed">
-                <strong className="text-[#1d1d1f]">Lưu ý:</strong> Sinh viên chỉ cần in riêng trang <strong>Phiếu đánh giá</strong> để xin nhận xét, điểm và chữ ký của người hướng dẫn + dấu của công ty. Sau đó scan và gộp vào file PDF nộp lên hệ thống.
+              <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-100 text-xs text-blue-900 leading-relaxed font-medium">
+                <strong className="text-blue-950">Lưu ý:</strong> Sinh viên chỉ cần in riêng trang <strong>Phiếu đánh giá</strong> để xin nhận xét, điểm và chữ ký của người hướng dẫn + dấu của công ty. Sau đó scan và gộp vào file PDF nộp lên hệ thống.
               </div>
             </div>
           </div>
@@ -1115,13 +1187,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         {currentTab === 'registration' && (
           <div className="space-y-6">
             {hasRegistered ? (
-              <div className="rounded-2xl border border-black/[0.06] bg-white p-6 shadow-xs">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                 {!editingPreferences ? (
                   <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04] mb-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 mb-5">
                       <div>
-                        <h3 className="text-base font-bold text-[#1d1d1f]">Nguyện vọng đã đăng ký</h3>
-                        <p className="text-xs text-[#86868b] mt-0.5">
+                        <h3 className="text-lg font-bold text-slate-900">Nguyện vọng đã đăng ký</h3>
+                        <p className="text-xs text-slate-500 mt-1">
                           Thời gian ghi nhận: {myRegs[0]?.created_at ? new Date(myRegs[0].created_at).toLocaleDateString('vi-VN') : '-'}
                         </p>
                       </div>
@@ -1130,7 +1202,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                           type="button"
                           onClick={startEditingPreferences}
                           disabled={!canWithdrawRegistration}
-                          className={`bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-1.5 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs transition-all cursor-pointer hover:shadow active:scale-[0.98] ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           Sửa nguyện vọng
                         </button>
@@ -1138,7 +1210,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                           type="button"
                           onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
                           disabled={!canWithdrawRegistration}
-                          className={`bg-red-50 text-red-600 border border-red-200/60 px-3.5 py-1.5 rounded-xl hover:bg-red-100/80 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-100/80 text-xs font-semibold transition-all cursor-pointer hover:shadow active:scale-[0.98] ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           Hủy tất cả
                         </button>
@@ -1147,26 +1219,26 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
                     <div className="space-y-2.5 mb-4">
                       {myRegs.map((reg: any, idx: number) => (
-                        <div key={reg.id} className="flex items-start sm:items-center justify-between p-3.5 bg-[#fbfbfd] hover:bg-[#f5f5f7] border border-black/[0.04] rounded-xl transition-colors">
+                        <div key={reg.id} className="flex items-start sm:items-center justify-between p-3.5 bg-slate-50/60 hover:bg-slate-100/60 border border-slate-200 rounded-xl transition-colors">
                           <div className="min-w-0 flex-1 pr-4">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[10px] font-bold text-[#0071e3] bg-[#0071e3]/10 px-2 py-0.5 rounded border border-[#0071e3]/20">NV{idx + 1}</span>
-                              <span className="text-xs font-bold text-[#1d1d1f]">
+                              <span className="text-sm font-semibold text-slate-900">
                                 {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
                               </span>
                             </div>
                             {reg.review_comment && (
-                              <div className="text-xs text-[#6e6e73] mt-1.5 bg-white border border-black/[0.06] rounded-lg p-2 shadow-xs">
-                                <span className="font-semibold text-[#1d1d1f]">Nhận xét của Khoa:</span> {reg.review_comment}
+                              <div className="text-xs text-slate-600 mt-1.5 bg-white border border-slate-200 rounded-lg p-2.5 shadow-xs">
+                                <span className="font-semibold text-slate-800">Nhận xét của Khoa:</span> {reg.review_comment}
                               </div>
                             )}
                           </div>
                           <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${
                             reg.status === 'approved'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : reg.status === 'rejected'
-                                ? 'bg-red-50 text-red-600 border-red-200/60'
-                                : 'bg-amber-50 text-amber-700 border-amber-200/60'
+                                ? 'bg-red-50 text-red-600 border-red-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
                           }`}>
                             {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
                           </span>
@@ -1175,43 +1247,43 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     </div>
 
                     {canWithdrawRegistration && (
-                      <p className="text-[11px] text-[#86868b] leading-relaxed">
+                      <p className="text-xs text-slate-500 leading-relaxed">
                         Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập.
                       </p>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
                       <div>
-                        <h3 className="text-base font-bold text-[#1d1d1f]">Chỉnh sửa nguyện vọng</h3>
-                        <p className="text-xs text-[#86868b] mt-0.5">Chọn thêm hoặc bỏ bớt nơi thực tập từ danh sách bên dưới</p>
+                        <h3 className="text-lg font-bold text-slate-900">Chỉnh sửa nguyện vọng</h3>
+                        <p className="text-xs text-slate-500 mt-1">Chọn thêm hoặc bỏ bớt nơi thực tập từ danh sách bên dưới</p>
                       </div>
-                      <div className="rounded-full bg-[#0071e3]/10 border border-[#0071e3]/20 px-3 py-1 text-xs font-bold text-[#0071e3] shrink-0">
+                      <div className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 shrink-0">
                         Đang chọn {selectedWishCount}/5
                       </div>
                     </div>
 
                     {selectedPreferencePreview.length > 0 && (
-                      <div className="rounded-xl border border-black/[0.05] bg-[#fbfbfd] p-3.5">
-                        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-[#86868b]">Nguyện vọng sau khi chỉnh sửa</div>
-                        <ol className="space-y-1.5 text-xs text-[#1d1d1f]">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Nguyện vọng sau khi chỉnh sửa</div>
+                        <ol className="space-y-1.5 text-xs text-slate-900">
                           {selectedPreferencePreview.map((item, idx) => (
                             <li key={item.key} className="flex items-center gap-2">
                               <span className="font-bold text-[#0071e3] bg-[#0071e3]/10 px-1.5 py-0.5 rounded text-[10px]">NV{idx + 1}</span>
-                              <span className="font-semibold text-[#1d1d1f]">{item.name}</span>
+                              <span className="font-semibold text-slate-800">{item.name}</span>
                             </li>
                           ))}
                         </ol>
                       </div>
                     )}
 
-                    <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-black/[0.04] pt-4">
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-slate-100 pt-4">
                       <button
                         type="button"
                         onClick={cancelEditingPreferences}
                         disabled={savingPreferences}
-                        className="bg-white text-[#1d1d1f] border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold cursor-pointer disabled:opacity-50"
+                        className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold cursor-pointer disabled:opacity-50"
                       >
                         Hủy chỉnh sửa
                       </button>
@@ -1219,7 +1291,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                         type="button"
                         onClick={savePreferenceEdits}
                         disabled={savingPreferences}
-                        className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50"
+                        className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-xs"
                       >
                         {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
                       </button>
@@ -1228,8 +1300,8 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-black/[0.06] bg-white p-6 text-xs text-[#6e6e73] space-y-1">
-                <h3 className="font-bold text-sm text-[#1d1d1f]">Chưa có nguyện vọng nào</h3>
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm text-xs text-slate-500 space-y-1">
+                <h3 className="font-bold text-base text-slate-900">Chưa có nguyện vọng nào</h3>
                 <p>
                   {registrationWindowStatus === 'open'
                     ? 'Đợt đăng ký đang mở. Vui lòng tick chọn tối đa 5 nơi thực tập từ danh sách bên dưới rồi bấm Đăng ký.'
@@ -1239,12 +1311,12 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             )}
 
             {/* Company table */}
-            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-xs overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-black/[0.04] flex flex-col sm:flex-row gap-3 sm:items-center justify-between bg-[#fbfbfd]">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-[#1d1d1f] text-xs">Danh mục nơi thực tập</span>
+                  <span className="font-bold text-slate-800 text-sm">Danh mục nơi thực tập</span>
                   {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
-                    <span className="text-[10px] bg-[#0071e3]/10 text-[#0071e3] px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
                       Đã chọn: {selectedWishCount}/5
                     </span>
                   )}
@@ -1255,15 +1327,15 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Tìm nơi thực tập..."
-                    className="px-3 py-1.5 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all w-full sm:w-56 bg-white text-[#1d1d1f]"
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full sm:w-64 bg-white text-slate-800 shadow-inner"
                   />
                   {!hasRegistered && registrationWindowStatus === 'open' && (
                     <button
                       type="button"
                       disabled={selectedWishCount === 0}
                       onClick={() => setRegisterModalOpen(true)}
-                      className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        selectedWishCount === 0 ? 'bg-[#f5f5f7] text-[#86868b] cursor-not-allowed' : 'bg-[#0071e3] text-white hover:bg-[#0077ed]'
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-xs ${
+                        selectedWishCount === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-[#0071e3] text-white hover:bg-[#0077ed]'
                       }`}
                     >
                       Đăng ký ({selectedWishCount})
@@ -1275,9 +1347,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left min-w-[650px]">
                   <thead>
-                    <tr className="bg-[#fbfbfd] text-[#86868b] text-[11px] uppercase tracking-wider font-bold border-b border-black/[0.04]">
+                    <tr className="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-wider font-bold border-b border-slate-200">
                       <th className="px-3 py-2.5 text-center w-12">Chọn</th>
-                      <th className="px-5 py-2.5 cursor-pointer hover:bg-black/[0.02]" onClick={() => requestSort('name')}>
+                      <th className="px-5 py-2.5 cursor-pointer hover:bg-slate-100/60" onClick={() => requestSort('name')}>
                         Nơi thực tập
                       </th>
                       <th className="px-5 py-2.5">Địa chỉ</th>
@@ -1285,39 +1357,39 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       <th className="px-4 py-2.5 text-center">Ứng viên</th>
                     </tr>
                   </thead>
-                  <tbody className="text-xs divide-y divide-black/[0.04]">
+                  <tbody className="text-xs divide-y divide-slate-100">
                     {paginatedCompanies.map((company) => {
                       const isSelected = selectedCompanies.has(company.id);
                       const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
                       return (
-                        <tr key={company.id} className={`hover:bg-[#fbfbfd] transition-colors ${isSelected ? 'bg-[#ebf4ff]/50' : ''}`}>
+                        <tr key={company.id} className={`hover:bg-slate-50/60 transition-colors ${isSelected ? 'bg-blue-50/40' : ''}`}>
                           <td className="px-3 py-3 text-center">
                             <input
                               type="checkbox"
                               checked={isSelected || (!editingPreferences && isRegistered)}
                               disabled={(!editingPreferences && hasRegistered) || (!isSelected && selectedWishCount >= 5)}
                               onChange={() => toggleCompanySelection(company.id)}
-                              className="w-4 h-4 text-[#0071e3] rounded border-black/[0.2] focus:ring-[#0071e3] cursor-pointer disabled:opacity-40"
+                              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:opacity-40"
                             />
                           </td>
-                          <td className="px-5 py-3 font-semibold text-[#0071e3]">
+                          <td className="px-5 py-3 font-semibold text-blue-600">
                             <button
                               type="button"
                               onClick={() => navigate(`/company/${company.id}`)}
-                              className="text-[#0071e3] hover:underline text-left cursor-pointer"
+                              className="text-blue-600 hover:underline text-left cursor-pointer"
                             >
                               {company.name}
                             </button>
                           </td>
-                          <td className="px-5 py-3 text-[#6e6e73]">{company.address}</td>
-                          <td className="px-4 py-3 text-center font-medium text-[#1d1d1f]">{company.slots}</td>
-                          <td className="px-4 py-3 text-center font-medium text-[#1d1d1f]">{company.applicant_count ?? 0}</td>
+                          <td className="px-5 py-3 text-slate-600">{company.address}</td>
+                          <td className="px-4 py-3 text-center font-medium text-slate-800">{company.slots}</td>
+                          <td className="px-4 py-3 text-center font-medium text-slate-800">{company.applicant_count ?? 0}</td>
                         </tr>
                       );
                     })}
                     {sortedCompanies.length === 0 && !loading && (
                       <tr>
-                        <td colSpan={5} className="px-5 py-6 text-center text-[#86868b]">Không tìm thấy nơi thực tập phù hợp.</td>
+                        <td colSpan={5} className="px-5 py-6 text-center text-slate-400">Không tìm thấy nơi thực tập phù hợp.</td>
                       </tr>
                     )}
                   </tbody>
@@ -1337,16 +1409,16 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
         {/* GIAI ĐOẠN 2: XÁC NHẬN NƠI THỰC TẬP */}
         {currentTab === 'confirmation' && (
-          <div className="rounded-2xl border border-black/[0.06] bg-white p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.04]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-[#1d1d1f]">Xác nhận nơi thực tập</h3>
-                <p className="text-xs text-[#86868b] mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900">Xác nhận nơi thực tập</h3>
+                <p className="text-xs text-slate-500 mt-1">
                   Hạn xác nhận: {campaign.confirmation_close_at ? formatGMT7(campaign.confirmation_close_at) : 'Chưa thiết lập'} (GMT+7)
                 </p>
               </div>
               {finalInternship && (
-                <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full">
+                <span className="text-xs font-semibold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
                   Đã xác nhận
                 </span>
               )}
@@ -1354,41 +1426,41 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
             {finalInternship ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs bg-slate-50/60 p-4 rounded-xl border border-slate-200">
                   <div>
-                    <span className="text-[#86868b] block mb-1">Đơn vị:</span>
-                    <strong className="text-sm text-[#1d1d1f]">
+                    <span className="text-slate-500 block mb-1">Đơn vị:</span>
+                    <strong className="text-sm text-slate-900 font-bold">
                       {finalInternship.internship_type === 'school' ? 'Thực tập tại trường (ĐH Công nghệ - ĐHQGHN)' : finalInternship.company_name}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[#86868b] block mb-1">Hình thức:</span>
-                    <strong className="text-sm text-[#1d1d1f]">
+                    <span className="text-slate-500 block mb-1">Hình thức:</span>
+                    <strong className="text-sm text-slate-900 font-bold">
                       {finalInternship.internship_type === 'school' ? 'Nghiên cứu tại Trường' : 'Doanh nghiệp'}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[#86868b] block mb-1">Thời gian:</span>
-                    <span className="text-[#1d1d1f]">
+                    <span className="text-slate-500 block mb-1">Thời gian:</span>
+                    <span className="text-slate-800 font-medium">
                       {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}
                     </span>
                   </div>
                 </div>
 
                 {!finalInternship.locked_at && confirmationWindowStatus === 'open' && (
-                  <div className="border-t border-black/[0.04] pt-4 flex justify-end gap-2.5">
+                  <div className="border-t border-slate-100 pt-4 flex justify-end gap-2.5">
                     <button
                       type="button"
                       onClick={() => openFinalConfirm('company')}
                       disabled={approvedFinalOptions.length === 0}
-                      className="bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#f5f5f7] cursor-pointer disabled:opacity-50"
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer disabled:opacity-50 shadow-xs hover:shadow active:scale-[0.98]"
                     >
                       Đổi công ty
                     </button>
                     <button
                       type="button"
                       onClick={() => openFinalConfirm('school')}
-                      className="bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#f5f5f7] cursor-pointer"
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer shadow-xs hover:shadow active:scale-[0.98]"
                     >
                       Đổi sang trường
                     </button>
@@ -1397,7 +1469,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               </div>
             ) : (
               <div className="space-y-4 text-xs">
-                <p className="text-[#6e6e73]">
+                <p className="text-slate-600">
                   Vui lòng xác nhận đơn vị thực tập chính thức của bạn trong đợt này.
                 </p>
                 <div className="flex justify-end gap-2.5 pt-2">
@@ -1405,7 +1477,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     type="button"
                     onClick={() => openFinalConfirm('company')}
                     disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
-                    className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-xs"
                   >
                     Xác nhận công ty
                   </button>
@@ -1413,7 +1485,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     type="button"
                     onClick={() => openFinalConfirm('school')}
                     disabled={confirmationWindowStatus !== 'open'}
-                    className="bg-[#1d1d1f] hover:bg-[#2c2c2e] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-xs"
                   >
                     Thực tập tại trường
                   </button>
@@ -1425,11 +1497,11 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
         {/* GIAI ĐOẠN 3: GIẢNG VIÊN HƯỚNG DẪN */}
         {currentTab === 'advisor' && (
-          <div className="rounded-2xl border border-black/[0.06] bg-white p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/[0.04]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-[#1d1d1f]">Giảng viên hướng dẫn</h3>
-                <p className="text-xs text-[#86868b] mt-0.5">
+                <h3 className="text-lg font-bold text-slate-900">Giảng viên hướng dẫn</h3>
+                <p className="text-xs text-slate-500 mt-1">
                   Hạn đăng ký GVHD: {campaign.advisor_request_close_at ? formatGMT7(campaign.advisor_request_close_at) : 'Chưa thiết lập'} (GMT+7)
                 </p>
               </div>
@@ -1437,7 +1509,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 <button
                   type="button"
                   onClick={() => setIsAdvisorEditOpen(prev => !prev)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-black/[0.08] text-[#1d1d1f] hover:bg-[#f5f5f7] cursor-pointer"
+                  className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer shadow-xs hover:shadow active:scale-[0.98]"
                 >
                   {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Đăng ký / Đổi GVHD'}
                 </button>
@@ -1445,22 +1517,22 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
 
             {hasAdvisorSelection ? (
-              <div className="p-4 rounded-xl bg-[#fbfbfd] border border-black/[0.04] space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50/60 border border-slate-200 space-y-3">
                 <div className="space-y-2">
                   {myAdvisors.length > 0 ? (
                     myAdvisors.map((a: any) => (
                       <div key={`${a.role}-${a.lecturer_id}`} className="flex items-center justify-between gap-3 text-xs">
                         <div>
-                          <span className="font-bold text-[#1d1d1f]">{a.lecturer_name}</span>
-                          <span className="text-[#86868b] ml-1.5 font-medium">({a.role === 'primary' ? 'GV chính' : 'Đồng HD'})</span>
+                          <span className="font-bold text-slate-900">{a.lecturer_name}</span>
+                          <span className="text-slate-500 ml-1.5 font-medium">({a.role === 'primary' ? 'GV chính' : 'Đồng HD'})</span>
                           {a.lecturer_email && (
-                            <div className="text-[#0071e3] text-[11px] mt-0.5">{a.lecturer_email}</div>
+                            <div className="text-blue-600 text-xs mt-0.5 font-medium">{a.lecturer_email}</div>
                           )}
                         </div>
                         {a.lecturer_email && (
                           <a
                             href={`mailto:${a.lecturer_email}?subject=[Thực tập tốt nghiệp] ${user?.name} - ${user?.student_id}`}
-                            className="px-3 py-1 rounded-lg bg-white border border-black/[0.08] text-xs font-medium hover:bg-[#f5f5f7]"
+                            className="bg-white text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 shadow-xs"
                           >
                             Gửi email
                           </a>
@@ -1468,7 +1540,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       </div>
                     ))
                   ) : (
-                    <div className="text-xs font-bold text-[#1d1d1f]">
+                    <div className="text-xs font-bold text-slate-900">
                       {advisorRequest?.request_type === 'faculty_assign'
                         ? 'Khoa sẽ phân công'
                         : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
@@ -1477,14 +1549,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 </div>
               </div>
             ) : (
-              <div className="p-6 text-center border border-dashed border-black/[0.08] rounded-xl text-xs text-[#86868b]">
+              <div className="p-6 text-center border border-dashed border-slate-250 rounded-xl text-xs text-slate-500 bg-slate-50/40">
                 Chưa có giảng viên hướng dẫn. Khoa sẽ phân công sau khi kết thúc đợt xác nhận nơi thực tập.
               </div>
             )}
 
             {showAdvisorForm && (
-              <form onSubmit={submitAdvisorRequest} className="rounded-xl border border-black/[0.06] bg-[#fbfbfd] p-4 space-y-3">
-                <div className="text-xs font-bold text-[#1d1d1f]">Đăng ký giảng viên hướng dẫn</div>
+              <form onSubmit={submitAdvisorRequest} className="rounded-xl border border-slate-200 bg-slate-50/60 p-5 space-y-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Đăng ký giảng viên hướng dẫn</div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                   <select
                     value={advisorRequestForm.request_type}
@@ -1497,7 +1569,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                         co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
                       });
                     }}
-                    className="px-3 py-2 border border-black/[0.08] rounded-xl text-xs bg-white font-medium text-[#1d1d1f]"
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-800"
                   >
                     <option value="">Khoa tự phân công</option>
                     <option value="agreed">Sinh viên đã được GV đồng ý</option>
@@ -1509,7 +1581,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     required={!!advisorRequestForm.request_type}
                     list="advisor-primary-lecturers"
                     placeholder="GVHD chính"
-                    className="px-3 py-2 border border-black/[0.08] rounded-xl text-xs bg-white text-[#1d1d1f] disabled:bg-slate-100"
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 disabled:bg-slate-100"
                   />
                   <input
                     value={advisorRequestForm.co_lecturer_name}
@@ -1517,7 +1589,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                     disabled={!advisorRequestForm.request_type}
                     list="advisor-co-lecturers"
                     placeholder="Đồng hướng dẫn (nếu có)"
-                    className="px-3 py-2 border border-black/[0.08] rounded-xl text-xs bg-white text-[#1d1d1f] disabled:bg-slate-100"
+                    className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 disabled:bg-slate-100"
                   />
                   <datalist id="advisor-primary-lecturers">
                     {lecturers.map(name => <option key={name} value={name} />)}
@@ -1530,7 +1602,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   <button
                     type="submit"
                     disabled={advisorRequestSaving || !canEditAdvisorRequest}
-                    className="bg-[#0071e3] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#0077ed] cursor-pointer disabled:opacity-50"
+                    className="bg-[#0071e3] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[#0077ed] cursor-pointer disabled:opacity-50 shadow-xs"
                   >
                     {advisorRequestSaving ? 'Đang lưu...' : 'Lưu đăng ký GVHD'}
                   </button>
