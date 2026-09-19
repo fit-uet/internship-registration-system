@@ -4,7 +4,7 @@ import {
   Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle,
   ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2,
   Clock, Send, Lock, ClipboardList, UserCheck, FileCheck, User as UserIcon,
-  GraduationCap, Bell, CircleHelp, Building2, Calendar, Award, ExternalLink, Sparkles, Mail, Shield
+  GraduationCap, Bell, CircleHelp, Building2, Calendar, Award, ExternalLink, Sparkles, Mail, Shield, BookOpen
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, companyDescriptionText, isAuthExpiredResponse, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
@@ -774,7 +774,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const showAdvisorForm = advisorRequestWindowStatus === 'open' && (!hasAdvisorSelection || isAdvisorEditOpen);
   const campaignStatusItems = [
     {
-      label: 'Đăng ký thực tập',
+      label: 'Đăng ký nguyện vọng',
       openAt: campaign.registration_open_at,
       closeAt: campaign.registration_close_at,
       status: (!campaign.registration_open_at && !campaign.registration_close_at) ? 'unconfigured' : registrationWindowStatus,
@@ -801,23 +801,23 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const visibleCampaignStatusItems = campaignStatusItems;
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
-    ? 'bg-green-50 text-green-700 border-green-100'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : status === 'not_open_yet'
-      ? 'bg-orange-50 text-orange-700 border-orange-100'
+      ? 'bg-amber-50 text-amber-700 border-amber-200'
       : status === 'unconfigured'
-        ? 'bg-slate-50 text-slate-700 border-slate-200'
-        : 'bg-red-50 text-red-700 border-red-100';
-  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-green-500' : status === 'not_open_yet' ? 'bg-orange-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-red-500';
+        ? 'bg-slate-50 text-slate-600 border-slate-200'
+        : 'bg-slate-100 text-slate-600 border-slate-200';
+  const campaignStatusDot = (status: string) => status === 'open' ? 'bg-emerald-500' : status === 'not_open_yet' ? 'bg-amber-500' : status === 'unconfigured' ? 'bg-slate-400' : 'bg-slate-400';
   const openCampaigns = campaignStatusItems.filter(item => item.status === 'open');
   const advisorCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký GVHD');
-  const registrationCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký thực tập');
+  const registrationCampaign = campaignStatusItems.find(item => item.label === 'Đăng ký nguyện vọng' || item.label === 'Đăng ký thực tập');
   const openCampaign = (advisorCampaign?.status === 'open' && hasRegistered && !hasAdvisorSelection)
     ? advisorCampaign
     : (registrationCampaign?.status === 'open' && !hasRegistered)
       ? registrationCampaign
       : openCampaigns
         .sort((a, b) => String(b.openAt || '').localeCompare(String(a.openAt || '')))[0];
-  const activeCampaignKey = openCampaign?.label === 'Đăng ký thực tập'
+  const activeCampaignKey = openCampaign?.label?.includes('nguyện vọng') || openCampaign?.label?.includes('thực tập')
     ? 'registration'
     : openCampaign?.label === 'Xác nhận nơi thực tập'
       ? 'confirmation'
@@ -826,7 +826,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         : 'report';
   const currentTab = selectedMilestoneTab || activeCampaignKey;
   const scoreText = (val: any) => (val === null || val === undefined || val === '' ? '—' : Number(val).toFixed(1));
-  const activeCampaignTitle = openCampaign?.label || 'Đăng ký thực tập';
+  const activeCampaignTitle = openCampaign?.label || 'Đăng ký nguyện vọng';
   const showRegistrationTask = activeCampaignKey === 'registration' || registrationWindowStatus === 'open';
   const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
   const showAdvisorTask = advisorRequestWindowStatus === 'open' && hasRegistered;
@@ -834,7 +834,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const showCompanyList = registrationWindowStatus === 'open' && (!hasRegistered || editingPreferences);
   const showConfirmationBlock = hasRegistered && showConfirmationDetails;
   const registrationSummary = hasRegistered
-    ? `Đã đăng ký ${myRegs.length} nơi`
+    ? `${myRegs.length} nơi đăng ký`
     : registrationWindowStatus === 'open'
       ? 'Chưa đăng ký'
       : 'Chưa có dữ liệu';
@@ -852,12 +852,72 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       : 'Chưa có GVHD';
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
+  const stageCards = [
+    {
+      id: 'registration',
+      step: '1',
+      title: 'Nguyện vọng',
+      status: hasRegistered
+        ? 'Đã ghi nhận'
+        : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký'),
+      statusColor: hasRegistered
+        ? 'bg-emerald-50 text-emerald-700'
+        : (registrationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
+      detail: hasRegistered ? `${myRegs.length} nơi đăng ký` : 'Chưa đăng ký',
+      detailColor: 'text-slate-900',
+    },
+    {
+      id: 'confirmation',
+      step: '2',
+      title: 'Nơi thực tập',
+      status: finalInternship
+        ? 'Đã xác nhận'
+        : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận'),
+      statusColor: finalInternship
+        ? 'bg-emerald-50 text-emerald-700'
+        : (confirmationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
+      detail: finalInternship
+        ? (finalInternship.internship_type === 'school' ? 'Tại trường' : (finalInternship.company_name === 'Công ty khác' ? (finalInternship.other_company_name || 'Công ty khác') : finalInternship.company_name))
+        : 'Chưa xác nhận',
+      detailColor: finalInternship ? 'text-blue-700' : 'text-slate-500',
+    },
+    {
+      id: 'advisor',
+      step: '3',
+      title: 'Giảng viên HD',
+      status: myAdvisors.length > 0
+        ? 'Đã phân công'
+        : (advisorRequest ? 'Chờ duyệt' : 'Chưa có'),
+      statusColor: myAdvisors.length > 0
+        ? 'bg-emerald-50 text-emerald-700'
+        : (advisorRequest ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'),
+      detail: primaryAdvisor?.lecturer_name || (myAdvisors.length > 0 ? myAdvisors[0].lecturer_name : (advisorRequest?.request_type === 'faculty_assign' ? 'Khoa phân công' : 'Chưa có GVHD')),
+      detailColor: 'text-slate-900',
+    },
+    {
+      id: 'report',
+      step: '4',
+      title: 'Báo cáo & Điểm',
+      status: finalReport?.status === 'accepted'
+        ? 'Đã duyệt'
+        : (finalReport ? 'Đã nộp' : (finalReportWindowStatus === 'open' ? 'Đang mở' : 'Chưa nộp')),
+      statusColor: finalReport?.status === 'accepted'
+        ? 'bg-emerald-50 text-emerald-700'
+        : (finalReport ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
+      detail: myGrade?.final_score !== null && myGrade?.final_score !== undefined
+        ? `Điểm: ${Number(myGrade.final_score).toFixed(1)}`
+        : (finalReport ? 'Đã nộp PDF' : 'Chưa nộp'),
+      detailColor: myGrade?.final_score !== null && myGrade?.final_score !== undefined
+        ? 'text-[#1b7f37]'
+        : (finalReport ? 'text-blue-700' : 'text-slate-500'),
+    },
+  ];
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Main Header & 4 Stages Card (Fully Consistent with Admin/Lecturer Dashboard) */}
+      {/* 1. Student Profile Header Card */}
       {user && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
-          {/* Profile Header Row */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-7">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
               {user.picture ? (
@@ -906,154 +966,131 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               )}
             </div>
           </div>
-
-          {/* 4 Giai đoạn thực tập - Stat Cards Style đồng bộ với Admin/Giảng viên */}
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* 1. Đăng ký nguyện vọng */}
-              <button
-                type="button"
-                onClick={() => setSelectedMilestoneTab('registration')}
-                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  currentTab === 'registration'
-                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                    1. Đăng ký nguyện vọng
-                  </span>
-                  <div className="p-2 bg-sky-50 rounded-xl text-sky-600">
-                    <Send size={18} />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-2xl font-bold text-slate-900 truncate">
-                    {hasRegistered ? `${myRegs.length} nơi` : '0 nơi'}
-                  </span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                    hasRegistered
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : registrationWindowStatus === 'open'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {hasRegistered ? 'Đã ghi nhận' : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký')}
-                  </span>
-                </div>
-              </button>
-
-              {/* 2. Xác nhận nơi thực tập */}
-              <button
-                type="button"
-                onClick={() => setSelectedMilestoneTab('confirmation')}
-                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  currentTab === 'confirmation'
-                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider">
-                    2. Nơi thực tập
-                  </span>
-                  <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-                    <Building2 size={18} />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-xl font-bold text-blue-700 truncate" title={finalInternshipSummary}>
-                    {finalInternship ? (finalInternship.internship_type === 'school' ? 'Tại trường' : finalInternship.company_name) : 'Chưa có'}
-                  </span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
-                    finalInternship
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : confirmationWindowStatus === 'open'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {finalInternship ? 'Đã xác nhận' : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận')}
-                  </span>
-                </div>
-              </button>
-
-              {/* 3. Giảng viên hướng dẫn */}
-              <button
-                type="button"
-                onClick={() => setSelectedMilestoneTab('advisor')}
-                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  currentTab === 'advisor'
-                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-indigo-600 text-xs font-semibold uppercase tracking-wider">
-                    3. Giảng viên HD
-                  </span>
-                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
-                    <GraduationCap size={18} />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-xl font-bold text-slate-900 truncate" title={primaryAdvisor?.lecturer_name || advisorSummary}>
-                    {primaryAdvisor?.lecturer_name || (myAdvisors.length > 0 ? myAdvisors[0].lecturer_name : (advisorRequest?.request_type === 'faculty_assign' ? 'Khoa phân công' : 'Chưa có'))}
-                  </span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
-                    myAdvisors.length > 0
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : advisorRequest
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {myAdvisors.length > 0 ? 'Đã phân công' : (advisorRequest ? 'Chờ duyệt' : 'Chưa có')}
-                  </span>
-                </div>
-              </button>
-
-              {/* 4. Nộp báo cáo & Điểm */}
-              <button
-                type="button"
-                onClick={() => setSelectedMilestoneTab('report')}
-                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  currentTab === 'report'
-                    ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-emerald-600 text-xs font-semibold uppercase tracking-wider">
-                    4. Báo cáo & Điểm
-                  </span>
-                  <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                    <Award size={18} />
-                  </div>
-                </div>
-                <div className="flex items-baseline justify-between mt-1">
-                  <span className="text-2xl font-bold text-[#1b7f37]">
-                    {myGrade?.final_score !== null && myGrade?.final_score !== undefined
-                      ? Number(myGrade.final_score).toFixed(1)
-                      : (finalReport ? 'Đã nộp' : '—')}
-                  </span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1 ${
-                    finalReport?.status === 'accepted'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : finalReport
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {finalReport?.status === 'accepted' ? 'Đã duyệt' : (finalReport ? 'Đã nộp' : 'Chưa nộp')}
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* 2. Main Stage Workspace */}
-      <main className="space-y-6">
+      {/* 2. Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Sidebar (lg:col-span-4): Trạng thái hệ thống & Quy định đăng ký */}
+        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
+          {/* Card 1: Trạng thái hệ thống */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Trạng thái hệ thống</h3>
+              </div>
+              <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">GMT+7</span>
+            </div>
+            <div className="space-y-2.5">
+              {visibleCampaignStatusItems.map((item) => (
+                <div key={item.label} className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 truncate">{item.label}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1.5 border ${campaignStatusColor(item.status)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${campaignStatusDot(item.status)}`} />
+                      {campaignStatusText(item.status)}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-1.5 flex items-center justify-between">
+                    <span>Hạn chót:</span>
+                    <span className="font-semibold text-slate-700">
+                      {item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 2: Quy định đăng ký */}
+          <details open className="group bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <summary className="flex items-center justify-between font-bold text-slate-900 cursor-pointer select-none text-sm">
+              <span className="flex items-center gap-2">
+                <BookOpen size={16} className="text-blue-600" />
+                Quy định đăng ký
+              </span>
+              <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform" />
+            </summary>
+            <div className="mt-3.5 pt-3.5 border-t border-slate-100 text-xs text-slate-600 leading-relaxed max-h-72 overflow-y-auto pr-1">
+              {registrationRulesMarkdown.trim() ? (
+                <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
+              ) : (
+                <p className="italic text-slate-400">Khoa chưa cập nhật quy định cho đợt này.</p>
+              )}
+            </div>
+          </details>
+
+          {/* Card 3: Biểu mẫu & Hỗ trợ */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3.5 text-xs">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <FileCheck size={16} className="text-blue-600" />
+              <h3 className="text-sm font-bold text-slate-900">Biểu mẫu & Hỗ trợ</h3>
+            </div>
+            
+            <a
+              href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-3 rounded-xl bg-blue-50/60 hover:bg-blue-50 border border-blue-100 text-blue-700 font-semibold text-xs transition-all hover:shadow-xs group"
+            >
+              <span className="flex items-center gap-2">
+                <FileText size={15} className="text-blue-600" />
+                Mẫu báo cáo của Khoa (Drive)
+              </span>
+              <ExternalLink size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform text-blue-500" />
+            </a>
+
+            <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 text-slate-600 space-y-1.5">
+              <div className="flex items-start gap-1.5">
+                <span className="font-semibold text-slate-700 shrink-0">Giáo vụ:</span>
+                <span>Cô Bảo (<a href="mailto:baoptm@vnu.edu.vn" className="text-blue-600 hover:underline">baoptm@vnu.edu.vn</a>)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-slate-700 shrink-0">Kỹ thuật:</span>
+                <span className="font-mono text-slate-700 font-medium">0961309175</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Right Content Column (lg:col-span-8): Stepper Bar & Active Stage Workspace */}
+        <div className="lg:col-span-8 min-w-0 space-y-6">
+          {/* 4 Giai đoạn thực tập Stepper Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {stageCards.map((item) => {
+              const isSelected = currentTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedMilestoneTab(item.id as any)}
+                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/40 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1.5 w-full">
+                    <span className={`text-[11px] font-bold uppercase tracking-wider truncate ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>
+                      {item.step}. {item.title}
+                    </span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${item.statusColor}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="mt-2.5">
+                    <div className={`text-sm font-bold truncate ${item.detailColor}`} title={item.detail}>
+                      {item.detail}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Stage Workspace */}
+          <main className="space-y-6">
         {myRegsError && (
           <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 leading-relaxed shadow-xs">
             <strong>Hệ thống chưa kiểm tra được danh sách đăng ký của bạn.</strong>
@@ -1611,7 +1648,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             )}
           </div>
         )}
-      </main>
+          </main>
+        </div>
+      </div>
 
       {/* Withdraw Modal */}
       {isWithdrawModalOpen && canWithdrawRegistration && (
