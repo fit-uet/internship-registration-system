@@ -91,9 +91,11 @@ textarea:focus-visible {
 }
 
 .app-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(110deg, #064889 0%, #075fc7 62%, #1473e6 100%);
-  box-shadow: 0 4px 20px rgba(7, 76, 158, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 38, 77, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .app-header__inner {

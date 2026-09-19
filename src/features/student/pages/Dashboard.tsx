@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle, ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Clock, Send, Lock, ClipboardList, UserCheck, FileCheck, User as UserIcon, GraduationCap, Bell, CircleHelp } from 'lucide-react';
+import {
+  Upload, CheckCircle2, Download, LayoutDashboard, ArrowUpDown, AlertTriangle,
+  ChevronRight, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2,
+  Clock, Send, Lock, ClipboardList, UserCheck, FileCheck, User as UserIcon,
+  GraduationCap, Bell, CircleHelp, Building2, Calendar, Award, ExternalLink, Sparkles, Mail
+} from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE, DEFAULT_REGISTRATION_RULES, RegistrationRulesMarkdown, companyDescriptionText, isAuthExpiredResponse, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
 
@@ -12,6 +17,8 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const [myAdvisors, setMyAdvisors] = useState<any[]>([]);
   const [advisorRequest, setAdvisorRequest] = useState<any>(null);
   const [finalReport, setFinalReport] = useState<any>(null);
+  const [myGrade, setMyGrade] = useState<any>(null);
+  const [selectedMilestoneTab, setSelectedMilestoneTab] = useState<'overview' | 'registration' | 'confirmation' | 'advisor' | 'report'>('overview');
   const [uploadingReport, setUploadingReport] = useState(false);
   const [campaign, setCampaign] = useState<any>({ year: '2026', start: '22/05/2026', end: '15/06/2026' });
   const [loading, setLoading] = useState(true);
@@ -365,6 +372,20 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
     });
   };
 
+  const getLetterGrade = (score: number | null | undefined) => {
+    if (score === null || score === undefined || isNaN(Number(score))) return { letter: '—', gpa: '—', label: 'Chưa có điểm' };
+    const s = Number(score);
+    if (s >= 9.0) return { letter: 'A+', gpa: '4.0', label: 'Xuất sắc' };
+    if (s >= 8.5) return { letter: 'A', gpa: '4.0', label: 'Giỏi' };
+    if (s >= 8.0) return { letter: 'B+', gpa: '3.5', label: 'Khá giỏi' };
+    if (s >= 7.0) return { letter: 'B', gpa: '3.0', label: 'Khá' };
+    if (s >= 6.5) return { letter: 'C+', gpa: '2.5', label: 'Trung bình khá' };
+    if (s >= 5.5) return { letter: 'C', gpa: '2.0', label: 'Trung bình' };
+    if (s >= 5.0) return { letter: 'D+', gpa: '1.5', label: 'Trung bình yếu' };
+    if (s >= 4.0) return { letter: 'D', gpa: '1.0', label: 'Đạt' };
+    return { letter: 'F', gpa: '0.0', label: 'Không đạt' };
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -374,7 +395,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
     try {
       const isStudent = user?.role === 'student';
       const authHeaders = { Authorization: `Bearer ${token}` };
-      const [compData, regRes, finalRes, advisorRes, advisorReqRes, reportRes, campData, itListData, lecData] = await Promise.all([
+      const [compData, regRes, finalRes, advisorRes, advisorReqRes, reportRes, campData, itListData, lecData, gradeRes] = await Promise.all([
         cachedJsonFetch<any[]>(`${API_BASE}/api/companies`, {
           cacheKey: 'companies',
           ttlMs: CACHE_TTL.companies,
@@ -403,7 +424,8 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           ttlMs: CACHE_TTL.lecturers,
           headers: authHeaders,
           onAuthExpired,
-        })
+        }),
+        isStudent ? fetch(`${API_BASE}/api/grades/my`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null),
       ]);
 
       setCompanies(Array.isArray(compData) ? compData : []);
@@ -438,6 +460,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
       const reportData = reportRes ? await reportRes.json() : null;
       setFinalReport(reportData && !reportData.error ? reportData : null);
+
+      const gradeData = gradeRes ? await gradeRes.json().catch(() => null) : null;
+      setMyGrade(gradeData && !gradeData.error ? gradeData : null);
 
       if (campData && !campData.error) {
         setCampaign(campData);
@@ -773,9 +798,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       status: (!campaign.final_report_open_at && !campaign.final_report_close_at) ? 'unconfigured' : finalReportWindowStatus,
     },
   ];
-  const visibleCampaignStatusItems = campaignStatusItems.some(item => item.status === 'open')
-    ? campaignStatusItems.filter(item => item.status === 'open')
-    : campaignStatusItems.slice(0, 1);
+  const visibleCampaignStatusItems = campaignStatusItems;
   const campaignStatusText = (status: string) => status === 'open' ? 'Đang mở' : status === 'not_open_yet' ? 'Chưa mở' : status === 'unconfigured' ? 'Chưa cấu hình' : 'Đã đóng';
   const campaignStatusColor = (status: string) => status === 'open'
     ? 'bg-green-50 text-green-700 border-green-100'
@@ -807,7 +830,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
   const showRegistrationTask = activeCampaignKey === 'registration' || registrationWindowStatus === 'open';
   const showConfirmationTask = activeCampaignKey === 'confirmation' && hasRegistered;
   const showAdvisorTask = advisorRequestWindowStatus === 'open' && hasRegistered;
-  const showFinalReportTask = false;
+  const showFinalReportTask = true;
   const showCompanyList = registrationWindowStatus === 'open' && (!hasRegistered || editingPreferences);
   const showConfirmationBlock = hasRegistered && showConfirmationDetails;
   const registrationSummary = hasRegistered
@@ -835,11 +858,13 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       {user && (
         <div className="bg-white border border-black/[0.06] rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-6 sm:p-7">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
+            <div className="flex items-center gap-4">
               {user.picture ? (
-                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-3xl border border-black/[0.06] shadow-sm object-cover" />
+                <div className="w-16 h-16 rounded-2xl border border-black/[0.06] bg-[#f5f5f7] shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={user.picture} alt="Avatar" className="w-full h-full object-contain p-1" />
+                </div>
               ) : (
-                <div className="w-16 h-16 rounded-3xl bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center shadow-inner font-bold text-xl">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-b from-[#0071e3] to-[#005bb5] text-white flex items-center justify-center shadow-xs font-bold text-xl shrink-0">
                   <UserIcon size={28} />
                 </div>
               )}
@@ -858,30 +883,33 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 shrink-0">
               <button
+                type="button"
                 onClick={() => navigate('/profile')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <UserIcon size={13} className="text-[#86868b]" /> Cập nhật hồ sơ
+                <UserIcon size={13} className="text-[#86868b]" /> Hồ sơ
               </button>
               <button
+                type="button"
                 onClick={() => navigate('/plan')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <FileText size={13} className="text-[#86868b]" /> Kế hoạch triển khai
+                <Calendar size={13} className="text-[#86868b]" /> Kế hoạch
               </button>
               <a
                 href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <FileText size={13} className="text-[#86868b]" /> Mẫu báo cáo
+                <ExternalLink size={13} className="text-[#86868b]" /> Mẫu báo cáo
               </a>
               <button
+                type="button"
                 onClick={() => navigate('/faq')}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-[#1d1d1f] bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-[#f5f5f7] active:scale-[0.98] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] bg-[#f5f5f7] hover:bg-[#e8e8ed] active:scale-[0.98] transition-all cursor-pointer"
               >
                 <CircleHelp size={13} className="text-[#86868b]" /> FAQ
               </button>
@@ -899,7 +927,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
             <div>
               <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">Lộ trình học phần Thực tập {campaign.year}</h2>
-              <p className="text-xs text-[#86868b]">4 giai đoạn xuyên suốt kỳ thực tập tốt nghiệp</p>
+              <p className="text-xs text-[#86868b]">4 giai đoạn xuyên suốt kỳ thực tập tốt nghiệp · Bấm thẻ để xem chi tiết</p>
             </div>
           </div>
           {user?.role !== 'admin' && (
@@ -914,12 +942,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           {user?.role === 'admin' && (
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => navigate('/admin')}
                 className="bg-[#1d1d1f] hover:bg-black text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <LayoutDashboard size={13} /> Danh sách đăng ký
               </button>
               <button
+                type="button"
                 onClick={() => navigate('/admin/final-internships')}
                 className="bg-[#34c759] hover:bg-emerald-600 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
@@ -933,143 +963,162 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
           {/* Milestone 1 */}
           <div
-            onClick={() => hasRegistered && setShowRegistrationDetails(prev => !prev)}
-            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 ${
-              hasRegistered ? 'cursor-pointer hover:border-[#0071e3]/40 hover:shadow-md' : 'cursor-default'
-            } ${
-              showRegistrationTask || showRegistrationDetails
-                ? 'border-[#0071e3]/40 bg-[#0071e3]/[0.02] ring-2 ring-[#0071e3]/10'
-                : 'border-black/[0.06] bg-[#fbfbfd]'
+            onClick={() => setSelectedMilestoneTab(prev => prev === 'registration' ? 'overview' : 'registration')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer ${
+              selectedMilestoneTab === 'registration'
+                ? 'border-[#0071e3] bg-white ring-2 ring-[#0071e3]/20 shadow-md'
+                : 'border-black/[0.06] bg-[#fbfbfd] hover:border-black/[0.12] hover:bg-white hover:shadow-xs'
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-xs font-extrabold flex items-center justify-center">
-                  1
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3] to-[#005bb5] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  <Send size={15} />
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                   hasRegistered
                     ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
-                    : 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
+                    : registrationWindowStatus === 'open'
+                    ? 'bg-[#ebf4ff] text-[#0071e3] border-blue-200/60'
+                    : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
                 }`}>
-                  {hasRegistered ? 'Đã ghi nhận' : 'Chưa đăng ký'}
+                  {hasRegistered ? 'Đã ghi nhận' : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký')}
                 </span>
               </div>
-              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Đăng ký nguyện vọng</div>
-              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-1 font-medium">{registrationSummary}</div>
-              {hasRegistered && (
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Giai đoạn 1</div>
+              <div className="text-sm font-bold text-[#1d1d1f] tracking-tight mt-0.5">Đăng ký nguyện vọng</div>
+              <div className="mt-1 text-xs text-[#6e6e73] font-medium truncate">{registrationSummary}</div>
+              {hasRegistered && myRegs[0]?.created_at && (
                 <div className="mt-1 text-[11px] text-[#86868b]">
                   {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}
                 </div>
               )}
             </div>
-            {hasRegistered && (
-              <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#0071e3] inline-flex items-center gap-1">
-                {showRegistrationDetails ? 'Ẩn chi tiết' : 'Xem chi tiết'}
-                <ChevronRight size={12} className={showRegistrationDetails ? 'rotate-90 transition-transform' : 'transition-transform'} />
-              </div>
-            )}
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#0071e3] inline-flex items-center justify-between">
+              <span>{selectedMilestoneTab === 'registration' ? 'Đang xem' : 'Xem chi tiết'}</span>
+              <ChevronRight size={12} className={selectedMilestoneTab === 'registration' ? 'rotate-90 transition-transform' : 'transition-transform'} />
+            </div>
           </div>
 
           {/* Milestone 2 */}
           <div
-            onClick={() => hasRegistered && setShowConfirmationDetails(prev => !prev)}
-            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 ${
-              hasRegistered ? 'cursor-pointer hover:border-[#34c759]/40 hover:shadow-md' : 'cursor-default'
-            } ${
-              showConfirmationTask || showConfirmationDetails
-                ? 'border-[#34c759]/40 bg-[#34c759]/[0.02] ring-2 ring-[#34c759]/10'
-                : 'border-black/[0.06] bg-[#fbfbfd]'
+            onClick={() => setSelectedMilestoneTab(prev => prev === 'confirmation' ? 'overview' : 'confirmation')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer ${
+              selectedMilestoneTab === 'confirmation'
+                ? 'border-[#34c759] bg-white ring-2 ring-[#34c759]/20 shadow-md'
+                : 'border-black/[0.06] bg-[#fbfbfd] hover:border-black/[0.12] hover:bg-white hover:shadow-xs'
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#34c759]/10 text-[#34c759] text-xs font-extrabold flex items-center justify-center">
-                  2
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#34c759] to-[#28a745] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  <Building2 size={15} />
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                   finalInternship
                     ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                    : confirmationWindowStatus === 'open'
+                    ? 'bg-[#ebf4ff] text-[#0071e3] border-blue-200/60'
                     : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
                 }`}>
-                  {finalInternship ? 'Đã xác nhận' : 'Chờ xác nhận'}
+                  {finalInternship ? 'Đã xác nhận' : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận')}
                 </span>
               </div>
-              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Nơi thực tập chính thức</div>
-              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-2 font-medium">{finalInternshipSummary}</div>
-            </div>
-            {hasRegistered && (
-              <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#34c759] inline-flex items-center gap-1">
-                {showConfirmationDetails ? 'Ẩn chi tiết' : 'Xem / xác nhận'}
-                <ChevronRight size={12} className={showConfirmationDetails ? 'rotate-90 transition-transform' : 'transition-transform'} />
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Giai đoạn 2</div>
+              <div className="text-sm font-bold text-[#1d1d1f] tracking-tight mt-0.5">Nơi thực tập chính thức</div>
+              <div className="mt-1 text-xs text-[#6e6e73] font-medium truncate" title={finalInternshipSummary}>
+                {finalInternshipSummary}
               </div>
-            )}
+              {finalInternship?.confirmed_at && (
+                <div className="mt-1 text-[11px] text-[#86868b]">
+                  {new Date(finalInternship.confirmed_at).toLocaleDateString('vi-VN')}
+                </div>
+              )}
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#34c759] inline-flex items-center justify-between">
+              <span>{selectedMilestoneTab === 'confirmation' ? 'Đang xem' : 'Xem & xác nhận'}</span>
+              <ChevronRight size={12} className={selectedMilestoneTab === 'confirmation' ? 'rotate-90 transition-transform' : 'transition-transform'} />
+            </div>
           </div>
 
           {/* Milestone 3 */}
           <div
-            onClick={() => navigate('/grades')}
-            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer hover:border-[#af52de]/40 hover:shadow-md ${
-              showAdvisorTask
-                ? 'border-[#af52de]/40 bg-[#af52de]/[0.02] ring-2 ring-[#af52de]/10'
-                : 'border-black/[0.06] bg-[#fbfbfd]'
+            onClick={() => setSelectedMilestoneTab(prev => prev === 'advisor' ? 'overview' : 'advisor')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer ${
+              selectedMilestoneTab === 'advisor'
+                ? 'border-[#af52de] bg-white ring-2 ring-[#af52de]/20 shadow-md'
+                : 'border-black/[0.06] bg-[#fbfbfd] hover:border-black/[0.12] hover:bg-white hover:shadow-xs'
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#af52de]/10 text-[#af52de] text-xs font-extrabold flex items-center justify-center">
-                  3
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#af52de] to-[#8e44ad] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  <UserCheck size={15} />
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                   primaryAdvisor
                     ? 'bg-[#af52de]/10 text-[#af52de] border-[#af52de]/20'
+                    : advisorRequest
+                    ? 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
                     : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
                 }`}>
-                  {primaryAdvisor ? 'Đã phân công' : 'Chờ phân công'}
+                  {primaryAdvisor ? 'Đã phân công' : (advisorRequest ? 'Đang duyệt' : 'Chờ phân công')}
                 </span>
               </div>
-              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Giảng viên hướng dẫn</div>
-              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-2 font-medium">{advisorSummary}</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Giai đoạn 3</div>
+              <div className="text-sm font-bold text-[#1d1d1f] tracking-tight mt-0.5">Giảng viên hướng dẫn</div>
+              <div className="mt-1 text-xs text-[#6e6e73] font-medium truncate" title={advisorSummary}>
+                {advisorSummary}
+              </div>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#af52de] inline-flex items-center gap-1">
-              Xem chi tiết & điểm số
-              <ChevronRight size={12} />
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#af52de] inline-flex items-center justify-between">
+              <span>{selectedMilestoneTab === 'advisor' ? 'Đang xem' : 'Chi tiết & liên hệ'}</span>
+              <ChevronRight size={12} className={selectedMilestoneTab === 'advisor' ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </div>
           </div>
 
           {/* Milestone 4 */}
           <div
-            onClick={() => navigate('/reports/final')}
-            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer hover:border-[#0071e3]/40 hover:shadow-md ${
-              activeCampaignKey === 'final_report'
-                ? 'border-[#0071e3]/40 bg-[#0071e3]/[0.02] ring-2 ring-[#0071e3]/10'
-                : 'border-black/[0.06] bg-[#fbfbfd]'
+            onClick={() => setSelectedMilestoneTab(prev => prev === 'report' ? 'overview' : 'report')}
+            className={`group relative flex flex-col justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 cursor-pointer ${
+              selectedMilestoneTab === 'report'
+                ? 'border-[#ff9500] bg-white ring-2 ring-[#ff9500]/20 shadow-md'
+                : 'border-black/[0.06] bg-[#fbfbfd] hover:border-black/[0.12] hover:bg-white hover:shadow-xs'
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#0071e3]/10 text-[#0071e3] text-xs font-extrabold flex items-center justify-center">
-                  4
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#ff9500] to-[#e67e22] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  <Award size={15} />
+                </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                  finalReport
+                  finalReport?.status === 'accepted'
+                    ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                    : finalReport?.status === 'submitted'
+                    ? 'bg-[#ebf4ff] text-[#0071e3] border-blue-200/60'
+                    : finalReportWindowStatus === 'open'
                     ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
                     : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
                 }`}>
                   {finalReportSummary}
                 </span>
               </div>
-              <div className="text-xs font-bold text-[#1d1d1f] tracking-tight">Báo cáo Final & Điểm</div>
-              <div className="mt-1 text-xs text-[#6e6e73] line-clamp-1 font-medium">{finalReportSummary}</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Giai đoạn 4</div>
+              <div className="text-sm font-bold text-[#1d1d1f] tracking-tight mt-0.5">Báo cáo Final & Điểm</div>
+              <div className="mt-1 text-xs text-[#6e6e73] font-medium truncate">
+                {myGrade?.final_score !== null && myGrade?.final_score !== undefined
+                  ? `Điểm: ${Number(myGrade.final_score).toFixed(1)} (${getLetterGrade(myGrade.final_score).letter})`
+                  : finalReportSummary}
+              </div>
               {finalReport?.submitted_at && (
                 <div className="mt-1 text-[11px] text-[#86868b]">
                   {new Date(finalReport.submitted_at).toLocaleDateString('vi-VN')}
                 </div>
               )}
             </div>
-            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#0071e3] inline-flex items-center gap-1">
-              Mở trang nộp báo cáo
-              <ChevronRight size={12} />
+            <div className="mt-3 pt-2.5 border-t border-black/[0.04] text-[11px] font-bold text-[#ff9500] inline-flex items-center justify-between">
+              <span>{selectedMilestoneTab === 'report' ? 'Đang xem' : 'Mở nộp & bảng điểm'}</span>
+              <ChevronRight size={12} className={selectedMilestoneTab === 'report' ? 'rotate-90 transition-transform' : 'transition-transform'} />
             </div>
           </div>
         </div>
@@ -1077,8 +1126,9 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
       {/* Master-Detail Bento Grid: Left (Timeline & Rules) - Right (Active Stage Workspace & Enterprise Table) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (col-span-4): Timeline & Rules */}
+        {/* Left Column (col-span-4): Timeline, Resources & Rules */}
         <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+          {/* Timeline Card */}
           <section className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
             <div className="mb-4 flex items-center justify-between gap-3 pb-3 border-b border-black/[0.04]">
               <div className="flex items-center gap-2">
@@ -1090,7 +1140,14 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
             <div className="space-y-3">
               {visibleCampaignStatusItems.map(item => (
-                <div key={item.label} className="rounded-2xl border border-black/[0.04] bg-[#fbfbfd] p-4">
+                <div
+                  key={item.label}
+                  className={`rounded-2xl border p-4 transition-all ${
+                    item.status === 'open'
+                      ? 'border-[#34c759]/40 bg-[#34c759]/[0.02] ring-1 ring-[#34c759]/20 shadow-xs'
+                      : 'border-black/[0.04] bg-[#fbfbfd]'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="relative flex h-2.5 w-2.5 shrink-0">
@@ -1120,6 +1177,43 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
             </div>
           </section>
 
+          {/* Apple Quick Resources Card */}
+          <section className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3.5">
+            <div className="flex items-center gap-2 pb-3 border-b border-black/[0.04]">
+              <FileText size={16} className="text-[#0071e3]" />
+              <h3 className="text-sm font-bold text-[#1d1d1f] tracking-tight">Biểu mẫu & Hướng dẫn</h3>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <a
+                href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-3 rounded-2xl bg-[#fbfbfd] hover:bg-[#f5f5f7] border border-black/[0.04] text-[#1d1d1f] font-semibold transition-all group"
+              >
+                <span className="flex items-center gap-2">
+                  <Download size={14} className="text-[#0071e3]" /> Mẫu báo cáo của Khoa
+                </span>
+                <ExternalLink size={12} className="text-[#86868b] group-hover:translate-x-0.5 transition-transform" />
+              </a>
+
+              <div className="p-3.5 rounded-2xl bg-[#ebf4ff] border border-[#bfe0ff]/80 text-[#005bb5] space-y-1.5 text-[11px] leading-relaxed">
+                <div className="font-bold flex items-center gap-1.5 text-[#004085]">
+                  <CheckCircle2 size={13} className="text-[#0071e3]" /> Lưu ý nộp báo cáo:
+                </div>
+                <p>
+                  Chỉ cần in riêng trang <strong>Phiếu đánh giá</strong> để xin nhận xét, điểm và chữ ký của người hướng dẫn + dấu công ty. Sau đó scan và gộp vào bản mềm (PDF) để nộp lên hệ thống.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] text-[11px] text-[#6e6e73] space-y-1">
+                <div>Giáo vụ phụ trách: <strong className="text-[#1d1d1f]">Cô Bảo</strong> (<a href="mailto:baoptm@vnu.edu.vn" className="text-[#0071e3] hover:underline">baoptm@vnu.edu.vn</a>)</div>
+                <div>Hỗ trợ kỹ thuật: <strong className="text-[#1d1d1f]">0961309175</strong></div>
+              </div>
+            </div>
+          </section>
+
+          {/* Rules Accordion */}
           <details className="group overflow-hidden rounded-3xl border border-black/[0.06] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 select-none font-bold text-sm text-[#1d1d1f]">
               <div className="flex items-center gap-2">
@@ -1138,223 +1232,981 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
         {/* Right Column (col-span-8): Active Stage Workspace & Enterprise Directory */}
         <div className="lg:col-span-8 min-w-0 space-y-6">
-
-        {myRegsError ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-sm">
-            Hệ thống chưa kiểm tra được danh sách đăng ký của bạn. Vui lòng đăng nhập lại để hiện thị đúng thông tin đăng ký hoặc liên hệ Khoa nếu thông báo này vẫn xuất hiện.
-            <div className="text-xs text-amber-700 mt-1">{myRegsError}</div>
-          </div>
-        ) : (showRegistrationTask || (hasRegistered && showRegistrationDetails)) ? (hasRegistered ? (showRegistrationDetails ? (
-          <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md">
-            {!editingPreferences ? (
+          {myRegsError && (
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 leading-relaxed shadow-xs flex items-start gap-3">
+              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                      <CheckCircle2 size={20} />
+                <strong>Hệ thống chưa kiểm tra được danh sách đăng ký của bạn.</strong>
+                <p className="mt-0.5 text-amber-800">Vui lòng tải lại trang hoặc liên hệ Khoa nếu lỗi vẫn tiếp diễn: {myRegsError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Apple Segmented View Switcher */}
+          <div className="bg-[#f0f0f2] p-1 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-black/[0.04]">
+            <button
+              type="button"
+              onClick={() => setSelectedMilestoneTab('overview')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all shrink-0 cursor-pointer ${
+                selectedMilestoneTab === 'overview'
+                  ? 'bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-bold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-white/40 font-medium'
+              }`}
+            >
+              <Sparkles size={14} className={selectedMilestoneTab === 'overview' ? 'text-[#0071e3]' : ''} />
+              <span>Tổng quan học phần</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedMilestoneTab('registration')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all shrink-0 cursor-pointer ${
+                selectedMilestoneTab === 'registration'
+                  ? 'bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-bold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-white/40 font-medium'
+              }`}
+            >
+              <Send size={13} className={selectedMilestoneTab === 'registration' ? 'text-[#0071e3]' : ''} />
+              <span>1. Nguyện vọng</span>
+              {myRegs.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  selectedMilestoneTab === 'registration' ? 'bg-[#0071e3]/10 text-[#0071e3]' : 'bg-black/[0.06] text-[#6e6e73]'
+                }`}>
+                  {myRegs.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedMilestoneTab('confirmation')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all shrink-0 cursor-pointer ${
+                selectedMilestoneTab === 'confirmation'
+                  ? 'bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-bold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-white/40 font-medium'
+              }`}
+            >
+              <Building2 size={13} className={selectedMilestoneTab === 'confirmation' ? 'text-[#34c759]' : ''} />
+              <span>2. Nơi thực tập</span>
+              {finalInternship && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  selectedMilestoneTab === 'confirmation' ? 'bg-[#ebf9ee] text-[#1d833f]' : 'bg-black/[0.06] text-[#6e6e73]'
+                }`}>
+                  Đã chốt
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedMilestoneTab('advisor')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all shrink-0 cursor-pointer ${
+                selectedMilestoneTab === 'advisor'
+                  ? 'bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-bold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-white/40 font-medium'
+              }`}
+            >
+              <UserCheck size={13} className={selectedMilestoneTab === 'advisor' ? 'text-[#af52de]' : ''} />
+              <span>3. GVHD</span>
+              {myAdvisors.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  selectedMilestoneTab === 'advisor' ? 'bg-[#af52de]/15 text-[#8e44ad]' : 'bg-black/[0.06] text-[#6e6e73]'
+                }`}>
+                  {myAdvisors.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedMilestoneTab('report')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all shrink-0 cursor-pointer ${
+                selectedMilestoneTab === 'report'
+                  ? 'bg-white text-[#1d1d1f] shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-bold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-white/40 font-medium'
+              }`}
+            >
+              <Award size={13} className={selectedMilestoneTab === 'report' ? 'text-[#ff9500]' : ''} />
+              <span>4. Báo cáo & Điểm</span>
+              {myGrade?.final_score !== null && myGrade?.final_score !== undefined ? (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  selectedMilestoneTab === 'report' ? 'bg-[#fff8eb] text-[#b25e00]' : 'bg-black/[0.06] text-[#6e6e73]'
+                }`}>
+                  {Number(myGrade.final_score).toFixed(1)}
+                </span>
+              ) : finalReport ? (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  selectedMilestoneTab === 'report' ? 'bg-[#ebf4ff] text-[#0071e3]' : 'bg-black/[0.06] text-[#6e6e73]'
+                }`}>
+                  Đã nộp
+                </span>
+              ) : null}
+            </button>
+          </div>
+
+          {/* TAB 1: OVERVIEW (BENTO SHOWCASE - ALWAYS FULL, NEVER EMPTY) */}
+          {selectedMilestoneTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 1. HERO BENTO: Apple Report & Grade Showcase */}
+              <div className="rounded-3xl border border-black/[0.06] bg-white p-6 sm:p-7 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.04]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#0071e3] to-[#005bb5] text-white flex items-center justify-center shadow-xs">
+                      <Award size={20} />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-800">Đã ghi nhận đăng ký nguyện vọng</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Ngày ghi nhận: {new Date(myRegs[0].created_at).toLocaleDateString('vi-VN')}</p>
+                      <h2 className="text-base font-bold text-[#1d1d1f] tracking-tight">Tiến độ Báo cáo & Điểm học phần</h2>
+                      <p className="text-xs text-[#86868b] mt-0.5">Kỳ thực tập tốt nghiệp 2026 — Khoa Công nghệ Thông tin</p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <button
-                      onClick={startEditingPreferences}
-                      disabled={!canWithdrawRegistration}
-                      title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
-                      className={`bg-white text-slate-750 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <Edit2 size={13} /> Sửa nguyện vọng
-                    </button>
-                    <button
-                      onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
-                      disabled={!canWithdrawRegistration}
-                      title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
-                      className={`bg-rose-50 text-rose-600 border border-rose-100 px-3.5 py-1.5 rounded-xl hover:bg-rose-100/60 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <Trash2 size={13} /> Hủy tất cả
-                    </button>
+                  <div className="flex items-center gap-2">
+                    {finalReport?.status === 'accepted' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ebf9ee] text-[#1d833f] border border-emerald-200/60">
+                        <CheckCircle2 size={13} /> Đã chấp nhận báo cáo
+                      </span>
+                    ) : finalReport?.status === 'submitted' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ebf4ff] text-[#0071e3] border border-blue-200/60">
+                        <CheckCircle2 size={13} /> Đã nộp báo cáo
+                      </span>
+                    ) : finalReportWindowStatus === 'open' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ebf9ee] text-[#1d833f] border border-emerald-200/60">
+                        <span className="animate-ping w-1.5 h-1.5 rounded-full bg-emerald-500 mr-0.5" />
+                        Đang mở nộp báo cáo
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#f5f5f7] text-[#86868b] border border-black/[0.04]">
+                        Chưa nộp báo cáo
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-3 mb-5">
-                  {myRegs.map((reg: any, idx: number) => (
-                    <div key={reg.id} className="flex items-start sm:items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition-colors">
-                      <div className="min-w-0 flex-1 pr-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">NV{idx + 1}</span>
-                          <span className="text-sm font-bold text-slate-800">
-                            {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
-                          </span>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                  {/* Left Bento: File Document Preview Card */}
+                  <div className="lg:col-span-7 flex flex-col justify-between rounded-2xl bg-[#fbfbfd] border border-black/[0.05] p-5 space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Bản mềm Báo cáo (PDF)</span>
+                        <span className="text-[11px] text-[#86868b]">
+                          Đóng: {campaign.final_report_close_at ? formatGMT7(campaign.final_report_close_at) : '10/10/2026 23:59'}
+                        </span>
+                      </div>
+
+                      {finalReport ? (
+                        <div className="flex items-start gap-3.5 p-3.5 bg-white rounded-2xl border border-black/[0.05] shadow-xs">
+                          <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-100/80 text-red-600 flex flex-col items-center justify-center shrink-0">
+                            <FileText size={20} />
+                            <span className="text-[8px] font-extrabold uppercase mt-0.5">PDF</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-[#1d1d1f] truncate" title={finalReport.original_filename}>
+                              {finalReport.original_filename}
+                            </div>
+                            <div className="text-[11px] text-[#86868b] mt-0.5 flex items-center gap-2">
+                              <span>{formatBytes(Number(finalReport.file_size || 0))}</span>
+                              <span>•</span>
+                              <span>Nộp lúc {finalReport.submitted_at ? new Date(finalReport.submitted_at).toLocaleString('vi-VN') : '-'}</span>
+                            </div>
+                            {finalReport.lecturer_comment && (
+                              <div className="mt-2 text-xs bg-[#fff8eb] border border-amber-200/60 rounded-xl p-2.5 text-[#b25e00]">
+                                <span className="font-bold">Nhận xét GVHD:</span> {finalReport.lecturer_comment}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {reg.review_comment && (
-                          <div className="text-xs text-slate-600 mt-2 bg-white border border-slate-150 rounded-lg p-2.5 shadow-sm inline-block max-w-full">
-                            <span className="font-semibold text-slate-700">Nhận xét của Khoa:</span> {reg.review_comment}
+                      ) : (
+                        <div className="p-4 bg-white rounded-2xl border border-dashed border-black/[0.1] text-center space-y-2">
+                          <FileText size={28} className="mx-auto text-[#86868b]" />
+                          <div className="text-xs font-bold text-[#1d1d1f]">Bạn chưa nộp file báo cáo tốt nghiệp</div>
+                          <p className="text-[11px] text-[#86868b] max-w-sm mx-auto">
+                            Chỉ cần in riêng trang Phiếu đánh giá để xin nhận xét, điểm và chữ ký + dấu công ty. Sau đó scan và gộp vào bản mềm (PDF) để nộp lên hệ thống.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                      {finalReport && (
+                        <button
+                          type="button"
+                          onClick={downloadMyFinalReport}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-black/[0.08] text-[#1d1d1f] hover:bg-[#f5f5f7] shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                        >
+                          <Download size={13} className="text-[#0071e3]" /> Tải PDF đã nộp
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMilestoneTab('report')}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        {finalReport ? <RefreshCw size={13} /> : <Upload size={13} />}
+                        {finalReport ? 'Nộp lại & Quản lý file' : 'Nộp báo cáo ngay'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Bento: Grade Ring & Score Breakdown */}
+                  <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#fbfbfd] to-[#f5f5f7] border border-black/[0.05] p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Bảng điểm học phần</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/grades')}
+                        className="text-[11px] font-bold text-[#0071e3] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                      >
+                        Xem chi tiết <ChevronRight size={12} />
+                      </button>
+                    </div>
+
+                    {myGrade?.final_score !== null && myGrade?.final_score !== undefined ? (
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-2xl bg-white border border-black/[0.06] shadow-sm flex flex-col items-center justify-center shrink-0">
+                          <span className="text-2xl font-black text-[#1d1d1f] tracking-tight">{Number(myGrade.final_score).toFixed(1)}</span>
+                          <span className="text-[10px] font-extrabold text-[#0071e3] uppercase">Thang 10</span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-[#1d1d1f]">Điểm chữ: {getLetterGrade(myGrade.final_score).letter}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ebf9ee] text-[#1d833f]">
+                              GPA {getLetterGrade(myGrade.final_score).gpa}
+                            </span>
+                          </div>
+                          <div className="text-xs text-[#86868b] font-medium">
+                            Đánh giá: {getLetterGrade(myGrade.final_score).label}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-white/70 rounded-2xl border border-black/[0.04] text-center space-y-1">
+                        <div className="text-xs font-bold text-[#1d1d1f]">Đang trong quá trình đánh giá</div>
+                        <p className="text-[11px] text-[#86868b]">
+                          GVHD và Hội đồng Khoa sẽ công bố điểm số chính thức sau khi chấm xong báo cáo.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-black/[0.04]">
+                      <div className="p-2 bg-white rounded-xl border border-black/[0.04]">
+                        <div className="text-[10px] font-medium text-[#86868b]">Quá trình (20%)</div>
+                        <div className="text-xs font-bold text-[#1d1d1f] mt-0.5">
+                          {myGrade?.progress_score !== null && myGrade?.progress_score !== undefined ? Number(myGrade.progress_score).toFixed(1) : '—'}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-white rounded-xl border border-black/[0.04]">
+                        <div className="text-[10px] font-medium text-[#86868b]">Báo cáo (20%)</div>
+                        <div className="text-xs font-bold text-[#1d1d1f] mt-0.5">
+                          {myGrade?.report_score !== null && myGrade?.report_score !== undefined ? Number(myGrade.report_score).toFixed(1) : '—'}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-white rounded-xl border border-black/[0.04]">
+                        <div className="text-[10px] font-medium text-[#86868b]">Đơn vị (60%)</div>
+                        <div className="text-xs font-bold text-[#1d1d1f] mt-0.5">
+                          {myGrade?.company_score !== null && myGrade?.company_score !== undefined ? Number(myGrade.company_score).toFixed(1) : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. BENTO 2-COLUMN: Official Placement & Assigned Advisor */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Placement Bento */}
+                <div className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-b from-[#34c759] to-[#28a745] text-white flex items-center justify-center shadow-xs">
+                          <Building2 size={18} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-[#1d1d1f]">Nơi thực tập chính thức</h3>
+                          <span className="text-[11px] text-[#86868b]">Đơn vị tiếp nhận sinh viên</span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        finalInternship ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60' : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
+                      }`}>
+                        {finalInternship ? 'Đã xác nhận' : 'Chưa xác nhận'}
+                      </span>
+                    </div>
+
+                    {finalInternship ? (
+                      <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] space-y-2">
+                        <div className="text-sm font-bold text-[#1d1d1f]">
+                          {finalInternship.internship_type === 'school'
+                            ? 'Thực tập tại trường (ĐH Công nghệ - ĐHQGHN)'
+                            : (finalInternship.company_name === 'Công ty khác' ? `(Khác) ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
+                        </div>
+                        <div className="text-xs text-[#86868b] flex flex-wrap items-center gap-y-1 gap-x-3">
+                          <span>Hình thức: <strong className="text-[#1d1d1f]">{finalInternship.internship_type === 'school' ? 'Nghiên cứu tại Trường' : 'Doanh nghiệp'}</strong></span>
+                          {finalInternship.confirmed_at && (
+                            <span>Ngày xác nhận: <strong className="text-[#1d1d1f]">{new Date(finalInternship.confirmed_at).toLocaleDateString('vi-VN')}</strong></span>
+                          )}
+                        </div>
+                        {finalInternship.locked_at && (
+                          <div className="text-[11px] font-bold text-red-600 flex items-center gap-1 mt-1">
+                            <Lock size={11} /> Dữ liệu đã được Khoa khóa sổ chính thức
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full border shadow-sm shrink-0 ${
-                        reg.status === 'approved'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : reg.status === 'rejected'
-                            ? 'bg-rose-50 text-rose-700 border-rose-100'
-                            : 'bg-amber-50 text-amber-700 border-amber-100'
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-dashed border-black/[0.08] text-center space-y-1">
+                        <div className="text-xs font-semibold text-[#1d1d1f]">Chưa có nơi thực tập chính thức</div>
+                        <p className="text-[11px] text-[#86868b]">Sinh viên cần xác nhận đơn vị trúng tuyển trong đợt mở cổng.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMilestoneTab('confirmation')}
+                      className="text-xs font-bold text-[#34c759] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      {finalInternship ? 'Xem chi tiết & Thay đổi' : 'Mở cổng xác nhận'} <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Advisor Bento */}
+                <div className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-b from-[#af52de] to-[#8e44ad] text-white flex items-center justify-center shadow-xs">
+                          <UserCheck size={18} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-[#1d1d1f]">Giảng viên hướng dẫn</h3>
+                          <span className="text-[11px] text-[#86868b]">Đồng hành & đánh giá học phần</span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        myAdvisors.length > 0
+                          ? 'bg-[#af52de]/10 text-[#af52de] border-[#af52de]/20'
+                          : advisorRequest
+                          ? 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
+                          : 'bg-[#f5f5f7] text-[#86868b] border-black/[0.04]'
                       }`}>
-                        {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                        {myAdvisors.length > 0 ? 'Đã phân công' : (advisorRequest ? 'Chờ duyệt' : 'Chưa phân công')}
                       </span>
                     </div>
-                  ))}
-                </div>
 
-                {canWithdrawRegistration && (
-                  <div className="flex items-start gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs text-slate-500 leading-relaxed">
-                    <Clock size={14} className="mt-0.5 text-slate-400 shrink-0" />
-                    <p>Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.</p>
+                    {myAdvisors.length > 0 ? (
+                      <div className="space-y-2">
+                        {myAdvisors.map((a: any) => (
+                          <div key={`${a.role}-${a.lecturer_id}`} className="p-3.5 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] flex items-center justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                  a.role === 'primary' ? 'bg-[#af52de]/15 text-[#8e44ad]' : 'bg-black/[0.05] text-[#6e6e73]'
+                                }`}>
+                                  {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
+                                </span>
+                                <span className="text-xs font-bold text-[#1d1d1f]">{a.lecturer_name}</span>
+                              </div>
+                              {a.lecturer_email && (
+                                <a href={`mailto:${a.lecturer_email}`} className="text-[11px] text-[#0071e3] hover:underline flex items-center gap-1 mt-1">
+                                  <Mail size={11} /> {a.lecturer_email}
+                                </a>
+                              )}
+                            </div>
+                            {a.lecturer_email && (
+                              <a
+                                href={`mailto:${a.lecturer_email}?subject=[Thực tập tốt nghiệp] ${user?.name} - ${user?.student_id}`}
+                                className="px-2.5 py-1 rounded-xl bg-white border border-black/[0.08] text-[11px] font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] shrink-0"
+                              >
+                                Email GV
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : advisorRequest ? (
+                      <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] space-y-1">
+                        <div className="text-xs font-bold text-[#1d1d1f]">
+                          {advisorRequest.request_type === 'faculty_assign' ? 'Yêu cầu Khoa phân công GVHD' : `Đề xuất: ${advisorRequest.lecturer_name || advisorRequest.lecturer_name_text}`}
+                        </div>
+                        <p className="text-[11px] text-[#86868b]">Trạng thái: {advisorRequest.status === 'approved' ? 'Đã được duyệt' : 'Đang chờ Khoa tiếp nhận'}</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-dashed border-black/[0.08] text-center space-y-1">
+                        <div className="text-xs font-semibold text-[#1d1d1f]">Chưa có thông tin GVHD</div>
+                        <p className="text-[11px] text-[#86868b]">Khoa sẽ phân công GVHD sau khi hoàn tất xác nhận nơi thực tập.</p>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMilestoneTab('advisor')}
+                      className="text-xs font-bold text-[#af52de] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      Xem phân công & Đăng ký GVHD <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-                      <Edit2 size={20} />
+
+              {/* 3. BENTO CARD: Registered Wishes Summary */}
+              <div className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-black/[0.04]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-b from-[#0071e3] to-[#005bb5] text-white flex items-center justify-center shadow-xs">
+                      <Send size={18} />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-800">Chỉnh sửa nguyện vọng thực tập</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Sinh viên có thể chọn thêm hoặc bỏ bớt nơi thực tập</p>
+                      <h3 className="text-sm font-bold text-[#1d1d1f]">Danh sách nguyện vọng đã đăng ký</h3>
+                      <span className="text-[11px] text-[#86868b]">Các đơn vị thực tập sinh viên đã nộp hồ sơ</span>
                     </div>
                   </div>
-                  <div className="rounded-full bg-blue-50 border border-blue-100 px-3.5 py-1 text-xs font-bold text-blue-700 shadow-sm shrink-0">
-                    Đang chọn {selectedWishCount}/5
+                  <div className="flex items-center gap-2">
+                    {hasRegistered && canWithdrawRegistration && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMilestoneTab('registration');
+                          startEditingPreferences();
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-black/[0.08] text-[#1d1d1f] hover:bg-[#f5f5f7] shadow-xs active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        <Edit2 size={12} className="text-[#0071e3]" /> Sửa nguyện vọng
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMilestoneTab('registration')}
+                      className="text-xs font-bold text-[#0071e3] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      Quản lý chi tiết <ChevronRight size={13} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4 text-xs text-amber-900 leading-relaxed">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-600" />
-                    <div><strong>Lưu ý:</strong> Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.</div>
+                {myRegs.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {myRegs.map((reg: any, idx: number) => (
+                      <div key={reg.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] gap-3">
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20 shrink-0">
+                            NV{idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-[#1d1d1f] truncate">
+                              {reg.company_name === 'Công ty khác' ? `(Tự liên hệ) ${reg.other_company_name || ''}` : reg.company_name}
+                            </div>
+                            {reg.review_comment && (
+                              <div className="text-[11px] text-[#86868b] mt-0.5">
+                                Nhận xét Khoa: <span className="text-[#1d1d1f]">{reg.review_comment}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border self-start sm:self-auto shrink-0 ${
+                          reg.status === 'approved'
+                            ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                            : reg.status === 'rejected'
+                            ? 'bg-[#fef2f2] text-[#dc2626] border-red-200/60'
+                            : 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
+                        }`}>
+                          {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-[#fbfbfd] border border-dashed border-black/[0.08] text-center space-y-2">
+                    <Send size={24} className="mx-auto text-[#86868b]" />
+                    <div className="text-xs font-bold text-[#1d1d1f]">Bạn chưa đăng ký nguyện vọng thực tập nào</div>
+                    <p className="text-[11px] text-[#86868b] max-w-sm mx-auto">
+                      {registrationWindowStatus === 'open'
+                        ? 'Đợt đăng ký đang mở. Hãy chuyển sang mục Nguyện vọng để chọn tối đa 5 nơi thực tập.'
+                        : 'Đợt đăng ký nguyện vọng hiện đang đóng.'}
+                    </p>
+                    {registrationWindowStatus === 'open' && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMilestoneTab('registration')}
+                        className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-xs cursor-pointer"
+                      >
+                        Đăng ký nguyện vọng ngay
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: REGISTRATION (FULL WISH MANAGEMENT & ENTERPRISE CATALOG) */}
+          {selectedMilestoneTab === 'registration' && (
+            <div className="space-y-6">
+              {/* Wish Status Card */}
+              {hasRegistered ? (
+                <div className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+                  {!editingPreferences ? (
+                    <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04] mb-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-[#ebf9ee] text-[#1d833f] flex items-center justify-center shrink-0">
+                            <CheckCircle2 size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-[#1d1d1f]">Đã ghi nhận đăng ký nguyện vọng</h3>
+                            <p className="text-xs text-[#86868b] mt-0.5">
+                              Ngày ghi nhận: {myRegs[0]?.created_at ? new Date(myRegs[0].created_at).toLocaleDateString('vi-VN') : '-'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={startEditingPreferences}
+                            disabled={!canWithdrawRegistration}
+                            title={canWithdrawRegistration ? 'Chỉnh sửa từng nguyện vọng trong thời gian Khoa mở đăng ký' : 'Chỉ được chỉnh sửa trong thời gian Khoa mở đăng ký'}
+                            className={`bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-1.5 rounded-xl hover:bg-[#f5f5f7] text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap active:scale-[0.98] ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <Edit2 size={13} className="text-[#0071e3]" /> Sửa nguyện vọng
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => canWithdrawRegistration && setIsWithdrawModalOpen(true)}
+                            disabled={!canWithdrawRegistration}
+                            title={canWithdrawRegistration ? 'Hủy đăng ký trong thời gian Khoa mở đăng ký' : 'Chỉ được hủy đăng ký trong thời gian Khoa mở đăng ký'}
+                            className={`bg-red-50 text-red-600 border border-red-200/60 px-3.5 py-1.5 rounded-xl hover:bg-red-100/80 text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-[0.98] ${!canWithdrawRegistration ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <Trash2 size={13} /> Hủy tất cả
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mb-5">
+                        {myRegs.map((reg: any, idx: number) => (
+                          <div key={reg.id} className="flex items-start sm:items-center justify-between p-4 bg-[#fbfbfd] hover:bg-[#f5f5f7] border border-black/[0.04] rounded-2xl transition-colors">
+                            <div className="min-w-0 flex-1 pr-4">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-extrabold text-[#0071e3] bg-[#0071e3]/10 px-2 py-0.5 rounded-lg border border-[#0071e3]/20">NV{idx + 1}</span>
+                                <span className="text-sm font-bold text-[#1d1d1f]">
+                                  {reg.company_name === 'Công ty khác' ? `(Khác) ${reg.other_company_name || ''}` : reg.company_name}
+                                </span>
+                              </div>
+                              {reg.review_comment && (
+                                <div className="text-xs text-[#6e6e73] mt-2 bg-white border border-black/[0.06] rounded-xl p-2.5 shadow-xs inline-block max-w-full">
+                                  <span className="font-semibold text-[#1d1d1f]">Nhận xét của Khoa:</span> {reg.review_comment}
+                                </div>
+                              )}
+                            </div>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border shadow-xs shrink-0 ${
+                              reg.status === 'approved'
+                                ? 'bg-[#ebf9ee] text-[#1d833f] border-emerald-200/60'
+                                : reg.status === 'rejected'
+                                  ? 'bg-[#fef2f2] text-[#dc2626] border-red-200/60'
+                                  : 'bg-[#fff8eb] text-[#b25e00] border-amber-200/60'
+                            }`}>
+                              {reg.status === 'pending' ? 'Chờ Duyệt' : reg.status === 'approved' ? 'Đã Duyệt' : 'Từ Chối'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {canWithdrawRegistration && (
+                        <div className="flex items-start gap-2 bg-[#fbfbfd] rounded-2xl p-3.5 border border-black/[0.04] text-xs text-[#6e6e73] leading-relaxed">
+                          <Clock size={14} className="mt-0.5 text-[#0071e3] shrink-0" />
+                          <p>Trong thời gian Khoa mở đăng ký, sinh viên có thể chỉnh sửa từng nguyện vọng, thêm hoặc bỏ bớt nơi thực tập mà không cần hủy toàn bộ.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-[#ebf4ff] text-[#0071e3] flex items-center justify-center shrink-0">
+                            <Edit2 size={20} />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-[#1d1d1f]">Chỉnh sửa nguyện vọng thực tập</h3>
+                            <p className="text-xs text-[#86868b] mt-0.5">Sinh viên có thể chọn thêm hoặc bỏ bớt nơi thực tập từ danh sách bên dưới</p>
+                          </div>
+                        </div>
+                        <div className="rounded-full bg-[#0071e3]/10 border border-[#0071e3]/20 px-3.5 py-1 text-xs font-bold text-[#0071e3] shadow-xs shrink-0">
+                          Đang chọn {selectedWishCount}/5
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-amber-200/60 bg-[#fff8eb] p-4 text-xs text-[#b25e00] leading-relaxed">
+                        <div className="flex items-start gap-2.5">
+                          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[#b25e00]" />
+                          <div><strong>Lưu ý:</strong> Sinh viên chỉ được phép xác nhận thực tập tại 1 trong 5 nơi này. Nếu không pass tất cả, sẽ phải thực tập ở Trường.</div>
+                        </div>
+                      </div>
+
+                      {selectedPreferencePreview.length > 0 && (
+                        <div className="rounded-2xl border border-black/[0.05] bg-[#fbfbfd] p-4">
+                          <div className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#86868b]">Nguyện vọng sau khi chỉnh sửa</div>
+                          <ol className="space-y-2 text-xs text-[#1d1d1f]">
+                            {selectedPreferencePreview.map((item, idx) => (
+                              <li key={item.key} className="flex items-center gap-2">
+                                <span className="font-bold text-[#0071e3] bg-[#0071e3]/10 border border-[#0071e3]/20 px-1.5 py-0.5 rounded-md text-[10px]">NV{idx + 1}</span>
+                                <span className="font-semibold text-[#1d1d1f]">{item.name}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-black/[0.04] pt-4">
+                        <button
+                          type="button"
+                          onClick={cancelEditingPreferences}
+                          disabled={savingPreferences}
+                          className="bg-white text-[#1d1d1f] border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          Hủy chỉnh sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={savePreferenceEdits}
+                          disabled={savingPreferences}
+                          className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Save size={14} /> {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={`rounded-3xl border p-6 ${
+                  registrationWindowStatus === 'open'
+                    ? 'border-[#0071e3]/20 bg-[#ebf4ff]/40 text-[#005bb5]'
+                    : 'border-black/[0.06] bg-white text-[#6e6e73]'
+                }`}>
+                  <h3 className="font-bold text-sm text-[#1d1d1f] mb-1">Trạng thái đăng ký nguyện vọng</h3>
+                  <p className="text-xs leading-relaxed">
+                    {registrationWindowStatus === 'open'
+                      ? 'Bạn chưa đăng ký công ty nào. Vui lòng tick chọn tối đa 5 nơi thực tập từ danh sách bên dưới rồi bấm Đăng ký.'
+                      : registrationWindowStatus === 'not_open_yet'
+                      ? 'Bạn chưa có đăng ký nào được ghi nhận. Đợt đăng ký hiện chưa mở.'
+                      : 'Bạn chưa có đăng ký nào trong hệ thống. Đợt đăng ký đã đóng, vui lòng liên hệ Khoa nếu bạn cần hỗ trợ.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Enterprise Catalog Table Area */}
+              <div className="bg-white rounded-3xl border border-black/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+                <div className="px-6 py-4.5 border-b border-black/[0.04] flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-[#fbfbfd]">
+                  <div className="flex items-center gap-3">
+                    <h2 className="font-bold text-[#1d1d1f] text-sm">Danh mục nơi thực tập tuyển dụng</h2>
+                    {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
+                      <span className="text-xs bg-[#0071e3]/10 text-[#0071e3] px-2.5 py-0.5 rounded-full font-bold">
+                        Đã chọn: {selectedWishCount}/5
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Tìm nơi thực tập..."
+                      className="px-3.5 py-2 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all w-full sm:w-64 bg-white font-medium text-[#1d1d1f]"
+                    />
+                    {editingPreferences ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={cancelEditingPreferences}
+                          disabled={savingPreferences}
+                          className="bg-white text-[#1d1d1f] border border-black/[0.08] px-3.5 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={savePreferenceEdits}
+                          disabled={savingPreferences || selectedWishCount === 0}
+                          className="bg-[#34c759] hover:bg-[#28a745] text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </button>
+                      </>
+                    ) : !hasRegistered && (
+                      <>
+                        {registrationWindowStatus !== 'open' ? (
+                          <button
+                            disabled
+                            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#f5f5f7] text-[#86868b] border border-black/[0.04] cursor-not-allowed shadow-none whitespace-nowrap"
+                          >
+                            <Clock size={13} className="inline mr-1" />
+                            {registrationWindowStatus === 'not_open_yet' ? 'Chưa mở' : 'Đã đóng'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={selectedWishCount === 0}
+                            onClick={() => setRegisterModalOpen(true)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-all whitespace-nowrap cursor-pointer ${
+                              selectedWishCount === 0 ? 'bg-[#f5f5f7] text-[#86868b] cursor-not-allowed' : 'bg-[#0071e3] text-white hover:bg-[#0077ed]'
+                            }`}
+                          >
+                            Đăng ký ({selectedWishCount})
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {selectedPreferencePreview.length > 0 && (
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                    <div className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-400">Nguyện vọng sau khi chỉnh sửa</div>
-                    <ol className="space-y-2 text-xs text-slate-850">
-                      {selectedPreferencePreview.map((item, idx) => (
-                        <li key={item.key} className="flex items-center gap-2">
-                          <span className="font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded text-[10px]">NV{idx + 1}</span>
-                          <span className="font-semibold text-slate-800">{item.name}</span>
-                        </li>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left min-w-[700px]">
+                    <thead>
+                      <tr className="bg-[#fbfbfd] text-[#86868b] text-[11px] uppercase tracking-wider font-bold border-b border-black/[0.04]">
+                        <th className="px-4 py-3 text-center w-14">Chọn</th>
+                        <th
+                          className="px-6 py-3 cursor-pointer hover:bg-black/[0.02] transition-colors"
+                          onClick={() => requestSort('name')}
+                        >
+                          <div className="flex items-center gap-1 text-[#1d1d1f]">Nơi thực tập {getSortIcon('name')}</div>
+                        </th>
+                        <th className="px-6 py-3">Địa chỉ</th>
+                        <th
+                          className="px-6 py-3 text-center cursor-pointer hover:bg-black/[0.02] transition-colors"
+                          onClick={() => requestSort('slots')}
+                        >
+                          <div className="flex items-center justify-center gap-1 text-[#1d1d1f]">Chỉ tiêu {getSortIcon('slots')}</div>
+                        </th>
+                        <th
+                          className="px-6 py-3 text-center cursor-pointer hover:bg-black/[0.02] transition-colors"
+                          onClick={() => requestSort('applicant_count')}
+                        >
+                          <div className="flex items-center justify-center gap-1 text-[#1d1d1f]">Ứng viên {getSortIcon('applicant_count')}</div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs divide-y divide-black/[0.04]">
+                      {paginatedCompanies.map((company) => {
+                        const isSelected = selectedCompanies.has(company.id);
+                        const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
+                        return (
+                          <tr key={company.id} className={`hover:bg-[#fbfbfd] transition-colors ${isSelected ? 'bg-[#ebf4ff]/50' : ''} ${isRegistered ? 'bg-[#ebf9ee]/40' : ''}`}>
+                            <td className="px-4 py-3.5 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected || (!editingPreferences && isRegistered)}
+                                disabled={(!editingPreferences && hasRegistered) || (!isSelected && selectedWishCount >= 5)}
+                                onChange={() => toggleCompanySelection(company.id)}
+                                className="w-4 h-4 text-[#0071e3] rounded border-black/[0.2] focus:ring-[#0071e3] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                            </td>
+                            <td className="px-6 py-3.5 font-bold text-[#0071e3]">
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/company/${company.id}`)}
+                                className="text-[#0071e3] hover:underline flex items-center gap-1 text-left cursor-pointer"
+                              >
+                                {company.name} <ChevronRight size={13} className="opacity-60" />
+                              </button>
+                            </td>
+                            <td className="px-6 py-3.5 text-[#6e6e73]">{company.address}</td>
+                            <td className="px-6 py-3.5 text-center">
+                              <span className="font-bold text-[#1d1d1f]">{company.slots}</span>
+                            </td>
+                            <td className="px-6 py-3.5 text-center">
+                              <span className="font-bold text-[#1d1d1f]">{company.applicant_count ?? 0}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {sortedCompanies.length === 0 && !loading && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-[#86868b] text-xs">
+                            Không tìm thấy doanh nghiệp phù hợp.
+                          </td>
+                        </tr>
+                      )}
+                      {loading && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-[#86868b] text-xs">
+                            Đang tải danh sách doanh nghiệp...
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {editingPreferences && hasSelectedKhac && (
+                  <div className="border-t border-amber-200/60 bg-[#fff8eb]/60 px-6 py-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-[#b25e00]">Thông tin công ty tự liên hệ</h3>
+                        <p className="mt-0.5 text-xs text-[#8a4700]">Mỗi công ty tự liên hệ được tính là một nguyện vọng riêng trong giới hạn 5 nơi thực tập.</p>
+                      </div>
+                      {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }])}
+                          className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-[#b25e00] hover:bg-[#fff8eb]"
+                        >
+                          <Plus size={13} /> Thêm công ty
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-4">
+                      {otherCompanies.map((otherCompany: any, index) => (
+                        <div key={otherCompany.id || index} className="rounded-2xl border border-amber-200/80 bg-white p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-xs font-bold text-[#b25e00]">Công ty tự liên hệ {index + 1}</h4>
+                            {otherCompanies.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 size={12} /> Xóa
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1d1d1f] mb-1">Tên công ty *</label>
+                            <input
+                              list="edit-it-companies-datalist"
+                              value={otherCompany.name || ''}
+                              onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))}
+                              className="w-full border border-black/[0.08] rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-[#fbfbfd] font-semibold text-[#1d1d1f]"
+                              placeholder="Tên công ty"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-[#1d1d1f] mb-1">Người liên hệ *</label>
+                              <input
+                                value={otherCompany.contact_name || ''}
+                                onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))}
+                                className="w-full border border-black/[0.08] rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-[#fbfbfd] font-semibold text-[#1d1d1f]"
+                                placeholder="Tên người liên hệ"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-[#1d1d1f] mb-1">Điện thoại *</label>
+                              <input
+                                value={otherCompany.contact_phone || ''}
+                                onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))}
+                                className="w-full border border-black/[0.08] rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-[#fbfbfd] font-semibold text-[#1d1d1f]"
+                                placeholder="Số điện thoại"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-[#1d1d1f] mb-1">Email *</label>
+                              <input
+                                type="email"
+                                value={otherCompany.contact_email || ''}
+                                onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))}
+                                className="w-full border border-black/[0.08] rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-[#fbfbfd] font-semibold text-[#1d1d1f]"
+                                placeholder="email@company.com"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </ol>
+                    </div>
+                    <datalist id="edit-it-companies-datalist">
+                      {itCompanyList.map((name, i) => <option key={i} value={name} />)}
+                    </datalist>
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 border-t border-slate-100 pt-4">
-                  <button onClick={cancelEditingPreferences} disabled={savingPreferences} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50">Hủy chỉnh sửa</button>
-                  <button onClick={savePreferenceEdits} disabled={savingPreferences} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Save size={14} /> {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </div>
+                <PaginationControls
+                  total={sortedCompanies.length}
+                  currentPage={companyPage}
+                  pageSize={companyPageSize}
+                  onPageChange={setCompanyPage}
+                  label="nơi thực tập"
+                />
               </div>
-            )}
-          </div>
-        ) : null) : (
-          <div className={`${registrationWindowStatus === 'open' ? 'bg-blue-50/30 border-blue-100 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-700'} border rounded-xl p-4 text-sm`}>
-            {registrationWindowStatus === 'open' ? (
-              <>Bạn chưa đăng ký công ty nào. Vui lòng chọn tối đa 5 nơi thực tập từ danh sách dưới đây rồi bấm <strong>Đăng ký</strong>.</>
-            ) : registrationWindowStatus === 'not_open_yet' ? (
-              <>Bạn chưa có đăng ký nào được ghi nhận. Đợt đăng ký hiện chưa mở.</>
-            ) : (
-              <>Bạn chưa có đăng ký nào được ghi nhận trong hệ thống. Đợt đăng ký đã đóng, vui lòng liên hệ Khoa nếu bạn cho rằng dữ liệu đăng ký của mình bị thiếu.</>
-            )}
-          </div>
-        )) : null}
-
-        {showConfirmationBlock && (
-          <div className="bg-white border border-slate-150 rounded-2xl p-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-5">
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-xl ${finalInternship ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <CheckCircle2 size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-800">Nơi thực tập chính thức</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Xác nhận nơi trúng tuyển chính thức để lấy điểm học phần</p>
-                </div>
-              </div>
-              {finalInternship && (
-                <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full shadow-sm">
-                  Đã Xác Nhận
-                </span>
-              )}
             </div>
+          )}
 
-            <div>
+          {/* TAB 3: CONFIRMATION (OFFICIAL PLACEMENT CONFIRMATION) */}
+          {selectedMilestoneTab === 'confirmation' && (
+            <div className="rounded-3xl border border-black/[0.06] bg-white p-6 sm:p-7 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04]">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${finalInternship ? 'bg-[#ebf9ee] text-[#1d833f]' : 'bg-[#f5f5f7] text-[#86868b]'}`}>
+                    <CheckCircle2 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#1d1d1f]">Xác nhận nơi thực tập chính thức</h3>
+                    <p className="text-xs text-[#86868b] mt-0.5">Xác nhận nơi trúng tuyển chính thức để Khoa phân công GVHD và quản lý điểm số</p>
+                  </div>
+                </div>
+                {finalInternship && (
+                  <span className="text-xs font-bold px-3 py-1 bg-[#ebf9ee] text-[#1d833f] border border-emerald-200/60 rounded-full shadow-xs">
+                    Đã Xác Nhận
+                  </span>
+                )}
+              </div>
+
               {finalInternship ? (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Đơn vị tiếp nhận</span>
-                      <span className="text-sm font-bold text-slate-800 mt-1.5 block">
+                      <span className="block text-[10px] uppercase font-bold text-[#86868b] tracking-wider">Đơn vị tiếp nhận</span>
+                      <span className="text-sm font-bold text-[#1d1d1f] mt-1.5 block">
                         {finalInternship.internship_type === 'school' ? 'Thực tập tại trường' : (finalInternship.company_name === 'Công ty khác' ? `Công ty khác: ${finalInternship.other_company_name || ''}` : finalInternship.company_name)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giảng viên hướng dẫn</span>
+                      <span className="block text-[10px] uppercase font-bold text-[#86868b] tracking-wider">Giảng viên hướng dẫn</span>
                       {myAdvisors.length > 0 ? (
                         <div className="mt-1.5 space-y-1.5">
                           {myAdvisors.map((a: any) => (
-                            <div key={`${a.role}-${a.lecturer_id}`} className="text-sm font-bold text-slate-850 flex items-center gap-1.5">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${a.role === 'primary' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-650'}`}>
+                            <div key={`${a.role}-${a.lecturer_id}`} className="text-xs font-bold text-[#1d1d1f] flex items-center gap-1.5">
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${a.role === 'primary' ? 'bg-[#af52de]/15 text-[#8e44ad]' : 'bg-black/[0.05] text-[#6e6e73]'}`}>
                                 {a.role === 'primary' ? 'GV chính' : 'Đồng HD'}
                               </span>
-                              <strong>{a.lecturer_name}</strong>
-                              {a.lecturer_email && (
-                                <a href={`mailto:${a.lecturer_email}`} className="text-blue-600 hover:underline text-xs font-semibold">
-                                  ({a.lecturer_email})
-                                </a>
-                              )}
+                              <span>{a.lecturer_name}</span>
                             </div>
                           ))}
                         </div>
                       ) : finalInternship.school_lecturer ? (
-                        <span className="text-sm font-bold text-slate-800 mt-1.5 block">{finalInternship.school_lecturer}</span>
-                      ) : finalInternship.school_assignment_request ? (
-                        <span className="text-xs font-semibold text-slate-650 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded shadow-sm inline-block mt-1.5">Khoa sẽ phân công</span>
+                        <span className="text-xs font-bold text-[#1d1d1f] mt-1.5 block">{finalInternship.school_lecturer}</span>
                       ) : (
-                        <span className="text-xs text-slate-400 italic mt-1.5 block">Chưa phân công</span>
+                        <span className="text-xs text-[#86868b] italic mt-1.5 block">Khoa sẽ phân công</span>
                       )}
                     </div>
 
                     <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Thời gian xác nhận</span>
-                      <span className="text-sm font-bold text-slate-800 mt-1.5 block">
+                      <span className="block text-[10px] uppercase font-bold text-[#86868b] tracking-wider">Thời gian xác nhận</span>
+                      <span className="text-sm font-bold text-[#1d1d1f] mt-1.5 block">
                         {finalInternship.confirmed_at ? new Date(finalInternship.confirmed_at).toLocaleString('vi-VN') : '-'}
                       </span>
                       {finalInternship.locked_at && (
-                        <div className="text-rose-600 font-bold text-[10px] flex items-center gap-1 mt-1">
-                          <Lock size={10} /> Khoa đã khóa dữ liệu xác nhận.
+                        <div className="text-red-600 font-bold text-[10px] flex items-center gap-1 mt-1">
+                          <Lock size={11} /> Khoa đã khóa dữ liệu xác nhận.
                         </div>
                       )}
                     </div>
                   </div>
 
                   {!finalInternship.locked_at && confirmationWindowStatus === 'open' && (
-                    <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
+                    <div className="border-t border-black/[0.04] pt-4 flex justify-end gap-3">
                       <button
+                        type="button"
                         onClick={() => openFinalConfirm('company')}
                         disabled={approvedFinalOptions.length === 0}
-                        className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                        className="bg-white text-[#1d1d1f] border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                       >
                         {finalInternship.internship_type === 'company' ? 'Cập nhật công ty' : 'Chuyển sang công ty'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => openFinalConfirm('school')}
-                        className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                        className="bg-white text-[#1d1d1f] border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5"
                       >
                         {finalInternship.internship_type === 'school' ? 'Cập nhật thực tập tại trường' : 'Chuyển sang thực tập tại trường'}
                       </button>
@@ -1362,38 +2214,34 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   )}
                 </div>
               ) : (
-                <div>
-                  <div className="space-y-3.5 mb-5">
-                    <p className="text-sm text-slate-600 leading-relaxed">Sau khi có kết quả tuyển dụng từ doanh nghiệp hoặc trường học, sinh viên bắt buộc phải chọn và xác nhận một nơi thực tập chính thức để hệ thống ghi nhận làm căn cứ phân công giảng viên và nhập điểm học phần.</p>
-                    {confirmationWindowStatus !== 'open' && (
-                      <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 flex items-start gap-2 text-xs text-orange-800">
-                        <Clock size={14} className="shrink-0 mt-0.5 text-orange-500" />
-                        <div>
-                          {confirmationWindowStatus === 'not_open_yet'
-                            ? `Đợt xác nhận chưa mở. Thời gian mở: ${campaign.confirmation_open_at ? formatGMT7(campaign.confirmation_open_at) : '—'} (GMT+7).`
-                            : `Đợt xác nhận đã kết thúc vào lúc: ${campaign.confirmation_close_at ? formatGMT7(campaign.confirmation_close_at) : '—'} (GMT+7).`}
-                        </div>
+                <div className="space-y-4">
+                  <p className="text-xs text-[#6e6e73] leading-relaxed">
+                    Sau khi có kết quả tuyển dụng từ doanh nghiệp hoặc trường học, sinh viên bắt buộc phải chọn và xác nhận một nơi thực tập chính thức để hệ thống ghi nhận làm căn cứ phân công giảng viên và nhập điểm học phần.
+                  </p>
+                  {confirmationWindowStatus !== 'open' && (
+                    <div className="rounded-2xl bg-[#fff8eb] border border-amber-200/60 p-3.5 flex items-start gap-2.5 text-xs text-[#b25e00]">
+                      <Clock size={15} className="shrink-0 mt-0.5 text-[#b25e00]" />
+                      <div>
+                        {confirmationWindowStatus === 'not_open_yet'
+                          ? `Đợt xác nhận chưa mở. Thời gian mở: ${campaign.confirmation_open_at ? formatGMT7(campaign.confirmation_open_at) : '—'} (GMT+7).`
+                          : `Đợt xác nhận đã kết thúc vào lúc: ${campaign.confirmation_close_at ? formatGMT7(campaign.confirmation_close_at) : '—'} (GMT+7).`}
                       </div>
-                    )}
-                    {approvedFinalOptions.length === 0 && (
-                      <p className="text-xs text-amber-700 italic font-medium bg-amber-50/50 p-3 rounded-xl border border-amber-100">
-                        Hiện chưa có công ty nào được Khoa duyệt trong danh sách nguyện vọng của bạn. Nếu không trúng tuyển doanh nghiệp nào ngoài danh sách chính thức, bạn có thể thực tập tại trường khi Khoa mở cổng xác nhận.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
+                    </div>
+                  )}
+                  <div className="border-t border-black/[0.04] pt-4 flex justify-end gap-3">
                     <button
+                      type="button"
                       onClick={() => openFinalConfirm('company')}
                       disabled={confirmationWindowStatus !== 'open' || approvedFinalOptions.length === 0}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                      className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                     >
                       Xác nhận công ty
                     </button>
                     <button
+                      type="button"
                       onClick={() => openFinalConfirm('school')}
                       disabled={confirmationWindowStatus !== 'open'}
-                      className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
+                      className="bg-[#1d1d1f] hover:bg-[#2c2c2e] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-1.5"
                     >
                       Thực tập tại trường
                     </button>
@@ -1401,63 +2249,92 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {showAdvisorTask && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <h4 className="text-sm font-bold text-slate-800 mb-2">Đăng ký giảng viên hướng dẫn</h4>
-            {advisorRequestWindowStatus !== 'open' && (
-              <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                {advisorRequestWindowStatus === 'not_open_yet'
-                  ? `Chưa mở đăng ký GVHD${campaign.advisor_request_open_at ? `: ${formatGMT7(campaign.advisor_request_open_at)} (GMT+7)` : ''}.`
-                  : `Đã hết hạn đăng ký GVHD${campaign.advisor_request_close_at ? `: ${formatGMT7(campaign.advisor_request_close_at)} (GMT+7)` : ''}. Nếu chưa chọn GVHD, hệ thống sẽ tự phân công theo quota còn lại.`}
+          {/* TAB 4: ADVISOR (GVHD MANAGEMENT) */}
+          {selectedMilestoneTab === 'advisor' && (
+            <div className="rounded-3xl border border-black/[0.06] bg-white p-6 sm:p-7 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.04]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#af52de]/10 text-[#af52de] flex items-center justify-center shrink-0">
+                    <UserCheck size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#1d1d1f]">Giảng viên hướng dẫn học phần</h3>
+                    <p className="text-xs text-[#86868b] mt-0.5">Thông tin GVHD theo dõi, hướng dẫn chuyên môn và chấm điểm báo cáo</p>
+                  </div>
+                </div>
+                {canEditAdvisorRequest && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvisorEditOpen(prev => !prev)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-black/[0.08] text-[#1d1d1f] hover:bg-[#f5f5f7] shadow-xs active:scale-[0.98] transition-all cursor-pointer shrink-0"
+                  >
+                    <Edit2 size={12} className="text-[#af52de]" /> {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Đăng ký / Đổi GVHD'}
+                  </button>
+                )}
               </div>
-            )}
-            <form onSubmit={submitAdvisorRequest} className="space-y-3">
-              {hasAdvisorSelection && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/30 p-5 shadow-sm">
+
+              {hasAdvisorSelection ? (
+                <div className="rounded-2xl border border-black/[0.05] bg-[#fbfbfd] p-5 space-y-4">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">GVHD hiện tại</span>
+                        <span className="text-[10px] uppercase font-bold text-[#86868b] tracking-wider">GVHD chính thức</span>
                         {advisorRequest && (
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${advisorRequest.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : advisorRequest.status === 'rejected' ? 'bg-red-50 text-red-750 border border-red-150' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
-                            {advisorRequest.status === 'approved' ? 'Đã duyệt' : advisorRequest.status === 'rejected' ? 'Từ chối' : 'Chờ Khoa xử lý'}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            advisorRequest.status === 'approved' ? 'bg-[#ebf9ee] text-[#1d833f] border border-emerald-200/60' : 'bg-[#fff8eb] text-[#b25e00] border border-amber-200/60'
+                          }`}>
+                            {advisorRequest.status === 'approved' ? 'Đã duyệt' : 'Chờ Khoa tiếp nhận'}
                           </span>
                         )}
                       </div>
-                      <div className="text-sm font-bold text-slate-800">
+                      <div className="text-sm font-bold text-[#1d1d1f]">
                         {myAdvisors.length > 0
                           ? myAdvisors.map((a: any) => `${a.role === 'primary' ? 'Chính' : 'Đồng'}: ${a.lecturer_name}`).join('; ')
                           : advisorRequest?.request_type === 'faculty_assign'
                             ? 'Khoa sẽ phân công'
                             : advisorRequest?.lecturer_name || advisorRequest?.lecturer_name_text || '-'}
                       </div>
-                      {advisorRequest && (
-                        <div className="mt-2 text-xs text-slate-500 font-medium space-y-1">
-                          {advisorRequest.quota_status === 'over_quota' && <p className="text-amber-600 font-bold">⚠️ GVHD đã vượt quota nhưng phân công vẫn được ghi nhận</p>}
-                          {(advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text) && <p>Đồng HD: <span className="font-semibold text-slate-700">{advisorRequest.co_lecturer_name || advisorRequest.co_lecturer_name_text}</span></p>}
-                          {advisorRequest.admin_note && <p>Nhận xét từ Khoa: <span className="font-semibold text-slate-750">{advisorRequest.admin_note}</span></p>}
+                      {myAdvisors.length > 0 && myAdvisors.some((a: any) => a.lecturer_email) && (
+                        <div className="mt-2 text-xs space-y-1">
+                          {myAdvisors.map((a: any) => a.lecturer_email ? (
+                            <div key={a.lecturer_email} className="flex items-center gap-2">
+                              <span className="text-[#86868b]">{a.lecturer_name}:</span>
+                              <a href={`mailto:${a.lecturer_email}`} className="text-[#0071e3] hover:underline font-medium">
+                                {a.lecturer_email}
+                              </a>
+                            </div>
+                          ) : null)}
                         </div>
                       )}
                     </div>
                     {canEditAdvisorRequest && (
-                      <div className="flex flex-wrap gap-2 shrink-0">
-                        <button type="button" onClick={() => setIsAdvisorEditOpen(prev => !prev)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer">
-                          {isAdvisorEditOpen ? 'Đóng chỉnh sửa' : 'Thay đổi GVHD'}
-                        </button>
-                        <button type="button" onClick={cancelAdvisorRequest} disabled={advisorRequestSaving} className="bg-white text-red-650 border border-red-200 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50">
-                          Hủy đăng ký
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={cancelAdvisorRequest}
+                        disabled={advisorRequestSaving}
+                        className="bg-white text-red-600 border border-red-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        Hủy đăng ký
+                      </button>
                     )}
                   </div>
                 </div>
+              ) : (
+                <div className="p-6 rounded-2xl bg-[#fbfbfd] border border-dashed border-black/[0.08] text-center space-y-2">
+                  <UserCheck size={24} className="mx-auto text-[#86868b]" />
+                  <div className="text-xs font-bold text-[#1d1d1f]">Chưa có thông tin Giảng viên hướng dẫn</div>
+                  <p className="text-[11px] text-[#86868b] max-w-md mx-auto">
+                    Nếu bạn đã trao đổi và được giảng viên đồng ý, hãy chọn Đăng ký GVHD để Khoa ghi nhận. Hoặc bạn có thể chọn để Khoa tự phân công.
+                  </p>
+                </div>
               )}
+
               {showAdvisorForm && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3 shadow-inner">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <form onSubmit={submitAdvisorRequest} className="rounded-2xl border border-black/[0.06] bg-[#fbfbfd] p-5 space-y-4">
+                  <div className="text-xs font-bold text-[#1d1d1f]">Biểu mẫu đăng ký giảng viên hướng dẫn</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <select
                       value={advisorRequestForm.request_type}
                       onChange={e => {
@@ -1469,7 +2346,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                           co_lecturer_name: requestType ? advisorRequestForm.co_lecturer_name : ''
                         });
                       }}
-                      className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800 cursor-pointer"
+                      className="px-3.5 py-2 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-white font-semibold text-[#1d1d1f] cursor-pointer"
                     >
                       <option value="">Không đăng ký GVHD, Khoa sẽ phân công</option>
                       <option value="agreed">Sinh viên đã được GV đồng ý hướng dẫn</option>
@@ -1481,7 +2358,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       required={!!advisorRequestForm.request_type}
                       list="advisor-primary-lecturers"
                       placeholder="Nhập/chọn GVHD chính"
-                      className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
+                      className="px-3.5 py-2 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-white font-semibold text-[#1d1d1f] disabled:bg-slate-100 disabled:text-slate-400"
                     />
                     <input
                       value={advisorRequestForm.co_lecturer_name}
@@ -1489,7 +2366,7 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       disabled={!advisorRequestForm.request_type}
                       list="advisor-co-lecturers"
                       placeholder="Nhập/chọn đồng hướng dẫn (nếu có)"
-                      className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white font-semibold text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
+                      className="px-3.5 py-2 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-white font-semibold text-[#1d1d1f] disabled:bg-slate-100 disabled:text-slate-400"
                     />
                     <datalist id="advisor-primary-lecturers">
                       {lecturers.map(name => <option key={name} value={name} />)}
@@ -1501,318 +2378,128 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                   <textarea
                     value={advisorRequestForm.student_note}
                     onChange={e => setAdvisorRequestForm({ ...advisorRequestForm, student_note: e.target.value })}
-                    placeholder="Ghi chú thêm nếu có, ví dụ: thông tin đã trao đổi với GV hoặc lịch hẹn làm việc..."
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-white resize-y text-slate-800"
+                    placeholder="Ghi chú thêm nếu có (ví dụ: thông tin đã trao đổi với GV, hướng đề tài...)"
+                    className="w-full px-3.5 py-2 border border-black/[0.08] rounded-xl text-xs focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] outline-none transition-all bg-white resize-y text-[#1d1d1f]"
                     rows={2}
                   />
                   <div className="flex flex-wrap gap-2.5">
-                    <button type="submit" disabled={advisorRequestSaving || !canEditAdvisorRequest} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                      {advisorRequestSaving ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Đăng ký GVHD'}
+                    <button
+                      type="submit"
+                      disabled={advisorRequestSaving || !canEditAdvisorRequest}
+                      className="bg-[#0071e3] hover:bg-[#0077ed] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {advisorRequestSaving ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />} {hasAdvisorSelection ? 'Lưu thay đổi' : 'Gửi đăng ký GVHD'}
                     </button>
                     {hasAdvisorSelection && (
-                      <button type="button" onClick={() => setIsAdvisorEditOpen(false)} disabled={advisorRequestSaving} className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50">
+                      <button
+                        type="button"
+                        onClick={() => setIsAdvisorEditOpen(false)}
+                        disabled={advisorRequestSaving}
+                        className="bg-white text-[#1d1d1f] border border-black/[0.08] px-4 py-2 rounded-xl hover:bg-[#f5f5f7] text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
                         Hủy chỉnh sửa
                       </button>
                     )}
                   </div>
-                </div>
-              )}
-            </form>
-          </div>
-        )}
-
-        {showFinalReportTask && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="text-indigo-600" size={20} />
-                  <h3 className="text-base font-bold text-slate-900">Báo cáo</h3>
-                </div>
-                <div className="text-sm text-slate-600 space-y-1">
-                  <p>
-                    Thời gian nộp:{' '}
-                    <strong>{campaign.final_report_open_at ? formatGMT7(campaign.final_report_open_at) : '—'}</strong>
-                    {' '}đến{' '}
-                    <strong>{campaign.final_report_close_at ? formatGMT7(campaign.final_report_close_at) : '—'}</strong>
-                    {' '}(GMT+7)
-                  </p>
-                  {finalReport ? (
-                    <>
-                      <p>Trạng thái: <strong>{reportStatusLabel(finalReport.status)}</strong></p>
-                      <p>File: <strong>{finalReport.original_filename}</strong> ({formatBytes(Number(finalReport.file_size || 0))})</p>
-                      <p className="text-xs">Nộp lúc: {finalReport.submitted_at ? new Date(finalReport.submitted_at).toLocaleString('vi-VN') : '-'}</p>
-                      {finalReport.lecturer_comment && <p className="text-xs text-orange-700">Ghi chú GVHD: {finalReport.lecturer_comment}</p>}
-                    </>
-                  ) : (
-                    <p>Chưa nộp báo cáo.</p>
-                  )}
-                  {finalReportWindowStatus !== 'open' && (
-                    <p className={`text-xs font-semibold ${finalReportWindowStatus === 'not_open_yet' ? 'text-orange-700' : 'text-red-700'}`}>
-                      {finalReportWindowStatus === 'not_open_yet'
-                        ? `Chưa mở nộp báo cáo${campaign.final_report_open_at ? `: ${formatGMT7(campaign.final_report_open_at)} (GMT+7)` : ''}.`
-                        : `Đã hết hạn nộp báo cáo${campaign.final_report_close_at ? `: ${formatGMT7(campaign.final_report_close_at)} (GMT+7)` : ''}.`}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                {finalReport && (
-                  <button onClick={downloadMyFinalReport} className="px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 whitespace-nowrap bg-slate-100 text-slate-800 hover:bg-slate-200">
-                    <Download size={16} /> Tải PDF
-                  </button>
-                )}
-                <label className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 whitespace-nowrap ${finalReportWindowStatus === 'open' && !uploadingReport ? 'bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
-                  {uploadingReport ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
-                  {finalReport ? 'Nộp lại PDF' : 'Nộp PDF'}
-                  <input type="file" accept="application/pdf,.pdf" disabled={finalReportWindowStatus !== 'open' || uploadingReport} className="hidden" onChange={uploadFinalReport} />
-                </label>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-3">Chỉ nhận PDF tối đa 10 MB. Nếu lớn hơn, vui lòng nén file trước khi nộp.</p>
-          </div>
-        )}
-
-        {/* Registration Table Area */}
-        {showCompanyList && <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <h2 className="font-bold text-slate-800 text-sm">Danh sách nơi thực tập</h2>
-              {(!hasRegistered || editingPreferences) && selectedWishCount > 0 && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">Đã chọn: {selectedWishCount}/5</span>
-              )}
-            </div>
-            <div className="flex gap-2 items-center">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm nơi thực tập..."
-                className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-full sm:w-64 bg-slate-50/50 shadow-inner font-semibold text-slate-800"
-              />
-              {editingPreferences ? (
-                <>
-                  <button
-                    onClick={cancelEditingPreferences}
-                    disabled={savingPreferences}
-                    className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={savePreferenceEdits}
-                    disabled={savingPreferences || selectedWishCount === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {savingPreferences ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </>
-              ) : !hasRegistered && (
-                <>
-                  {registrationWindowStatus !== 'open' ? (
-                    <button
-                      disabled
-                      className="px-5 py-1.5 rounded-md text-sm font-bold bg-slate-200 text-slate-400 cursor-not-allowed shadow-none whitespace-nowrap"
-                      title={registrationWindowStatus === 'not_open_yet'
-                        ? `Chưa mở đăng ký. Mở lúc: ${formatGMT7(campaign.registration_open_at)} (GMT+7)`
-                        : `Đã đóng đăng ký. Kết thúc lúc: ${formatGMT7(campaign.registration_close_at)} (GMT+7)`}
-                    >
-                      <Clock size={14} className="inline mr-1" />
-                      {registrationWindowStatus === 'not_open_yet' ? 'Chưa mở' : 'Đã đóng'}
-                    </button>
-                  ) : (
-                    <button
-                      disabled={selectedWishCount === 0}
-                      onClick={() => setRegisterModalOpen(true)}
-                      className={`px-5 py-1.5 rounded-md text-sm font-bold shadow-sm transition-colors whitespace-nowrap ${selectedWishCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                    >
-                      Đăng ký ({selectedWishCount})
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Registration time window banner */}
-          {!hasRegistered && (campaign?.registration_open_at || campaign?.registration_close_at) && (
-            <div className={`px-6 py-3 text-sm flex items-center gap-2 border-b ${registrationWindowStatus === 'open'
-              ? 'bg-green-50 border-green-100 text-green-800'
-              : registrationWindowStatus === 'not_open_yet'
-                ? 'bg-orange-50 border-orange-100 text-orange-800'
-                : 'bg-red-50 border-red-100 text-red-800'
-              }`}>
-              <Clock size={16} className="shrink-0" />
-              {registrationWindowStatus === 'open' && (
-                <span>Đăng ký đang <strong>mở</strong>{campaign.registration_close_at && <> — đóng lúc <strong>{formatGMT7(campaign.registration_close_at)}</strong> (GMT+7)</>}.</span>
-              )}
-              {registrationWindowStatus === 'not_open_yet' && (
-                <span>Đăng ký <strong>chưa mở</strong>{campaign.registration_open_at && <> — sẽ mở lúc <strong>{formatGMT7(campaign.registration_open_at)}</strong> (GMT+7)</>}. Vui lòng quay lại đúng giờ.</span>
-              )}
-              {registrationWindowStatus === 'closed' && (
-                <span>Đã <strong>hết thời gian</strong> đăng ký{campaign.registration_close_at && <> (đóng lúc <strong>{formatGMT7(campaign.registration_close_at)}</strong> GMT+7)</>}. Vui lòng liên hệ bộ phận quản lý.</span>
+                </form>
               )}
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left min-w-[700px]">
-              <thead>
-                <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider font-bold">
-                  <th className="px-4 py-3 border-b border-slate-200 text-center w-14">Chọn</th>
-                  <th
-                    className="px-6 py-3 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
-                    onClick={() => requestSort('name')}
-                  >
-                    <div className="flex items-center gap-1">Nơi thực tập {getSortIcon('name')}</div>
-                  </th>
-                  <th className="px-6 py-3 border-b border-slate-200">Địa chỉ</th>
-                  <th
-                    className="px-6 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                    onClick={() => requestSort('slots')}
-                  >
-                    <div className="flex items-center justify-center gap-1">Số lượng tuyển {getSortIcon('slots')}</div>
-                  </th>
-                  <th
-                    className="px-6 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-200 transition-colors"
-                    onClick={() => requestSort('applicant_count')}
-                  >
-                    <div className="flex items-center justify-center gap-1">Số ứng viên {getSortIcon('applicant_count')}</div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-sm divide-y divide-slate-100">
-                {paginatedCompanies.map((company) => {
-                  const isSelected = selectedCompanies.has(company.id);
-                  const isRegistered = myRegs.some((r: any) => r.company_id === company.id);
-                  return (
-                    <tr key={company.id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''} ${isRegistered ? 'bg-green-50/30' : ''}`}>
-                      <td className="px-4 py-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected || (!editingPreferences && isRegistered)}
-                          disabled={(!editingPreferences && hasRegistered) || (!isSelected && selectedWishCount >= 5)}
-                          onChange={() => toggleCompanySelection(company.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                      </td>
-                      <td className="px-6 py-4 font-bold text-blue-700">
-                        <button
-                          onClick={() => navigate(`/company/${company.id}`)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
-                        >
-                          {company.name} <ChevronRight size={14} className="opacity-70 transition-transform group-hover:translate-x-1" />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">{company.address}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-[11px] text-slate-500 font-bold">
-                          {company.slots}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-[11px] text-slate-500 font-bold">
-                          {company.applicant_count ?? 0}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {sortedCompanies.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
-                      Không tìm thấy doanh nghiệp phù hợp.
-                    </td>
-                  </tr>
-                )}
-                {loading && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
-                      Đang tải danh sách doanh nghiệp...
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {editingPreferences && hasSelectedKhac && (
-            <div className="border-t border-orange-100 bg-orange-50/60 px-6 py-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-bold text-orange-900">Thông tin công ty tự liên hệ</h3>
-                  <p className="mt-1 text-xs text-orange-800">Mỗi công ty tự liên hệ được tính là một nguyện vọng riêng trong giới hạn 5 nơi thực tập.</p>
-                </div>
-                {Array.from(selectedCompanies).filter(id => id !== khacCompany?.id).length + otherCompanies.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setOtherCompanies(prev => [...prev, { name: '', role: '', contact_name: '', contact_phone: '', contact_email: '', note: '' }])}
-                    className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-bold text-orange-700 hover:bg-orange-100"
-                  >
-                    <Plus size={14} /> Thêm công ty
-                  </button>
-                )}
-              </div>
-              <div className="space-y-4">
-                {otherCompanies.map((otherCompany: any, index) => (
-                  <div key={otherCompany.id || index} className="rounded-xl border border-orange-200 bg-white p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h4 className="text-xs font-bold text-orange-800">Công ty tự liên hệ {index + 1}</h4>
-                      {otherCompanies.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setOtherCompanies(prev => prev.filter((_, i) => i !== index))}
-                          className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 size={13} /> Xóa
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-3.5">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Tên công ty *</label>
-                        <input list="edit-it-companies-datalist" value={otherCompany.name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, name: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Tên công ty" />
+          {/* TAB 5: REPORT & GRADES (NỘP BÁO CÁO & XEM BẢNG ĐIỂM) */}
+          {selectedMilestoneTab === 'report' && (
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-black/[0.06] bg-white p-6 sm:p-7 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-black/[0.04]">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#ff9500] to-[#e67e22] text-white flex items-center justify-center shadow-xs">
+                        <FileText size={20} />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Vị trí *</label>
-                        <input value={otherCompany.role || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, role: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Vị trí thực tập" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Người liên hệ *</label>
-                          <input value={otherCompany.contact_name || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_name: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Tên người liên hệ" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Điện thoại *</label>
-                          <input value={otherCompany.contact_phone || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_phone: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="Số điện thoại" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
-                          <input type="email" value={otherCompany.contact_email || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, contact_email: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-800" placeholder="email@company.com" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Ghi chú đăng ký</label>
-                        <textarea rows={2} value={otherCompany.note || ''} onChange={e => setOtherCompanies(prev => prev.map((c: any, i: number) => i === index ? { ...c, note: e.target.value } : c))} className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all bg-slate-50/50 shadow-inner font-semibold text-slate-850" placeholder="Lý do đăng ký, liên hệ GVHD..." />
+                        <h3 className="text-base font-bold text-[#1d1d1f]">Báo cáo thực tập tốt nghiệp (Bản mềm PDF)</h3>
+                        <p className="text-xs text-[#86868b] mt-0.5">Thời hạn: {campaign.final_report_open_at ? formatGMT7(campaign.final_report_open_at) : '—'} đến {campaign.final_report_close_at ? formatGMT7(campaign.final_report_close_at) : '—'} (GMT+7)</p>
                       </div>
                     </div>
                   </div>
-                ))}
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {finalReport && (
+                      <button
+                        type="button"
+                        onClick={downloadMyFinalReport}
+                        className="px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-2 whitespace-nowrap bg-white text-[#1d1d1f] border border-black/[0.08] hover:bg-[#f5f5f7]"
+                      >
+                        <Download size={14} className="text-[#0071e3]" /> Tải PDF đã nộp
+                      </button>
+                    )}
+                    <label className={`px-4 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-2 whitespace-nowrap ${
+                      finalReportWindowStatus === 'open' && !uploadingReport ? 'bg-[#0071e3] text-white cursor-pointer hover:bg-[#0077ed]' : 'bg-[#f5f5f7] text-[#86868b] cursor-not-allowed border border-black/[0.04]'
+                    }`}>
+                      {uploadingReport ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                      {finalReport ? 'Nộp lại bản mềm PDF' : 'Chọn file PDF nộp'}
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        disabled={finalReportWindowStatus !== 'open' || uploadingReport}
+                        className="hidden"
+                        onChange={uploadFinalReport}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {finalReport ? (
+                  <div className="p-4 rounded-2xl bg-[#fbfbfd] border border-black/[0.04] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                        <span className="text-xs font-bold text-[#1d1d1f]">{finalReport.original_filename}</span>
+                        <span className="text-[11px] text-[#86868b]">({formatBytes(Number(finalReport.file_size || 0))})</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ebf9ee] text-[#1d833f] border border-emerald-200/60">
+                        {reportStatusLabel(finalReport.status)}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#86868b]">
+                      Thời gian nộp: {finalReport.submitted_at ? new Date(finalReport.submitted_at).toLocaleString('vi-VN') : '-'}
+                    </div>
+                    {finalReport.lecturer_comment && (
+                      <div className="p-3 bg-[#fff8eb] border border-amber-200/60 rounded-xl text-xs text-[#b25e00]">
+                        <span className="font-bold">Nhận xét từ GVHD:</span> {finalReport.lecturer_comment}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-[#fbfbfd] border border-dashed border-black/[0.08] text-center space-y-2">
+                    <FileText size={24} className="mx-auto text-[#86868b]" />
+                    <div className="text-xs font-bold text-[#1d1d1f]">Chưa có file báo cáo nào được nộp</div>
+                    <p className="text-[11px] text-[#86868b] max-w-sm mx-auto">
+                      Vui lòng nộp báo cáo bằng định dạng PDF (tối đa 10 MB). Chỉ cần in riêng trang Phiếu đánh giá để xin nhận xét và dấu công ty, scan và gộp vào file PDF trước khi nộp.
+                    </p>
+                  </div>
+                )}
               </div>
-              <datalist id="edit-it-companies-datalist">
-                {itCompanyList.map((name, i) => <option key={i} value={name} />)}
-              </datalist>
+
+              {/* Grade Overview Bento in Report tab */}
+              <div className="rounded-3xl border border-black/[0.06] bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-bold text-[#1d1d1f]">Bảng điểm chi tiết học phần</h4>
+                  <p className="text-xs text-[#86868b] mt-0.5">
+                    {myGrade?.final_score !== null && myGrade?.final_score !== undefined
+                      ? `Điểm tổng kết: ${Number(myGrade.final_score).toFixed(1)} (${getLetterGrade(myGrade.final_score).letter}) — GPA: ${getLetterGrade(myGrade.final_score).gpa}`
+                      : 'Hội đồng và GVHD đang chấm điểm báo cáo của bạn.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/grades')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-xs active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Mở Bảng Điểm Học Phần
+                </button>
+              </div>
             </div>
           )}
-          <PaginationControls
-            total={sortedCompanies.length}
-            currentPage={companyPage}
-            pageSize={companyPageSize}
-            onPageChange={setCompanyPage}
-            label="nơi thực tập"
-          />
-
-
-        </div>}
         </div>
       </div>
 
