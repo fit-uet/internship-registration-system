@@ -852,64 +852,54 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
       : 'Chưa có GVHD';
   const finalReportSummary = finalReport ? reportStatusLabel(finalReport.status) : 'Chưa nộp';
 
-  const stageCards = [
+  const stageTabs = [
     {
       id: 'registration',
       step: '1',
       title: 'Nguyện vọng',
+      isDone: hasRegistered,
       status: hasRegistered
         ? 'Đã ghi nhận'
         : (registrationWindowStatus === 'open' ? 'Đang mở' : 'Chưa đăng ký'),
-      statusColor: hasRegistered
-        ? 'bg-emerald-50 text-emerald-700'
-        : (registrationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
-      detail: hasRegistered ? `${myRegs.length} nơi đăng ký` : 'Chưa đăng ký',
-      detailColor: 'text-slate-900',
+      statusBadgeClass: hasRegistered
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : (registrationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
     },
     {
       id: 'confirmation',
       step: '2',
       title: 'Nơi thực tập',
+      isDone: !!finalInternship,
       status: finalInternship
         ? 'Đã xác nhận'
         : (confirmationWindowStatus === 'open' ? 'Đang mở' : 'Chờ xác nhận'),
-      statusColor: finalInternship
-        ? 'bg-emerald-50 text-emerald-700'
-        : (confirmationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
-      detail: finalInternship
-        ? (finalInternship.internship_type === 'school' ? 'Tại trường' : (finalInternship.company_name === 'Công ty khác' ? (finalInternship.other_company_name || 'Công ty khác') : finalInternship.company_name))
-        : 'Chưa xác nhận',
-      detailColor: finalInternship ? 'text-blue-700' : 'text-slate-500',
+      statusBadgeClass: finalInternship
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : (confirmationWindowStatus === 'open' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
     },
     {
       id: 'advisor',
       step: '3',
       title: 'Giảng viên HD',
+      isDone: myAdvisors.length > 0,
       status: myAdvisors.length > 0
         ? 'Đã phân công'
         : (advisorRequest ? 'Chờ duyệt' : 'Chưa có'),
-      statusColor: myAdvisors.length > 0
-        ? 'bg-emerald-50 text-emerald-700'
-        : (advisorRequest ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'),
-      detail: primaryAdvisor?.lecturer_name || (myAdvisors.length > 0 ? myAdvisors[0].lecturer_name : (advisorRequest?.request_type === 'faculty_assign' ? 'Khoa phân công' : 'Chưa có GVHD')),
-      detailColor: 'text-slate-900',
+      statusBadgeClass: myAdvisors.length > 0
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : (advisorRequest ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
     },
     {
       id: 'report',
       step: '4',
       title: 'Báo cáo & Điểm',
+      isDone: finalReport?.status === 'accepted',
       status: finalReport?.status === 'accepted'
         ? 'Đã duyệt'
         : (finalReport ? 'Đã nộp' : (finalReportWindowStatus === 'open' ? 'Đang mở' : 'Chưa nộp')),
-      statusColor: finalReport?.status === 'accepted'
-        ? 'bg-emerald-50 text-emerald-700'
-        : (finalReport ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'),
-      detail: myGrade?.final_score !== null && myGrade?.final_score !== undefined
-        ? `Điểm: ${Number(myGrade.final_score).toFixed(1)}`
-        : (finalReport ? 'Đã nộp PDF' : 'Chưa nộp'),
-      detailColor: myGrade?.final_score !== null && myGrade?.final_score !== undefined
-        ? 'text-[#1b7f37]'
-        : (finalReport ? 'text-blue-700' : 'text-slate-500'),
+      statusBadgeClass: finalReport?.status === 'accepted'
+        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        : (finalReport ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'),
     },
   ];
 
@@ -917,51 +907,59 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. Student Profile Header Card */}
       {user && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-7">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               {user.picture ? (
-                <img src={user.picture} alt="Avatar" className="w-16 h-16 rounded-full border-2 border-white shadow-sm object-cover" />
+                <img src={user.picture} alt="Avatar" className="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover" />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
-                  <GraduationCap size={26} />
+                <div className="w-14 h-14 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
+                  <GraduationCap size={24} />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1 flex items-center gap-1.5">
-                  <GraduationCap size={14} className="text-blue-600" /> Sinh viên thực tập · Kỳ {campaign.year}
+                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 mb-0.5 flex items-center gap-1.5">
+                  <GraduationCap size={13} className="text-blue-600" /> Sinh viên thực tập · Kỳ {campaign.year}
                 </p>
-                <h2 className="text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
-                <p className="text-sm text-slate-500 mt-1 break-all">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{user.name}</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 break-all">
                   MSSV: <span className="font-semibold text-slate-800">{user.student_id || studentIdFromEmail}</span> · Lớp: <span className="font-semibold text-slate-800">{user.class_name || 'Chưa cập nhật'}</span> · {user.email}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => navigate('/profile')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="bg-white text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
-                <UserIcon size={14} className="text-slate-500" /> Cập nhật hồ sơ
+                <UserIcon size={13} className="text-slate-500" /> Cập nhật hồ sơ
               </button>
               <button
                 onClick={() => navigate('/plan')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="bg-white text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
-                <FileText size={14} className="text-slate-500" /> Kế hoạch triển khai
+                <FileText size={13} className="text-slate-500" /> Kế hoạch triển khai
               </button>
+              <a
+                href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+              >
+                <ExternalLink size={13} className="text-slate-500" /> Biểu mẫu Drive
+              </a>
               <button
                 onClick={() => navigate('/faq')}
-                className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                className="bg-white text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
               >
-                <CircleHelp size={14} className="text-slate-500" /> Xem FAQ
+                <CircleHelp size={13} className="text-slate-500" /> Xem FAQ
               </button>
               {user?.role === 'admin' && (
                 <button
                   onClick={() => navigate('/admin')}
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer hover:shadow active:scale-[0.98]"
                 >
-                  <Shield size={14} /> Quản trị Khoa
+                  <Shield size={13} /> Quản trị Khoa
                 </button>
               )}
             </div>
@@ -971,30 +969,30 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
 
       {/* 2. Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Sidebar (lg:col-span-4): Trạng thái hệ thống & Quy định đăng ký */}
-        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
+        {/* Left Sidebar (lg:col-span-3): Trạng thái hệ thống & Quy định đăng ký */}
+        <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-6">
           {/* Card 1: Trạng thái hệ thống */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-blue-600" />
-                <h3 className="text-sm font-bold text-slate-900">Trạng thái hệ thống</h3>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <Clock size={15} className="text-blue-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Trạng thái hệ thống</h3>
               </div>
-              <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">GMT+7</span>
+              <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">GMT+7</span>
             </div>
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {visibleCampaignStatusItems.map((item) => (
-                <div key={item.label} className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-800 truncate">{item.label}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1.5 border ${campaignStatusColor(item.status)}`}>
+                <div key={item.label} className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-semibold text-slate-800 truncate">{item.label}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 border ${campaignStatusColor(item.status)}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${campaignStatusDot(item.status)}`} />
                       {campaignStatusText(item.status)}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1.5 flex items-center justify-between">
-                    <span>Hạn chót:</span>
-                    <span className="font-semibold text-slate-700">
+                  <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                    <span>Hạn:</span>
+                    <span className="font-medium text-slate-700">
                       {item.closeAt ? formatGMT7(item.closeAt) : 'Chưa thiết lập'}
                     </span>
                   </div>
@@ -1004,15 +1002,15 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
           </div>
 
           {/* Card 2: Quy định đăng ký */}
-          <details open className="group bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <summary className="flex items-center justify-between font-bold text-slate-900 cursor-pointer select-none text-sm">
-              <span className="flex items-center gap-2">
-                <BookOpen size={16} className="text-blue-600" />
-                Quy định đăng ký
+          <details open className="group bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <summary className="flex items-center justify-between font-bold text-slate-800 cursor-pointer select-none text-xs uppercase tracking-wider">
+              <span className="flex items-center gap-1.5">
+                <BookOpen size={15} className="text-blue-600" />
+                Quy định thực tập
               </span>
-              <ChevronDown size={16} className="text-slate-400 group-open:rotate-180 transition-transform" />
+              <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform" />
             </summary>
-            <div className="mt-3.5 pt-3.5 border-t border-slate-100 text-xs text-slate-600 leading-relaxed max-h-72 overflow-y-auto pr-1">
+            <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed max-h-72 overflow-y-auto pr-1">
               {registrationRulesMarkdown.trim() ? (
                 <RegistrationRulesMarkdown content={registrationRulesMarkdown} />
               ) : (
@@ -1020,77 +1018,49 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
               )}
             </div>
           </details>
-
-          {/* Card 3: Biểu mẫu & Hỗ trợ */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3.5 text-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <FileCheck size={16} className="text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">Biểu mẫu & Hỗ trợ</h3>
-            </div>
-            
-            <a
-              href="https://drive.google.com/drive/u/0/folders/14Fm4yP-2Psj_qMpzI0pBARkcww1sblA3"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-3 rounded-xl bg-blue-50/60 hover:bg-blue-50 border border-blue-100 text-blue-700 font-semibold text-xs transition-all hover:shadow-xs group"
-            >
-              <span className="flex items-center gap-2">
-                <FileText size={15} className="text-blue-600" />
-                Mẫu báo cáo của Khoa (Drive)
-              </span>
-              <ExternalLink size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform text-blue-500" />
-            </a>
-
-            <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 text-slate-600 space-y-1.5">
-              <div className="flex items-start gap-1.5">
-                <span className="font-semibold text-slate-700 shrink-0">Giáo vụ:</span>
-                <span>Cô Bảo (<a href="mailto:baoptm@vnu.edu.vn" className="text-blue-600 hover:underline">baoptm@vnu.edu.vn</a>)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-700 shrink-0">Kỹ thuật:</span>
-                <span className="font-mono text-slate-700 font-medium">0961309175</span>
-              </div>
-            </div>
-          </div>
         </aside>
 
-        {/* Right Content Column (lg:col-span-8): Stepper Bar & Active Stage Workspace */}
-        <div className="lg:col-span-8 min-w-0 space-y-6">
-          {/* 4 Giai đoạn thực tập Stepper Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {stageCards.map((item) => {
-              const isSelected = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedMilestoneTab(item.id as any)}
-                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/40 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-xs'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1.5 w-full">
-                    <span className={`text-[11px] font-bold uppercase tracking-wider truncate ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>
-                      {item.step}. {item.title}
-                    </span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${item.statusColor}`}>
-                      {item.status}
-                    </span>
-                  </div>
-                  <div className="mt-2.5">
-                    <div className={`text-sm font-bold truncate ${item.detailColor}`} title={item.detail}>
-                      {item.detail}
+        {/* Right Content Column (lg:col-span-9): Stepper Navigation & Stage Workspace */}
+        <div className="lg:col-span-9 min-w-0 space-y-4">
+          {/* 4 Giai đoạn thực tập - Sleek Stepper Navigation Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-1.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+              {stageTabs.map((tab) => {
+                const isSelected = currentTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSelectedMilestoneTab(tab.id as any)}
+                    className={`py-2.5 px-3 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
+                      isSelected
+                        ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200/80 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                        isSelected
+                          ? 'bg-blue-600 text-white'
+                          : tab.isDone
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {tab.isDone ? <CheckCircle2 size={12} /> : tab.step}
+                      </span>
+                      <span className="text-xs truncate">{tab.title}</span>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${tab.statusBadgeClass}`}>
+                      {tab.status}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Active Stage Workspace */}
-          <main className="space-y-6">
+          <main className="space-y-4">
         {myRegsError && (
           <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 leading-relaxed shadow-xs">
             <strong>Hệ thống chưa kiểm tra được danh sách đăng ký của bạn.</strong>
