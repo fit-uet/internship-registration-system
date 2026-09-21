@@ -501,8 +501,9 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                 </div>
 
                 <p className="text-[10px] text-slate-400 text-center leading-tight">
-                  Điểm Đánh giá của DN/GVHD (60%) căn cứ theo Phiếu đánh giá có dấu công ty được scan gộp trong file PDF báo cáo của sinh viên.
+                  Điểm Đánh giá của DN căn cứ theo Phiếu đánh giá có dấu công ty được scan gộp trong file PDF báo cáo của sinh viên.
                 </p>
+
 
 
                 {/* Điểm tổng kết */}
