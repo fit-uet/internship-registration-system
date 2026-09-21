@@ -154,10 +154,8 @@ export function FinalReportAdmin({ token }: { token: string }) {
                 Quản lý Báo cáo thực tập
                 <PageDescriptionTooltip description="Theo dõi báo cáo PDF cuối kỳ của sinh viên đã xác nhận nơi thực tập, tải file và duyệt trạng thái." />
               </h1>
-              <p className="text-xs text-[#86868b] mt-0.5 font-medium">
-                Theo dõi tiến độ nộp quyển PDF, kiểm tra chữ ký xác nhận của doanh nghiệp
-              </p>
             </div>
+
           </div>
         </div>
 
