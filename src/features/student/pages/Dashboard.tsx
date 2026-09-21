@@ -1181,9 +1181,10 @@ export function Dashboard({ user, setUser, token, onAuthExpired }: { user: any, 
                       <div className="text-base font-semibold text-slate-900 mt-1">{scoreText(myGrade.report_score)}</div>
                     </div>
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="text-xs text-slate-500 font-medium">Đơn vị (60%)</div>
+                      <div className="text-xs text-slate-500 font-medium">Đánh giá của DN/GVHD (60%)</div>
                       <div className="text-base font-semibold text-slate-900 mt-1">{scoreText(myGrade.company_score)}</div>
                     </div>
+
                   </div>
                 ) : (
                   <div className="text-xs text-slate-500 font-medium">

@@ -464,12 +464,12 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                   {[
                     { label: 'Định kỳ', weight: '20%', value: progress, set: setProgress, field: 'progress' },
                     { label: 'Báo cáo', weight: '20%', value: report, set: setReport, field: 'report' },
-                    { label: 'Đơn vị', weight: '60%', value: company, set: setCompany, field: 'company' },
+                    { label: 'Đánh giá của DN/GVHD', weight: '60%', value: company, set: setCompany, field: 'company' },
                   ].map(({ label, weight, value, set, field }) => (
                     <div key={field} className="space-y-1">
-                      <div className="flex items-baseline justify-between text-[11px]">
-                        <span className="font-semibold text-slate-600">{label}</span>
-                        <span className="text-slate-400 text-[10px]">{weight}</span>
+                      <div className="min-h-[28px] flex items-end justify-between text-[11px] gap-1">
+                        <span className="font-semibold text-slate-600 leading-tight" title={label}>{label}</span>
+                        <span className="text-slate-400 text-[10px] shrink-0">{weight}</span>
                       </div>
                       <input
                         type="number"
@@ -501,8 +501,9 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                 </div>
 
                 <p className="text-[10px] text-slate-400 text-center leading-tight">
-                  Điểm Đơn vị (60%) căn cứ theo Phiếu đánh giá có dấu công ty được scan gộp trong file PDF báo cáo của sinh viên.
+                  Điểm Đánh giá của DN/GVHD (60%) căn cứ theo Phiếu đánh giá có dấu công ty được scan gộp trong file PDF báo cáo của sinh viên.
                 </p>
+
 
                 {/* Điểm tổng kết */}
                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 flex items-center justify-between">
