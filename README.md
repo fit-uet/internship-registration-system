@@ -39,6 +39,7 @@ Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 - Bảng điểm cuối cùng cần xuất được XLSX để Khoa tổng hợp và nhập hệ thống.
 - Các học phần `INT4002`, `INT3508`, `INT4003` dùng chung quy trình, mốc thời gian và rubric trong hệ thống.
 - Cần có thông báo email tự động khi các trạng thái quan trọng thay đổi, ví dụ: đăng ký được duyệt/từ chối, mở hạn xác nhận nơi thực tập, sinh viên đã xác nhận nơi thực tập, phân công GVHD, nhắc hạn nộp báo cáo final và giảng viên nộp điểm.
+- Khi admin soạn thông báo thủ công và chọn **“Hiển thị trên website và gửi email theo quota”**, thông báo phải hiển thị trên website ngay; hệ thống gửi email ngay cho số người nhận còn nằm trong quota ngày và tự động đưa phần vượt quota vào hàng đợi để gửi sau.
 
 ## 2. Công nghệ và triển khai
 
@@ -60,7 +61,7 @@ Backend:
 - Tích hợp Google Sheets bằng Service Account.
 - Báo cáo final PDF và file đính kèm trong chat được lưu trên Cloudflare R2 qua S3-compatible API. Turso chỉ lưu metadata trong `final_reports`, `chat_messages` và `chat_group_messages`. Khi chạy local chưa cấu hình R2, backend có fallback lưu vào `scratch/final-reports` và `scratch/chat-attachments`; khi chạy production bắt buộc cấu hình R2.
 - Chat hỗ trợ cả trao đổi 1-1 giữa sinh viên và giảng viên hướng dẫn, và nhóm chat theo từng giảng viên với toàn bộ sinh viên được phân công cho giảng viên đó. Trạng thái đọc của nhóm dùng bảng `chat_group_message_reads` để không nhân bản một tin nhắn cho từng sinh viên.
-- Notification history ghi vào bảng `notifications`. Email thật ưu tiên gửi thông báo cho sinh viên qua Brevo theo hàng đợi, chia nhỏ batch để phù hợp Brevo Free 300 email/ngày; Resend chỉ còn là provider dự phòng nếu cấu hình thủ công. Email gửi doanh nghiệp tạm thời được soạn sẵn qua Gmail/app Mail để Khoa gửi thủ công vì chưa xác thực được domain trường trên Brevo.
+- Notification history ghi vào bảng `notifications`. Với thông báo thủ công, hệ thống gửi email ngay trong phần quota ngày còn lại và giữ phần vượt quota trong hàng đợi; hàng đợi tiếp tục được xử lý theo batch để phù hợp Brevo Free 300 email/ngày. Resend chỉ còn là provider dự phòng nếu cấu hình thủ công. Email gửi doanh nghiệp tạm thời được soạn sẵn qua Gmail/app Mail để Khoa gửi thủ công vì chưa xác thực được domain trường trên Brevo.
 
 Các biến/secrets chính:
 
@@ -77,17 +78,19 @@ Các biến/secrets chính:
 - `CHAT_DAILY_UPLOAD_MB`, mặc định `50`, giới hạn dung lượng file chat một tài khoản được gửi trong ngày.
 - `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY` nếu muốn gửi email thật qua Brevo.
 - `EMAIL_DAILY_SEND_CAP`, ví dụ `250`, để chừa quota phát sinh trong giới hạn Brevo Free 300 email/ngày.
-- `EMAIL_BATCH_SIZE`, ví dụ `25`, số email gửi mỗi lần bấm gửi hàng đợi.
-- `EMAIL_SEND_IMMEDIATE=false` để các notification hàng loạt chỉ vào queue, không gửi ngay.
+- `EMAIL_BATCH_SIZE`, ví dụ `25`, số email tối đa gửi mỗi lần xử lý hàng đợi; không giới hạn số email gửi ngay của thao tác thủ công nếu vẫn còn quota ngày.
+- `EMAIL_SEND_IMMEDIATE=false` để kiểm soát việc gửi ngay của các notification tự động phát sinh từ nghiệp vụ. Lựa chọn thủ công **“Hiển thị trên website và gửi email theo quota”** luôn thử gửi trong quota, không phụ thuộc biến này.
 - `EMAIL_FROM`, ví dụ `FIT UET Internship <no-reply@domain.edu.vn>`, cần là sender/domain đã xác minh ở provider.
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` nếu dùng Google Sheets.
 
 Gửi email thật:
 
-- Mặc định hệ thống luôn ghi bản ghi vào `notifications` với trạng thái `queued`.
-- Admin vào site Thông báo và bấm `Gửi hàng đợi` để gửi từng batch theo `EMAIL_BATCH_SIZE` và `EMAIL_DAILY_SEND_CAP`.
+- Mọi thông báo đều được ghi vào `notifications` để hiển thị trên website và theo dõi lịch sử gửi.
+- Trong form soạn thông báo thủ công, phương thức mặc định là **“Hiển thị trên website và gửi email theo quota”**. Hệ thống tính quota còn lại bằng `EMAIL_DAILY_SEND_CAP - số email đã gửi thành công trong ngày`, gửi ngay tối đa phần quota còn lại và giữ các thông báo vượt quota ở trạng thái `queued`.
+- Nếu quota còn lại bằng `0`, toàn bộ thông báo vẫn hiển thị trên website và được đưa vào hàng đợi; thao tác tạo thông báo không bị từ chối.
+- Admin vào site Thông báo và bấm `Gửi hàng đợi` để gửi tiếp từng batch theo `EMAIL_BATCH_SIZE` và quota còn lại của ngày.
 - Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`.
-- Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công.
+- Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công; thông báo trên website vẫn được tạo bình thường.
 - Nếu Brevo báo lỗi `unrecognised IP address`, vào Brevo > Security > Authorised IPs và thêm IP máy chủ trong thông báo lỗi. Với Render Free, outbound IP có thể thay đổi nên cần kiểm tra lại nếu lỗi xuất hiện lại; phương án ổn định hơn là dùng dịch vụ có static outbound IP hoặc tắt giới hạn Authorized IPs trên Brevo nếu chính sách cho phép.
 Chạy local:
 
@@ -996,7 +999,16 @@ Tiêu chí nghiệm thu:
 
 ### 9.7. P5 - Email tự động và lịch sử thông báo
 
-Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn. Phần lõi đã được triển khai: hệ thống ghi notification history khi có sự kiện quan trọng, có trang admin để xem/lọc/xuất XLSX/đánh dấu trạng thái, và có thể gửi email thật qua Brevo theo hàng đợi khi cấu hình provider.
+Mục tiêu: giảm thao tác thủ công và giúp các bên không bỏ lỡ hạn. Hệ thống ghi notification history khi có sự kiện quan trọng, có trang admin để xem/lọc/xuất XLSX/đánh dấu trạng thái, gửi ngay trong quota ngày và dùng hàng đợi cho phần vượt quota khi đã cấu hình provider.
+
+Yêu cầu đối với thông báo thủ công:
+
+- Form có hai phương thức phát hành: **“Hiển thị trên website và gửi email theo quota”** (mặc định) và **“Chỉ hiển thị trên website”**.
+- Với phương thức mặc định, bản ghi hiển thị trên website phải được tạo cho tất cả người nhận hợp lệ trước khi xử lý email.
+- Hệ thống gửi email ngay theo thứ tự tạo thông báo cho đến khi dùng hết quota còn lại trong ngày. Các bản ghi còn lại giữ trạng thái `queued`; không được bỏ qua, xóa hoặc chuyển sang `failed` chỉ vì hết quota.
+- Nếu provider trả về giới hạn tốc độ/quota trong lúc gửi, thông báo chưa gửi phải tiếp tục ở trạng thái `queued` để thử lại sau.
+- Với phương thức **“Chỉ hiển thị trên website”**, hệ thống không gọi email provider và lưu trạng thái `website_only`.
+- Kết quả thao tác phải cho admin biết tổng số thông báo đã tạo, số email gửi thành công, số đang chờ và số gửi lỗi.
 
 Thiết kế dữ liệu:
 
@@ -1031,13 +1043,14 @@ Các loại email ưu tiên:
 
 Thiết kế API/worker:
 
-- Khi sự kiện xảy ra, ghi bản ghi `notifications` với trạng thái `queued`.
+- Khi sự kiện tự động xảy ra, ghi bản ghi `notifications` với trạng thái `queued`; việc gửi ngay của nhóm này tiếp tục theo cấu hình `EMAIL_SEND_IMMEDIATE`.
+- `POST /api/admin/notifications/manual` nhận `delivery_mode = website_and_email | website_only`. Với `website_and_email`, endpoint tạo đủ bản ghi rồi gửi ngay trong quota còn lại; phần vượt quota giữ `queued` và trả về các bộ đếm `created`, `sent`, `queued`, `failed`.
 - Nếu chưa chọn provider, vẫn lưu lịch sử thông báo để sau này gửi lại hoặc đánh dấu thủ công.
 - Với Brevo Free, đặt `EMAIL_DAILY_SEND_CAP=250` và `EMAIL_BATCH_SIZE=25`; khoảng 900 sinh viên sẽ được gửi trong 4 ngày để không vượt mức 300 email/ngày.
 - `GET /api/admin/notifications`: admin xem lịch sử thông báo.
 - `GET /api/admin/notifications/stats`: admin xem provider, số đã gửi hôm nay, quota còn lại và số queued.
 - `POST /api/admin/notifications/send-queued`: gửi một batch email đang chờ theo giới hạn/ngày.
-- `PUT /api/admin/notifications/:id/status`: admin cập nhật `queued/sent/failed`.
+- `PUT /api/admin/notifications/:id/status`: admin cập nhật `queued/sent/failed/website_only`.
 - `POST /api/admin/notifications/final-confirmation-open`: tạo thông báo mở xác nhận nơi thực tập cho sinh viên chưa xác nhận.
 - `POST /api/admin/notifications/final-report-reminders`: tạo thông báo nhắc nộp báo cáo final cho sinh viên chưa nộp hoặc cần nộp lại.
 - Có thể thêm cron job Cloudflare Worker để gửi nhắc hạn theo ngày.
@@ -1055,6 +1068,11 @@ Tiêu chí nghiệm thu:
 - Mỗi sự kiện quan trọng tạo được notification.
 - Admin xem được lịch sử gửi và lỗi gửi.
 - Hệ thống không chặn nghiệp vụ chính nếu gửi email lỗi.
+- Phương thức mặc định trên form hiển thị đúng nhãn **“Hiển thị trên website và gửi email theo quota”**; nhãn cũ không còn xuất hiện.
+- Nếu quota còn đủ, email của thông báo thủ công được gửi ngay và trạng thái chuyển `sent`.
+- Nếu số người nhận lớn hơn quota còn lại, đúng phần vượt quota giữ trạng thái `queued` và toàn bộ người nhận vẫn xem được thông báo trên website.
+- Nếu quota đã hết hoặc provider chưa được cấu hình, thao tác vẫn tạo thông báo thành công và đưa email vào hàng đợi.
+- Không gửi vượt `EMAIL_DAILY_SEND_CAP`, kể cả khi nhiều thao tác gửi được thực hiện liên tiếp.
 
 ### 9.8. Thứ tự triển khai khuyến nghị
 

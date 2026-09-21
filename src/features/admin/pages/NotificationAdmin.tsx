@@ -130,7 +130,7 @@ export function NotificationAdmin({ token }: { token: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          ids: scope === 'filtered' ? filteredQueuedIds : undefined,
+          notification_ids: scope === 'filtered' ? filteredQueuedIds : undefined,
           mode,
         }),
       });
@@ -160,7 +160,17 @@ export function NotificationAdmin({ token }: { token: string }) {
       });
       const data = await res.json();
       if (!res.ok) return alert(data.error || 'Tạo thông báo thất bại.');
-      alert(`Đã tạo ${data.count || 1} thông báo thành công.`);
+      const created = Number(data.created ?? data.count ?? 0);
+      const sent = Number(data.sent || 0);
+      const queued = Number(data.queued || 0);
+      const failed = Number(data.failed || 0);
+      const resultLines = [`Đã tạo ${created} thông báo.`];
+      if (manualNotice.delivery_mode === 'website_and_email') {
+        resultLines.push(`Email đã gửi: ${sent}.`);
+        resultLines.push(`Đang chờ theo quota: ${queued}.`);
+        if (failed > 0) resultLines.push(`Gửi lỗi: ${failed}.`);
+      }
+      alert(resultLines.join('\n'));
       setManualNotice((prev) => ({ ...prev, subject: '', body: '', recipient: '' }));
       setShowManualComposer(false);
       fetchRows();
@@ -426,7 +436,9 @@ export function NotificationAdmin({ token }: { token: string }) {
               </div>
               <h2 className="text-sm font-bold text-[#1d1d1f] tracking-tight">Soạn thông báo & Email gửi hàng loạt</h2>
             </div>
-            <span className="text-xs text-[#86868b]">Đưa vào hàng đợi để gửi theo quota</span>
+            <span className="text-xs text-[#86868b]">
+              Gửi ngay trong quota, phần vượt quota tự động vào hàng đợi
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -459,9 +471,14 @@ export function NotificationAdmin({ token }: { token: string }) {
                 onChange={(e) => setManualNotice((prev) => ({ ...prev, delivery_mode: e.target.value }))}
                 className="w-full border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-xs bg-[#fbfbfd] focus:bg-white text-[#1d1d1f] outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3]"
               >
-                <option value="website_and_email">Hiển thị trên website và đưa vào hàng đợi email</option>
-                <option value="website_only">Chỉ hiển thị trên website, không gửi email</option>
+                <option value="website_and_email">Hiển thị trên website và gửi email theo quota</option>
+                <option value="website_only">Chỉ hiển thị trên website</option>
               </select>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[#86868b]">
+                {manualNotice.delivery_mode === 'website_and_email'
+                  ? `Email được gửi ngay trong quota còn lại${stats ? ` (${stats.remaining_today || 0})` : ''}; phần vượt quota sẽ chờ gửi sau.`
+                  : 'Thông báo chỉ xuất hiện trên website và không gọi dịch vụ email.'}
+              </p>
             </div>
           </div>
 
@@ -517,7 +534,7 @@ export function NotificationAdmin({ token }: { token: string }) {
               className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] active:scale-[0.98] transition-all cursor-pointer shadow-xs disabled:opacity-50"
             >
               {creatingManual ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-              Đưa vào hàng đợi
+              {creatingManual ? 'Đang gửi...' : 'Gửi thông báo'}
             </button>
           </div>
         </div>

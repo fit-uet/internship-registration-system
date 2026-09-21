@@ -263,6 +263,13 @@ Giao diện Admin tối ưu cho việc kiểm soát dữ liệu lớn, thẩm đ
    - Bảng danh sách công ty thẩm định nội bộ với đầy đủ công cụ CRUD, đối soát nhanh với danh sách sinh viên tự liên hệ.
 4. **Màn Cấu Hình Đợt & Kế Hoạch Triển Khai**:
    - Trình soạn thảo kế hoạch hỗ trợ Markdown và nhập từ Word `.docx`, hiển thị trực quan và sạch sẽ.
+5. **Màn Thông Báo & Email**:
+   - Trong trường **Phương thức phát hành**, lựa chọn mặc định phải có nhãn **“Hiển thị trên website và gửi email theo quota”**; không sử dụng lại nhãn cũ.
+   - Lựa chọn còn lại là **“Chỉ hiển thị trên website”**.
+   - Dòng mô tả ngắn phải giải thích rõ: email được gửi ngay trong quota ngày còn lại, còn phần vượt quota tự động chuyển vào hàng đợi. Không dùng câu chữ khiến admin hiểu rằng mọi email luôn phải chờ trong hàng đợi.
+   - Nút hành động chính dùng nhãn **“Gửi thông báo”**. Trong lúc xử lý hiển thị trạng thái loading và khóa thao tác lặp.
+   - Sau khi gửi, hiển thị kết quả riêng biệt: tổng số thông báo đã tạo, email đã gửi, email đang chờ và email lỗi. Trường hợp hết quota vẫn dùng thông báo thành công kèm số lượng đang chờ, không hiển thị như một lỗi nghiệp vụ.
+   - Khu vực thống kê quota tiếp tục hiển thị số đã gửi hôm nay, giới hạn ngày và quota còn lại để admin dự đoán số email sẽ được gửi ngay trước khi xác nhận.
 
 ---
 

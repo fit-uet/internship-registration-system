@@ -46,3 +46,16 @@ The entire application adheres to the **Apple Human Interface Guidelines (HIG)**
 - **Reusable UI primitives**: Live in `src/shared/ui` and are exported through `src/shared/index.tsx`.
 
 The backend remains compatible with both the Node server and Cloudflare Worker entry points; this refactor intentionally does not change API contracts or business behavior.
+
+## Notification delivery flow
+
+The manual notification composer supports two delivery modes:
+
+- `website_and_email` — shown in the UI as **“Hiển thị trên website và gửi email theo quota”** and selected by default.
+- `website_only` — shown in the UI as **“Chỉ hiển thị trên website”**.
+
+For `website_and_email`, the backend first persists one notification for every valid recipient so website delivery does not depend on the email provider. It then calculates the remaining daily capacity as `EMAIL_DAILY_SEND_CAP - sent_today` and attempts immediate email delivery in creation order while capacity remains. Notifications beyond that capacity stay `queued` and are eligible for the existing queue processor on a later run or day.
+
+Quota exhaustion is not an error: it must not reject the request or mark overflow notifications as `failed`. A provider rate-limit response also keeps an unsent notification in `queued`; other provider errors use `failed` with diagnostic details. The manual endpoint returns separate `created`, `sent`, `queued`, and `failed` counts so the admin UI can report the outcome accurately.
+
+`EMAIL_BATCH_SIZE` only caps an explicit queue-processing run. `EMAIL_SEND_IMMEDIATE` continues to control automatic business-event notifications and does not disable quota-aware immediate delivery explicitly selected in the manual composer. The Node server and Cloudflare Worker must implement the same state transitions and quota rules.

@@ -755,7 +755,7 @@ async function emailSentTodayCount() {
   return Number(row?.count || 0);
 }
 
-async function createNotification(data: {
+type NotificationInput = {
   user_id?: number | null;
   recipient_email: string;
   cc_emails?: string[];
@@ -765,17 +765,25 @@ async function createNotification(data: {
   status?: 'queued' | 'website_only';
   send_now?: boolean;
   no_queue_on_send_skip?: boolean;
-}) {
+};
+
+async function insertNotification(data: NotificationInput) {
+  if (!data.recipient_email) return null;
+  const status = data.status === 'website_only' ? 'website_only' : 'queued';
+  const result = await db.execute({
+    sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+    args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
+  });
+  return { id: Number(result.lastInsertRowid), status } as const;
+}
+
+async function createNotification(data: NotificationInput) {
   try {
-    if (!data.recipient_email) return;
-    const status = data.status === 'website_only' ? 'website_only' : 'queued';
-    const result = await db.execute({
-      sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
-      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
-    });
-    if (status === 'queued' && (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true')) {
-      const notificationId = Number(result.lastInsertRowid);
+    const notification = await insertNotification(data);
+    if (!notification) return;
+    if (notification.status === 'queued' && (data.send_now || process.env.EMAIL_SEND_IMMEDIATE === 'true')) {
+      const notificationId = notification.id;
       const sendStatus = await sendNotificationEmail(notificationId, data);
       if (data.no_queue_on_send_skip && sendStatus === 'queued') {
         await db.execute({
@@ -789,7 +797,7 @@ async function createNotification(data: {
       }
       return sendStatus;
     }
-    return status;
+    return notification.status;
   } catch (e) {
     // Notification failures must not block the main business flow.
   }
@@ -893,27 +901,42 @@ async function sendQueuedNotificationBatch(options: { requestedLimit?: number; n
   const sentToday = await emailSentTodayCount();
   const remainingToday = Math.max(0, emailDailySendCap() - sentToday);
   const batchLimit = options.ignoreBatchSize ? remainingToday : emailBatchSize();
-  const requestedLimit = Number(options.requestedLimit || batchLimit);
-  const idLimit = options.notificationIds?.length ? options.notificationIds.length : requestedLimit;
-  const limit = Math.max(0, Math.min(requestedLimit, idLimit, batchLimit, remainingToday));
-  if (limit === 0) {
-    return { sent: 0, failed: 0, skipped: 0, remaining_today: remainingToday, message: 'Đã đạt giới hạn gửi email hôm nay.' };
-  }
-
+  const hasSelectedIds = Array.isArray(options.notificationIds);
   const normalizedIds = Array.from(new Set((options.notificationIds || [])
     .map(id => Number(id))
     .filter(id => Number.isInteger(id) && id > 0)));
-  const rows = normalizedIds.length > 0
-    ? (await db.execute({
-      sql: `SELECT id, recipient_email, subject, body
-            FROM notifications
-            WHERE status = 'queued'
-              AND id IN (${normalizedIds.map(() => '?').join(',')})
-            ORDER BY created_at ASC, id ASC
-            LIMIT ?`,
-      args: [...normalizedIds, limit],
-    })).rows as any[]
-    : (await db.execute({
+  const requestedLimit = options.requestedLimit === undefined
+    ? (hasSelectedIds ? normalizedIds.length : batchLimit)
+    : Math.max(0, Number(options.requestedLimit) || 0);
+  const idLimit = hasSelectedIds ? normalizedIds.length : requestedLimit;
+  const limit = Math.max(0, Math.min(requestedLimit, idLimit, batchLimit, remainingToday));
+  if (limit === 0) {
+    return {
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      remaining_today: remainingToday,
+      message: remainingToday === 0 ? 'Đã đạt giới hạn gửi email hôm nay.' : 'Không có thông báo phù hợp để gửi.',
+    };
+  }
+
+  let rows: any[];
+  if (hasSelectedIds) {
+    const selectedRows: any[] = [];
+    for (let offset = 0; offset < normalizedIds.length; offset += DB_BATCH_SIZE) {
+      const idChunk = normalizedIds.slice(offset, offset + DB_BATCH_SIZE);
+      const chunkRows = (await db.execute({
+        sql: `SELECT id, recipient_email, subject, body
+              FROM notifications
+              WHERE status = 'queued'
+                AND id IN (${idChunk.map(() => '?').join(',')})`,
+        args: idChunk,
+      })).rows as any[];
+      selectedRows.push(...chunkRows);
+    }
+    rows = selectedRows.sort((a, b) => Number(a.id) - Number(b.id)).slice(0, limit);
+  } else {
+    rows = (await db.execute({
       sql: `SELECT id, recipient_email, subject, body
             FROM notifications
             WHERE status = 'queued'
@@ -921,6 +944,7 @@ async function sendQueuedNotificationBatch(options: { requestedLimit?: number; n
             LIMIT ?`,
       args: [limit],
     })).rows as any[];
+  }
 
   let sent = 0;
   let failed = 0;
@@ -5903,7 +5927,11 @@ async function startServer() {
     if (provider === 'brevo' && !process.env.BREVO_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình BREVO_API_KEY.' });
     if (provider === 'resend' && !process.env.RESEND_API_KEY) return res.status(400).json({ error: 'Chưa cấu hình RESEND_API_KEY.' });
     if (!process.env.EMAIL_FROM && !process.env.NOTIFICATION_EMAIL_FROM) return res.status(400).json({ error: 'Chưa cấu hình EMAIL_FROM.' });
-    const notificationIds = Array.isArray(req.body?.notification_ids) ? req.body.notification_ids : undefined;
+    const notificationIds = Array.isArray(req.body?.notification_ids)
+      ? req.body.notification_ids
+      : Array.isArray(req.body?.ids)
+        ? req.body.ids
+        : undefined;
     const result = await sendQueuedNotificationBatch({
       requestedLimit: Number(req.body?.limit || 0) || undefined,
       notificationIds,
@@ -6011,6 +6039,28 @@ async function startServer() {
       if (!body) return res.status(400).json({ error: 'Nội dung không được để trống.' });
       if (!['website_and_email', 'website_only'].includes(deliveryMode)) return res.status(400).json({ error: 'Kiểu gửi thông báo không hợp lệ.' });
 
+      const notificationIds: number[] = [];
+      const persistManualNotification = async (data: NotificationInput) => {
+        const notification = await insertNotification(data);
+        if (notification) notificationIds.push(notification.id);
+      };
+      const manualDeliveryResult = async () => {
+        if (deliveryMode === 'website_only') {
+          return { created: notificationIds.length, sent: 0, queued: 0, failed: 0 };
+        }
+        const delivery = await sendQueuedNotificationBatch({
+          requestedLimit: notificationIds.length,
+          notificationIds,
+          ignoreBatchSize: true,
+        });
+        return {
+          created: notificationIds.length,
+          sent: delivery.sent,
+          queued: Math.max(0, notificationIds.length - delivery.sent - delivery.failed),
+          failed: delivery.failed,
+        };
+      };
+
       if (target === 'system_all') {
         const result = await db.execute({
           sql: `
@@ -6019,7 +6069,17 @@ async function startServer() {
           `,
           args: [subject, body, req.user.id],
         });
-        if (deliveryMode === 'website_only') return res.json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+        if (deliveryMode === 'website_only') {
+          return res.json({
+            success: true,
+            count: 1,
+            created: 1,
+            sent: 0,
+            queued: 0,
+            failed: 0,
+            id: Number(result.lastInsertRowid),
+          });
+        }
 
         const users = (await db.execute(`
           SELECT id as user_id, email, personal_email, role
@@ -6027,11 +6087,10 @@ async function startServer() {
           WHERE email IS NOT NULL AND trim(email) != ''
           ORDER BY role ASC, name ASC
         `)).rows as any[];
-        let count = 0;
         for (const row of users) {
           const recipient = row.personal_email || row.email;
           if (!recipient) continue;
-          await createNotification({
+          await persistManualNotification({
             user_id: Number(row.user_id),
             recipient_email: recipient,
             type: row.role === 'lecturer' ? 'manual_lecturer_notice' : 'manual_student_notice',
@@ -6039,9 +6098,14 @@ async function startServer() {
             body,
             status: 'queued',
           });
-          count++;
         }
-        return res.json({ success: true, count, system_notification_id: Number(result.lastInsertRowid) });
+        const delivery = await manualDeliveryResult();
+        return res.json({
+          success: true,
+          count: delivery.created,
+          ...delivery,
+          system_notification_id: Number(result.lastInsertRowid),
+        });
       }
 
       let rows: any[] = [];
@@ -6115,11 +6179,10 @@ async function startServer() {
         return res.status(400).json({ error: 'Nhóm nhận thông báo không hợp lệ.' });
       }
 
-      let count = 0;
       for (const row of rows) {
         const recipient = row.personal_email || row.email;
         if (!recipient) continue;
-        await createNotification({
+        await persistManualNotification({
           user_id: row.user_id ? Number(row.user_id) : null,
           recipient_email: recipient,
           type: target === 'lecturers' || row.role === 'lecturer' ? 'manual_lecturer_notice' : target === 'single_account' ? 'manual_direct_notice' : 'manual_student_notice',
@@ -6127,9 +6190,9 @@ async function startServer() {
           body,
           status: deliveryMode === 'website_only' ? 'website_only' : 'queued',
         });
-        count++;
       }
-      res.json({ success: true, count });
+      const delivery = await manualDeliveryResult();
+      res.json({ success: true, count: delivery.created, ...delivery });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

@@ -13,6 +13,9 @@ type Env = {
   GOOGLE_PRIVATE_KEY?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  EMAIL_DAILY_SEND_CAP?: string;
+  EMAIL_BATCH_SIZE?: string;
+  EMAIL_SEND_IMMEDIATE?: string;
   REPORTS_BUCKET?: R2Bucket;
 };
 
@@ -592,7 +595,7 @@ async function getCampaignSettings(database: DatabaseClient) {
   };
 }
 
-async function createNotification(database: DatabaseClient, data: {
+type NotificationInput = {
   user_id?: number | null;
   recipient_email: string;
   cc_emails?: string[];
@@ -601,17 +604,49 @@ async function createNotification(database: DatabaseClient, data: {
   body: string;
   status?: 'queued' | 'website_only';
   send_now?: boolean;
-}, env?: Env) {
+};
+
+function emailDailySendCap(env: Env) {
+  const configured = Number(env.EMAIL_DAILY_SEND_CAP || 250);
+  if (!Number.isFinite(configured) || configured < 1) return 250;
+  return Math.min(Math.floor(configured), 300);
+}
+
+function emailBatchSize(env: Env) {
+  const configured = Number(env.EMAIL_BATCH_SIZE || 25);
+  if (!Number.isFinite(configured) || configured < 1) return 25;
+  return Math.min(Math.floor(configured), 100);
+}
+
+async function emailSentTodayCount(database: DatabaseClient) {
+  const row = (await database.execute(`
+    SELECT COUNT(*) as count
+    FROM notifications
+    WHERE status = 'sent'
+      AND date(sent_at) = date('now', '+7 hours')
+  `)).rows[0] as any;
+  return Number(row?.count || 0);
+}
+
+async function insertNotification(database: DatabaseClient, data: NotificationInput) {
+  if (!data.recipient_email) return null;
+  const status = data.status === 'website_only' ? 'website_only' : 'queued';
+  const result = await database.execute({
+    sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+    args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
+  });
+  return { id: Number(result.lastInsertRowid), status } as const;
+}
+
+async function createNotification(database: DatabaseClient, data: NotificationInput, env?: Env) {
   try {
-    if (!data.recipient_email) return;
-    const status = data.status === 'website_only' ? 'website_only' : 'queued';
-    const result = await database.execute({
-      sql: `INSERT INTO notifications (user_id, recipient_email, type, subject, body, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
-      args: [data.user_id || null, data.recipient_email, data.type, data.subject, data.body, status],
-    });
-    if (env && status === 'queued') return await sendNotificationEmail(database, env, Number(result.lastInsertRowid), data);
-    return status;
+    const notification = await insertNotification(database, data);
+    if (!notification) return;
+    if (env && notification.status === 'queued' && (data.send_now || env.EMAIL_SEND_IMMEDIATE === 'true')) {
+      return await sendNotificationEmail(database, env, notification.id, data);
+    }
+    return notification.status;
   } catch (e) {
     // Notification failures must not block the main business flow.
   }
@@ -626,6 +661,7 @@ async function sendNotificationEmail(database: DatabaseClient, env: Env, notific
   const apiKey = env.RESEND_API_KEY;
   const from = env.EMAIL_FROM;
   if (!apiKey || !from || !notificationId) return 'queued';
+  if ((await emailSentTodayCount(database)) >= emailDailySendCap(env)) return 'queued';
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -641,7 +677,15 @@ async function sendNotificationEmail(database: DatabaseClient, env: Env, notific
         text: data.body,
       }),
     });
-    if (!response.ok) throw new Error((await response.text()).slice(0, 1000));
+    const responseText = await response.text();
+    if (response.status === 429) {
+      await database.execute({
+        sql: 'UPDATE notifications SET error = ? WHERE id = ?',
+        args: ['Provider rate limit exceeded; giữ trong hàng đợi để gửi lại sau.', notificationId],
+      });
+      return 'queued';
+    }
+    if (!response.ok) throw new Error(responseText.slice(0, 1000));
     await database.execute({
       sql: `UPDATE notifications SET status = 'sent', sent_at = datetime('now', '+7 hours'), error = NULL WHERE id = ?`,
       args: [notificationId],
@@ -654,6 +698,80 @@ async function sendNotificationEmail(database: DatabaseClient, env: Env, notific
     });
     return 'failed';
   }
+}
+
+async function sendQueuedNotificationBatch(
+  database: DatabaseClient,
+  env: Env,
+  options: { requestedLimit?: number; notificationIds?: number[]; ignoreBatchSize?: boolean } = {},
+) {
+  const sentToday = await emailSentTodayCount(database);
+  const remainingToday = Math.max(0, emailDailySendCap(env) - sentToday);
+  const batchLimit = options.ignoreBatchSize ? remainingToday : emailBatchSize(env);
+  const hasSelectedIds = Array.isArray(options.notificationIds);
+  const normalizedIds = Array.from(new Set((options.notificationIds || [])
+    .map(id => Number(id))
+    .filter(id => Number.isInteger(id) && id > 0)));
+  const requestedLimit = options.requestedLimit === undefined
+    ? (hasSelectedIds ? normalizedIds.length : batchLimit)
+    : Math.max(0, Number(options.requestedLimit) || 0);
+  const idLimit = hasSelectedIds ? normalizedIds.length : requestedLimit;
+  const limit = Math.max(0, Math.min(requestedLimit, idLimit, batchLimit, remainingToday));
+  if (limit === 0) {
+    return {
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      remaining_today: remainingToday,
+      message: remainingToday === 0 ? 'Đã đạt giới hạn gửi email hôm nay.' : 'Không có thông báo phù hợp để gửi.',
+    };
+  }
+
+  let rows: any[];
+  if (hasSelectedIds) {
+    const selectedRows: any[] = [];
+    for (let offset = 0; offset < normalizedIds.length; offset += DB_BATCH_SIZE) {
+      const idChunk = normalizedIds.slice(offset, offset + DB_BATCH_SIZE);
+      const chunkRows = (await database.execute({
+        sql: `SELECT id, recipient_email, subject, body
+              FROM notifications
+              WHERE status = 'queued'
+                AND id IN (${idChunk.map(() => '?').join(',')})`,
+        args: idChunk,
+      })).rows as any[];
+      selectedRows.push(...chunkRows);
+    }
+    rows = selectedRows.sort((a, b) => Number(a.id) - Number(b.id)).slice(0, limit);
+  } else {
+    rows = (await database.execute({
+      sql: `SELECT id, recipient_email, subject, body
+            FROM notifications
+            WHERE status = 'queued'
+            ORDER BY created_at ASC, id ASC
+            LIMIT ?`,
+      args: [limit],
+    })).rows as any[];
+  }
+
+  let sent = 0;
+  let failed = 0;
+  for (const row of rows) {
+    const result = await sendNotificationEmail(database, env, Number(row.id), {
+      recipient_email: row.recipient_email,
+      subject: row.subject,
+      body: row.body,
+    });
+    if (result === 'sent') sent++;
+    else if (result === 'failed') failed++;
+    else break;
+  }
+  return {
+    sent,
+    failed,
+    skipped: Math.max(0, rows.length - sent - failed),
+    remaining_today: Math.max(0, remainingToday - sent),
+    selected: normalizedIds.length || null,
+  };
 }
 
 async function ensureSpecialCompanies(database: DatabaseClient) {
@@ -2971,6 +3089,40 @@ async function route(request: Request, env: Env) {
     return json(rows);
   }
 
+  if (method === 'GET' && path === '/api/admin/notifications/stats') {
+    const statusRows = (await database.execute(`
+      SELECT status, COUNT(*) as count
+      FROM notifications
+      GROUP BY status
+    `)).rows as any[];
+    const sentToday = await emailSentTodayCount(database);
+    return json({
+      provider: env.RESEND_API_KEY ? 'resend' : 'none',
+      daily_cap: emailDailySendCap(env),
+      sent_today: sentToday,
+      remaining_today: Math.max(0, emailDailySendCap(env) - sentToday),
+      batch_size: emailBatchSize(env),
+      statuses: Object.fromEntries(statusRows.map(row => [row.status, Number(row.count || 0)])),
+    });
+  }
+
+  if (method === 'POST' && path === '/api/admin/notifications/send-queued') {
+    if (!env.RESEND_API_KEY) return json({ error: 'Chưa cấu hình RESEND_API_KEY.' }, 400);
+    if (!env.EMAIL_FROM) return json({ error: 'Chưa cấu hình EMAIL_FROM.' }, 400);
+    const body = await readBody(request);
+    const notificationIds = Array.isArray(body.notification_ids)
+      ? body.notification_ids
+      : Array.isArray(body.ids)
+        ? body.ids
+        : undefined;
+    const result = await sendQueuedNotificationBatch(database, env, {
+      requestedLimit: Number(body.limit || 0) || undefined,
+      notificationIds,
+      ignoreBatchSize: body.mode === 'quota',
+    });
+    return json({ success: true, ...result });
+  }
+
   if (method === 'DELETE' && path === '/api/admin/notifications/queued') {
     const body = await readBody(request);
     const rawIds = Array.isArray(body.notification_ids) ? body.notification_ids : [];
@@ -3073,6 +3225,29 @@ async function route(request: Request, env: Env) {
     if (!subject) return json({ error: 'Tiêu đề không được để trống.' }, 400);
     if (!content) return json({ error: 'Nội dung không được để trống.' }, 400);
     if (!['website_and_email', 'website_only'].includes(deliveryMode)) return json({ error: 'Kiểu gửi thông báo không hợp lệ.' }, 400);
+
+    const notificationIds: number[] = [];
+    const persistManualNotification = async (data: NotificationInput) => {
+      const notification = await insertNotification(database, data);
+      if (notification) notificationIds.push(notification.id);
+    };
+    const manualDeliveryResult = async () => {
+      if (deliveryMode === 'website_only') {
+        return { created: notificationIds.length, sent: 0, queued: 0, failed: 0 };
+      }
+      const delivery = await sendQueuedNotificationBatch(database, env, {
+        requestedLimit: notificationIds.length,
+        notificationIds,
+        ignoreBatchSize: true,
+      });
+      return {
+        created: notificationIds.length,
+        sent: delivery.sent,
+        queued: Math.max(0, notificationIds.length - delivery.sent - delivery.failed),
+        failed: delivery.failed,
+      };
+    };
+
     if (target === 'system_all') {
       const result = await database.execute({
         sql: `
@@ -3081,7 +3256,17 @@ async function route(request: Request, env: Env) {
         `,
         args: [subject, content, user.id],
       });
-      if (deliveryMode === 'website_only') return json({ success: true, count: 1, id: Number(result.lastInsertRowid) });
+      if (deliveryMode === 'website_only') {
+        return json({
+          success: true,
+          count: 1,
+          created: 1,
+          sent: 0,
+          queued: 0,
+          failed: 0,
+          id: Number(result.lastInsertRowid),
+        });
+      }
 
       const users = (await database.execute(`
         SELECT id as user_id, email, personal_email, role
@@ -3089,11 +3274,10 @@ async function route(request: Request, env: Env) {
         WHERE email IS NOT NULL AND trim(email) != ''
         ORDER BY role ASC, name ASC
       `)).rows as any[];
-      let count = 0;
       for (const row of users) {
         const recipient = row.personal_email || row.email;
         if (!recipient) continue;
-        await notify({
+        await persistManualNotification({
           user_id: Number(row.user_id),
           recipient_email: recipient,
           type: row.role === 'lecturer' ? 'manual_lecturer_notice' : 'manual_student_notice',
@@ -3101,9 +3285,14 @@ async function route(request: Request, env: Env) {
           body: content,
           status: 'queued',
         });
-        count++;
       }
-      return json({ success: true, count, system_notification_id: Number(result.lastInsertRowid) });
+      const delivery = await manualDeliveryResult();
+      return json({
+        success: true,
+        count: delivery.created,
+        ...delivery,
+        system_notification_id: Number(result.lastInsertRowid),
+      });
     }
     let rows: any[] = [];
     if (target === 'lecturers') {
@@ -3174,11 +3363,10 @@ async function route(request: Request, env: Env) {
     } else {
       return json({ error: 'Nhóm nhận thông báo không hợp lệ.' }, 400);
     }
-    let count = 0;
     for (const row of rows) {
       const recipient = row.personal_email || row.email;
       if (!recipient) continue;
-      await notify({
+      await persistManualNotification({
         user_id: row.user_id ? Number(row.user_id) : null,
         recipient_email: recipient,
         type: target === 'lecturers' || row.role === 'lecturer' ? 'manual_lecturer_notice' : target === 'single_account' ? 'manual_direct_notice' : 'manual_student_notice',
@@ -3186,9 +3374,9 @@ async function route(request: Request, env: Env) {
         body: content,
         status: deliveryMode === 'website_only' ? 'website_only' : 'queued',
       });
-      count++;
     }
-    return json({ success: true, count });
+    const delivery = await manualDeliveryResult();
+    return json({ success: true, count: delivery.created, ...delivery });
   }
 
   if (method === 'PUT' && path === '/api/admin/registrations/approve-all') {
