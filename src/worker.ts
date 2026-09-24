@@ -2055,6 +2055,23 @@ async function route(request: Request, env: Env) {
     return json(result.row);
   }
 
+  if (method === 'POST' && path === '/api/cron/process-email-queue') {
+    const expectedSecret = env.CRON_SECRET;
+    const providedSecret = request.headers.get('x-cron-secret') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+    if (!expectedSecret) return json({ error: 'Chưa cấu hình CRON_SECRET.' }, 500);
+    if (providedSecret !== expectedSecret) return json({ error: 'Forbidden' }, 403);
+
+    try {
+      if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+        return json({ success: true, skipped: true, message: 'Bỏ qua vì chưa cấu hình RESEND_API_KEY hoặc EMAIL_FROM.' });
+      }
+      const result = await sendQueuedNotificationBatch(database, env, { ignoreBatchSize: true });
+      return json({ success: true, skipped: false, message: 'Đã tự động xử lý hàng đợi email theo quota ngày.', ...result });
+    } catch (error: any) {
+      return json({ error: 'Lỗi cron tự động xử lý hàng đợi email: ' + (error?.message || error) }, 500);
+    }
+  }
+
   if (path.startsWith('/api/admin/')) requireRole(user, ['admin']);
 
   if (method === 'POST' && path === '/api/admin/migrations/turso-to-d1') {

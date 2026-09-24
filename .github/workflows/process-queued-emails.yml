@@ -1,0 +1,33 @@
+name: Process Queued Emails Daily
+
+on:
+  schedule:
+    # 07:05 Asia/Ho_Chi_Minh = 00:05 UTC
+    - cron: '5 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  process-queue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process queued emails within daily quota
+        env:
+          API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "Missing VITE_API_BASE_URL secret/variable"
+            exit 1
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing CRON_SECRET secret"
+            exit 1
+          fi
+          API_BASE_URL="${API_BASE_URL%/}"
+          curl --fail-with-body \
+            --request POST \
+            --header "X-Cron-Secret: $CRON_SECRET" \
+            "$API_BASE_URL/api/cron/process-email-queue"

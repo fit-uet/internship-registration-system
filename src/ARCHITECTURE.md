@@ -60,6 +60,63 @@ Quota exhaustion is not an error: it must not reject the request or mark overflo
 
 `EMAIL_BATCH_SIZE` only caps an explicit queue-processing run. `EMAIL_SEND_IMMEDIATE` continues to control automatic business-event notifications and does not disable quota-aware immediate delivery explicitly selected in the manual composer. The Node server and Cloudflare Worker must implement the same state transitions and quota rules.
 
+### Automated Daily Queue Processing Architecture
+
+To eliminate reliance on manual administrator intervention, the notification subsystem incorporates an **autonomous daily queue draining architecture**. Queued emails are automatically dispatched every day as soon as new quota becomes available, without requiring an Admin to log in and press the "Gửi theo quota" button.
+
+#### 1. Core Architectural Shift: From Manual Trigger to Autonomous Scheduler
+
+- **Previous Model (Manual Dependency):**
+  When a batch notification exceeded the remaining quota for the day, excess notifications were held in `status = 'queued'`. To send these remaining emails on subsequent days, an administrator was required to remember to visit `/admin/notifications` and manually click **“Gửi theo quota”** or **“Gửi hàng đợi”**.
+- **Autonomous Architecture (Zero-touch Daily Drain):**
+  The system automates queue processing on a daily schedule. Each morning (at reset of the provider's daily counter), an automated scheduler triggers queue processing to drain up to the maximum remaining capacity for that day (`EMAIL_DAILY_SEND_CAP - sent_today`).
+
+#### 2. Triggering & Scheduling Mechanisms
+
+1. **Scheduled Daily Cron Runner:**
+   - A scheduled GitHub Actions workflow (`.github/workflows/process-queued-emails.yml`) or Cloudflare Worker scheduled trigger executes daily at **00:05 UTC (07:05 AM ICT)**.
+   - It issues an authenticated HTTP `POST` request to `/api/cron/process-email-queue` with the secret header `X-Cron-Secret: <CRON_SECRET>`.
+2. **Server / Worker Cron Handler (`POST /api/cron/process-email-queue`):**
+   - Validates `CRON_SECRET` to prevent unauthorized execution.
+   - Invokes the shared queue draining routine (`sendQueuedNotificationBatch({ ignoreBatchSize: true })`) to consume up to the full remaining daily quota.
+3. **Role of the Admin UI Button (“Gửi theo quota”):**
+   - The manual button in the Admin dashboard remains active, but its role changes from a **mandatory operational requirement** to an **on-demand manual override**. Administrators may still trigger immediate batch sending if they want to force delivery ahead of the scheduled run.
+
+#### 3. Execution Lifecycle & Invariants
+
+```mermaid
+flowchart TD
+    A["Daily Cron Schedule (07:05 ICT)"] --> B["POST /api/cron/process-email-queue"]
+    C["Admin Click 'Gửi theo quota' (Manual Override)"] --> D["POST /api/admin/notifications/send-queued"]
+    
+    B --> E["Verify Authentication (CRON_SECRET / Admin Session)"]
+    D --> E
+    
+    E --> F["Compute remaining_quota = max(0, EMAIL_DAILY_SEND_CAP - sent_today)"]
+    F --> G{"remaining_quota > 0 and queued_count > 0?"}
+    
+    G -- "No" --> H["Finish gracefully (logged: skipped / quota exhausted)"]
+    G -- "Yes" --> I["Fetch queued rows (ORDER BY created_at ASC, id ASC LIMIT remaining_quota)"]
+    
+    I --> J["Dispatch emails via Provider (Brevo / Resend) in batches"]
+    J --> K{"Provider response"}
+    
+    K -- "Success (2xx)" --> L["Update status = 'sent', sent_at = NOW()"]
+    K -- "Rate limit / Quota reached (429)" --> M["Stop dispatching; keep status = 'queued' for next day"]
+    K -- "Permanent error (4xx/5xx)" --> N["Update status = 'failed', record error details"]
+    
+    L --> O["Return summary counters (sent, failed, remaining_today)"]
+    M --> O
+    N --> O
+```
+
+#### 4. Design Invariants & Guarantees
+
+- **No Over-Quota Sending:** The scheduler strictly respects `EMAIL_DAILY_SEND_CAP` (e.g. 250 for Brevo Free tier), ensuring external email provider daily limits (300/day) are never breached.
+- **Strict FIFO Preservation:** Older queued notifications (`created_at ASC, id ASC`) are always prioritized and sent first.
+- **Resilience to Restarts:** Queue state is persisted in the database (`status = 'queued'`); server restarts or deployment cycles never lose pending notifications.
+- **Web Notification Independence:** All recipients always see the notification on the website immediately upon creation, irrespective of whether email delivery occurs immediately or across several days via the daily queue processor.
+
 ### Event Notification Recipient & Admin Exclusion Architecture
 
 To protect both system resources and administrative workflows, the system enforces a strict separation between **push-based notifications** (individual transactional receipts sent to end users) and **pull-based monitoring** (centralized administration dashboards).

@@ -40,6 +40,7 @@ Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 - Cần có thông báo email tự động khi các trạng thái quan trọng thay đổi, ví dụ: đăng ký được duyệt/từ chối, mở hạn xác nhận nơi thực tập, sinh viên đã xác nhận nơi thực tập, phân công GVHD, nhắc hạn nộp báo cáo final và thông báo cho sinh viên khi GVHD nộp điểm.
 - **Quy tắc về thông báo nộp điểm:** Khi GVHD nộp điểm thực tập, hệ thống chỉ gửi thông báo (trên web và qua email) cho chính sinh viên tương ứng để biết điểm tổng kết tạm tính. Hệ thống **tuyệt đối không gửi thông báo trên website và không gửi email cho Quản trị viên (Admin/Khoa)** để tránh làm tràn hộp thư (inbox spam) khi giảng viên nộp điểm hàng loạt, đồng thời bảo toàn hạn ngạch gửi email hàng ngày của hệ thống. Quản trị viên theo dõi tiến độ nộp điểm tập trung trên trang Quản lý điểm (`/admin/grades`) và xuất file tổng hợp XLSX.
 - Khi admin soạn thông báo thủ công và chọn **“Hiển thị trên website và gửi email theo quota”**, thông báo phải hiển thị trên website ngay; hệ thống gửi email ngay cho số người nhận còn nằm trong quota ngày và tự động đưa phần vượt quota vào hàng đợi để gửi sau.
+- **Quy tắc gửi email tự động theo hạn ngạch mỗi ngày:** Các email nằm trong hàng đợi (`queued`) sẽ được hệ thống **tự động gửi định kỳ mỗi ngày khi bước sang ngày mới và quota được làm mới**, tự động gửi tối đa cho đến khi hết hạn ngạch ngày (`EMAIL_DAILY_SEND_CAP`). Quản trị viên (Admin) **hoàn toàn không cần phải đăng nhập và bấm nút “Gửi theo quota” thủ công** mỗi ngày; nút này trên giao diện chỉ đóng vai trò kích hoạt tức thì bổ sung nếu Admin muốn ép gửi ngay.
 
 
 ## 2. Công nghệ và triển khai
@@ -89,8 +90,8 @@ Gửi email thật:
 - Mọi thông báo đều được ghi vào `notifications` để hiển thị trên website và theo dõi lịch sử gửi.
 - Trong form soạn thông báo thủ công, phương thức mặc định là **“Hiển thị trên website và gửi email theo quota”**. Hệ thống tính quota còn lại bằng `EMAIL_DAILY_SEND_CAP - số email đã gửi thành công trong ngày`, gửi ngay tối đa phần quota còn lại và giữ các thông báo vượt quota ở trạng thái `queued`.
 - Nếu quota còn lại bằng `0`, toàn bộ thông báo vẫn hiển thị trên website và được đưa vào hàng đợi; thao tác tạo thông báo không bị từ chối.
-- Admin vào site Thông báo và bấm `Gửi hàng đợi` để gửi tiếp từng batch theo `EMAIL_BATCH_SIZE` và quota còn lại của ngày.
-- Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`.
+- **Tự động gửi mỗi ngày theo quota:** Hàng đợi email (`status = 'queued'`) được hệ thống **tự động quét và gửi định kỳ mỗi ngày qua tác vụ tự động (daily cron job)** theo đúng hạn ngạch còn lại của ngày mới (`EMAIL_DAILY_SEND_CAP - sent_today`), gửi tuần tự theo thời gian tạo (FIFO). Quản trị viên **không cần phải đăng nhập và bấm nút “Gửi theo quota” mỗi ngày**. Nút “Gửi theo quota” trên giao diện Quản trị chỉ là tùy chọn kích hoạt thủ công khi Admin muốn gửi bổ sung ngay tức khắc.
+- Gửi thành công thì trạng thái chuyển `sent` và có `sent_at`; gửi lỗi thì trạng thái chuyển `failed` và lưu `error`. Nếu gặp giới hạn tốc độ tạm thời từ nhà mạng, bản ghi vẫn giữ `queued` để tự động xử lý tiếp ở lượt sau.
 - Nếu chưa cấu hình provider, notification giữ trạng thái `queued` để admin theo dõi/đánh dấu thủ công; thông báo trên website vẫn được tạo bình thường.
 - Nếu Brevo báo lỗi `unrecognised IP address`, vào Brevo > Security > Authorised IPs và thêm IP máy chủ trong thông báo lỗi. Với Render Free, outbound IP có thể thay đổi nên cần kiểm tra lại nếu lỗi xuất hiện lại; phương án ổn định hơn là dùng dịch vụ có static outbound IP hoặc tắt giới hạn Authorized IPs trên Brevo nếu chính sách cho phép.
 Chạy local:
@@ -1048,13 +1049,15 @@ Thiết kế API/worker:
 - `POST /api/admin/notifications/manual` nhận `delivery_mode = website_and_email | website_only`. Với `website_and_email`, endpoint tạo đủ bản ghi rồi gửi ngay trong quota còn lại; phần vượt quota giữ `queued` và trả về các bộ đếm `created`, `sent`, `queued`, `failed`.
 - Nếu chưa chọn provider, vẫn lưu lịch sử thông báo để sau này gửi lại hoặc đánh dấu thủ công.
 - Với Brevo Free, đặt `EMAIL_DAILY_SEND_CAP=250` và `EMAIL_BATCH_SIZE=25`; khoảng 900 sinh viên sẽ được gửi trong 4 ngày để không vượt mức 300 email/ngày.
+- **Tác vụ tự động quét hàng đợi hàng ngày:** Hệ thống cấu hình cron job tự động kích hoạt mỗi ngày (ví dụ 07:00 ICT) gọi endpoint `POST /api/cron/process-email-queue` (xác thực qua `CRON_SECRET`). Tác vụ này tự tính toán quota còn lại trong ngày (`EMAIL_DAILY_SEND_CAP - sent_today`) và tự động gửi các email đang ở trạng thái `queued` theo thứ tự tạo (FIFO) cho đến khi cạn quota ngày mới mà **hoàn toàn không cần Admin phải trực tiếp đăng nhập và ấn nút “Gửi theo quota”**.
+- `POST /api/cron/process-email-queue`: endpoint tự động chạy mỗi ngày bảo vệ bằng `CRON_SECRET`, tự động xả hàng đợi email trong hạn ngạch còn lại của ngày.
 - `GET /api/admin/notifications`: admin xem lịch sử thông báo.
 - `GET /api/admin/notifications/stats`: admin xem provider, số đã gửi hôm nay, quota còn lại và số queued.
-- `POST /api/admin/notifications/send-queued`: gửi một batch email đang chờ theo giới hạn/ngày.
+- `POST /api/admin/notifications/send-queued`: endpoint kích hoạt thủ công (nút "Gửi theo quota" / "Gửi hàng đợi" trên UI) cho phép Admin ép gửi tức thì theo batch hoặc theo quota nếu muốn xả sớm mà không chờ cron tự động.
 - `PUT /api/admin/notifications/:id/status`: admin cập nhật `queued/sent/failed/website_only`.
 - `POST /api/admin/notifications/final-confirmation-open`: tạo thông báo mở xác nhận nơi thực tập cho sinh viên chưa xác nhận.
 - `POST /api/admin/notifications/final-report-reminders`: tạo thông báo nhắc nộp báo cáo final cho sinh viên chưa nộp hoặc cần nộp lại.
-- Có thể thêm cron job Cloudflare Worker để gửi nhắc hạn theo ngày.
+- Tự động chạy lịch trình hàng ngày qua GitHub Actions workflow hoặc Cloudflare Worker scheduled triggers.
 
 Sự kiện đã ghi notification:
 
@@ -1072,6 +1075,8 @@ Tiêu chí nghiệm thu:
 - Phương thức mặc định trên form hiển thị đúng nhãn **“Hiển thị trên website và gửi email theo quota”**; nhãn cũ không còn xuất hiện.
 - Nếu quota còn đủ, email của thông báo thủ công được gửi ngay và trạng thái chuyển `sent`.
 - Nếu số người nhận lớn hơn quota còn lại, đúng phần vượt quota giữ trạng thái `queued` và toàn bộ người nhận vẫn xem được thông báo trên website.
+- **Tự động gửi email hàng đợi mỗi ngày:** Khi bước sang ngày mới, hệ thống tự động kiểm tra quota ngày mới và tự động gửi tiếp các email `queued` còn tồn đọng mà **không đòi hỏi Quản trị viên phải ấn nút “Gửi theo quota”**.
+- Nút **“Gửi theo quota”** trên giao diện Admin hoạt động như một công cụ kích hoạt bổ sung tức thì theo ý muốn của Admin, không phải là điều kiện bắt buộc để hàng đợi được gửi đi.
 - Nếu quota đã hết hoặc provider chưa được cấu hình, thao tác vẫn tạo thông báo thành công và đưa email vào hàng đợi.
 - Không gửi vượt `EMAIL_DAILY_SEND_CAP`, kể cả khi nhiều thao tác gửi được thực hiện liên tiếp.
 
