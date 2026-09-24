@@ -37,9 +37,10 @@ Các quy tắc sau được dùng làm cơ sở khi mở rộng hệ thống:
 - Điểm 60% đánh giá công ty/GVHD do giảng viên tự nhập dựa trên trao đổi và bản cứng sinh viên nộp.
 - Hệ thống không cần lưu chữ ký/xác nhận của doanh nghiệp hoặc giảng viên.
 - Bảng điểm cuối cùng cần xuất được XLSX để Khoa tổng hợp và nhập hệ thống.
-- Các học phần `INT4002`, `INT3508`, `INT4003` dùng chung quy trình, mốc thời gian và rubric trong hệ thống.
-- Cần có thông báo email tự động khi các trạng thái quan trọng thay đổi, ví dụ: đăng ký được duyệt/từ chối, mở hạn xác nhận nơi thực tập, sinh viên đã xác nhận nơi thực tập, phân công GVHD, nhắc hạn nộp báo cáo final và giảng viên nộp điểm.
+- Cần có thông báo email tự động khi các trạng thái quan trọng thay đổi, ví dụ: đăng ký được duyệt/từ chối, mở hạn xác nhận nơi thực tập, sinh viên đã xác nhận nơi thực tập, phân công GVHD, nhắc hạn nộp báo cáo final và thông báo cho sinh viên khi GVHD nộp điểm.
+- **Quy tắc về thông báo nộp điểm:** Khi GVHD nộp điểm thực tập, hệ thống chỉ gửi thông báo (trên web và qua email) cho chính sinh viên tương ứng để biết điểm tổng kết tạm tính. Hệ thống **tuyệt đối không gửi thông báo trên website và không gửi email cho Quản trị viên (Admin/Khoa)** để tránh làm tràn hộp thư (inbox spam) khi giảng viên nộp điểm hàng loạt, đồng thời bảo toàn hạn ngạch gửi email hàng ngày của hệ thống. Quản trị viên theo dõi tiến độ nộp điểm tập trung trên trang Quản lý điểm (`/admin/grades`) và xuất file tổng hợp XLSX.
 - Khi admin soạn thông báo thủ công và chọn **“Hiển thị trên website và gửi email theo quota”**, thông báo phải hiển thị trên website ngay; hệ thống gửi email ngay cho số người nhận còn nằm trong quota ngày và tự động đưa phần vượt quota vào hàng đợi để gửi sau.
+
 
 ## 2. Công nghệ và triển khai
 
@@ -548,7 +549,7 @@ Cần bổ sung thông báo email cho các mốc quan trọng:
 - Khoa phân công hoặc thay đổi GVHD.
 - Nhắc hạn nộp báo cáo final.
 - Báo cáo final được ghi nhận hoặc cần nộp lại.
-- Giảng viên nộp điểm và Khoa khóa/tổng hợp điểm.
+- Giảng viên nộp điểm (chỉ gửi cho sinh viên nhận điểm, không gửi thông báo trên web và không gửi email cho Admin) và Khoa khóa/tổng hợp điểm.
 
 Về triển khai, có thể dùng một dịch vụ email transaction miễn phí hoặc quota thấp trước; nếu không muốn phụ thuộc dịch vụ ngoài, hệ thống vẫn nên lưu bảng `notifications` để theo dõi lịch sử thông báo và trạng thái gửi.
 
@@ -1039,7 +1040,7 @@ Các loại email ưu tiên:
 - `advisor_assigned`
 - `final_report_due_reminder`
 - `final_report_status_changed`
-- `grade_submitted`
+- `grade_submitted` (chỉ gửi riêng cho sinh viên nhận điểm; tuyệt đối không tạo notification web và không gửi email cho Admin)
 
 Thiết kế API/worker:
 
@@ -1061,7 +1062,7 @@ Sự kiện đã ghi notification:
 - Sinh viên xác nhận nơi thực tập chính thức.
 - Khoa phân công GVHD thủ công/import/tự phân công.
 - Giảng viên/admin đổi trạng thái báo cáo final.
-- GVHD chính nộp điểm.
+- GVHD chính nộp điểm (chỉ tạo notification trên web và gửi email cho sinh viên nhận điểm; không gửi web/email cho Admin).
 
 Tiêu chí nghiệm thu:
 

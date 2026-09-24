@@ -59,3 +59,31 @@ For `website_and_email`, the backend first persists one notification for every v
 Quota exhaustion is not an error: it must not reject the request or mark overflow notifications as `failed`. A provider rate-limit response also keeps an unsent notification in `queued`; other provider errors use `failed` with diagnostic details. The manual endpoint returns separate `created`, `sent`, `queued`, and `failed` counts so the admin UI can report the outcome accurately.
 
 `EMAIL_BATCH_SIZE` only caps an explicit queue-processing run. `EMAIL_SEND_IMMEDIATE` continues to control automatic business-event notifications and does not disable quota-aware immediate delivery explicitly selected in the manual composer. The Node server and Cloudflare Worker must implement the same state transitions and quota rules.
+
+### Event Notification Recipient & Admin Exclusion Architecture
+
+To protect both system resources and administrative workflows, the system enforces a strict separation between **push-based notifications** (individual transactional receipts sent to end users) and **pull-based monitoring** (centralized administration dashboards).
+
+#### Recipient Routing Matrix
+
+| Event Type | Intended Recipient | Admin Web Notification | Admin Email | Rationale / Delivery Mode |
+| :--- | :--- | :---: | :---: | :--- |
+| `registration_status_changed` | Student | ❌ No | ❌ No | Push to student regarding registration result |
+| `final_confirmation_open` | Student | ❌ No | ❌ No | Push broadcast/targeted reminder to students |
+| `final_internship_confirmed` | Student | ❌ No | ❌ No | Confirmation receipt for student |
+| `advisor_assigned` | Student | ❌ No | ❌ No | Push assignment details to student |
+| `final_report_due_reminder` | Student | ❌ No | ❌ No | Deadline reminder targeted to students |
+| `final_report_status_changed` | Student | ❌ No | ❌ No | Review feedback pushed to student |
+| **`grade_submitted`** | **Student Only** | ❌ **Excluded** | ❌ **Excluded** | **Push receipt strictly to the graded student. Admin excluded to prevent inbox flooding and quota exhaustion.** |
+
+#### Design Rationale for Admin Exclusion on Grade Submission (`grade_submitted`)
+
+1. **Inbox Spam Prevention (Tránh tràn hộp thư Quản trị):**
+   - Each course run includes 600–900 students. When dozens of advisors evaluate students and submit grades across several grading days, pushing transactional notifications to `ADMIN_EMAIL` floods the admin inbox with hundreds of repetitive alert emails (e.g., `GVHD đã nộp điểm thực tập: <Mã SV> <Họ tên>`), drowning out critical operational correspondence.
+2. **Quota Preservation (Bảo toàn hạn ngạch email nhà mạng):**
+   - Transactional email providers often operate on tiered quotas (e.g., Brevo Free tier caps sending at 300 emails/day, with `EMAIL_DAILY_SEND_CAP=250`). Multiplying grade notifications by sending duplicate copies to Admin doubles email consumption and causes immediate quota exhaustion, preventing other students from receiving crucial notices.
+3. **Pull-based Operational Paradigm (Quản lý tập trung qua Dashboard):**
+   - Faculty and Admin manage and audit grade submissions via the dedicated Grade Management Dashboard (`/admin/grades`) and bulk Excel export (`/api/admin/grades/export`), equipped with real-time filters (by class, department, advisor, submission status). Push notifications for each single student grade submission provide no actionable value to Admin and violate clean notification domain boundaries.
+4. **Backend Implementation Invariant:**
+   - Both Express (`server.ts`) and Cloudflare Worker (`src/worker.ts`) handling of `POST /api/lecturer/grades/:userId/submit` must only dispatch `createNotification`/`notify` targeted to `recipient_email: student.email` and `recipient_user_id: student.id`. No notification record with `recipient_email = ADMIN_EMAIL` or Admin role shall ever be generated for `grade_submitted`.
+

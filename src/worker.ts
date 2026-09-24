@@ -2052,15 +2052,6 @@ async function route(request: Request, env: Env) {
       subject: 'GVHD đã nộp điểm thực tập',
       body: `GVHD đã nộp điểm thực tập của bạn về Khoa. Điểm tổng kết tạm tính: ${result.row?.final_score ?? '-'}.`,
     });
-    if (env.ADMIN_EMAIL) {
-      await notify({
-        user_id: userId,
-        recipient_email: env.ADMIN_EMAIL,
-        type: 'grade_submitted',
-        subject: `GVHD đã nộp điểm thực tập: ${student?.name || userId}`,
-        body: `Sinh viên ${student?.name || userId} đã có điểm thực tập được nộp. Điểm tổng kết: ${result.row?.final_score ?? '-'}.`,
-      });
-    }
     return json(result.row);
   }
 
