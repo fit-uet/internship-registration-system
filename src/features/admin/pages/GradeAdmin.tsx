@@ -148,7 +148,7 @@ export function GradeAdmin({ token }: { token: string }) {
                   </td>
                   <td className="px-4 py-4 text-xs leading-relaxed">
                     <div>Định kỳ: <strong>{row.progress_score ?? '-'}</strong></div>
-                    <div>Final: <strong>{row.report_score ?? '-'}</strong></div>
+                    <div>Báo cáo: <strong>{row.report_score ?? '-'}</strong></div>
                     <div>Đánh giá: <strong>{row.company_score ?? '-'}</strong></div>
                     <div className="text-sm text-[#1b7f37] font-bold mt-1">{row.final_score ?? '-'}</div>
                   </td>
