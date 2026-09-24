@@ -9,6 +9,9 @@ CORS_ORIGIN = "https://fit-uet.github.io"
 # Optional: set this after verifying a sender/domain in Resend.
 # EMAIL_FROM = "FIT UET Internship <no-reply@example.edu.vn>"
 
+[triggers]
+crons = ["5 0 * * *"]
+
 [[r2_buckets]]
 binding = "REPORTS_BUCKET"
 bucket_name = "internship-final-reports"

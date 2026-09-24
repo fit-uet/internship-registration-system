@@ -3798,4 +3798,14 @@ export default {
       return json({ error: error?.message || 'Internal error' }, 500, headers);
     }
   },
+  async scheduled(event: any, env: Env, ctx: any) {
+    try {
+      const database = createClient(env);
+      if (env.RESEND_API_KEY && env.EMAIL_FROM) {
+        await sendQueuedNotificationBatch(database, env, { ignoreBatchSize: true });
+      }
+    } catch (e: any) {
+      console.error('Worker scheduled queue drain error:', e?.message || e);
+    }
+  },
 };
