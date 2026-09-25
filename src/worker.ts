@@ -2598,6 +2598,45 @@ async function route(request: Request, env: Env) {
     return json({ success: true, status });
   }
 
+  if (method === 'DELETE' && registrationUpdateMatch) {
+    const registrationId = Number(registrationUpdateMatch[1]);
+    if (!Number.isInteger(registrationId) || registrationId <= 0) {
+      return json({ error: 'Mã đăng ký không hợp lệ.' }, 400);
+    }
+
+    const reg = (await database.execute({
+      sql: `SELECT r.*, u.name as student_name, u.student_id, c.name as company_name
+            FROM registrations r
+            JOIN users u ON u.id = r.user_id
+            LEFT JOIN companies c ON c.id = r.company_id
+            WHERE r.id = ?`,
+      args: [registrationId],
+    })).rows[0] as any;
+
+    if (!reg) {
+      return json({ error: 'Không tìm thấy đăng ký cần xóa.' }, 404);
+    }
+
+    const lockedFinal = (await database.execute({
+      sql: 'SELECT id, locked_at FROM final_internships WHERE registration_id = ? AND locked_at IS NOT NULL LIMIT 1',
+      args: [registrationId],
+    })).rows[0] as any;
+
+    if (lockedFinal) {
+      return json({
+        error: 'Không thể xóa đăng ký đã được chốt và khóa nơi thực tập chính thức.',
+      }, 400);
+    }
+
+    await executeBatch(database, [
+      { sql: 'DELETE FROM final_internships WHERE registration_id = ? AND locked_at IS NULL', args: [registrationId] },
+      { sql: 'UPDATE advisor_requests SET source_registration_id = NULL WHERE source_registration_id = ?', args: [registrationId] },
+      { sql: 'DELETE FROM registrations WHERE id = ?', args: [registrationId] },
+    ]);
+
+    return json({ success: true, message: 'Đã xóa đăng ký thành công.' });
+  }
+
   if (method === 'PUT' && path === '/api/admin/registrations/mark-sent') {
     const body = await readBody(request);
     const note = body.note || null;

@@ -168,6 +168,7 @@ Admin có thể:
 - Tìm kiếm, sắp xếp, lọc theo học phần.
 - Duyệt/từ chối từng đăng ký.
 - Duyệt tất cả đăng ký đang chờ.
+- Sửa hoặc xóa nguyện vọng đăng ký thực tập của sinh viên.
 - Xuất danh sách đang lọc ra XLSX.
 - Xuất danh sách theo học phần hoặc theo công ty thành ZIP chứa XLSX.
 - Lưu danh sách đăng ký vào Google Sheets.
@@ -393,6 +394,13 @@ Admin xem toàn bộ đăng ký và đổi trạng thái:
 Admin có thể duyệt tất cả các đăng ký đang chờ.
 
 Theo nghiệp vụ đã xác nhận, việc duyệt thủ công chỉ cần áp dụng với công ty tự liên hệ chưa nằm trong danh sách thẩm định nội bộ. Các công ty đã nằm trong danh sách này được xem là đủ điều kiện để sinh viên xác nhận thực tập nếu sinh viên đã được công ty nhận. Hệ thống hiện dùng bảng `approved_company_names` để phục vụ đối chiếu này.
+
+### 5.6.1. Xóa nguyện vọng đăng ký thực tập
+
+Quản trị viên có thể xóa một đăng ký thực tập trực tiếp trong hộp thoại "Sửa đăng ký thực tập" (`AdminPanel.tsx`):
+- Khi xóa, hệ thống hiển thị hộp thoại xác nhận chi tiết thông tin sinh viên và nơi thực tập.
+- Ràng buộc an toàn: Nếu đăng ký đã được sinh viên xác nhận và Khoa đã khóa nơi thực tập chính thức (`final_internships.locked_at IS NOT NULL`), hệ thống từ chối xóa (HTTP 400).
+- Dọn dẹp dữ liệu liên đới: Nếu có liên kết với `final_internships` chưa khóa (`locked_at IS NULL`), bản ghi này sẽ được dọn dẹp đồng thời; trường `source_registration_id` trong `advisor_requests` (nếu có) được cập nhật về `NULL`.
 
 ### 5.7. Xuất danh sách cho Khoa/doanh nghiệp
 
@@ -1230,7 +1238,52 @@ Sau khi `UPDATE registrations` thành công trong `PUT /api/admin/registrations/
 6. Đăng ký "Công ty khác" hoặc công ty chính thức không bị ảnh hưởng.
 7. Sinh viên chưa có `final_internships` không bị tạo `advisor_assignments` ngay lập tức.
 
-## 10. Tiêu chuẩn thiết kế giao diện (Apple HIG UI Design System)
+### 10.2. Đặc tả yêu cầu & Thiết kế kỹ thuật: Quản trị viên xóa nguyện vọng đăng ký thực tập (Admin Delete Registration)
+
+**1. Bối cảnh & Yêu cầu nghiệp vụ:**
+- Trong quá trình vận hành, quản trị viên thường xuyên phải xử lý các tình huống: sinh viên khai báo nhầm nguyện vọng, đăng ký thừa/trùng lặp, hoặc Khoa cần hủy nguyện vọng theo đề nghị chính thức của sinh viên hoặc doanh nghiệp.
+- Trước đây, quản trị viên chỉ có thể chỉnh sửa (`PUT /api/admin/registrations/:id`) mà không có nút hủy/xóa trực tiếp trên giao diện modal "Sửa đăng ký thực tập".
+- **Yêu cầu:** Bổ sung nút **"Xoá đăng ký"** trực tiếp trong hộp thoại "Sửa đăng ký thực tập" (`AdminPanel.tsx`), thiết kế theo phong cách Apple HIG (Destructive Action), hiển thị hộp thoại xác nhận chi tiết trước khi xóa, và kiểm tra toàn vẹn dữ liệu nghiêm ngặt.
+
+**2. Ràng buộc an toàn & Toàn vẹn dữ liệu (Data Integrity Constraints):**
+- **Kiểm tra trạng thái khóa nơi thực tập chính thức:**
+  - Tra cứu trong bảng `final_internships` theo `registration_id = ?`.
+  - Nếu bản ghi tồn tại và đã bị khóa (`locked_at IS NOT NULL`): **Tuyệt đối từ chối xóa** (HTTP 400: *"Không thể xóa đăng ký đã được chốt và khóa nơi thực tập chính thức."*).
+- **Dọn dẹp bản ghi liên đới chưa khóa:**
+  - Nếu có bản ghi trong `final_internships` gắn với `registration_id = ?` nhưng chưa khóa (`locked_at IS NULL`): Xóa bản ghi này khỏi `final_internships` để tránh dữ liệu mồ côi (orphaned).
+  - Nếu có bản ghi đề xuất GVHD trong `advisor_requests` gắn với `source_registration_id = ?`: Cập nhật `source_registration_id = NULL` để bảo toàn tính toàn vẹn tham chiếu.
+- **Xóa bản ghi đăng ký:**
+  - Thực thi lệnh `DELETE FROM registrations WHERE id = ?`.
+  - Các câu lệnh thao tác dữ liệu được thực thi an toàn trong batch.
+
+**3. Đặc tả API Backend:**
+- **Endpoint:** `DELETE /api/admin/registrations/:id(\d+)`
+- **Xác thực:** Bắt buộc Bearer JWT token của Quản trị viên (`requireAuth`, `requireAdmin`).
+- **Tham số:** `id` (INTEGER, ID của bản ghi đăng ký trong `registrations`).
+- **Phản hồi:**
+  - `200 OK`: `{ success: true, message: "Đã xóa đăng ký thành công." }`
+  - `400 Bad Request`: `id` không hợp lệ, hoặc đăng ký đã được chốt và khóa nơi thực tập chính thức (`locked_at IS NOT NULL`).
+  - `401 Unauthorized` / `403 Forbidden`: Chưa xác thực hoặc không có quyền quản trị viên.
+  - `404 Not Found`: Không tìm thấy bản ghi đăng ký tương ứng.
+  - `500 Internal Server Error`: Lỗi máy chủ hoặc truy vấn cơ sở dữ liệu.
+- **Tính đồng bộ:** Triển khai đồng thời trên Express server chính (`server.ts`) và Cloudflare Worker (`src/worker.ts`).
+
+**4. Thiết kế Giao diện Người dùng (UI/UX - Apple HIG):**
+- **Bố cục Modal Footer (`AdminPanel.tsx`):**
+  - Chuyển `flex items-center justify-end` thành `flex items-center justify-between`.
+  - **Bên trái (Destructive Action):** Nút **"Xoá đăng ký"** màu đỏ nổi bật:
+    - Trạng thái bình thường: Nền đỏ pastel nhẹ (`bg-red-50/50`), viền hairline (`border-red-200`), chữ đỏ đậm (`text-red-600`), icon `Trash2` (16px), hover nền đậm hơn (`hover:bg-red-100/80 hover:border-red-300`), active co nhẹ (`active:scale-[0.98]`).
+    - Trạng thái đang xóa (`deletingRegistration = true`): Hiển thị icon `RefreshCw` xoay vòng và chữ "Đang xoá...", vô hiệu hóa nút (`disabled`).
+  - **Bên phải:** Cụm nút "Huỷ" và "Lưu thay đổi" (Primary Action).
+- **Hộp thoại xác nhận an toàn:**
+  - Kích hoạt `window.confirm` với nội dung chi tiết:
+    *"Bạn có chắc chắn muốn xóa đăng ký thực tập này không?\n\n- Sinh viên: [Tên SV] (MSSV: [MSSV])\n- Nơi thực tập: [Tên Công ty/Nơi thực tập]\n- Thứ tự NV: [NV]\n\nHành động này không thể hoàn tác!"*
+- **Trải nghiệm sau thao tác:**
+  - Đóng modal ngay khi xóa thành công (`setEditingRegistration(null)`).
+  - Tải lại dữ liệu danh sách (`await fetchRegistrations()`).
+  - Xử lý và hiển thị thông báo lỗi rõ ràng nếu xóa thất bại.
+
+## 11. Tiêu chuẩn thiết kế giao diện (Apple HIG UI Design System)
 
 Hệ thống được thiết kế và chuẩn hóa toàn diện theo **Triết lý Thiết kế Apple Human Interface Guidelines (HIG)**, áp dụng đồng bộ cho tất cả các màn hình và tất cả các vai trò (Sinh viên, Giảng viên, Quản trị viên), đồng thời bảo lưu thanh Header màu xanh đặc trưng của FIT UET.
 

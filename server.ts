@@ -4967,6 +4967,50 @@ async function startServer() {
     }
   });
 
+  app.delete('/api/admin/registrations/:id(\\d+)', requireAuth, requireAdmin, async (req: any, res: any) => {
+    const { id } = req.params;
+    const registrationId = Number(id);
+    if (!Number.isInteger(registrationId) || registrationId <= 0) {
+      return res.status(400).json({ error: 'Mã đăng ký không hợp lệ.' });
+    }
+
+    try {
+      const reg = (await db.execute({
+        sql: `SELECT r.*, u.name as student_name, u.student_id, c.name as company_name
+              FROM registrations r
+              JOIN users u ON u.id = r.user_id
+              LEFT JOIN companies c ON c.id = r.company_id
+              WHERE r.id = ?`,
+        args: [registrationId],
+      })).rows[0] as any;
+
+      if (!reg) {
+        return res.status(404).json({ error: 'Không tìm thấy đăng ký cần xóa.' });
+      }
+
+      const lockedFinal = (await db.execute({
+        sql: 'SELECT id, locked_at FROM final_internships WHERE registration_id = ? AND locked_at IS NOT NULL LIMIT 1',
+        args: [registrationId],
+      })).rows[0] as any;
+
+      if (lockedFinal) {
+        return res.status(400).json({
+          error: 'Không thể xóa đăng ký đã được chốt và khóa nơi thực tập chính thức.',
+        });
+      }
+
+      await executeBatch([
+        { sql: 'DELETE FROM final_internships WHERE registration_id = ? AND locked_at IS NULL', args: [registrationId] },
+        { sql: 'UPDATE advisor_requests SET source_registration_id = NULL WHERE source_registration_id = ?', args: [registrationId] },
+        { sql: 'DELETE FROM registrations WHERE id = ?', args: [registrationId] },
+      ]);
+
+      res.json({ success: true, message: 'Đã xóa đăng ký thành công.' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Lỗi khi xóa đăng ký.' });
+    }
+  });
+
   app.get('/api/admin/approved-companies', requireAuth, requireAdmin, async (req, res) => {
     const rows = (await db.execute('SELECT * FROM approved_company_names ORDER BY name ASC')).rows;
     res.json(rows);

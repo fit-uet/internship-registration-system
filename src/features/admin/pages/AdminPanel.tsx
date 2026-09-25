@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send } from 'lucide-react';
+import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send, Trash2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
@@ -20,6 +20,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
   const [savingRegistration, setSavingRegistration] = useState(false);
+  const [deletingRegistration, setDeletingRegistration] = useState(false);
   const [addingRegistration, setAddingRegistration] = useState(false);
   const [editingRegistration, setEditingRegistration] = useState<any | null>(null);
   const [editRegistrationForm, setEditRegistrationForm] = useState({
@@ -525,6 +526,42 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       alert('Lỗi kết nối khi cập nhật đăng ký.');
     } finally {
       setSavingRegistration(false);
+    }
+  };
+
+  const handleDeleteRegistration = async () => {
+    if (!editingRegistration) return;
+    const studentInfo = `${editingRegistration.student_name || 'Sinh viên'} (${editingRegistration.student_id || 'Chưa có MSSV'})`;
+    const companyDisplay = editCompanyQuery || editingRegistration.company_name || 'Nơi thực tập';
+    const preferenceDisplay = editRegistrationForm.preference_order ? `NV${editRegistrationForm.preference_order}` : 'Chưa đặt NV';
+
+    const confirmMessage = `Bạn có chắc chắn muốn xóa đăng ký thực tập này không?\n\n` +
+      `• Sinh viên: ${studentInfo}\n` +
+      `• Nơi thực tập: ${companyDisplay}\n` +
+      `• Thứ tự: ${preferenceDisplay}\n\n` +
+      `Lưu ý: Hành động này sẽ xóa hoàn toàn nguyện vọng này khỏi hệ thống và không thể hoàn tác!`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    setDeletingRegistration(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/registrations/${editingRegistration.registration_id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return alert(data.error || 'Xóa đăng ký thất bại.');
+      }
+      setEditingRegistration(null);
+      await fetchRegistrations();
+    } catch (e) {
+      alert('Lỗi kết nối khi xóa đăng ký.');
+    } finally {
+      setDeletingRegistration(false);
     }
   };
 
@@ -1177,7 +1214,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                   {editingRegistration.student_id || '-'} - {editingRegistration.student_name || 'Sinh viên'}
                 </p>
               </div>
-              <button onClick={closeEditRegistration} disabled={savingRegistration} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-60">
+              <button onClick={closeEditRegistration} disabled={savingRegistration || deletingRegistration} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-60">
                 <X size={20} />
               </button>
             </div>
@@ -1333,14 +1370,35 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
-                <button type="button" onClick={closeEditRegistration} disabled={savingRegistration} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                  Huỷ
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={handleDeleteRegistration}
+                  disabled={savingRegistration || deletingRegistration}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/60 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-100 hover:border-red-300 active:scale-[0.98] transition-all disabled:opacity-60"
+                  title="Xoá nguyện vọng đăng ký này"
+                >
+                  {deletingRegistration ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deletingRegistration ? 'Đang xoá...' : 'Xoá đăng ký'}
                 </button>
-                <button type="submit" disabled={savingRegistration} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-                  {savingRegistration ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-                  {savingRegistration ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={closeEditRegistration}
+                    disabled={savingRegistration || deletingRegistration}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-60"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingRegistration || deletingRegistration}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                  >
+                    {savingRegistration ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                    {savingRegistration ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
