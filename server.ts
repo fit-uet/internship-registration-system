@@ -5239,6 +5239,68 @@ async function startServer() {
     }
   });
 
+  app.get('/api/admin/registered-students-export', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      await backfillSchoolFinalInternshipsFromRegistrations((req as any).user?.id);
+      const rows = (await db.execute(`
+        WITH registered_students AS (
+          SELECT DISTINCT user_id FROM registrations
+        ),
+        school_proposals AS (
+          SELECT r.user_id,
+                 MAX(CASE WHEN NULLIF(TRIM(r.other_company_contact), '') IS NOT NULL THEN r.other_company_contact END) as school_primary,
+                 MAX(CASE WHEN NULLIF(TRIM(r.other_company_role), '') IS NOT NULL THEN r.other_company_role END) as school_co
+          FROM registrations r
+          JOIN companies sc ON sc.id = r.company_id
+          WHERE sc.name = 'Trường Đại học Công nghệ' AND r.status != 'rejected'
+          GROUP BY r.user_id
+        )
+        SELECT 
+          u.id as user_id,
+          u.student_id,
+          u.name as student_name,
+          u.dob,
+          u.class_name,
+          CASE
+            WHEN INSTR(UPPER(u.course_code), 'INT') > 0 THEN SUBSTR(u.course_code, INSTR(UPPER(u.course_code), 'INT'))
+            ELSE COALESCE(u.course_code, '')
+          END as course_code,
+          u.phone,
+          u.personal_email,
+          u.email,
+          CASE
+            WHEN f.id IS NULL THEN 'Chưa xác nhận'
+            WHEN fc.name = 'Công ty khác' THEN COALESCE(NULLIF(TRIM(fr.other_company_name), ''), 'Công ty khác')
+            ELSE COALESCE(fc.name, 'Chưa rõ')
+          END as final_internship_place,
+          COALESCE(
+            NULLIF(GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN l.name END, '; '), ''),
+            NULLIF(TRIM(f.school_lecturer), ''),
+            NULLIF(TRIM(sp.school_primary), ''),
+            ''
+          ) as primary_advisors,
+          COALESCE(
+            NULLIF(GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN l.name END, '; '), ''),
+            NULLIF(TRIM(sp.school_co), ''),
+            ''
+          ) as co_advisors
+        FROM registered_students rs
+        JOIN users u ON u.id = rs.user_id
+        LEFT JOIN final_internships f ON f.user_id = u.id
+        LEFT JOIN companies fc ON fc.id = f.company_id
+        LEFT JOIN registrations fr ON fr.id = f.registration_id
+        LEFT JOIN advisor_assignments aa ON aa.user_id = u.id
+        LEFT JOIN lecturers l ON l.id = aa.lecturer_id
+        LEFT JOIN school_proposals sp ON sp.user_id = u.id
+        GROUP BY u.id
+        ORDER BY u.class_name ASC, u.student_id ASC
+      `)).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.put('/api/admin/final-internships/:userId', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const targetUserId = Number(req.params.userId);

@@ -19,6 +19,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [exportingUnconfirmed, setExportingUnconfirmed] = useState(false);
+  const [exportingRegisteredStudents, setExportingRegisteredStudents] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
   const [savingRegistration, setSavingRegistration] = useState(false);
   const [deletingRegistration, setDeletingRegistration] = useState(false);
@@ -360,6 +361,146 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       alert('Lỗi xuất danh sách chưa xác nhận: ' + (e?.message || e));
     } finally {
       setExportingUnconfirmed(false);
+    }
+  };
+
+  const handleExportRegisteredStudents = async () => {
+    if (exportingRegisteredStudents) return;
+    setExportingRegisteredStudents(true);
+    setIsExportMenuOpen(false);
+
+    try {
+      let studentList: any[] = [];
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/registered-students-export`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            studentList = data;
+          }
+        }
+      } catch (e) {
+        // Fallback below
+      }
+
+      if (studentList.length === 0) {
+        let finalMap = new Map<number, any>();
+        try {
+          const finalRes = await fetch(`${API_BASE}/api/admin/final-internships`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (finalRes.ok) {
+            const finalData = await finalRes.json();
+            if (Array.isArray(finalData)) {
+              finalData.forEach((f: any) => {
+                const uid = Number(f.user_id);
+                if (uid) finalMap.set(uid, f);
+              });
+            }
+          }
+        } catch (e) {}
+
+        const studentMap = new Map<number, any>();
+        registrations.forEach(r => {
+          const uid = Number(r.user_id);
+          if (!uid) return;
+
+          if (!studentMap.has(uid)) {
+            const finalInfo = finalMap.get(uid);
+            let place = 'Chưa xác nhận';
+            let gvhd = '';
+            let gvdhd = '';
+
+            if (finalInfo) {
+              if (finalInfo.company_name === 'Công ty khác') {
+                place = finalInfo.other_company_name || 'Công ty khác';
+              } else {
+                place = finalInfo.company_name || 'Chưa rõ';
+              }
+              if (finalInfo.school_lecturer) {
+                gvhd = finalInfo.school_lecturer;
+              }
+              if (finalInfo.other_company_role) {
+                gvdhd = finalInfo.other_company_role;
+              }
+            }
+
+            studentMap.set(uid, {
+              user_id: uid,
+              student_id: r.student_id || '',
+              student_name: r.student_name || '',
+              dob: r.dob || '',
+              class_name: r.class_name || '',
+              course_code: r.course_code || '',
+              phone: r.phone || '',
+              email: r.email || '',
+              personal_email: r.personal_email || '',
+              final_internship_place: place,
+              primary_advisors: gvhd,
+              co_advisors: gvdhd,
+            });
+          }
+
+          const s = studentMap.get(uid);
+          if (r.company_name === 'Trường Đại học Công nghệ') {
+            if (!s.primary_advisors && r.other_company_contact) {
+              s.primary_advisors = r.other_company_contact;
+            }
+            if (!s.co_advisors && r.other_company_role) {
+              s.co_advisors = r.other_company_role;
+            }
+          }
+        });
+
+        studentList = Array.from(studentMap.values()).sort((a, b) => {
+          const cComp = (a.class_name || '').localeCompare(b.class_name || '');
+          if (cComp !== 0) return cComp;
+          return (a.student_id || '').localeCompare(b.student_id || '');
+        });
+      }
+
+      if (studentList.length === 0) {
+        alert('Không có dữ liệu sinh viên đăng ký để xuất.');
+        return;
+      }
+
+      const headers = [
+        'STT',
+        'MSSV',
+        'Họ và tên',
+        'Ngày sinh',
+        'Lớp khoá học',
+        'Mã môn học',
+        'GVHD',
+        'GV ĐHD',
+        'SĐT',
+        'Email cá nhân',
+        'Email VNU',
+        'Nơi thực tập',
+      ];
+
+      const rows = studentList.map((item, idx) => [
+        idx + 1,
+        item.student_id || '',
+        item.student_name || item.name || '',
+        item.dob || '',
+        item.class_name || '',
+        formatCourseCode(item.course_code),
+        item.primary_advisors || item.gvhd || '',
+        item.co_advisors || item.gvdhd || '',
+        item.phone || '',
+        item.personal_email || '',
+        item.email || '',
+        item.final_internship_place || 'Chưa xác nhận',
+      ]);
+
+      saveXlsx('danh_sach_dang_ky_thuc_tap.xlsx', headers, rows, 'DS đăng ký');
+    } catch (e: any) {
+      alert('Lỗi xuất danh sách đăng ký: ' + (e?.message || e));
+    } finally {
+      setExportingRegisteredStudents(false);
     }
   };
 
@@ -839,6 +980,18 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                     <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
                       <FileText size={15} className="text-emerald-600 shrink-0" /> Xuất danh sách đang lọc (XLSX)
                     </button>
+                    <button
+                      onClick={handleExportRegisteredStudents}
+                      disabled={exportingRegisteredStudents}
+                      className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer disabled:opacity-50"
+                    >
+                      {exportingRegisteredStudents ? (
+                        <RefreshCw size={15} className="text-blue-600 animate-spin shrink-0" />
+                      ) : (
+                        <Users size={15} className="text-blue-600 shrink-0" />
+                      )}
+                      Xuất DS đăng ký (XLSX)
+                    </button>
                     <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
                       <Download size={15} className="text-blue-600 shrink-0" /> Xuất theo môn học (ZIP)
                     </button>
@@ -848,17 +1001,14 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
                     <button
                       onClick={handleExportUnconfirmed}
                       disabled={exportingUnconfirmed}
-                      className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-amber-50/70 text-xs font-medium transition-colors w-full text-left cursor-pointer disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2.5 hover:bg-amber-50/70 text-xs font-medium transition-colors w-full text-left cursor-pointer disabled:opacity-50"
                     >
                       {exportingUnconfirmed ? (
                         <RefreshCw size={15} className="text-amber-600 animate-spin shrink-0" />
                       ) : (
                         <UserX size={15} className="text-amber-600 shrink-0" />
                       )}
-                      <div>
-                        <div className="font-semibold text-slate-800">Xuất DS chưa xác nhận (XLSX)</div>
-                        <div className="text-[10px] text-slate-400 font-normal">Sinh viên chưa xác nhận nơi thực tập</div>
-                      </div>
+                      Xuất DS chưa xác nhận (XLSX)
                     </button>
                   </div>
                 </>
