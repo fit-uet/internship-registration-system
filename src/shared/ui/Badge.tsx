@@ -10,6 +10,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   dot?: boolean;
   pulse?: boolean;
   coloredBg?: boolean;
+  className?: string;
   children: React.ReactNode;
 }
 

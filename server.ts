@@ -2252,6 +2252,7 @@ async function startServer() {
 
       // Check if this email exists in the lecturers table
       const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
+      const isLecturerInDb = !!lecturerRecord;
       // Use lecturer name from DB if available, otherwise use Google name
       const rawDisplayName = lecturerRecord?.name || payload.name || email;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');

@@ -16,6 +16,7 @@ type Env = {
   EMAIL_DAILY_SEND_CAP?: string;
   EMAIL_BATCH_SIZE?: string;
   EMAIL_SEND_IMMEDIATE?: string;
+  CRON_SECRET?: string;
   REPORTS_BUCKET?: R2Bucket;
 };
 
@@ -4070,7 +4071,7 @@ export default {
   },
   async scheduled(event: any, env: Env, ctx: any) {
     try {
-      const database = createClient(env);
+      const database = db(env);
       if (env.RESEND_API_KEY && env.EMAIL_FROM) {
         await sendQueuedNotificationBatch(database, env, { ignoreBatchSize: true });
       }
