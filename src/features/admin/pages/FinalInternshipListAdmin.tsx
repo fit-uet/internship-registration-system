@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Download, ArrowUpDown, Search, RefreshCw } from 'lucide-react';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function FinalInternshipListAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -96,7 +96,7 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
     const data = filteredRows.map((item, idx) => [
       idx + 1,
       item.student_id || '',
-      item.student_name || '',
+      cleanStudentName(item.student_name, item.student_id),
       item.email || '',
       item.phone || '',
       item.personal_email || '',
@@ -215,7 +215,7 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
                   <tr key={item.id} className="hover:bg-[#f5f5f7] transition-colors">
                     <td className="px-5 py-3.5 font-mono font-medium text-slate-900">{item.student_id || '-'}</td>
                     <td className="px-5 py-3.5">
-                      <div className="font-semibold text-slate-900">{item.student_name}</div>
+                      <div className="font-semibold text-slate-900">{cleanStudentName(item.student_name, item.student_id)}</div>
                       <div className="text-[10px] font-medium text-slate-400 mt-0.5">{item.class_name || '-'}</div>
                     </td>
                     <td className="px-5 py-3.5">

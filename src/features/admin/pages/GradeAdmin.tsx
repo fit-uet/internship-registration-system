@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { CheckCircle2, Download, Search } from 'lucide-react';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function GradeAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ export function GradeAdmin({ token }: { token: string }) {
     const term = searchTerm.trim().toLowerCase();
     const status = row.grade_status || 'missing';
     const matchStatus = statusFilter ? status === statusFilter : true;
-    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term) || row.co_advisors?.toLowerCase().includes(term);
+    const matchTerm = !term || row.student_id?.toLowerCase().includes(term) || row.student_name?.toLowerCase().includes(term) || cleanStudentName(row.student_name, row.student_id).toLowerCase().includes(term) || row.internship_place?.toLowerCase().includes(term) || row.primary_advisors?.toLowerCase().includes(term) || row.co_advisors?.toLowerCase().includes(term);
     return matchStatus && matchTerm;
   });
   useEffect(() => {
@@ -64,7 +64,7 @@ export function GradeAdmin({ token }: { token: string }) {
     const data = filtered.map((row, idx) => [
       idx + 1,
       row.student_id || '',
-      row.student_name || '',
+      cleanStudentName(row.student_name, row.student_id),
       row.class_name || '',
       formatCourseCode(row.course_code),
       row.internship_place || '',
@@ -143,7 +143,7 @@ export function GradeAdmin({ token }: { token: string }) {
               ) : paginatedRows.map(row => (
                 <tr key={row.user_id} className="hover:bg-[#f5f5f7] transition-colors align-top">
                   <td className="px-4 py-4">
-                    <div className="font-semibold text-slate-900">{row.student_name}</div>
+                    <div className="font-semibold text-slate-900">{cleanStudentName(row.student_name, row.student_id)}</div>
                     <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
                     <div className="text-xs text-slate-400">{row.class_name || '-'} · {formatCourseCode(row.course_code) || '-'}</div>
                   </td>

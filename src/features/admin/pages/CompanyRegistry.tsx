@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Upload, CheckCircle2, Download, Search, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Send } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { GOOGLE_API_KEY, API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, clearJsonCache, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { GOOGLE_API_KEY, API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, clearJsonCache, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function CompanyRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -427,7 +427,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
     const rows = data.map((r, idx) => [
       idx + 1,
       r.student_id || '',
-      r.student_name || '',
+      cleanStudentName(r.student_name, r.student_id),
       r.dob || '',
       r.phone || '',
       r.personal_email || '',
@@ -447,7 +447,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
     const rows = data.map((r, idx) => [
       idx + 1,
       r.student_id || '',
-      r.student_name || '',
+      cleanStudentName(r.student_name, r.student_id),
       r.dob || '',
       r.phone || '',
       r.personal_email || '',

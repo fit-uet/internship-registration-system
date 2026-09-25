@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { User as UserIcon, Upload, Download, ArrowUpDown, Search, RefreshCw, Save, Plus, Trash2, X, Edit2, Send } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getGoogleDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, paginationBounds, clearJsonCache, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getGoogleDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, paginationBounds, clearJsonCache, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function LecturerRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -177,7 +177,7 @@ Khoa Công nghệ Thông tin`);
     const data = rows.map((row, idx) => [
       idx + 1,
       row.student_id || '',
-      row.student_name || '',
+      cleanStudentName(row.student_name, row.student_id),
       row.email || '',
       row.class_name || '',
       formatCourseCode(row.course_code),

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send, Trash2, UserX } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
@@ -179,7 +179,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       return [
         i + 1,
         r.student_id,
-        r.student_name,
+        cleanStudentName(r.student_name, r.student_id),
         r.dob,
         r.phone || '',
         r.personal_email || '',
@@ -220,7 +220,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
         const rows = uniqueStudents.map((row: any, idx: number) => [
           idx + 1,
           row.student_id || '',
-          row.student_name || '',
+          cleanStudentName(row.student_name, row.student_id),
           row.dob || '',
           row.class_name || '',
         ]);
@@ -343,7 +343,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       const rows = unconfirmedList.map((item, idx) => [
         idx + 1,
         item.student_id || '',
-        item.student_name || item.name || '',
+        cleanStudentName(item.student_name || item.name, item.student_id),
         item.dob || '',
         item.class_name || '',
         formatCourseCode(item.course_code),
@@ -484,7 +484,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
       const rows = studentList.map((item, idx) => [
         idx + 1,
         item.student_id || '',
-        item.student_name || item.name || '',
+        cleanStudentName(item.student_name || item.name, item.student_id),
         item.dob || '',
         item.class_name || '',
         formatCourseCode(item.course_code),

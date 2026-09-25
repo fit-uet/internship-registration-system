@@ -180,6 +180,88 @@ function isWithinLocalWindow(settings: Record<string, string>, openKey: string, 
   return { ok: true };
 }
 
+function cleanStudentName(rawName?: string, studentId?: string, email?: string): string {
+  if (!rawName) return '';
+  let name = String(rawName).trim();
+
+  if (studentId) {
+    const sId = String(studentId).trim();
+    if (sId) {
+      if (name.toLowerCase().startsWith(sId.toLowerCase())) {
+        name = name.slice(sId.length).trim().replace(/^[-_.:/\s]+/, '');
+      }
+      if (name.toLowerCase().endsWith(sId.toLowerCase())) {
+        name = name.slice(0, -sId.length).trim().replace(/[-_.:/\s]+$/, '');
+      }
+    }
+  }
+
+  if (email) {
+    const userPart = String(email).split('@')[0]?.trim();
+    if (userPart && userPart.length >= 3) {
+      if (name.toLowerCase().startsWith(userPart.toLowerCase())) {
+        name = name.slice(userPart.length).trim().replace(/^[-_.:/\s]+/, '');
+      }
+      if (name.toLowerCase().endsWith(userPart.toLowerCase())) {
+        name = name.slice(0, -userPart.length).trim().replace(/[-_.:/\s]+$/, '');
+      }
+    }
+  }
+
+  name = name.replace(/^(?:mssv|msv|sv)?\s*[:#-]?\s*\(?\d{6,12}\)?\s*[-_.:/\s]*/i, '').trim();
+  name = name.replace(/\s*[-_.:/]?\s*\(?\d{6,12}\)?$/i, '').trim();
+
+  const sepParts = name.split(/\s*[-–—/|,]\s*/);
+  if (sepParts.length === 2 && sepParts[0].trim().localeCompare(sepParts[1].trim(), undefined, { sensitivity: 'accent' }) === 0) {
+    name = sepParts[0].trim();
+  }
+
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2 && words.length % 2 === 0) {
+    const mid = words.length / 2;
+    const firstHalf = words.slice(0, mid).join(' ');
+    const secondHalf = words.slice(mid).join(' ');
+    if (firstHalf.localeCompare(secondHalf, undefined, { sensitivity: 'accent' }) === 0) {
+      name = firstHalf;
+    }
+  }
+
+  const words3 = name.split(/\s+/).filter(Boolean);
+  if (words3.length >= 3 && words3.length % 3 === 0) {
+    const third = words3.length / 3;
+    const p1 = words3.slice(0, third).join(' ');
+    const p2 = words3.slice(third, third * 2).join(' ');
+    const p3 = words3.slice(third * 2).join(' ');
+    if (p1.localeCompare(p2, undefined, { sensitivity: 'accent' }) === 0 &&
+        p2.localeCompare(p3, undefined, { sensitivity: 'accent' }) === 0) {
+      name = p1;
+    }
+  }
+
+  name = name.replace(/\s+/g, ' ').trim();
+  return name || String(rawName).trim();
+}
+
+async function normalizeExistingStudentNames() {
+  try {
+    const students = (await db.execute(`
+      SELECT id, student_id, name, email FROM users
+      WHERE role = 'student' AND name IS NOT NULL AND name != ''
+    `)).rows as any[];
+    for (const s of students) {
+      const clean = cleanStudentName(s.name, s.student_id, s.email);
+      if (clean && clean !== s.name) {
+        await db.execute({
+          sql: 'UPDATE users SET name = ? WHERE id = ?',
+          args: [clean, s.id],
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to normalize existing student names:', e);
+  }
+}
+
 async function exportRegistrationsToGoogleSheets() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_PRIVATE_KEY;
@@ -1728,6 +1810,7 @@ Mỗi sinh viên cần viết **01 báo cáo thực tập** theo mẫu Khoa quy 
   }
 
   await syncLecturerUsers();
+  await normalizeExistingStudentNames();
 }
 
 async function seedCompaniesIfEmpty() {
@@ -2150,12 +2233,11 @@ async function startServer() {
       // Check if this email exists in the lecturers table
       const lecturerRecord = (await db.execute({ sql: 'SELECT * FROM lecturers WHERE email = ?', args: [email] })).rows[0] as any;
       // Use lecturer name from DB if available, otherwise use Google name
-      const displayName = lecturerRecord?.name || payload.name || email;
-      const picture = payload.picture || null;
-      const isLecturerInDb = !!lecturerRecord;
+      const rawDisplayName = lecturerRecord?.name || payload.name || email;
       const defaultRole = (email === adminEmail) ? 'admin' : (isLecturerInDb ? 'lecturer' : 'student');
-
       const studentId = defaultRole === 'student' ? email.split('@')[0] : null;
+      const displayName = defaultRole === 'student' ? cleanStudentName(rawDisplayName, studentId, email) : rawDisplayName;
+      const picture = payload.picture || null;
       let user = (await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] })).rows[0] as any;
       if (!user && studentId) {
         user = (await db.execute({
@@ -2321,9 +2403,10 @@ async function startServer() {
           await syncLecturerUsers();
         }
       } else {
+        const studentCleanName = cleanStudentName(name, student_id, req.user.email);
         await db.execute({
           sql: 'UPDATE users SET name = ?, student_id = ?, dob = ?, class_name = ?, course_code = ?, phone = ?, personal_email = ? WHERE id = ?',
-          args: [name, student_id || null, dob || null, class_name || null, course_code || null, phone || null, personal_email || null, req.user.id]
+          args: [studentCleanName, student_id || null, dob || null, class_name || null, course_code || null, phone || null, personal_email || null, req.user.id]
         });
       }
       const updatedUser = (await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [req.user.id] })).rows[0];
@@ -5294,8 +5377,8 @@ async function startServer() {
         LEFT JOIN school_proposals sp ON sp.user_id = u.id
         GROUP BY u.id
         ORDER BY u.class_name ASC, u.student_id ASC
-      `)).rows;
-      res.json(rows);
+      `)).rows as any[];
+      res.json(rows.map(r => ({ ...r, student_name: cleanStudentName(r.student_name, r.student_id, r.email) })));
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -6040,7 +6123,11 @@ async function startServer() {
       ORDER BY u.student_id ASC
     `)).rows as any[];
     const headers = rows.length ? Object.keys(rows[0]) : ['Mã SV', 'Họ và tên', 'Điểm tổng kết'];
-    const csv = [headers, ...rows.map(row => headers.map(header => row[header] ?? ''))]
+    const csv = [headers, ...rows.map(row => {
+      const copy = { ...row };
+      if (copy['Họ và tên']) copy['Họ và tên'] = cleanStudentName(copy['Họ và tên'], copy['Mã SV']);
+      return headers.map(header => copy[header] ?? '');
+    })]
       .map(items => items.map(item => `"${String(item ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
     res.header('Content-Type', 'text/csv; charset=utf-8');

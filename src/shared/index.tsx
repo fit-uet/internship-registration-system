@@ -319,6 +319,78 @@ export const formatCourseCode = (code?: string): string => {
   return parts[parts.length - 1] || '';
 };
 
+export const cleanStudentName = (rawName?: string, studentId?: string, email?: string): string => {
+  if (!rawName) return '';
+  let name = String(rawName).trim();
+
+  // 1. If studentId is provided and name starts or ends with it
+  if (studentId) {
+    const sId = String(studentId).trim();
+    if (sId) {
+      if (name.toLowerCase().startsWith(sId.toLowerCase())) {
+        name = name.slice(sId.length).trim().replace(/^[-_.:/\s]+/, '');
+      }
+      if (name.toLowerCase().endsWith(sId.toLowerCase())) {
+        name = name.slice(0, -sId.length).trim().replace(/[-_.:/\s]+$/, '');
+      }
+    }
+  }
+
+  // 2. If email is provided, check if username part is prepended/appended (e.g. "tuyenkv Kiều Văn Tuyên")
+  if (email) {
+    const userPart = String(email).split('@')[0]?.trim();
+    if (userPart && userPart.length >= 3) {
+      if (name.toLowerCase().startsWith(userPart.toLowerCase())) {
+        name = name.slice(userPart.length).trim().replace(/^[-_.:/\s]+/, '');
+      }
+      if (name.toLowerCase().endsWith(userPart.toLowerCase())) {
+        name = name.slice(0, -userPart.length).trim().replace(/[-_.:/\s]+$/, '');
+      }
+    }
+  }
+
+  // 3. Remove leading student ID patterns (e.g., "21020012 Vũ Minh Điềm", "MSV 22024535 - Đoàn Ngọc Hiếu")
+  name = name.replace(/^(?:mssv|msv|sv)?\s*[:#-]?\s*\(?\d{6,12}\)?\s*[-_.:/\s]*/i, '').trim();
+
+  // 4. Remove trailing student ID patterns (e.g., "Vũ Minh Điềm 21020012" or "Vũ Minh Điềm (21020012)")
+  name = name.replace(/\s*[-_.:/]?\s*\(?\d{6,12}\)?$/i, '').trim();
+
+  // 5. Handle duplicate name with separator: e.g. "Khuất Tuấn Anh - Khuất Tuấn Anh"
+  const sepParts = name.split(/\s*[-–—/|,]\s*/);
+  if (sepParts.length === 2 && sepParts[0].trim().localeCompare(sepParts[1].trim(), undefined, { sensitivity: 'accent' }) === 0) {
+    name = sepParts[0].trim();
+  }
+
+  // 6. Handle duplicate words: e.g. "Khuất Tuấn Anh Khuất Tuấn Anh" (even word count >= 2)
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2 && words.length % 2 === 0) {
+    const mid = words.length / 2;
+    const firstHalf = words.slice(0, mid).join(' ');
+    const secondHalf = words.slice(mid).join(' ');
+    if (firstHalf.localeCompare(secondHalf, undefined, { sensitivity: 'accent' }) === 0) {
+      name = firstHalf;
+    }
+  }
+
+  // 7. Handle 3-times repetition: e.g. length % 3 === 0
+  const words3 = name.split(/\s+/).filter(Boolean);
+  if (words3.length >= 3 && words3.length % 3 === 0) {
+    const third = words3.length / 3;
+    const p1 = words3.slice(0, third).join(' ');
+    const p2 = words3.slice(third, third * 2).join(' ');
+    const p3 = words3.slice(third * 2).join(' ');
+    if (p1.localeCompare(p2, undefined, { sensitivity: 'accent' }) === 0 &&
+        p2.localeCompare(p3, undefined, { sensitivity: 'accent' }) === 0) {
+      name = p1;
+    }
+  }
+
+  // 8. Collapse whitespace
+  name = name.replace(/\s+/g, ' ').trim();
+
+  return name || String(rawName).trim();
+};
+
 export const companyDescriptionText = (value: any) => {
   const text = String(value || '').trim();
   return /^Tuyển\s+\d+\s+sinh viên thực tập\.?$/i.test(text) ? '' : text;

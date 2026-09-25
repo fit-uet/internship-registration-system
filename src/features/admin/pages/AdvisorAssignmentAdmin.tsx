@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Upload, Download, ArrowUpDown, Search, RefreshCw, Save, Plus, Trash2, FileText, Settings } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, xlsxArrayBuffer, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip, SegmentedControl, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, xlsxArrayBuffer, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip, SegmentedControl, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string, view?: 'assignments' | 'requests' | 'quotas' }) {
   const navigate = useNavigate();
@@ -296,7 +296,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
     const summaryRows = sortedRows.map((row, idx) => [
       idx + 1,
       row.student_id || '',
-      row.student_name || '',
+      cleanStudentName(row.student_name, row.student_id),
       row.email || '',
       row.personal_email || '',
       row.class_name || '',
@@ -326,7 +326,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
         unassignedRows.push([
           unassignedRows.length + 1,
           row.student_id || '',
-          row.student_name || '',
+          cleanStudentName(row.student_name, row.student_id),
           row.email || '',
           row.personal_email || '',
           row.class_name || '',
@@ -347,7 +347,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
         entry.rows.push([
           entry.rows.length + 1,
           row.student_id || '',
-          row.student_name || '',
+          cleanStudentName(row.student_name, row.student_id),
           row.email || '',
           row.personal_email || '',
           row.class_name || '',

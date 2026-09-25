@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Download, Search, FileText, ChevronLeft, CheckCircle2, AlertCircle, Clock, FileCheck } from 'lucide-react';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function FinalReportAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -109,7 +109,7 @@ export function FinalReportAdmin({ token }: { token: string }) {
     const data = filtered.map((row, idx) => [
       idx + 1,
       row.student_id || '',
-      row.student_name || '',
+      cleanStudentName(row.student_name, row.student_id),
       row.class_name || '',
       formatCourseCode(row.course_code),
       row.internship_place || '',
@@ -271,7 +271,7 @@ export function FinalReportAdmin({ token }: { token: string }) {
                 paginatedRows.map((row) => (
                   <tr key={row.user_id} className="hover:bg-[#f5f5f7]/60 transition-colors align-top">
                     <td className="px-5 py-4">
-                      <div className="font-bold text-[#1d1d1f] text-xs">{row.student_name}</div>
+                      <div className="font-bold text-[#1d1d1f] text-xs">{cleanStudentName(row.student_name, row.student_id)}</div>
                       <div className="text-xs text-[#86868b] font-mono mt-0.5">{row.student_id || '-'}</div>
                       <div className="text-[11px] text-[#86868b] mt-0.5">
                         {row.class_name || '-'} · {row.course_code || '-'}

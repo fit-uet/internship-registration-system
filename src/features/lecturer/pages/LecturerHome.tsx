@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { User as UserIcon, Users, CheckCircle2, Download, FileText, CircleHelp, MessageCircle, GraduationCap, BookOpen } from 'lucide-react';
 import { saveAs } from 'file-saver';
 
-import { API_BASE, saveXlsx, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
+import { API_BASE, saveXlsx, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 import { ReportReviewPanel, type ReviewTarget } from './ReportReviewPanel';
 
 export function LecturerHome({ user, token }: { user: any, token: string }) {
@@ -148,7 +148,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     const rows = students.map((student: any, index: number) => [
       index + 1,
       student.student_id || '',
-      student.student_name || '',
+      cleanStudentName(student.student_name, student.student_id),
       student.class_name || '',
       formatCourseCode(student.course_code),
       student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn',
@@ -345,7 +345,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
               ) : students.map((student: any) => (
                 <tr key={student.assignment_id} className="hover:bg-slate-50/50 transition-colors align-top">
                   <td className="p-4 font-mono font-semibold text-slate-800">{student.student_id || '-'}</td>
-                  <td className="p-4 font-semibold text-slate-800">{student.student_name}</td>
+                  <td className="p-4 font-semibold text-slate-800">{cleanStudentName(student.student_name, student.student_id)}</td>
                   <td className="p-4">
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${student.advisor_role === 'primary' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-blue-50 border border-blue-100 text-blue-700'}`}>
                       {student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn'}

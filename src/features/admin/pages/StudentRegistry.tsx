@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Upload, Download, Search, RefreshCw, Save, Plus, Trash2, X, Edit2 } from 'lucide-react';
-import { API_BASE, saveXlsx, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip, cleanStudentName } from '../../../shared';
 
 export function StudentRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -81,7 +81,7 @@ export function StudentRegistry({ token }: { token: string }) {
     const rows = filteredAndSortedStudents.map((s, idx) => [
       idx + 1,
       s.student_id,
-      s.name,
+      cleanStudentName(s.name, s.student_id),
       s.dob,
       s.phone || '',
       s.personal_email || '',
