@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Download, ArrowUpDown, Search, RefreshCw } from 'lucide-react';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
 
 export function FinalInternshipListAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -101,7 +101,7 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
       item.phone || '',
       item.personal_email || '',
       item.class_name || '',
-      item.course_code || '',
+      formatCourseCode(item.course_code),
       typeLabel(item.internship_type),
       internshipPlace(item),
       item.school_lecturer || '',
@@ -225,7 +225,7 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
                     </td>
                     <td className="px-5 py-3.5 min-w-[200px] font-medium text-slate-700">{internshipPlace(item)}</td>
                     <td className="px-5 py-3.5 font-medium text-slate-700">{item.school_assignment_request ? <span className="text-[#b45309] font-semibold">Khoa sẽ phân công</span> : (item.school_lecturer || '-')}</td>
-                    <td className="px-5 py-3.5 text-xs font-semibold text-slate-700">{item.course_code?.split(' ').pop() || '-'}</td>
+                    <td className="px-5 py-3.5 text-xs font-semibold text-slate-700">{formatCourseCode(item.course_code) || '-'}</td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-slate-400 text-[11px]">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
                   </tr>
                 ))

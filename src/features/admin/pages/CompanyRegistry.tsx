@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Upload, CheckCircle2, Download, Search, Building2, RefreshCw, Save, Plus, Trash2, X, ChevronDown, FileText, Edit2, Shield, Send } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { GOOGLE_API_KEY, API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, clearJsonCache, PaginationControls, PageDescriptionTooltip } from '../../../shared';
+import { GOOGLE_API_KEY, API_BASE, saveXlsx, xlsxArrayBuffer, xlsxBlob, getDriveAccessToken, pickDriveFolder, uploadXlsxToDrive, readSpreadsheetRows, clearJsonCache, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
 
 export function CompanyRegistry({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -432,7 +432,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       r.phone || '',
       r.personal_email || '',
       r.class_name || '',
-      r.course_code || '',
+      formatCourseCode(r.course_code),
       r.note || '',
       r.status === 'approved' ? 'Đã duyệt' : r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt',
       r.sent_to_company_at ? new Date(r.sent_to_company_at).toLocaleString('vi-VN') : '',
@@ -452,7 +452,7 @@ Trường Đại học Công nghệ, ĐHQGHN`;
       r.phone || '',
       r.personal_email || '',
       r.class_name || '',
-      r.course_code || '',
+      formatCourseCode(r.course_code),
       r.note || '',
     ]);
     return { headers, rows };

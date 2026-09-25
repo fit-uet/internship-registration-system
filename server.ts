@@ -211,7 +211,10 @@ async function exportRegistrationsToGoogleSheets() {
       u.name as "Họ và tên",
       u.dob as "Ngày sinh",
       u.class_name as "Lớp KH",
-      u.course_code as "Mã môn học",
+      CASE
+        WHEN INSTR(UPPER(u.course_code), 'INT') > 0 THEN SUBSTR(u.course_code, INSTR(UPPER(u.course_code), 'INT'))
+        ELSE COALESCE(u.course_code, '')
+      END as "Mã môn học",
       CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
       CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
       CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",
@@ -6296,7 +6299,10 @@ async function startServer() {
         u.name as "Họ và tên",
         u.dob as "Ngày sinh",
         u.class_name as "Lớp KH",
-        u.course_code as "Mã môn học",
+        CASE
+          WHEN INSTR(UPPER(u.course_code), 'INT') > 0 THEN SUBSTR(u.course_code, INSTR(UPPER(u.course_code), 'INT'))
+          ELSE COALESCE(u.course_code, '')
+        END as "Mã môn học",
         CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || coalesce(r.other_company_name, '') ELSE c.name END as "Nơi thực tập",
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_role, '') ELSE 'Thực tập sinh' END as "Vị trí",
         CASE WHEN c.name = 'Công ty khác' THEN coalesce(r.other_company_contact, '') ELSE c.contact_email END as "Liên hệ",

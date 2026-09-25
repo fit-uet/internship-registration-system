@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send, Trash2, UserX } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
+import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls, formatCourseCode } from '../../../shared';
 
 export function AdminPanel({ token, user: propUser }: { token: string; user?: any }) {
   const user = propUser || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
@@ -183,7 +183,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
         r.phone || '',
         r.personal_email || '',
         r.class_name,
-        r.course_code,
+        formatCourseCode(r.course_code),
         noi_tt,
         vi_tri,
         lien_he,
@@ -345,7 +345,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
         item.student_name || item.name || '',
         item.dob || '',
         item.class_name || '',
-        item.course_code || '',
+        formatCourseCode(item.course_code),
         item.phone || '',
         item.email || '',
         item.personal_email || '',

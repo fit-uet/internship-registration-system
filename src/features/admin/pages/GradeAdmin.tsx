@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { CheckCircle2, Download, Search } from 'lucide-react';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
 
 export function GradeAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -53,11 +53,6 @@ export function GradeAdmin({ token }: { token: string }) {
   const pagination = paginationBounds(filtered.length, currentPage, pageSize);
   const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
-  const formatCourseCode = (code?: string) => {
-    if (!code) return '';
-    const idx = code.search(/INT/i);
-    return idx !== -1 ? code.slice(idx).trim() : code.trim();
-  };
 
   const formatGradingLecturer = (name?: string) => {
     if (!name || name === 'Giảng viên đã bị xóa') return '';

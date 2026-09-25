@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Download, Search, FileText, ChevronLeft, CheckCircle2, AlertCircle, Clock, FileCheck } from 'lucide-react';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
 
 export function FinalReportAdmin({ token }: { token: string }) {
   const navigate = useNavigate();
@@ -111,7 +111,7 @@ export function FinalReportAdmin({ token }: { token: string }) {
       row.student_id || '',
       row.student_name || '',
       row.class_name || '',
-      row.course_code || '',
+      formatCourseCode(row.course_code),
       row.internship_place || '',
       row.primary_advisors || '',
       row.co_advisors || '',

@@ -312,6 +312,13 @@ export const xlsxBlob = (headers: string[], rows: any[][], sheetName = 'Sheet1')
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 
+export const formatCourseCode = (code?: string): string => {
+  if (!code) return '';
+  const trimmed = String(code).trim();
+  const parts = trimmed.split(/\s+/);
+  return parts[parts.length - 1] || '';
+};
+
 export const companyDescriptionText = (value: any) => {
   const text = String(value || '').trim();
   return /^Tuyển\s+\d+\s+sinh viên thực tập\.?$/i.test(text) ? '' : text;

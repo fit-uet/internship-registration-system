@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Upload, Download, ArrowUpDown, Search, RefreshCw, Save, Plus, Trash2, FileText, Settings } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { API_BASE, saveXlsx, xlsxArrayBuffer, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip, SegmentedControl } from '../../../shared';
+import { API_BASE, saveXlsx, xlsxArrayBuffer, readSpreadsheetRows, paginationBounds, PaginationControls, PageDescriptionTooltip, SegmentedControl, formatCourseCode } from '../../../shared';
 
 export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token: string, view?: 'assignments' | 'requests' | 'quotas' }) {
   const navigate = useNavigate();
@@ -300,7 +300,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
       row.email || '',
       row.personal_email || '',
       row.class_name || '',
-      row.course_code || '',
+      formatCourseCode(row.course_code),
       row.internship_place || '',
       parseAssignments(row.primary_assignments).map(a => a.name).join('; '),
       parseAssignments(row.co_assignments).map(a => a.name).join('; ')
@@ -330,7 +330,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
           row.email || '',
           row.personal_email || '',
           row.class_name || '',
-          row.course_code || '',
+          formatCourseCode(row.course_code),
           row.internship_place || '',
           'Chưa phân công',
           '',
@@ -351,7 +351,7 @@ export function AdvisorAssignmentAdmin({ token, view = 'assignments' }: { token:
           row.email || '',
           row.personal_email || '',
           row.class_name || '',
-          row.course_code || '',
+          formatCourseCode(row.course_code),
           row.internship_place || '',
           lecturer.role,
           primary.map(a => a.name).join('; '),

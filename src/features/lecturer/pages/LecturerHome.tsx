@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { User as UserIcon, Users, CheckCircle2, Download, FileText, CircleHelp, MessageCircle, GraduationCap, BookOpen } from 'lucide-react';
 import { saveAs } from 'file-saver';
 
-import { API_BASE, saveXlsx, PageDescriptionTooltip } from '../../../shared';
+import { API_BASE, saveXlsx, PageDescriptionTooltip, formatCourseCode } from '../../../shared';
 import { ReportReviewPanel, type ReviewTarget } from './ReportReviewPanel';
 
 export function LecturerHome({ user, token }: { user: any, token: string }) {
@@ -150,7 +150,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
       student.student_id || '',
       student.student_name || '',
       student.class_name || '',
-      student.course_code || '',
+      formatCourseCode(student.course_code),
       student.advisor_role === 'primary' ? 'Hướng dẫn chính' : 'Đồng hướng dẫn',
       student.internship_place || '',
       student.phone || '',
