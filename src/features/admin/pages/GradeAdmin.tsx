@@ -53,14 +53,25 @@ export function GradeAdmin({ token }: { token: string }) {
   const pagination = paginationBounds(filtered.length, currentPage, pageSize);
   const paginatedRows = filtered.slice((pagination.safePage - 1) * pageSize, pagination.safePage * pageSize);
 
+  const formatCourseCode = (code?: string) => {
+    if (!code) return '';
+    const idx = code.search(/INT/i);
+    return idx !== -1 ? code.slice(idx).trim() : code.trim();
+  };
+
+  const formatGradingLecturer = (name?: string) => {
+    if (!name || name === 'Giảng viên đã bị xóa') return '';
+    return name;
+  };
+
   const exportXlsx = () => {
-    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn', 'Điểm định kỳ', 'Điểm final', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
+    const headers = ['STT', 'Mã SV', 'Họ tên', 'Lớp', 'Mã học phần', 'Nơi thực tập', 'GVHD chính', 'Đồng hướng dẫn', 'Điểm định kỳ', 'Điểm báo cáo', 'Điểm công ty/GVHD', 'Điểm tổng kết', 'Trạng thái', 'Người nhập', 'Nộp điểm lúc', 'Ghi chú'];
     const data = filtered.map((row, idx) => [
       idx + 1,
       row.student_id || '',
       row.student_name || '',
       row.class_name || '',
-      row.course_code || '',
+      formatCourseCode(row.course_code),
       row.internship_place || '',
       row.primary_advisors || '',
       row.co_advisors || '',
@@ -69,7 +80,7 @@ export function GradeAdmin({ token }: { token: string }) {
       row.company_score ?? '',
       row.final_score ?? '',
       statusLabel(row.grade_status),
-      row.grading_lecturer_name || '',
+      formatGradingLecturer(row.grading_lecturer_name),
       row.grade_submitted_at || '',
       row.comment || ''
     ]);
@@ -139,7 +150,7 @@ export function GradeAdmin({ token }: { token: string }) {
                   <td className="px-4 py-4">
                     <div className="font-semibold text-slate-900">{row.student_name}</div>
                     <div className="text-xs text-slate-500 font-mono">{row.student_id || '-'}</div>
-                    <div className="text-xs text-slate-400">{row.class_name || '-'} · {row.course_code || '-'}</div>
+                    <div className="text-xs text-slate-400">{row.class_name || '-'} · {formatCourseCode(row.course_code) || '-'}</div>
                   </td>
                   <td className="px-4 py-4 text-slate-700">{row.internship_place || '-'}</td>
                   <td className="px-4 py-4">
@@ -154,7 +165,7 @@ export function GradeAdmin({ token }: { token: string }) {
                   </td>
                   <td className="px-4 py-4">
                     <div className={`font-semibold ${row.grade_status === 'submitted' ? 'text-emerald-700' : row.grade_status === 'draft' ? 'text-orange-700' : 'text-slate-400'}`}>{statusLabel(row.grade_status)}</div>
-                    {row.grading_lecturer_name && <div className="text-[11px] text-slate-500 mt-0.5">Người nhập: {row.grading_lecturer_name}</div>}
+                    {formatGradingLecturer(row.grading_lecturer_name) && <div className="text-[11px] text-slate-500 mt-0.5">Người nhập: {formatGradingLecturer(row.grading_lecturer_name)}</div>}
                     {row.grade_submitted_at && <div className="text-[10px] text-slate-400 mt-0.5">{new Date(row.grade_submitted_at).toLocaleString('vi-VN')}</div>}
                     {row.comment && <div className="text-[11px] text-slate-500 mt-1">{row.comment}</div>}
                   </td>

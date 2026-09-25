@@ -5187,6 +5187,55 @@ async function startServer() {
     res.json(rows);
   });
 
+  app.get('/api/admin/unconfirmed-internships', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      await backfillSchoolFinalInternshipsFromRegistrations((req as any).user?.id);
+      const rows = (await db.execute(`
+        WITH confirmed_students AS (
+          SELECT DISTINCT user_id FROM final_internships
+        ),
+        student_regs AS (
+          SELECT 
+            r.user_id,
+            COUNT(r.id) as reg_count,
+            GROUP_CONCAT(
+              (CASE WHEN r.preference_order IS NOT NULL THEN 'NV' || r.preference_order || ': ' ELSE '' END) ||
+              (CASE WHEN c.name = 'Công ty khác' THEN 'Công ty khác: ' || COALESCE(r.other_company_name, '')
+                    WHEN c.name = 'Trường Đại học Công nghệ' THEN 'Trường Đại học Công nghệ'
+                    ELSE COALESCE(c.name, 'Chưa rõ') END) ||
+              ' (' || (CASE WHEN r.status = 'approved' THEN 'Đã duyệt' WHEN r.status = 'rejected' THEN 'Từ chối' ELSE 'Chờ duyệt' END) || ')',
+              '; '
+            ) as registered_places_summary
+          FROM registrations r
+          LEFT JOIN companies c ON r.company_id = c.id
+          GROUP BY r.user_id
+        )
+        SELECT 
+          u.id as user_id,
+          u.student_id,
+          u.name as student_name,
+          u.dob,
+          u.class_name,
+          u.course_code,
+          u.phone,
+          u.email,
+          u.personal_email,
+          COALESCE(sr.reg_count, 0) as registered_count,
+          COALESCE(sr.registered_places_summary, 'Chưa đăng ký') as registered_places,
+          'Chưa xác nhận' as confirmation_status
+        FROM registrations r
+        JOIN users u ON r.user_id = u.id
+        LEFT JOIN student_regs sr ON sr.user_id = u.id
+        WHERE u.id NOT IN (SELECT user_id FROM confirmed_students)
+        GROUP BY u.id
+        ORDER BY u.class_name ASC, u.student_id ASC
+      `)).rows;
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.put('/api/admin/final-internships/:userId', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const targetUserId = Number(req.params.userId);
@@ -5854,7 +5903,7 @@ async function startServer() {
              COALESCE(g.status, 'missing') as grade_status, g.comment, g.submitted_at as grade_submitted_at, g.locked_at,
              CASE
                WHEN g.id IS NULL THEN NULL
-               ELSE COALESCE(gl.name, 'Giảng viên đã bị xóa')
+               ELSE gl.name
              END as grading_lecturer_name,
              GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as primary_advisors,
              GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as co_advisors
@@ -5898,7 +5947,11 @@ async function startServer() {
 
   app.get('/api/admin/grades/export.csv', requireAuth, requireAdmin, async (req: any, res: any) => {
     const rows = (await db.execute(`
-      SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp", u.course_code as "Mã học phần",
+      SELECT u.student_id as "Mã SV", u.name as "Họ và tên", u.class_name as "Lớp",
+             CASE
+               WHEN INSTR(UPPER(u.course_code), 'INT') > 0 THEN SUBSTR(u.course_code, INSTR(UPPER(u.course_code), 'INT'))
+               ELSE COALESCE(u.course_code, '')
+             END as "Mã học phần",
              CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as "Nơi thực tập",
              GROUP_CONCAT(CASE WHEN aa.role = 'primary' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "GVHD chính",
              GROUP_CONCAT(CASE WHEN aa.role = 'co' THEN COALESCE(l.name, 'Giảng viên đã bị xóa') END) as "Đồng hướng dẫn",
@@ -5907,6 +5960,7 @@ async function startServer() {
              g.company_score as "Điểm đánh giá công ty/GVHD",
              g.final_score as "Điểm tổng kết",
              COALESCE(g.status, 'missing') as "Trạng thái điểm",
+             gl.name as "Người nhập",
              g.submitted_at as "Thời gian nộp điểm",
              g.comment as "Ghi chú"
       FROM final_internships f
@@ -5914,6 +5968,7 @@ async function startServer() {
       LEFT JOIN companies c ON c.id = f.company_id
       LEFT JOIN registrations r ON r.id = f.registration_id
       LEFT JOIN grades g ON g.user_id = f.user_id
+      LEFT JOIN lecturers gl ON gl.id = g.lecturer_id
       LEFT JOIN advisor_assignments aa ON aa.user_id = f.user_id
       LEFT JOIN lecturers l ON l.id = aa.lecturer_id
       GROUP BY f.user_id

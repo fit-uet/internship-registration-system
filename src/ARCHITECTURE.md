@@ -144,3 +144,41 @@ To protect both system resources and administrative workflows, the system enforc
 4. **Backend Implementation Invariant:**
    - Both Express (`server.ts`) and Cloudflare Worker (`src/worker.ts`) handling of `POST /api/lecturer/grades/:userId/submit` must only dispatch `createNotification`/`notify` targeted to `recipient_email: student.email` and `recipient_user_id: student.id`. No notification record with `recipient_email = ADMIN_EMAIL` or Admin role shall ever be generated for `grade_submitted`.
 
+## Unconfirmed Internship Students Export Architecture
+
+### Business Purpose & Operational Context
+During the internship campaign lifecycle, students submit up to 5 preferences for internship companies. After interviews are conducted, the Faculty opens the confirmation phase (`final_internships`) where each admitted student must attest and confirm one official location.
+
+Administrators need to rapidly audit and extract the exact cohort of students who have registered on the system but **have not yet confirmed their official internship location**. This list enables the Faculty to:
+1. Contact unconfirmed students via email/phone before deadlines expire.
+2. Identify students who failed company interviews to transition them into school-based internships (`Trường Đại học Công nghệ`) with assigned faculty advisors.
+3. Prepare final allocation reports for academic boards.
+
+### UI Integration
+- Located inside the **"Xuất dữ liệu"** dropdown on the primary Registration Admin screen (`/admin/registrations` / `AdminPanel.tsx`).
+- Styled with an amber `UserX` icon and dual-line label:
+  - Primary text: **Xuất DS chưa xác nhận (XLSX)**
+  - Secondary helper text: **Sinh viên chưa xác nhận nơi thực tập**
+- Features a loading spinner state (`RefreshCw`) during generation to prevent duplicate requests.
+
+### Data Contract & Fields
+The exported XLSX file (`danh_sach_sinh_vien_chua_xac_nhan_thuc_tap.xlsx`) includes:
+- **STT**: Sequential number
+- **Mã SV**: Student identification number
+- **Họ và tên**: Full student name
+- **Ngày sinh**: Date of birth
+- **Lớp khóa học**: Academic cohort / class name
+- **Mã học phần**: Internship course code
+- **Số điện thoại**: Contact phone number
+- **Email VNU**: Institutional email
+- **Email cá nhân**: Alternate personal email
+- **Số NV đã đăng ký**: Number of preferences registered
+- **Các nơi đã đăng ký**: Concise summary of all registered companies with preference orders and approval statuses (e.g. `NV1: FPT Software (Đã duyệt); NV2: Viettel (Chờ duyệt)`)
+- **Trạng thái xác nhận**: Fixed value `Chưa xác nhận`
+- **Ghi chú**: Relevant registration notes
+
+### Hybrid Execution & Resilience
+1. **Primary Route**: Requests `GET /api/admin/unconfirmed-internships` (available in both Express `server.ts` and Cloudflare Worker `src/worker.ts`).
+2. **Client-side Fallback**: If the server endpoint is momentarily unreachable (e.g. during a deployment restart), the client-side component automatically correlates the in-memory `registrations` state with `GET /api/admin/final-internships` to build and download the complete XLSX file seamlessly.
+
+

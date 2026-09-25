@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send, Trash2 } from 'lucide-react';
+import { Users, CheckCircle2, Download, ArrowUpDown, Search, Building2, RefreshCw, Save, Plus, X, ChevronDown, FileText, Edit2, Clock, Send, Trash2, UserX } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { API_BASE, saveXlsx, xlsxArrayBuffer, paginationBounds, CACHE_TTL, cachedJsonFetch, PaginationControls } from '../../../shared';
@@ -18,6 +18,7 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
   const [filterStatus, setFilterStatus] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [exportingUnconfirmed, setExportingUnconfirmed] = useState(false);
   const [savingToSheet, setSavingToSheet] = useState(false);
   const [savingRegistration, setSavingRegistration] = useState(false);
   const [deletingRegistration, setDeletingRegistration] = useState(false);
@@ -243,6 +244,123 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
     const blob = await zip.generateAsync({ type: 'blob' });
     saveAs(blob, 'DanhSachTheoCongTy.zip');
     setIsExportMenuOpen(false);
+  };
+
+  const handleExportUnconfirmed = async () => {
+    if (exportingUnconfirmed) return;
+    setExportingUnconfirmed(true);
+    setIsExportMenuOpen(false);
+
+    try {
+      let unconfirmedList: any[] = [];
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/unconfirmed-internships`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            unconfirmedList = data;
+          }
+        }
+      } catch (e) {
+        // Fallback below
+      }
+
+      if (unconfirmedList.length === 0) {
+        let confirmedUserIds = new Set<number>();
+        try {
+          const finalRes = await fetch(`${API_BASE}/api/admin/final-internships`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (finalRes.ok) {
+            const finalData = await finalRes.json();
+            if (Array.isArray(finalData)) {
+              confirmedUserIds = new Set(finalData.map((f: any) => Number(f.user_id)));
+            }
+          }
+        } catch (e) {}
+
+        const studentMap = new Map<number, any>();
+        registrations.forEach(r => {
+          const uid = Number(r.user_id);
+          if (!uid || confirmedUserIds.has(uid)) return;
+
+          if (!studentMap.has(uid)) {
+            studentMap.set(uid, {
+              user_id: uid,
+              student_id: r.student_id || '',
+              student_name: r.student_name || '',
+              dob: r.dob || '',
+              class_name: r.class_name || '',
+              course_code: r.course_code || '',
+              phone: r.phone || '',
+              email: r.email || '',
+              personal_email: r.personal_email || '',
+              registered_places: [],
+              registered_count: 0,
+            });
+          }
+
+          const s = studentMap.get(uid);
+          s.registered_count += 1;
+          let place = r.company_name;
+          if (r.company_name === 'Công ty khác') place = 'Công ty khác: ' + (r.other_company_name || '');
+          const pref = r.preference_order ? `NV${r.preference_order}: ` : '';
+          const st = r.status === 'approved' ? 'Đã duyệt' : (r.status === 'rejected' ? 'Từ chối' : 'Chờ duyệt');
+          s.registered_places.push(`${pref}${place} (${st})`);
+        });
+
+        unconfirmedList = Array.from(studentMap.values()).map(s => ({
+          ...s,
+          registered_places: s.registered_places.join('; '),
+          confirmation_status: 'Chưa xác nhận',
+        }));
+      }
+
+      if (unconfirmedList.length === 0) {
+        alert('Tất cả sinh viên đã xác nhận nơi thực tập hoặc không có sinh viên nào chưa xác nhận.');
+        return;
+      }
+
+      const headers = [
+        'STT',
+        'Mã SV',
+        'Họ và tên',
+        'Ngày sinh',
+        'Lớp khóa học',
+        'Mã học phần',
+        'Số điện thoại',
+        'Email VNU',
+        'Email cá nhân',
+        'Số NV đã đăng ký',
+        'Các nơi đã đăng ký',
+        'Trạng thái xác nhận',
+        'Ghi chú'
+      ];
+
+      const rows = unconfirmedList.map((item, idx) => [
+        idx + 1,
+        item.student_id || '',
+        item.student_name || item.name || '',
+        item.dob || '',
+        item.class_name || '',
+        item.course_code || '',
+        item.phone || '',
+        item.email || '',
+        item.personal_email || '',
+        item.registered_count || 0,
+        item.registered_places || item.registered_places_summary || '',
+        item.confirmation_status || 'Chưa xác nhận',
+        item.note || ''
+      ]);
+
+      saveXlsx('danh_sach_sinh_vien_chua_xac_nhan_thuc_tap.xlsx', headers, rows, 'Chưa xác nhận TT');
+    } catch (e: any) {
+      alert('Lỗi xuất danh sách chưa xác nhận: ' + (e?.message || e));
+    } finally {
+      setExportingUnconfirmed(false);
+    }
   };
 
   const handleSaveToGoogleSheets = async () => {
@@ -717,15 +835,30 @@ export function AdminPanel({ token, user: propUser }: { token: string; user?: an
               {isExportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-black/[0.08] py-1.5 z-50 overflow-hidden text-slate-800 origin-top-right">
+                  <div className="absolute right-0 mt-2 w-72 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-black/[0.08] py-1.5 z-50 overflow-hidden text-slate-800 origin-top-right">
                     <button onClick={handleExportCurrent} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
-                      <FileText size={15} className="text-emerald-600" /> Xuất danh sách đang lọc (XLSX)
+                      <FileText size={15} className="text-emerald-600 shrink-0" /> Xuất danh sách đang lọc (XLSX)
                     </button>
                     <button onClick={handleExportByCourse} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
-                      <Download size={15} className="text-blue-600" /> Xuất theo môn học (ZIP)
+                      <Download size={15} className="text-blue-600 shrink-0" /> Xuất theo môn học (ZIP)
                     </button>
-                    <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors w-full text-left cursor-pointer">
-                      <Download size={15} className="text-blue-600" /> Xuất theo công ty (ZIP)
+                    <button onClick={handleExportByCompany} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-xs font-medium transition-colors border-b border-slate-50 w-full text-left cursor-pointer">
+                      <Download size={15} className="text-blue-600 shrink-0" /> Xuất theo công ty (ZIP)
+                    </button>
+                    <button
+                      onClick={handleExportUnconfirmed}
+                      disabled={exportingUnconfirmed}
+                      className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-amber-50/70 text-xs font-medium transition-colors w-full text-left cursor-pointer disabled:opacity-50"
+                    >
+                      {exportingUnconfirmed ? (
+                        <RefreshCw size={15} className="text-amber-600 animate-spin shrink-0" />
+                      ) : (
+                        <UserX size={15} className="text-amber-600 shrink-0" />
+                      )}
+                      <div>
+                        <div className="font-semibold text-slate-800">Xuất DS chưa xác nhận (XLSX)</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Sinh viên chưa xác nhận nơi thực tập</div>
+                      </div>
                     </button>
                   </div>
                 </>

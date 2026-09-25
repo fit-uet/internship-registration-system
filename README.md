@@ -703,6 +703,7 @@ Thiết kế API:
 - `GET /api/internships/final/my`: sinh viên xem nơi thực tập chính thức.
 - `POST /api/internships/final/confirm`: sinh viên xác nhận.
 - `GET /api/admin/final-internships`: admin xem toàn bộ.
+- `GET /api/admin/unconfirmed-internships`: admin xem danh sách sinh viên đã đăng ký nhưng chưa xác nhận nơi thực tập chính thức.
 - `PUT /api/admin/final-internships/:userId`: admin tạo/sửa/chuyển trạng thái.
 - `PUT /api/admin/final-internships/:userId/lock`: khóa hồ sơ.
 
