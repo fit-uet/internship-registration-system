@@ -2735,7 +2735,7 @@ async function route(request: Request, env: Env) {
     }
 
     await executeBatch(database, [
-      { sql: 'DELETE FROM final_internships WHERE registration_id = ? AND locked_at IS NULL', args: [registrationId] },
+      { sql: 'DELETE FROM final_internships WHERE (registration_id = ? OR (user_id = ? AND registration_id IS NULL)) AND locked_at IS NULL', args: [registrationId, reg.user_id] },
       { sql: 'UPDATE advisor_requests SET source_registration_id = NULL WHERE source_registration_id = ?', args: [registrationId] },
       { sql: 'DELETE FROM registrations WHERE id = ?', args: [registrationId] },
     ]);
@@ -2978,6 +2978,25 @@ async function route(request: Request, env: Env) {
       args: [targetUserId, registrationId, companyId, type, body.student_attested ? 1 : 0, body.attestation_text || null, body.school_lecturer || null, schoolAssignmentRequest, user.id, body.note || null],
     });
     return json({ success: true });
+  }
+
+  if (finalAdmin && method === 'DELETE') {
+    const targetUserId = Number(finalAdmin[1]);
+    if (!targetUserId) return json({ error: 'User không hợp lệ' }, 400);
+    const locked = (await database.execute({
+      sql: 'SELECT locked_at FROM final_internships WHERE user_id = ? AND locked_at IS NOT NULL',
+      args: [targetUserId],
+    })).rows[0];
+    if (locked) {
+      return json({ error: 'Không thể xóa nơi thực tập chính thức đã bị khóa.' }, 400);
+    }
+    await executeBatch(database, [
+      { sql: 'DELETE FROM grades WHERE user_id = ? AND locked_at IS NULL', args: [targetUserId] },
+      { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [targetUserId] },
+      { sql: 'DELETE FROM final_reports WHERE user_id = ?', args: [targetUserId] },
+      { sql: 'DELETE FROM final_internships WHERE user_id = ?', args: [targetUserId] },
+    ]);
+    return json({ success: true, message: 'Đã xóa sinh viên khỏi danh sách thực tập chính thức và bảng điểm.' });
   }
 
   const finalLock = path.match(/^\/api\/admin\/final-internships\/(\d+)\/lock$/);

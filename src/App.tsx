@@ -106,11 +106,26 @@ function App() {
     if (!token || !user) return;
     refreshUnreadNotifications();
     refreshUnreadChats();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshUnreadNotifications();
+        refreshUnreadChats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
     const timer = window.setInterval(() => {
-      refreshUnreadNotifications();
-      refreshUnreadChats();
+      if (document.visibilityState === 'visible') {
+        refreshUnreadNotifications();
+        refreshUnreadChats();
+      }
     }, 60000);
-    return () => window.clearInterval(timer);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(timer);
+    };
   }, [token, user?.id]);
 
   return (

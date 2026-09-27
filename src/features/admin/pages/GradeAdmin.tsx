@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Download, Search } from 'lucide-react';
+import { CheckCircle2, Download, Search, Trash2 } from 'lucide-react';
 import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function GradeAdmin({ token }: { token: string }) {
@@ -24,6 +24,22 @@ export function GradeAdmin({ token }: { token: string }) {
       alert('Không tải được bảng điểm.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteGradeRow = async (row: any) => {
+    const displayName = cleanStudentName(row.student_name, row.student_id, row.email);
+    if (!confirm(`Bạn có chắc chắn muốn xóa sinh viên ${displayName} (${row.student_id || '-'}) khỏi bảng điểm và danh sách thực tập chính thức không?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/final-internships/${row.user_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Xóa thất bại.');
+      fetchRows();
+    } catch (e) {
+      alert('Lỗi kết nối khi xóa.');
     }
   };
 
@@ -134,7 +150,7 @@ export function GradeAdmin({ token }: { token: string }) {
                 <th className="px-4 py-3">GVHD</th>
                 <th className="px-4 py-3">Điểm</th>
                 <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3">Khóa</th>
+                <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -164,14 +180,24 @@ export function GradeAdmin({ token }: { token: string }) {
                     {row.grade_submitted_at && <div className="text-[10px] text-slate-400 mt-0.5">{new Date(row.grade_submitted_at).toLocaleString('vi-VN')}</div>}
                     {row.comment && <div className="text-[11px] text-slate-500 mt-1">{row.comment}</div>}
                   </td>
-                  <td className="px-4 py-4">
-                    <button
-                      onClick={() => toggleLock(row)}
-                      disabled={row.grade_status === 'missing'}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all cursor-pointer active:scale-[0.98] ${row.locked_at ? 'bg-[#fff2f1] text-[#d70015] border border-[#ffd8d6] hover:bg-[#ffd8d6]' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'}`}
-                    >
-                      {row.locked_at ? 'Mở khóa' : 'Khóa điểm'}
-                    </button>
+                  <td className="px-4 py-4 text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => toggleLock(row)}
+                        disabled={row.grade_status === 'missing'}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all cursor-pointer active:scale-[0.98] ${row.locked_at ? 'bg-[#fff2f1] text-[#d70015] border border-[#ffd8d6] hover:bg-[#ffd8d6]' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        {row.locked_at ? 'Mở khóa' : 'Khóa điểm'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGradeRow(row)}
+                        disabled={Boolean(row.locked_at)}
+                        className="p-1.5 text-slate-400 hover:text-[#d70015] hover:bg-[#fff2f1] rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+                        title={row.locked_at ? 'Điểm đã khóa, không thể xóa' : 'Xóa khỏi bảng điểm & nơi thực tập'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

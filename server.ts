@@ -5107,7 +5107,7 @@ async function startServer() {
       }
 
       await executeBatch([
-        { sql: 'DELETE FROM final_internships WHERE registration_id = ? AND locked_at IS NULL', args: [registrationId] },
+        { sql: 'DELETE FROM final_internships WHERE (registration_id = ? OR (user_id = ? AND registration_id IS NULL)) AND locked_at IS NULL', args: [registrationId, reg.user_id] },
         { sql: 'UPDATE advisor_requests SET source_registration_id = NULL WHERE source_registration_id = ?', args: [registrationId] },
         { sql: 'DELETE FROM registrations WHERE id = ?', args: [registrationId] },
       ]);
@@ -5433,6 +5433,29 @@ async function startServer() {
         args: [targetUserId, registrationId, companyId, type, req.body.student_attested ? 1 : 0, req.body.attestation_text || null, req.body.school_lecturer || null, schoolAssignmentRequest, req.user.id, req.body.note || null],
       });
       res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete('/api/admin/final-internships/:userId', requireAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const targetUserId = Number(req.params.userId);
+      if (!targetUserId) return res.status(400).json({ error: 'User không hợp lệ' });
+      const locked = (await db.execute({
+        sql: 'SELECT locked_at FROM final_internships WHERE user_id = ? AND locked_at IS NOT NULL',
+        args: [targetUserId],
+      })).rows[0];
+      if (locked) {
+        return res.status(400).json({ error: 'Không thể xóa nơi thực tập chính thức đã bị khóa.' });
+      }
+      await executeBatch([
+        { sql: 'DELETE FROM grades WHERE user_id = ? AND locked_at IS NULL', args: [targetUserId] },
+        { sql: 'DELETE FROM advisor_assignments WHERE user_id = ?', args: [targetUserId] },
+        { sql: 'DELETE FROM final_reports WHERE user_id = ?', args: [targetUserId] },
+        { sql: 'DELETE FROM final_internships WHERE user_id = ?', args: [targetUserId] },
+      ]);
+      res.json({ success: true, message: 'Đã xóa sinh viên khỏi danh sách thực tập chính thức và bảng điểm.' });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

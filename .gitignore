@@ -29,4 +29,6 @@ scratch/
 *.db-*
 *.sqlite
 *.sqlite-*
-*.bak
+*.bak*
+*.backup*
+HPSCANS/

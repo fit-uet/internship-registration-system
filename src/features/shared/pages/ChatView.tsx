@@ -97,7 +97,9 @@ export function ChatView({ token, user, onUnreadChanged }: { token: string; user
     fetchMessages(true);
     setSelectedFile(null);
     if (!selectedKey) return;
-    const timer = window.setInterval(() => fetchMessages(false), 10000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') fetchMessages(false);
+    }, 10000);
     return () => window.clearInterval(timer);
   }, [token, selectedKey]);
 

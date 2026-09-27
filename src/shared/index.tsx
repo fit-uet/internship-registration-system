@@ -13,7 +13,7 @@ export * from './ui';
 
 export const GOOGLE_CLIENT_ID = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '109463395923-mock.apps.googleusercontent.com';
 export const GOOGLE_API_KEY = (import.meta as any).env.VITE_GOOGLE_API_KEY || '';
-export const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || '';
+export const API_BASE = (import.meta as any).env.VITE_API_BASE_URL || 'https://internship-registration-system.tuyenkieuvan.workers.dev';
 export const cohortOptionsForYear = (yearValue: string | number) => {
   const year = Number(String(yearValue || '').match(/\d{4}/)?.[0] || 2026);
   const first = Math.max(1, year - 1960);

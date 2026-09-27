@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, Download, ArrowUpDown, Search, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Download, ArrowUpDown, Search, RefreshCw, Trash2 } from 'lucide-react';
 import { API_BASE, saveXlsx, paginationBounds, PaginationControls, PageDescriptionTooltip, formatCourseCode, cleanStudentName } from '../../../shared';
 
 export function FinalInternshipListAdmin({ token }: { token: string }) {
@@ -23,6 +23,22 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
       alert('Không tải được danh sách xác nhận thực tập.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteFinal = async (item: any) => {
+    const displayName = cleanStudentName(item.student_name, item.student_id);
+    if (!confirm(`Bạn có chắc chắn muốn xóa sinh viên ${displayName} (${item.student_id || '-'}) khỏi danh sách thực tập chính thức và bảng điểm không?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/final-internships/${item.user_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data.error || 'Xóa thất bại.');
+      fetchRows();
+    } catch (e) {
+      alert('Lỗi kết nối khi xóa.');
     }
   };
 
@@ -203,12 +219,13 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
                 <th className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('school_lecturer')}>GVHD tại trường<SortIcon col="school_lecturer" /></th>
                 <th className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('course_code')}>Môn học<SortIcon col="course_code" /></th>
                 <th className="px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => requestSort('confirmed_at')}>Thời gian xác nhận<SortIcon col="confirmed_at" /></th>
+                <th className="px-5 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-slate-400">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
+                  <td colSpan={8} className="px-5 py-10 text-center text-slate-400">Chưa có sinh viên xác nhận nơi thực tập chính thức.</td>
                 </tr>
               ) : (
                 paginatedRows.map(item => (
@@ -227,6 +244,16 @@ export function FinalInternshipListAdmin({ token }: { token: string }) {
                     <td className="px-5 py-3.5 font-medium text-slate-700">{item.school_assignment_request ? <span className="text-[#b45309] font-semibold">Khoa sẽ phân công</span> : (item.school_lecturer || '-')}</td>
                     <td className="px-5 py-3.5 text-xs font-semibold text-slate-700">{formatCourseCode(item.course_code) || '-'}</td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-slate-400 text-[11px]">{item.confirmed_at ? new Date(item.confirmed_at).toLocaleString('vi-VN') : '-'}</td>
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => handleDeleteFinal(item)}
+                        disabled={Boolean(item.locked_at)}
+                        className="p-1.5 text-slate-400 hover:text-[#d70015] hover:bg-[#fff2f1] rounded-lg transition-colors disabled:opacity-30 cursor-pointer"
+                        title={item.locked_at ? 'Đã khóa điểm, không thể xóa' : 'Xóa khỏi danh sách thực tập chính thức & bảng điểm'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
