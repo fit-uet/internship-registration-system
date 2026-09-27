@@ -4161,17 +4161,13 @@ async function startServer() {
   app.get('/api/admin/dashboard-stats', requireAuth, requireAdmin, async (req: any, res: any) => {
     try {
       const stats = (await db.execute(`
-        WITH registered_students AS (
-          SELECT DISTINCT user_id FROM registrations
-        )
         SELECT
-          (SELECT COUNT(*) FROM registered_students) AS registeredCount,
-          (SELECT COUNT(DISTINCT f.user_id) FROM final_internships f JOIN registered_students r ON r.user_id = f.user_id) AS confirmedCount,
-          (SELECT COUNT(DISTINCT fr.user_id) FROM final_reports fr JOIN registered_students r ON r.user_id = fr.user_id) AS reportCount,
-          (SELECT COUNT(DISTINCT g.user_id)
-             FROM grades g
-             JOIN registered_students r ON r.user_id = g.user_id
-            WHERE g.status IN ('submitted', 'draft') OR g.final_score IS NOT NULL) AS gradedCount
+          (SELECT COUNT(DISTINCT user_id) FROM (SELECT user_id FROM registrations UNION SELECT user_id FROM final_internships)) AS registeredCount,
+          (SELECT COUNT(DISTINCT user_id) FROM final_internships) AS confirmedCount,
+          (SELECT COUNT(DISTINCT user_id) FROM final_reports WHERE status = 'submitted' OR object_key IS NOT NULL) AS reportCount,
+          (SELECT COUNT(DISTINCT user_id)
+             FROM grades
+            WHERE status IN ('submitted', 'draft') OR final_score IS NOT NULL) AS gradedCount
       `)).rows[0] as any;
       res.json({
         registeredCount: Number(stats?.registeredCount || 0),
