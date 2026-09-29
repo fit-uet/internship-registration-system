@@ -219,10 +219,19 @@ function corsHeaders(request: Request, env: Env) {
     .map(origin => origin.trim())
     .filter(Boolean);
   const origin = request.headers.get('origin') || '';
+  const isAllowedOrigin = origin && (
+    allowed.includes(origin) ||
+    allowed.includes('*') ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:')
+  );
+  const requestedHeaders = request.headers.get('access-control-request-headers');
   return {
-    'access-control-allow-origin': origin && allowed.includes(origin) ? origin : allowed[0] || '*',
+    'access-control-allow-origin': isAllowedOrigin ? origin : allowed[0] || '*',
     'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'access-control-allow-headers': 'content-type, authorization',
+    'access-control-allow-headers': requestedHeaders || 'content-type, authorization, x-filename, x-message-body, x-cron-secret, accept, cache-control, x-requested-with',
+    'access-control-expose-headers': 'content-disposition, content-type, content-length',
+    'access-control-max-age': '86400',
   };
 }
 
