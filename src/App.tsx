@@ -107,20 +107,26 @@ function App() {
     refreshUnreadNotifications();
     refreshUnreadChats();
 
+    let lastFetchTime = Date.now();
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        refreshUnreadNotifications();
-        refreshUnreadChats();
+        const now = Date.now();
+        if (now - lastFetchTime >= 60000) {
+          lastFetchTime = now;
+          refreshUnreadNotifications();
+          refreshUnreadChats();
+        }
       }
     };
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
+        lastFetchTime = Date.now();
         refreshUnreadNotifications();
         refreshUnreadChats();
       }
-    }, 60000);
+    }, 180000);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);

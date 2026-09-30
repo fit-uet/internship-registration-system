@@ -924,10 +924,24 @@ async function normalizeExistingStudentNames(database: DatabaseClient) {
   }
 }
 
-async function initDb(env: Env) {
-  if (initPromise) return initPromise;
+let isDbInitialized = false;
+
+async function initDb(env: Env, force = false) {
+  if (!force && isDbInitialized) return;
+  if (!force && initPromise) return initPromise;
   initPromise = (async () => {
     const database = db(env);
+    if (!force) {
+      try {
+        const check = await database.execute('SELECT 1 FROM settings LIMIT 1');
+        if (check.rows && check.rows.length > 0) {
+          isDbInitialized = true;
+          return;
+        }
+      } catch (e) {
+        // Table settings doesn't exist, proceed with full schema creation below
+      }
+    }
     await database.executeMultiple(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1185,10 +1199,18 @@ async function initDb(env: Env) {
         WHERE role = 'primary';
       CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(student_user_id, lecturer_id, created_at);
       CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON chat_messages(student_user_id, lecturer_id, sender_user_id, read_at);
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_student_lecturer_id ON chat_messages(student_user_id, lecturer_id, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_notifications_recipient_nocase ON notifications(recipient_email COLLATE NOCASE);
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
+      CREATE INDEX IF NOT EXISTS idx_system_notifications_active_role ON system_notifications(active, target_role, created_at);
     `);
-    await ensureSpecialCompanies(database);
-    await approvePendingOtherRegistrationsFromApprovedNames(database);
-    await normalizeExistingStudentNames(database);
+    if (force) {
+      await ensureSpecialCompanies(database);
+      await approvePendingOtherRegistrationsFromApprovedNames(database);
+      await normalizeExistingStudentNames(database);
+    }
+    isDbInitialized = true;
   })().catch(error => {
     initPromise = null;
     throw error;
@@ -1445,18 +1467,30 @@ async function route(request: Request, env: Env) {
   }
 
   if (method === 'GET' && path === '/api/notifications/my') {
+    const email = String(user.email || '').trim();
+    const personalEmail = String(user.personal_email || '').trim();
+    const userId = user.id ? Number(user.id) : null;
+
     const personalRows = (await database.execute({
       sql: `
         SELECT id, 'personal' as source, type, subject, body, status, error, created_at, sent_at, read_at
-        FROM notifications
-        WHERE type != 'advisor_quota_exceeded'
-          AND (
-            lower(trim(recipient_email)) = lower(trim(?))
-            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
-          )
+        FROM (
+          SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+          FROM notifications
+          WHERE user_id IS NOT NULL AND user_id = ? AND type != 'advisor_quota_exceeded'
+          UNION
+          SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+          FROM notifications
+          WHERE recipient_email = ? COLLATE NOCASE AND type != 'advisor_quota_exceeded'
+          UNION
+          SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
+          FROM notifications
+          WHERE ? != '' AND recipient_email = ? COLLATE NOCASE AND type != 'advisor_quota_exceeded'
+        )
+        ORDER BY created_at DESC
         LIMIT 100
       `,
-      args: [user.email || '', user.personal_email || ''],
+      args: [userId, email, personalEmail, personalEmail],
     })).rows as any[];
     const systemRows = (await database.execute({
       sql: `
@@ -1501,25 +1535,25 @@ async function route(request: Request, env: Env) {
         UPDATE notifications
         SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
         WHERE id = ?
-          AND (
-            lower(trim(recipient_email)) = lower(trim(?))
-            OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
-          )
       `,
-      args: [Number(myNotificationRead[1]), user.email || '', user.personal_email || ''],
+      args: [Number(myNotificationRead[1])],
     });
     return json({ success: true });
   }
 
   if (method === 'PUT' && path === '/api/notifications/my/read-all') {
+    const email = String(user.email || '').trim();
+    const personalEmail = String(user.personal_email || '').trim();
+    const userId = user.id ? Number(user.id) : null;
     await database.execute({
       sql: `
         UPDATE notifications
         SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
-        WHERE lower(trim(recipient_email)) = lower(trim(?))
-           OR lower(trim(recipient_email)) = lower(trim(COALESCE(?, '')))
+        WHERE (user_id IS NOT NULL AND user_id = ?)
+           OR recipient_email = ? COLLATE NOCASE
+           OR (? != '' AND recipient_email = ? COLLATE NOCASE)
       `,
-      args: [user.email || '', user.personal_email || ''],
+      args: [userId, email, personalEmail, personalEmail],
     });
     await database.execute({
       sql: `
@@ -1563,22 +1597,24 @@ async function route(request: Request, env: Env) {
           SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                  l.name as lecturer_name, l.email as lecturer_email,
                  u.name as student_name, u.student_id,
-                 last_msg.body as last_message, last_msg.created_at as last_message_at,
-                 COALESCE(unread.unread_count, 0) as unread_count
+                 (
+                   SELECT body FROM chat_messages
+                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                   ORDER BY id DESC LIMIT 1
+                 ) as last_message,
+                 (
+                   SELECT created_at FROM chat_messages
+                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                   ORDER BY id DESC LIMIT 1
+                 ) as last_message_at,
+                 (
+                   SELECT COUNT(*) FROM chat_messages
+                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                     AND sender_user_id != ? AND read_at IS NULL
+                 ) as unread_count
           FROM advisor_assignments aa
           JOIN lecturers l ON l.id = aa.lecturer_id
           JOIN users u ON u.id = aa.user_id
-          LEFT JOIN (
-            SELECT student_user_id, lecturer_id, body, created_at
-            FROM chat_messages
-            WHERE id IN (SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id)
-          ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
-          LEFT JOIN (
-            SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
-            FROM chat_messages
-            WHERE sender_user_id != ? AND read_at IS NULL
-            GROUP BY student_user_id, lecturer_id
-          ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
           WHERE aa.user_id = ?
           ORDER BY CASE aa.role WHEN 'primary' THEN 0 ELSE 1 END, l.name ASC
         `,
@@ -1593,24 +1629,26 @@ async function route(request: Request, env: Env) {
         SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                l.name as lecturer_name, l.email as lecturer_email,
                u.name as student_name, u.student_id, u.email as student_email, u.class_name, u.course_code,
-               last_msg.body as last_message, last_msg.created_at as last_message_at,
-               COALESCE(unread.unread_count, 0) as unread_count
+               (
+                 SELECT body FROM chat_messages
+                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                 ORDER BY id DESC LIMIT 1
+               ) as last_message,
+               (
+                 SELECT created_at FROM chat_messages
+                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                 ORDER BY id DESC LIMIT 1
+               ) as last_message_at,
+               (
+                 SELECT COUNT(*) FROM chat_messages
+                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
+                   AND sender_user_id != ? AND read_at IS NULL
+               ) as unread_count
         FROM advisor_assignments aa
         JOIN lecturers l ON l.id = aa.lecturer_id
         JOIN users u ON u.id = aa.user_id
-        LEFT JOIN (
-          SELECT student_user_id, lecturer_id, body, created_at
-          FROM chat_messages
-          WHERE id IN (SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id)
-        ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
-        LEFT JOIN (
-          SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
-          FROM chat_messages
-          WHERE sender_user_id != ? AND read_at IS NULL
-          GROUP BY student_user_id, lecturer_id
-        ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
         WHERE aa.lecturer_id = ?
-        ORDER BY COALESCE(last_msg.created_at, aa.assigned_at) DESC, u.student_id ASC
+        ORDER BY COALESCE(last_message_at, aa.assigned_at) DESC, u.student_id ASC
       `,
       args: [user.id, Number(lecturer.id)],
     })).rows;
