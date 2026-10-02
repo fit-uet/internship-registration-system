@@ -2085,6 +2085,24 @@ async function route(request: Request, env: Env) {
     });
   }
 
+  const reportView = path.match(/^\/api\/reports\/final\/(\d+)\/view$/);
+  if (reportView && method === 'GET') {
+    const userId = Number(reportView[1]);
+    if (!(await canAccessStudentReport(user, userId))) return json({ error: 'Forbidden' }, 403);
+    const report = (await database.execute({ sql: 'SELECT * FROM final_reports WHERE user_id = ?', args: [userId] })).rows[0] as any;
+    if (!report) return json({ error: 'Chưa có báo cáo.' }, 404);
+    if (!env.REPORTS_BUCKET) return json({ error: 'Chưa cấu hình R2 REPORTS_BUCKET.' }, 500);
+    const object = await env.REPORTS_BUCKET.get(report.object_key);
+    if (!object) return json({ error: 'Không tìm thấy file báo cáo.' }, 404);
+    return new Response(object.body, {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `inline; filename="${encodeURIComponent(report.original_filename)}"`,
+        'cache-control': 'private, no-cache',
+      },
+    });
+  }
+
   const reportStatus = path.match(/^\/api\/reports\/final\/(\d+)\/status$/);
   if (reportStatus && method === 'PUT') {
     requireRole(user, ['lecturer', 'admin']);

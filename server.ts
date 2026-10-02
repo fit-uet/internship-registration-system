@@ -21,7 +21,158 @@ const ALLOWED_CHAT_ATTACHMENT_MIME_PREFIXES = ['application/pdf', 'application/m
 const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '123456789-mock.apps.googleusercontent.com';
 const oAuth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-let db: Client;
+interface DatabaseClient {
+  execute(stmt: string | { sql: string; args?: any[] }): Promise<{ rows: any[]; lastInsertRowid?: number | bigint; rowsAffected?: number }>;
+  executeMultiple(sql: string): Promise<void>;
+  batch(statements: Array<{ sql: string; args?: any[] }>, mode?: string): Promise<any[]>;
+}
+
+class CloudflareD1Client implements DatabaseClient {
+  private accountId: string;
+  private databaseId: string;
+  private apiToken: string;
+  private baseUrl: string;
+
+  constructor(accountId: string, databaseId: string, apiToken: string) {
+    this.accountId = accountId;
+    this.databaseId = databaseId;
+    this.apiToken = apiToken;
+    this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;
+  }
+
+  async execute(stmt: string | { sql: string; args?: any[] }): Promise<{ rows: any[]; lastInsertRowid?: number | bigint; rowsAffected?: number }> {
+    let sql: string;
+    let params: any[] | undefined;
+
+    if (typeof stmt === 'string') {
+      sql = stmt;
+      params = undefined;
+    } else {
+      sql = stmt.sql;
+      params = stmt.args;
+    }
+
+    const payload: any = { sql };
+    if (params && params.length > 0) {
+      payload.params = params.map(p => (p === undefined ? null : p));
+    }
+
+    const res = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      const err = new Error(`D1 HTTP Error ${res.status}: ${errText}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    const data = await res.json() as any;
+    if (!data.success) {
+      const errMessage = data.errors?.[0]?.message || JSON.stringify(data.errors);
+      throw new Error(`D1 Query Error: ${errMessage}`);
+    }
+
+    const firstResult = data.result?.[0];
+    const rows = firstResult?.results || [];
+    const meta = firstResult?.meta || {};
+
+    return {
+      rows,
+      lastInsertRowid: meta.last_row_id !== undefined ? meta.last_row_id : undefined,
+      rowsAffected: meta.changes !== undefined ? meta.changes : 0,
+    };
+  }
+
+  async executeMultiple(sql: string): Promise<void> {
+    const res = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sql }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      const err = new Error(`D1 HTTP Error ${res.status}: ${errText}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    const data = await res.json() as any;
+    if (!data.success) {
+      const errMessage = data.errors?.[0]?.message || JSON.stringify(data.errors);
+      throw new Error(`D1 ExecuteMultiple Error: ${errMessage}`);
+    }
+  }
+
+  async batch(statements: Array<{ sql: string; args?: any[] }>, _mode?: string): Promise<any[]> {
+    if (!statements || statements.length === 0) return [];
+
+    const formattedQueries = statements.map(st => {
+      let q = st.sql.trim();
+      if (q.endsWith(';')) q = q.slice(0, -1);
+      return this.formatSqlWithArgs(q, st.args);
+    });
+
+    const combinedSql = formattedQueries.join(';\n') + ';';
+
+    const res = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sql: combinedSql }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      const err = new Error(`D1 HTTP Error ${res.status}: ${errText}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    const data = await res.json() as any;
+    if (!data.success) {
+      const errMessage = data.errors?.[0]?.message || JSON.stringify(data.errors);
+      throw new Error(`D1 Batch Error: ${errMessage}`);
+    }
+
+    const results = data.result || [];
+    return results.map((r: any) => ({
+      rows: r.results || [],
+      lastInsertRowid: r.meta?.last_row_id,
+      rowsAffected: r.meta?.changes || 0,
+    }));
+  }
+
+  private formatSqlWithArgs(sql: string, args?: any[]): string {
+    if (!args || args.length === 0) return sql;
+    let i = 0;
+    return sql.replace(/\?/g, () => {
+      if (i >= args.length) return '?';
+      const val = args[i++];
+      if (val === null || val === undefined) return 'NULL';
+      if (typeof val === 'number') return Number.isFinite(val) ? String(val) : 'NULL';
+      if (typeof val === 'boolean') return val ? '1' : '0';
+      if (Buffer.isBuffer(val) || val instanceof Uint8Array) {
+        return `X'${Buffer.from(val).toString('hex')}'`;
+      }
+      return `'${String(val).replace(/'/g, "''")}'`;
+    });
+  }
+}
+
+let db: DatabaseClient;
 const DB_BATCH_SIZE = 50;
 let r2Client: S3Client | null = null;
 
@@ -29,7 +180,7 @@ function isTransientLibsqlError(error: any) {
   const message = String(error?.message || error?.cause?.message || '').toLowerCase();
   const code = String(error?.code || '').toUpperCase();
   const status = Number(error?.cause?.status || error?.status || 0);
-  return code === 'SERVER_ERROR' || [502, 503, 504].includes(status) || /bad gateway|service unavailable|gateway timeout|fetch failed|network/i.test(message);
+  return code === 'SERVER_ERROR' || [429, 500, 502, 503, 504].includes(status) || /bad gateway|service unavailable|gateway timeout|fetch failed|network|rate limit|econnreset|etimedout/i.test(message);
 }
 
 function sleep(ms: number) {
@@ -1345,18 +1496,31 @@ async function initDb() {
     throw new Error('JWT_SECRET is required in production.');
   }
 
-  const databaseUrl = process.env.TURSO_DATABASE_URL || (process.env.NODE_ENV === 'production' ? '' : 'file:./internship-db.db');
-  if (!databaseUrl) {
-    throw new Error('TURSO_DATABASE_URL is required in production.');
-  }
-  if (databaseUrl.startsWith('libsql://') && !process.env.TURSO_AUTH_TOKEN) {
-    throw new Error('TURSO_AUTH_TOKEN is required for Turso libsql databases.');
-  }
+  const d1Token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_D1_API_TOKEN;
+  const d1AccountId = process.env.CLOUDFLARE_ACCOUNT_ID || '7f6e0debd543c1ec1871f4f6d2c03dd5';
+  const d1DatabaseId = process.env.CLOUDFLARE_DATABASE_ID || process.env.CLOUDFLARE_D1_DATABASE_ID || '866e23b7-3b49-43e4-ab90-59dceb4c4f76';
+  const dbProvider = (process.env.DB_PROVIDER || (d1Token ? 'd1' : 'turso')).toLowerCase();
 
-  db = createClient({
-    url: databaseUrl,
-    authToken: process.env.TURSO_AUTH_TOKEN
-  });
+  if (dbProvider === 'd1') {
+    if (!d1Token) {
+      throw new Error('CLOUDFLARE_API_TOKEN (or CLOUDFLARE_D1_API_TOKEN) is required when DB_PROVIDER=d1.');
+    }
+    console.log(`[db] Using Cloudflare D1 database: ${d1DatabaseId} (Account: ${d1AccountId})`);
+    db = new CloudflareD1Client(d1AccountId, d1DatabaseId, d1Token);
+  } else {
+    const databaseUrl = process.env.TURSO_DATABASE_URL || (process.env.NODE_ENV === 'production' ? '' : 'file:./internship-db.db');
+    if (!databaseUrl) {
+      throw new Error('TURSO_DATABASE_URL or CLOUDFLARE_API_TOKEN is required in production.');
+    }
+    if (databaseUrl.startsWith('libsql://') && !process.env.TURSO_AUTH_TOKEN) {
+      throw new Error('TURSO_AUTH_TOKEN is required for Turso libsql databases.');
+    }
+    console.log(`[db] Using Turso database: ${databaseUrl}`);
+    db = createClient({
+      url: databaseUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN
+    }) as any;
+  }
   const rawExecute = db.execute.bind(db);
   const rawExecuteMultiple = db.executeMultiple.bind(db);
   db.execute = ((statement: any) => withDbRetry(() => rawExecute(statement), 'execute')) as any;
@@ -1907,7 +2071,7 @@ async function startServer() {
   await seedCompaniesIfEmpty();
 
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // In-memory lock to prevent duplicate concurrent registration requests
   const processingUsers = new Set<number>();
