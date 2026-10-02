@@ -1590,69 +1590,161 @@ async function route(request: Request, env: Env) {
     return !!assignment;
   };
 
+  const canAccessChatGroup = async (actor: any, lecturerId: number) => {
+    if (!Number.isFinite(lecturerId)) return false;
+    if (actor.role === 'student') {
+      const assignment = (await database.execute({
+        sql: 'SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? LIMIT 1',
+        args: [actor.id, lecturerId],
+      })).rows[0];
+      return !!assignment;
+    }
+    const lecturer = await getActorLecturer(actor);
+    return !!lecturer && Number(lecturer.id) === lecturerId;
+  };
+
+  const chatGroupMessageSelect = `
+    SELECT cgm.id, NULL as student_user_id, cgm.lecturer_id, cgm.sender_user_id, cgm.body,
+           cgm.attachment_name, cgm.attachment_size, cgm.attachment_mime,
+           CASE WHEN cgm.attachment_key IS NOT NULL THEN 1 ELSE 0 END as has_attachment,
+           cgm.created_at, NULL as read_at, 1 as is_group,
+           u.name as sender_name, u.role as sender_role, u.email as sender_email
+    FROM chat_group_messages cgm
+    JOIN users u ON u.id = cgm.sender_user_id
+  `;
+
   if (method === 'GET' && path === '/api/chat/threads') {
     if (user.role === 'student') {
       const rows = (await database.execute({
         sql: `
-          SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
+          SELECT 0 as is_group, aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                  l.name as lecturer_name, l.email as lecturer_email,
-                 u.name as student_name, u.student_id,
-                 (
-                   SELECT body FROM chat_messages
-                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                   ORDER BY id DESC LIMIT 1
-                 ) as last_message,
-                 (
-                   SELECT created_at FROM chat_messages
-                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                   ORDER BY id DESC LIMIT 1
-                 ) as last_message_at,
-                 (
-                   SELECT COUNT(*) FROM chat_messages
-                   WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                     AND sender_user_id != ? AND read_at IS NULL
-                 ) as unread_count
+                 u.name as student_name, u.student_id, NULL as student_count,
+                 last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
+                 COALESCE(unread.unread_count, 0) as unread_count
           FROM advisor_assignments aa
           JOIN lecturers l ON l.id = aa.lecturer_id
           JOIN users u ON u.id = aa.user_id
+          LEFT JOIN (
+            SELECT student_user_id, lecturer_id, body, attachment_name, created_at
+            FROM chat_messages cm
+            WHERE id IN (
+              SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
+            )
+          ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
+          LEFT JOIN (
+            SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
+            FROM chat_messages
+            WHERE sender_user_id != ? AND read_at IS NULL
+            GROUP BY student_user_id, lecturer_id
+          ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
           WHERE aa.user_id = ?
           ORDER BY CASE aa.role WHEN 'primary' THEN 0 ELSE 1 END, l.name ASC
         `,
         args: [user.id, user.id],
       })).rows;
-      return json(rows);
+      const groupRows = (await database.execute({
+        sql: `
+          SELECT 1 as is_group, NULL as student_user_id, gl.lecturer_id, 'group' as advisor_role,
+                 l.name as lecturer_name, l.email as lecturer_email,
+                 'Nhóm sinh viên hướng dẫn' as student_name, NULL as student_id,
+                 COALESCE(student_counts.student_count, 0) as student_count,
+                 last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
+                 COALESCE(unread.unread_count, 0) as unread_count
+          FROM (
+            SELECT DISTINCT lecturer_id
+            FROM advisor_assignments
+            WHERE user_id = ?
+          ) gl
+          JOIN lecturers l ON l.id = gl.lecturer_id
+          LEFT JOIN (
+            SELECT lecturer_id, COUNT(DISTINCT user_id) as student_count
+            FROM advisor_assignments
+            GROUP BY lecturer_id
+          ) student_counts ON student_counts.lecturer_id = gl.lecturer_id
+          LEFT JOIN (
+            SELECT lecturer_id, body, attachment_name, created_at
+            FROM chat_group_messages cgm
+            WHERE id IN (
+              SELECT MAX(id) FROM chat_group_messages GROUP BY lecturer_id
+            )
+          ) last_msg ON last_msg.lecturer_id = gl.lecturer_id
+          LEFT JOIN (
+            SELECT cgm.lecturer_id, COUNT(*) as unread_count
+            FROM chat_group_messages cgm
+            LEFT JOIN chat_group_message_reads r ON r.message_id = cgm.id AND r.user_id = ?
+            WHERE cgm.sender_user_id != ? AND r.message_id IS NULL
+            GROUP BY cgm.lecturer_id
+          ) unread ON unread.lecturer_id = gl.lecturer_id
+          ORDER BY l.name ASC
+        `,
+        args: [user.id, user.id, user.id],
+      })).rows;
+      return json([...groupRows, ...rows]);
     }
     const lecturer = await getActorLecturer(user);
     if (!lecturer) return json([]);
     const rows = (await database.execute({
       sql: `
-        SELECT aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
+        SELECT 0 as is_group, aa.user_id as student_user_id, aa.lecturer_id, aa.role as advisor_role,
                l.name as lecturer_name, l.email as lecturer_email,
-               u.name as student_name, u.student_id, u.email as student_email, u.class_name, u.course_code,
-               (
-                 SELECT body FROM chat_messages
-                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                 ORDER BY id DESC LIMIT 1
-               ) as last_message,
-               (
-                 SELECT created_at FROM chat_messages
-                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                 ORDER BY id DESC LIMIT 1
-               ) as last_message_at,
-               (
-                 SELECT COUNT(*) FROM chat_messages
-                 WHERE student_user_id = aa.user_id AND lecturer_id = aa.lecturer_id
-                   AND sender_user_id != ? AND read_at IS NULL
-               ) as unread_count
+               u.name as student_name, u.student_id, u.email as student_email, u.class_name, u.course_code, NULL as student_count,
+               last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
+               COALESCE(unread.unread_count, 0) as unread_count
         FROM advisor_assignments aa
         JOIN lecturers l ON l.id = aa.lecturer_id
         JOIN users u ON u.id = aa.user_id
+        LEFT JOIN (
+          SELECT student_user_id, lecturer_id, body, attachment_name, created_at
+          FROM chat_messages cm
+          WHERE id IN (
+            SELECT MAX(id) FROM chat_messages GROUP BY student_user_id, lecturer_id
+          )
+        ) last_msg ON last_msg.student_user_id = aa.user_id AND last_msg.lecturer_id = aa.lecturer_id
+        LEFT JOIN (
+          SELECT student_user_id, lecturer_id, COUNT(*) as unread_count
+          FROM chat_messages
+          WHERE sender_user_id != ? AND read_at IS NULL
+          GROUP BY student_user_id, lecturer_id
+        ) unread ON unread.student_user_id = aa.user_id AND unread.lecturer_id = aa.lecturer_id
         WHERE aa.lecturer_id = ?
-        ORDER BY COALESCE(last_message_at, aa.assigned_at) DESC, u.student_id ASC
+        ORDER BY COALESCE(last_msg.created_at, aa.assigned_at) DESC, u.student_id ASC
       `,
       args: [user.id, Number(lecturer.id)],
     })).rows;
-    return json(rows);
+    const groupRows = (await database.execute({
+      sql: `
+        SELECT 1 as is_group, NULL as student_user_id, ? as lecturer_id, 'group' as advisor_role,
+               l.name as lecturer_name, l.email as lecturer_email,
+               'Nhóm sinh viên hướng dẫn' as student_name, NULL as student_id, NULL as student_email, NULL as class_name, NULL as course_code,
+               COALESCE(student_counts.student_count, 0) as student_count,
+               last_msg.body as last_message, last_msg.attachment_name as last_attachment_name, last_msg.created_at as last_message_at,
+               COALESCE(unread.unread_count, 0) as unread_count
+        FROM lecturers l
+        LEFT JOIN (
+          SELECT lecturer_id, COUNT(DISTINCT user_id) as student_count
+          FROM advisor_assignments
+          WHERE lecturer_id = ?
+          GROUP BY lecturer_id
+        ) student_counts ON student_counts.lecturer_id = l.id
+        LEFT JOIN (
+          SELECT lecturer_id, body, attachment_name, created_at
+          FROM chat_group_messages cgm
+          WHERE lecturer_id = ?
+            AND id IN (SELECT MAX(id) FROM chat_group_messages WHERE lecturer_id = ? GROUP BY lecturer_id)
+        ) last_msg ON last_msg.lecturer_id = l.id
+        LEFT JOIN (
+          SELECT cgm.lecturer_id, COUNT(*) as unread_count
+          FROM chat_group_messages cgm
+          LEFT JOIN chat_group_message_reads r ON r.message_id = cgm.id AND r.user_id = ?
+          WHERE cgm.lecturer_id = ? AND cgm.sender_user_id != ? AND r.message_id IS NULL
+          GROUP BY cgm.lecturer_id
+        ) unread ON unread.lecturer_id = l.id
+        WHERE l.id = ? AND COALESCE(student_counts.student_count, 0) > 0
+      `,
+      args: [Number(lecturer.id), Number(lecturer.id), Number(lecturer.id), Number(lecturer.id), user.id, Number(lecturer.id), user.id, Number(lecturer.id)],
+    })).rows;
+    return json([...groupRows, ...rows]);
   }
 
   const chatMessagesMatch = path.match(/^\/api\/chat\/threads\/(\d+)\/(\d+)\/messages$/);
@@ -1700,6 +1792,143 @@ async function route(request: Request, env: Env) {
       args: [Number(result.lastInsertRowid)],
     })).rows[0];
     return json(message);
+  }
+
+  const chatGroupMessagesMatch = path.match(/^\/api\/chat\/groups\/(\d+)\/messages$/);
+  if (chatGroupMessagesMatch && method === 'GET') {
+    const lecturerId = Number(chatGroupMessagesMatch[1]);
+    if (!(await canAccessChatGroup(user, lecturerId))) {
+      return json({ error: 'Bạn không có quyền xem nhóm trao đổi này.' }, 403);
+    }
+    await database.execute({
+      sql: `
+        INSERT OR IGNORE INTO chat_group_message_reads (message_id, user_id, read_at)
+        SELECT id, ?, datetime('now', '+7 hours')
+        FROM chat_group_messages
+        WHERE lecturer_id = ? AND sender_user_id != ?
+      `,
+      args: [user.id, lecturerId, user.id],
+    });
+    const rows = (await database.execute({
+      sql: `${chatGroupMessageSelect}
+            WHERE cgm.lecturer_id = ?
+            ORDER BY cgm.created_at ASC, cgm.id ASC
+            LIMIT 300`,
+      args: [lecturerId],
+    })).rows;
+    return json(rows);
+  }
+
+  if (chatGroupMessagesMatch && method === 'POST') {
+    const lecturerId = Number(chatGroupMessagesMatch[1]);
+    if (!(await canAccessChatGroup(user, lecturerId))) {
+      return json({ error: 'Bạn không có quyền gửi tin nhắn trong nhóm này.' }, 403);
+    }
+    const body = String((await readBody(request)).body || '').trim();
+    if (!body) return json({ error: 'Vui lòng nhập nội dung tin nhắn.' }, 400);
+    if (body.length > 2000) return json({ error: 'Tin nhắn tối đa 2000 ký tự.' }, 400);
+    const result = await database.execute({
+      sql: `INSERT INTO chat_group_messages (lecturer_id, sender_user_id, body, created_at)
+            VALUES (?, ?, ?, datetime('now', '+7 hours'))`,
+      args: [lecturerId, user.id, body],
+    });
+    const message = (await database.execute({
+      sql: `${chatGroupMessageSelect} WHERE cgm.id = ?`,
+      args: [Number(result.lastInsertRowid)],
+    })).rows[0];
+    return json(message);
+  }
+
+  const chatGroupAttachmentUploadMatch = path.match(/^\/api\/chat\/groups\/(\d+)\/attachments$/);
+  if (chatGroupAttachmentUploadMatch && method === 'POST') {
+    const lecturerId = Number(chatGroupAttachmentUploadMatch[1]);
+    if (!(await canAccessChatGroup(user, lecturerId))) {
+      return json({ error: 'Bạn không có quyền gửi file trong nhóm này.' }, 403);
+    }
+    if (!env.REPORTS_BUCKET) return json({ error: 'Chưa cấu hình lưu trữ file.' }, 500);
+    const fileBytes = await request.arrayBuffer();
+    if (!fileBytes || fileBytes.byteLength === 0) return json({ error: 'File rỗng.' }, 400);
+    if (fileBytes.byteLength > 10 * 1024 * 1024) return json({ error: 'File vượt quá 10 MB.' }, 413);
+    const filenameHeader = request.headers.get('x-filename') || 'attachment';
+    let originalFilename = 'attachment';
+    try { originalFilename = decodeURIComponent(filenameHeader); } catch { originalFilename = filenameHeader; }
+    const rawMimeType = (request.headers.get('content-type') || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+    const bodyHeader = request.headers.get('x-message-body') || '';
+    let body = '';
+    try { body = decodeURIComponent(bodyHeader); } catch { body = bodyHeader; }
+    const stamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const safeName = originalFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `chat-groups/${lecturerId}/${user.id}/${stamp}-${random}-${safeName}`;
+    await env.REPORTS_BUCKET.put(key, fileBytes, {
+      httpMetadata: { contentType: rawMimeType },
+    });
+    const result = await database.execute({
+      sql: `INSERT INTO chat_group_messages (lecturer_id, sender_user_id, body, attachment_key, attachment_name, attachment_size, attachment_mime, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+7 hours'))`,
+      args: [lecturerId, user.id, body || '', key, originalFilename, fileBytes.byteLength, rawMimeType],
+    });
+    const message = (await database.execute({
+      sql: `${chatGroupMessageSelect} WHERE cgm.id = ?`,
+      args: [Number(result.lastInsertRowid)],
+    })).rows[0];
+    return json(message);
+  }
+
+  const chatGroupMessageAttachmentMatch = path.match(/^\/api\/chat\/group-messages\/(\d+)\/attachment$/);
+  if (chatGroupMessageAttachmentMatch && method === 'GET') {
+    const messageId = Number(chatGroupMessageAttachmentMatch[1]);
+    const message = (await database.execute({
+      sql: 'SELECT * FROM chat_group_messages WHERE id = ?',
+      args: [messageId],
+    })).rows[0] as any;
+    if (!message || !message.attachment_key) return json({ error: 'Không tìm thấy file.' }, 404);
+    if (!(await canAccessChatGroup(user, Number(message.lecturer_id)))) {
+      return json({ error: 'Bạn không có quyền tải file này.' }, 403);
+    }
+    if (!env.REPORTS_BUCKET) return json({ error: 'Chưa cấu hình lưu trữ file.' }, 500);
+    const object = await env.REPORTS_BUCKET.get(message.attachment_key);
+    if (!object) return json({ error: 'Không tìm thấy file lưu trữ.' }, 404);
+    const url = new URL(request.url);
+    const preview = url.searchParams.get('preview') === '1';
+    const mime = String(message.attachment_mime || 'application/octet-stream');
+    const disposition = preview && (mime.startsWith('image/') || mime === 'application/pdf') ? 'inline' : 'attachment';
+    return new Response(object.body, {
+      headers: {
+        'content-type': mime,
+        'content-length': String(message.attachment_size || object.size),
+        'content-disposition': `${disposition}; filename="${encodeURIComponent(message.attachment_name || 'attachment')}"`,
+        'access-control-allow-origin': env.CORS_ORIGIN || '*',
+        'access-control-allow-credentials': 'true',
+      },
+    });
+  }
+
+  const chatGroupMessageDeleteMatch = path.match(/^\/api\/chat\/group-messages\/(\d+)$/);
+  if (chatGroupMessageDeleteMatch && method === 'DELETE') {
+    const messageId = Number(chatGroupMessageDeleteMatch[1]);
+    if (!Number.isInteger(messageId) || messageId <= 0) return json({ error: 'Tin nhắn không hợp lệ.' }, 400);
+    const message = (await database.execute({
+      sql: 'SELECT * FROM chat_group_messages WHERE id = ?',
+      args: [messageId],
+    })).rows[0] as any;
+    if (!message) return json({ error: 'Không tìm thấy tin nhắn.' }, 404);
+    if (user.role !== 'admin') {
+      if (Number(message.sender_user_id) !== Number(user.id)) {
+        return json({ error: 'Bạn chỉ có thể thu hồi tin nhắn do mình gửi.' }, 403);
+      }
+      if (!(await canAccessChatGroup(user, Number(message.lecturer_id)))) {
+        return json({ error: 'Bạn không có quyền thu hồi tin nhắn này.' }, 403);
+      }
+    }
+    if (message.attachment_key && env.REPORTS_BUCKET) {
+      try { await env.REPORTS_BUCKET.delete(message.attachment_key); } catch {}
+    }
+    await database.batch([
+      { sql: 'DELETE FROM chat_group_message_reads WHERE message_id = ?', args: [messageId] },
+      { sql: 'DELETE FROM chat_group_messages WHERE id = ?', args: [messageId] },
+    ]);
+    return json({ success: true });
   }
 
   if (method === 'GET' && path === '/api/registrations/my') {
