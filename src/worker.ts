@@ -2221,7 +2221,7 @@ async function route(request: Request, env: Env) {
                    CASE WHEN c.name = 'Công ty khác' THEN r.other_company_name ELSE c.name END as internship_place,
                    r.other_company_role, r.other_company_contact,
                    fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at,
-                   g.status as grade_status, g.final_score, g.progress_score, g.report_score, g.company_score, g.locked_at as grade_locked_at
+                   g.status as grade_status, g.final_score, g.progress_score, g.report_score, g.company_score, g.comment as grade_comment, g.locked_at as grade_locked_at
             FROM advisor_assignments aa
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
@@ -2439,6 +2439,20 @@ async function route(request: Request, env: Env) {
   }
 
   const lecturerGrade = path.match(/^\/api\/lecturer\/grades\/(\d+)$/);
+  if (lecturerGrade && method === 'GET') {
+    requireRole(user, ['lecturer', 'admin']);
+    const targetUserId = Number(lecturerGrade[1]);
+    const lecturer = (await database.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [user.email, user.name] })).rows[0] as any;
+    if (!lecturer && user.role !== 'admin') return json(null);
+    const row = (await database.execute({
+      sql: `SELECT g.* FROM grades g
+            JOIN advisor_assignments aa ON aa.user_id = g.user_id
+            WHERE g.user_id = ? AND (aa.lecturer_id = ? OR ? = 'admin')
+            LIMIT 1`,
+      args: [targetUserId, lecturer ? Number(lecturer.id) : 0, user.role],
+    })).rows[0] || null;
+    return json(row);
+  }
   if (lecturerGrade && method === 'PUT') {
     requireRole(user, ['lecturer', 'admin']);
     const body = await readBody(request);

@@ -3422,7 +3422,8 @@ async function startServer() {
                    END as internship_place,
                    COALESCE(r.other_company_role, sr.school_co_lecturer) as other_company_role,
                    COALESCE(r.other_company_contact, sr.school_lecturer) as other_company_contact,
-                   fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at
+                   fr.status as report_status, fr.original_filename as report_filename, fr.file_size as report_file_size, fr.submitted_at as report_submitted_at,
+                   g.status as grade_status, g.final_score, g.progress_score, g.report_score, g.company_score, g.comment as grade_comment, g.locked_at as grade_locked_at
             FROM advisor_assignments aa
             JOIN users u ON u.id = aa.user_id
             LEFT JOIN final_internships f ON f.user_id = aa.user_id
@@ -3440,6 +3441,7 @@ async function startServer() {
               GROUP BY r.user_id
             ) sr ON sr.user_id = aa.user_id
             LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
+            LEFT JOIN grades g ON g.user_id = aa.user_id
             WHERE aa.lecturer_id = ?
             ORDER BY u.student_id ASC`,
       args: [Number(lecturer.id)],
@@ -3726,6 +3728,21 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: 'Không tải được điểm thực tập.', detail: e.message });
     }
+  });
+
+  app.get('/api/lecturer/grades/:userId', requireAuth, async (req: any, res: any) => {
+    if (req.user.role !== 'lecturer' && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    const userId = Number(req.params.userId);
+    const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
+    if (!lecturer && req.user.role !== 'admin') return res.json(null);
+    const row = (await db.execute({
+      sql: `SELECT g.* FROM grades g
+            JOIN advisor_assignments aa ON aa.user_id = g.user_id
+            WHERE g.user_id = ? AND (aa.lecturer_id = ? OR ? = 'admin')
+            LIMIT 1`,
+      args: [userId, lecturer ? Number(lecturer.id) : 0, req.user.role],
+    })).rows[0] || null;
+    res.json(row);
   });
 
   app.put('/api/lecturer/grades/:userId', requireAuth, async (req: any, res: any) => {

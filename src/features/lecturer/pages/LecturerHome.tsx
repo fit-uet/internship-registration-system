@@ -30,12 +30,19 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     }
   };
 
+  const fetchGrades = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/lecturer/grades`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => []);
+      setGrades(Array.isArray(data) ? data : []);
+    } catch {
+      setGrades([]);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
-    fetch(`${API_BASE}/api/lecturer/grades`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(data => setGrades(Array.isArray(data) ? data : []))
-      .catch(() => setGrades([]));
+    fetchGrades();
   }, [token]);
 
   const formatBytes = (bytes: number) => {
@@ -67,33 +74,36 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     saveAs(await res.blob(), student.report_filename || 'final-report.pdf');
   };
 
-  const studentToReviewTarget = (student: any): ReviewTarget => ({
-    user_id: student.user_id,
-    userId: student.user_id,
-    student_name: student.student_name,
-    studentName: student.student_name,
-    student_id: student.student_id,
-    studentId: student.student_id,
-    class_name: student.class_name,
-    className: student.class_name,
-    course_code: student.course_code,
-    internship_place: student.internship_place,
-    report_status: student.report_status,
-    reportStatus: student.report_status,
-    report_filename: student.report_filename,
-    report_file_size: student.report_file_size,
-    report_submitted_at: student.report_submitted_at,
-    lecturer_comment: student.lecturer_comment,
-    progress_score: student.progress_score,
-    report_score: student.report_score,
-    company_score: student.company_score,
-    final_score: student.final_score,
-    comment: student.comment,
-    grade_status: student.grade_status,
-    locked_at: student.grade_locked_at,
-    is_primary: student.advisor_role !== 'co',
-    advisor_role: student.advisor_role,
-  });
+  const studentToReviewTarget = (student: any): ReviewTarget => {
+    const grade = grades.find((g: any) => Number(g.user_id) === Number(student.user_id)) || {};
+    return {
+      user_id: student.user_id,
+      userId: student.user_id,
+      student_name: student.student_name,
+      studentName: student.student_name,
+      student_id: student.student_id,
+      studentId: student.student_id,
+      class_name: student.class_name,
+      className: student.class_name,
+      course_code: student.course_code,
+      internship_place: student.internship_place,
+      report_status: student.report_status,
+      reportStatus: student.report_status,
+      report_filename: student.report_filename,
+      report_file_size: student.report_file_size,
+      report_submitted_at: student.report_submitted_at,
+      lecturer_comment: student.lecturer_comment,
+      progress_score: grade.progress_score ?? student.progress_score,
+      report_score: grade.report_score ?? student.report_score,
+      company_score: grade.company_score ?? student.company_score,
+      final_score: grade.final_score ?? student.final_score,
+      comment: grade.comment ?? student.grade_comment ?? student.comment,
+      grade_status: grade.grade_status ?? student.grade_status,
+      locked_at: grade.locked_at ?? student.grade_locked_at,
+      is_primary: student.advisor_role !== 'co',
+      advisor_role: student.advisor_role,
+    };
+  };
 
   const openReview = (student: any) => {
     const idx = students.findIndex((s) => s.user_id === student.user_id);
@@ -190,8 +200,14 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
           target={studentToReviewTarget(students[reviewIndex])}
           token={token}
           onClose={() => setReviewIndex(null)}
-          onReportStatusChange={fetchStudents}
-          onGradeChange={fetchStudents}
+          onReportStatusChange={() => {
+            fetchStudents();
+            fetchGrades();
+          }}
+          onGradeChange={() => {
+            fetchStudents();
+            fetchGrades();
+          }}
           currentIndex={reviewIndex}
           totalCount={students.length}
           onPrev={() => setReviewIndex((i) => (i !== null && i > 0 ? i - 1 : i))}

@@ -145,6 +145,35 @@ export function ReportReviewPanel({
     target.reportStatus,
   ]);
 
+  // ── Fetch freshest grade for student from server ────────────────────────
+  useEffect(() => {
+    if (!uid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/lecturer/grades/${uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const g = await res.json();
+        if (cancelled || !g) return;
+        if (g.progress_score !== null && g.progress_score !== undefined) {
+          setProgress(String(g.progress_score));
+        }
+        if (g.report_score !== null && g.report_score !== undefined) {
+          setReport(String(g.report_score));
+        }
+        if (g.company_score !== null && g.company_score !== undefined) {
+          setCompany(String(g.company_score));
+        }
+        if (g.comment) {
+          setNoteText(g.comment);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [uid, token]);
+
   // ── Load PDF via fetch + blob URL ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
