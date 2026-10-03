@@ -2626,15 +2626,16 @@ async function startServer() {
           FROM (
             SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
             FROM notifications
-            WHERE user_id IS NOT NULL AND user_id = ? AND type != 'advisor_quota_exceeded'
+            WHERE user_id = ? AND type != 'advisor_quota_exceeded'
             UNION
             SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
             FROM notifications
-            WHERE recipient_email = ? COLLATE NOCASE AND type != 'advisor_quota_exceeded'
-            UNION
-            SELECT id, type, subject, body, status, error, created_at, sent_at, read_at
-            FROM notifications
-            WHERE ? != '' AND recipient_email = ? COLLATE NOCASE AND type != 'advisor_quota_exceeded'
+            WHERE user_id IS NULL
+              AND (
+                recipient_email = ? COLLATE NOCASE
+                OR (? != '' AND recipient_email = ? COLLATE NOCASE)
+              )
+              AND type != 'advisor_quota_exceeded'
           )
           ORDER BY created_at DESC
           LIMIT 100
@@ -2709,9 +2710,14 @@ async function startServer() {
         sql: `
           UPDATE notifications
           SET read_at = COALESCE(read_at, datetime('now', '+7 hours'))
-          WHERE (user_id IS NOT NULL AND user_id = ?)
-             OR recipient_email = ? COLLATE NOCASE
-             OR (? != '' AND recipient_email = ? COLLATE NOCASE)
+          WHERE user_id = ?
+             OR (
+               user_id IS NULL
+               AND (
+                 recipient_email = ? COLLATE NOCASE
+                 OR (? != '' AND recipient_email = ? COLLATE NOCASE)
+               )
+             )
         `,
         args: [userId, email, personalEmail, personalEmail],
       });
@@ -7149,7 +7155,15 @@ async function startServer() {
           AND trim(email) != ''
       `)).rows as any[];
       const askerName = req.user.name || req.user.email || (role === 'lecturer' ? 'Giảng viên' : 'Sinh viên');
+      const seenAdminEmails = new Set<string>();
+      const uniqueAdmins: any[] = [];
       for (const admin of admins) {
+        const targetEmail = String(admin.personal_email || admin.email || '').trim().toLowerCase();
+        if (targetEmail && seenAdminEmails.has(targetEmail)) continue;
+        if (targetEmail) seenAdminEmails.add(targetEmail);
+        uniqueAdmins.push(admin);
+      }
+      for (const admin of uniqueAdmins) {
         await createNotification({
           user_id: Number(admin.id),
           recipient_email: admin.personal_email || admin.email,
