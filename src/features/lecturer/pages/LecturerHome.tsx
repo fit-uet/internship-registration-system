@@ -12,7 +12,7 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
   const [grades, setGrades] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [updatingContactIds, setUpdatingContactIds] = useState<Record<string, boolean>>({});
-  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+  const [reviewIndex, setReviewIndex] = useState<number | null>(null);
 
   const fetchStudents = async () => {
     setLoadingStudents(true);
@@ -67,22 +67,37 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
     saveAs(await res.blob(), student.report_filename || 'final-report.pdf');
   };
 
+  const studentToReviewTarget = (student: any): ReviewTarget => ({
+    user_id: student.user_id,
+    userId: student.user_id,
+    student_name: student.student_name,
+    studentName: student.student_name,
+    student_id: student.student_id,
+    studentId: student.student_id,
+    class_name: student.class_name,
+    className: student.class_name,
+    course_code: student.course_code,
+    internship_place: student.internship_place,
+    report_status: student.report_status,
+    reportStatus: student.report_status,
+    report_filename: student.report_filename,
+    report_file_size: student.report_file_size,
+    report_submitted_at: student.report_submitted_at,
+    lecturer_comment: student.lecturer_comment,
+    progress_score: student.progress_score,
+    report_score: student.report_score,
+    company_score: student.company_score,
+    final_score: student.final_score,
+    comment: student.comment,
+    grade_status: student.grade_status,
+    locked_at: student.grade_locked_at,
+    is_primary: student.advisor_role !== 'co',
+    advisor_role: student.advisor_role,
+  });
+
   const openReview = (student: any) => {
-    setReviewTarget({
-      user_id: student.user_id,
-      student_name: student.student_name,
-      student_id: student.student_id,
-      class_name: student.class_name,
-      course_code: student.course_code,
-      internship_place: student.internship_place,
-      report_status: student.report_status,
-      report_filename: student.report_filename,
-      report_file_size: student.report_file_size,
-      report_submitted_at: student.report_submitted_at,
-      lecturer_comment: student.lecturer_comment,
-      // Điểm: không có sẵn ở trang này, để trống — panel sẽ dùng form riêng
-      is_primary: student.advisor_role === 'primary',
-    });
+    const idx = students.findIndex((s) => s.user_id === student.user_id);
+    setReviewIndex(idx >= 0 ? idx : null);
   };
 
   const updateReportStatus = async (student: any, status: string) => {
@@ -170,13 +185,19 @@ export function LecturerHome({ user, token }: { user: any, token: string }) {
 
   return (
     <>
-      {reviewTarget && (
+      {reviewIndex !== null && students[reviewIndex] && (
         <ReportReviewPanel
-          target={reviewTarget}
+          target={studentToReviewTarget(students[reviewIndex])}
           token={token}
-          onClose={() => setReviewTarget(null)}
+          onClose={() => setReviewIndex(null)}
           onReportStatusChange={fetchStudents}
           onGradeChange={fetchStudents}
+          currentIndex={reviewIndex}
+          totalCount={students.length}
+          onPrev={() => setReviewIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
+          onNext={() => setReviewIndex((i) => (i !== null && i < students.length - 1 ? i + 1 : i))}
+          hasPrev={reviewIndex > 0}
+          hasNext={reviewIndex < students.length - 1}
         />
       )}
       <div className="max-w-6xl mx-auto space-y-6">

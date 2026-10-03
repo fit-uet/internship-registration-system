@@ -3595,9 +3595,12 @@ async function startServer() {
 
   async function getPrimaryLecturerForUser(actor: any, userId: number) {
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [actor.email, actor.name] })).rows[0] as any;
+    if (actor.role === 'admin') {
+      return lecturer ? Number(lecturer.id) : 1;
+    }
     if (!lecturer) return null;
     const assignment = (await db.execute({
-      sql: "SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? AND role = 'primary' LIMIT 1",
+      sql: "SELECT id FROM advisor_assignments WHERE user_id = ? AND lecturer_id = ? LIMIT 1",
       args: [userId, Number(lecturer.id)],
     })).rows[0];
     return assignment ? Number(lecturer.id) : null;
@@ -3632,6 +3635,14 @@ async function startServer() {
               updated_at = datetime('now', '+7 hours')`,
       args: [userId, lecturerId, progressScore, reportScore, companyScore, finalScore, status, body.comment || null],
     });
+    if (submit) {
+      await db.execute({
+        sql: `UPDATE final_reports 
+              SET status = 'accepted', updated_at = datetime('now', '+7 hours') 
+              WHERE user_id = ? AND (status IS NULL OR status != 'accepted')`,
+        args: [userId],
+      });
+    }
     return { row: (await db.execute({ sql: 'SELECT * FROM grades WHERE user_id = ?', args: [userId] })).rows[0] };
   }
 
@@ -3640,13 +3651,13 @@ async function startServer() {
     const lecturer = (await db.execute({ sql: 'SELECT id FROM lecturers WHERE email = ? OR name = ? LIMIT 1', args: [req.user.email, req.user.name] })).rows[0] as any;
     if (!lecturer) return res.json([]);
     const rows = (await db.execute({
-      sql: `SELECT aa.user_id, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
+      sql: `SELECT aa.user_id, aa.role as advisor_role, u.student_id, u.name as student_name, u.email, u.class_name, u.course_code,
                    CASE
                      WHEN c.name = 'Công ty khác' THEN r.other_company_name
                      WHEN c.name IS NOT NULL THEN c.name
                      ELSE sr.school_place
                    END as internship_place,
-                   fr.status as report_status, fr.submitted_at as report_submitted_at,
+                   fr.status as report_status, fr.original_filename, fr.file_size, fr.submitted_at as report_submitted_at,
                    g.progress_score, g.report_score, g.company_score, g.final_score, g.status as grade_status,
                    g.comment, g.submitted_at as grade_submitted_at, g.locked_at
             FROM advisor_assignments aa
@@ -3665,7 +3676,7 @@ async function startServer() {
             ) sr ON sr.user_id = aa.user_id
             LEFT JOIN final_reports fr ON fr.user_id = aa.user_id
             LEFT JOIN grades g ON g.user_id = aa.user_id
-            WHERE aa.lecturer_id = ? AND aa.role = 'primary'
+            WHERE aa.lecturer_id = ?
             ORDER BY u.student_id ASC`,
       args: [Number(lecturer.id)],
     })).rows;

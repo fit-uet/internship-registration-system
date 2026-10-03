@@ -1,19 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Download, AlertCircle, Loader2,
-  ExternalLink, Check
+  ExternalLink, Check, ChevronLeft, ChevronRight, FileText
 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { API_BASE } from '../../../shared';
 
 export interface ReviewTarget {
-  user_id: number;
-  student_name: string;
+  user_id?: number;
+  userId?: number;
+  student_name?: string;
+  studentName?: string;
   student_id?: string;
+  studentId?: string;
   class_name?: string;
+  className?: string;
   course_code?: string;
   internship_place?: string;
   report_status?: string;       // 'submitted' | 'accepted' | 'needs_revision'
+  reportStatus?: string;
   report_filename?: string;
   report_file_size?: number;
   report_submitted_at?: string;
@@ -28,6 +33,7 @@ export interface ReviewTarget {
   locked_at?: string | null;
   // Quyền
   is_primary?: boolean;
+  advisor_role?: string;
 }
 
 interface Props {
@@ -36,6 +42,13 @@ interface Props {
   onClose: () => void;
   onReportStatusChange?: () => void;
   onGradeChange?: () => void;
+  // Navigation
+  currentIndex?: number;
+  totalCount?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,7 +75,28 @@ const calcFinal = (p: string, r: string, c: string) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ReportReviewPanel({ target, token, onClose, onReportStatusChange, onGradeChange }: Props) {
+export function ReportReviewPanel({
+  target,
+  token,
+  onClose,
+  onReportStatusChange,
+  onGradeChange,
+  currentIndex,
+  totalCount,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
+}: Props) {
+  const uid = target.user_id ?? target.userId;
+  const studentName = target.student_name ?? target.studentName ?? 'Sinh viên';
+  const studentId = target.student_id ?? target.studentId;
+  const className = target.class_name ?? target.className;
+  const initialReportStatus = target.report_status ?? target.reportStatus;
+
+  // Local report status (updates immediately when submitted)
+  const [localReportStatus, setLocalReportStatus] = useState<string | undefined>(initialReportStatus);
+
   // PDF state
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(true);
@@ -90,15 +124,45 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
 
   const finalScore = calcFinal(progress, report, company);
 
+  // ── Sync form state when target switches ──────────────────────────────────
+  useEffect(() => {
+    setProgress(String(target.progress_score ?? ''));
+    setReport(String(target.report_score ?? ''));
+    setCompany(String(target.company_score ?? ''));
+    setNoteText(target.comment ?? '');
+    setScoreErrors({});
+    setGradeSuccess(null);
+    setShowRevisionInput(false);
+    setRevisionNote('');
+    setLocalReportStatus(target.report_status ?? target.reportStatus);
+  }, [
+    uid,
+    target.progress_score,
+    target.report_score,
+    target.company_score,
+    target.comment,
+    target.report_status,
+    target.reportStatus,
+  ]);
+
   // ── Load PDF via fetch + blob URL ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    const hasReport = !!(localReportStatus || target.report_filename);
+
+    if (!uid || !hasReport) {
+      setPdfUrl(null);
+      setPdfLoading(false);
+      setPdfError(null);
+      return;
+    }
+
     setPdfLoading(true);
     setPdfError(null);
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/reports/final/${target.user_id}/view`, {
+        const res = await fetch(`${API_BASE}/api/reports/final/${uid}/view`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
@@ -124,14 +188,29 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
         blobUrlRef.current = null;
       }
     };
-  }, [target.user_id, token]);
+  }, [uid, localReportStatus, target.report_filename, token]);
 
-  // ── Close on Escape ───────────────────────────────────────────────────────
+  // ── Keyboard shortcuts (Escape to close, [ and ] / Alt+Arrows to switch student) ──
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+
+      if ((e.key === '[' || (e.altKey && e.key === 'ArrowLeft')) && hasPrev && onPrev) {
+        e.preventDefault();
+        onPrev();
+      } else if ((e.key === ']' || (e.altKey && e.key === 'ArrowRight')) && hasNext && onNext) {
+        e.preventDefault();
+        onNext();
+      }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
 
   // ── Prevent body scroll ───────────────────────────────────────────────────
   useEffect(() => {
@@ -141,18 +220,20 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
 
   // ── Download ──────────────────────────────────────────────────────────────
   const handleDownload = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/api/reports/final/${target.user_id}/download`, {
+    if (!uid) return;
+    const res = await fetch(`${API_BASE}/api/reports/final/${uid}/download`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return alert('Không tải được báo cáo.');
-    saveAs(await res.blob(), target.report_filename || 'final-report.pdf');
-  }, [target.user_id, target.report_filename, token]);
+    saveAs(await res.blob(), target.report_filename || `bao-cao-${studentId || uid}.pdf`);
+  }, [uid, studentId, target.report_filename, token]);
 
   // ── Report status actions ─────────────────────────────────────────────────
   const updateReportStatus = async (status: 'accepted' | 'needs_revision') => {
+    if (!uid) return;
     setReportSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/reports/final/${target.user_id}/status`, {
+      const res = await fetch(`${API_BASE}/api/reports/final/${uid}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status, lecturer_comment: status === 'needs_revision' ? revisionNote : '' }),
@@ -164,6 +245,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
       }
       setShowRevisionInput(false);
       setRevisionNote('');
+      setLocalReportStatus(status);
       onReportStatusChange?.();
     } finally {
       setReportSaving(false);
@@ -183,6 +265,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
   };
 
   const saveGrade = async (submit: boolean) => {
+    if (!uid) return;
     const allValid = [
       validateScore(progress, 'progress'),
       validateScore(report, 'report'),
@@ -197,7 +280,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
     setGradeSaving(submit ? 'submit' : 'draft');
     setGradeSuccess(null);
     try {
-      const endpoint = `${API_BASE}/api/lecturer/grades/${target.user_id}${submit ? '/submit' : ''}`;
+      const endpoint = `${API_BASE}/api/lecturer/grades/${uid}${submit ? '/submit' : ''}`;
       const res = await fetch(endpoint, {
         method: submit ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -210,7 +293,13 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { alert(data.error || 'Lưu điểm thất bại.'); return; }
-      setGradeSuccess(submit ? 'Đã nộp điểm thành công!' : 'Đã lưu nháp.');
+      if (submit) {
+        setGradeSuccess('Đã nộp điểm và chấp nhận báo cáo!');
+        setLocalReportStatus('accepted');
+        onReportStatusChange?.();
+      } else {
+        setGradeSuccess('Đã lưu nháp điểm.');
+      }
       onGradeChange?.();
       setTimeout(() => setGradeSuccess(null), 3000);
     } finally {
@@ -229,17 +318,46 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
         {/* ── Single-line Minimal Header ── */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 bg-white flex-shrink-0 gap-3">
           <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-            <span className="text-sm font-bold text-slate-800 truncate">{target.student_name}</span>
-            {target.student_id && (
+            {/* Student Navigation Pill */}
+            {typeof currentIndex === 'number' && typeof totalCount === 'number' && totalCount > 1 && (
+              <div className="inline-flex items-center bg-slate-100 border border-slate-200/90 rounded-lg p-0.5 gap-0.5 text-xs text-slate-700 shadow-2xs mr-1">
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  disabled={!hasPrev}
+                  title="Sinh viên trước (Phím [ hoặc Alt+←)"
+                  aria-label="Sinh viên trước"
+                  className="p-1 rounded hover:bg-white text-slate-600 hover:text-slate-900 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                <span className="font-mono font-semibold px-1.5 text-slate-600 select-none text-[11px] min-w-[42px] text-center">
+                  {currentIndex + 1} / {totalCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={onNext}
+                  disabled={!hasNext}
+                  title="Sinh viên tiếp theo (Phím ] hoặc Alt+→)"
+                  aria-label="Sinh viên tiếp theo"
+                  className="p-1 rounded hover:bg-white text-slate-600 hover:text-slate-900 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
+
+            <span className="text-sm font-bold text-slate-800 truncate">{studentName}</span>
+            {studentId && (
               <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                {target.student_id}
+                {studentId}
               </span>
             )}
-            {target.class_name && (
-              <span className="text-xs text-slate-400">({target.class_name})</span>
+            {className && (
+              <span className="text-xs text-slate-400">({className})</span>
             )}
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${reportStatusBadgeClass(target.report_status)}`}>
-              {reportStatusLabel(target.report_status)}
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${reportStatusBadgeClass(localReportStatus)}`}>
+              {reportStatusLabel(localReportStatus)}
             </span>
             {locked && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 border-red-200 text-red-700">
@@ -254,25 +372,27 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                 href={pdfUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition-colors"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors"
                 title="Mở trong tab mới"
+                aria-label="Mở trong tab mới"
               >
-                <ExternalLink size={13} /> Mở tab mới
+                <ExternalLink size={15} />
               </a>
             )}
-            {target.report_status && (
+            {localReportStatus && (
               <button
                 onClick={handleDownload}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                 title="Tải PDF"
+                aria-label="Tải PDF"
               >
-                <Download size={13} /> Tải PDF
+                <Download size={15} />
               </button>
             )}
             <button
               onClick={onClose}
               aria-label="Đóng"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer ml-1"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Đóng (Esc)"
             >
               <X size={18} />
@@ -323,7 +443,7 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
                 <AlertCircle size={32} className="text-amber-500" />
                 <div className="text-sm font-semibold text-slate-700">Không thể xem trực tiếp PDF</div>
                 <div className="text-xs text-slate-400 max-w-sm">{pdfError}</div>
-                {target.report_status && (
+                {localReportStatus && (
                   <button
                     onClick={handleDownload}
                     className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -337,14 +457,20 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
             {pdfUrl && !pdfLoading && (
               <iframe
                 src={pdfUrl}
-                title={`Báo cáo - ${target.student_name}`}
+                title={`Báo cáo - ${studentName}`}
                 className="w-full h-full border-0 bg-white"
               />
             )}
 
             {!pdfLoading && !pdfUrl && !pdfError && (
-              <div className="flex flex-1 items-center justify-center text-slate-400 text-xs">
-                Sinh viên chưa nộp báo cáo.
+              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-400 gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-200/70 flex items-center justify-center text-slate-400 shadow-inner">
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Chưa có file báo cáo</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Sinh viên chưa nộp báo cáo thực tập cuối kỳ.</p>
+                </div>
               </div>
             )}
           </div>
@@ -360,9 +486,9 @@ export function ReportReviewPanel({ target, token, onClose, onReportStatusChange
             <div className="p-4 space-y-4">
 
               {/* 1. Duyệt báo cáo (chỉ khi có báo cáo) */}
-              {target.report_status && (
+              {localReportStatus && (
                 <div>
-                  {target.report_status === 'accepted' && !showRevisionInput ? (
+                  {localReportStatus === 'accepted' && !showRevisionInput ? (
                     <div className="flex items-center justify-between text-xs text-emerald-700 bg-emerald-50/70 border border-emerald-200/80 rounded-lg px-3 py-2">
                       <span className="flex items-center gap-1.5 font-medium">
                         <Check size={14} className="text-emerald-600" /> Báo cáo đã chấp nhận

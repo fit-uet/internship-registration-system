@@ -15,7 +15,6 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
   const [loadingGrades, setLoadingGrades] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
-  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
 
   const fetchGrades = () => {
     setLoadingGrades(true);
@@ -138,26 +137,53 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
     saveAs(await res.blob(), row.original_filename || `bao-cao-${row.student_id || row.user_id}.pdf`);
   };
 
-  const openReview = (row: any) => {
-    setReviewTarget({
+  const [reviewIndex, setReviewIndex] = useState<number | null>(null);
+
+  const rowToReviewTarget = (row: any): ReviewTarget => {
+    const edit = gradeEdits[String(row.user_id)] || {};
+    return {
+      user_id: row.user_id,
       userId: row.user_id,
+      student_name: row.student_name,
       studentName: row.student_name,
+      student_id: row.student_id,
       studentId: row.student_id,
+      class_name: row.class_name,
+      className: row.class_name,
+      course_code: row.course_code,
+      internship_place: row.internship_place,
+      report_status: row.report_status,
       reportStatus: row.report_status,
-      originalFilename: row.original_filename,
-      fileSize: row.file_size,
-      reportSubmittedAt: row.report_submitted_at,
-      lecturerComment: row.lecturer_comment,
-      internshipPlace: row.internship_place,
-      lockedAt: row.locked_at,
-      initialGrade: {
-        progress_score: row.progress_score,
-        report_score: row.report_score,
-        company_score: row.company_score,
-        comment: row.comment,
-        grade_status: row.grade_status,
-      },
-    });
+      report_filename: row.original_filename,
+      report_file_size: row.file_size,
+      report_submitted_at: row.report_submitted_at,
+      lecturer_comment: edit.comment ?? row.comment,
+      progress_score: edit.progress_score ?? row.progress_score,
+      report_score: edit.report_score ?? row.report_score,
+      company_score: edit.company_score ?? row.company_score,
+      final_score: row.final_score,
+      comment: edit.comment ?? row.comment,
+      grade_status: row.grade_status,
+      locked_at: row.locked_at,
+      is_primary: row.advisor_role !== 'co',
+      advisor_role: row.advisor_role,
+    };
+  };
+
+  const openReviewByIndex = (index: number) => {
+    setReviewIndex(index);
+  };
+
+  const handlePrevStudent = () => {
+    if (reviewIndex !== null && reviewIndex > 0) {
+      setReviewIndex(reviewIndex - 1);
+    }
+  };
+
+  const handleNextStudent = () => {
+    if (reviewIndex !== null && reviewIndex < grades.length - 1) {
+      setReviewIndex(reviewIndex + 1);
+    }
   };
 
   const stats = {
@@ -171,13 +197,19 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
   return (
     <>
       {/* Review Panel overlay */}
-      {reviewTarget && (
+      {reviewIndex !== null && grades[reviewIndex] && (
         <ReportReviewPanel
-          target={reviewTarget}
+          target={rowToReviewTarget(grades[reviewIndex])}
           token={token}
-          onClose={() => setReviewTarget(null)}
+          onClose={() => setReviewIndex(null)}
           onReportStatusChange={fetchGrades}
           onGradeChange={fetchGrades}
+          currentIndex={reviewIndex}
+          totalCount={grades.length}
+          onPrev={handlePrevStudent}
+          onNext={handleNextStudent}
+          hasPrev={reviewIndex > 0}
+          hasNext={reviewIndex < grades.length - 1}
         />
       )}
 
@@ -279,11 +311,11 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
                 ) : grades.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-16 text-center text-[#86868b]">
-                      Chưa có sinh viên mà Thầy/Cô là giảng viên hướng dẫn chính.
+                      Chưa có sinh viên trong danh sách phụ trách.
                     </td>
                   </tr>
                 ) : (
-                  grades.map((row: any) => {
+                  grades.map((row: any, idx: number) => {
                     const edit = gradeEdits[String(row.user_id)] || {};
                     const disabled = !!row.locked_at;
                     const hasReport = !!row.report_status;
@@ -294,6 +326,15 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
                           <div className="font-bold text-[#1d1d1f] text-xs">{row.student_name}</div>
                           <div className="text-xs text-[#86868b] font-mono mt-0.5">{row.student_id || '-'}</div>
                           <div className="text-[11px] text-[#86868b] mt-0.5">{row.class_name || '-'}</div>
+                          {row.advisor_role === 'co' ? (
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                              Đồng hướng dẫn
+                            </span>
+                          ) : (
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                              Hướng dẫn chính
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-4 text-[#1d1d1f] font-medium max-w-[180px] truncate">
                           {row.internship_place || '-'}
@@ -333,14 +374,14 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
                               )}
                             </div>
 
-                            {hasReport && (
-                              <div className="mt-1.5 flex items-center gap-1.5">
-                                <button
-                                  onClick={() => openReview(row)}
-                                  className="inline-flex items-center gap-1 text-[#0071e3] hover:bg-[#0071e3]/15 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer bg-[#0071e3]/10 shadow-xs"
-                                >
-                                  <FileText size={11} /> Xem & Chấm
-                                </button>
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <button
+                                onClick={() => openReviewByIndex(idx)}
+                                className="inline-flex items-center gap-1 text-[#0071e3] hover:bg-[#0071e3]/15 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer bg-[#0071e3]/10 shadow-xs"
+                              >
+                                <FileText size={11} /> {hasReport ? 'Xem & Chấm' : 'Chấm điểm'}
+                              </button>
+                              {hasReport && (
                                 <button
                                   onClick={() => downloadReport(row)}
                                   title="Tải file PDF"
@@ -348,8 +389,8 @@ export function LecturerGradeView({ token, user }: { token: string; user: any })
                                 >
                                   <Download size={11} />
                                 </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </td>
 
